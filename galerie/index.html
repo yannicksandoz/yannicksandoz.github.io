@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <meta name="theme-color" content="#05050a" />
+  <title>Galerie — espace sonore</title>
+</head>
+<body>
+  <div id="app"></div>
+
+  <!-- Écran d'accueil : le clic sur « Entrer » débloque l'AudioContext -->
+  <div id="enter-screen">
+    <div class="enter-inner">
+      <h1>Galerie</h1>
+      <p class="sub">Un espace sonore immersif — casque recommandé</p>
+      <button id="enter-btn">Entrer</button>
+      <p class="tip">ZQSD / WASD ou flèches pour se déplacer · souris pour orbiter · clic sur une œuvre pour l'approcher</p>
+    </div>
+  </div>
+
+  <!-- Fiche d'œuvre affichée par le module FocusCamera -->
+  <div id="focus-overlay" hidden>
+    <button id="focus-close" aria-label="Fermer">×</button>
+    <h2 id="focus-title"></h2>
+    <p id="focus-desc"></p>
+    <p class="tip">Échap ou × pour reculer</p>
+  </div>
+
+  <!-- Panneau du mode édition (touche E) -->
+  <div id="editor-panel" hidden></div>
+
+  <div id="hint" hidden>ZQSD / WASD · clic : découvrir · <b>E</b> : édition</div>
+
+  <!-- Joystick virtuel (mobile) -->
+  <div id="joystick" hidden><div id="joystick-nub"></div></div>
+
+  <script type="module" src="/src/main.js"></script>
+</body>
+</html>

@@ -1,6 +1,10 @@
 layout: sidebar
 style: dark
 
+# La galerie 3D (galerie/) est un projet Vite indépendant, hors build Jekyll
+exclude:
+  - galerie/
+
 plugins:
   - jekyll-octicons
 
