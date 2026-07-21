@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <meta name="theme-color" content="#05050a" />
+  <title>Galerie — espace sonore</title>
+</head>
+<body>
+  <div id="app"></div>
+
+  <!-- Fallback si WebGL2 est indisponible (rempli par main.js) -->
+  <div id="nogl" hidden>
+    <div class="enter-inner">
+      <h1>Galerie</h1>
+      <p class="sub">Votre navigateur ne prend pas en charge WebGL2, nécessaire à cette
+      expérience. Essayez un navigateur récent (Chrome, Firefox, Safari 16+) ou
+      vérifiez que l'accélération matérielle est activée.</p>
+    </div>
+  </div>
+
+  <!-- Écran d'accueil : chargement + déblocage de l'AudioContext -->
+  <div id="enter-screen">
+    <div class="enter-inner">
+      <h1>Galerie</h1>
+      <p class="sub">Un espace sonore immersif — casque recommandé</p>
+      <div id="load-bar"><i></i></div>
+      <button id="enter-btn" disabled>Chargement…</button>
+      <p class="tip">ZQSD / WASD ou flèches pour se déplacer · souris pour orbiter · clic sur une œuvre pour l'approcher</p>
+    </div>
+  </div>
+
+  <!-- Aide tactile éphémère (premier lancement mobile) -->
+  <div id="touch-hint" hidden>
+    <p><b>1 doigt</b> regarder autour</p>
+    <p><b>2 doigts</b> se déplacer · pincer pour zoomer</p>
+    <p><b>joystick</b> marcher</p>
+  </div>
+
+  <!-- Fiche d'œuvre affichée par le module FocusCamera -->
+  <div id="focus-overlay" hidden>
+    <button id="focus-close" aria-label="Fermer">×</button>
+    <h2 id="focus-title"></h2>
+    <p id="focus-desc"></p>
+    <p class="tip">Échap ou × pour reculer</p>
+  </div>
+
+  <!-- Chapeau (module TipJar) : redirection vers une page de paiement externe -->
+  <div id="tipjar-overlay" hidden>
+    <button class="tipjar-close" aria-label="Fermer">×</button>
+    <p class="tipjar-message"></p>
+    <a class="tipjar-button" target="_blank" rel="noopener noreferrer"></a>
+    <p class="tip">Paiement hébergé par un prestataire externe — rien ne transite par ce site.</p>
+  </div>
+  <button id="tipjar-corner" hidden aria-label="Soutenir l'artiste">♥</button>
+
+  <!-- Panneau du mode édition (touche E) -->
+  <div id="editor-panel" hidden></div>
+
+  <div id="hint" hidden>ZQSD / WASD · clic : découvrir · <b>E</b> : édition</div>
+
+  <!-- Joystick virtuel (mobile) -->
+  <div id="joystick" hidden><div id="joystick-nub"></div></div>
+
+  <script type="module" src="/engine/src/main.js"></script>
+</body>
+</html>

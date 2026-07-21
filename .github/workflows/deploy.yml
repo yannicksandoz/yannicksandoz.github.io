@@ -1,0 +1,68 @@
+# Déploiement GitHub Pages : blog Jekyll (racine) + galerie 3D (/galerie/).
+#
+# Se déclenche à chaque push sur master (et sur la branche de développement de
+# la galerie), ou manuellement depuis l'onglet Actions (« Run workflow »).
+#
+# Prérequis (une seule fois) : Settings → Pages → Source = « GitHub Actions ».
+# L'étape configure-pages tente de l'activer automatiquement.
+name: Deploy Pages (blog + galerie)
+
+on:
+  push:
+    branches: [master, claude/galerie-3d]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure GitHub Pages
+        uses: actions/configure-pages@v5
+        with:
+          enablement: true
+
+      - name: Build du blog Jekyll
+        uses: actions/jekyll-build-pages@v1
+        with:
+          source: ./
+          destination: ./_site
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: galerie/package-lock.json
+
+      - name: Build de la galerie (Vite)
+        working-directory: galerie
+        run: |
+          npm ci
+          npm run build
+
+      - name: Assemblage (galerie sous /galerie/)
+        run: sudo cp -r galerie/dist _site/galerie
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: ./_site
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
