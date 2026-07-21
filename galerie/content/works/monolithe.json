@@ -12,6 +12,15 @@
   "modules": [
     { "type": "HRTFPanner", "params": { "refDistance": 3, "maxDistance": 32, "rolloff": 1.5 } },
     { "type": "AudioReactive", "params": { "band": "low", "pulseScale": 0.07, "lightBoost": 4, "smoothing": 12 } },
-    { "type": "FocusCamera", "params": { "distance": 8, "height": 0.4 } }
+    { "type": "FocusCamera", "params": { "distance": 8, "height": 0.4 } },
+    {
+      "type": "TipJar",
+      "params": {
+        "enabled": true,
+        "message": "Vous avez fait le tour de la galerie. Si cet espace vous a touché, vous pouvez soutenir son artiste — chaque contribution aide à créer les prochaines œuvres.",
+        "buttonLabel": "Soutenir l'artiste",
+        "url": "https://ko-fi.com/REMPLACEZ-MOI"
+      }
+    }
   ]
 }

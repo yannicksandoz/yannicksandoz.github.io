@@ -10,7 +10,7 @@ import { writeFileSync, mkdirSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', 'public');
+const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', 'content');
 mkdirSync(join(ROOT, 'textures'), { recursive: true });
 mkdirSync(join(ROOT, 'audio'), { recursive: true });
 
@@ -217,4 +217,4 @@ writeWav('monolithe-pulse.wav', synth((t) => {
   return env * sub + air;
 }));
 
-console.log('\nAssets générés dans public/textures et public/audio.');
+console.log('\nAssets générés dans content/textures et content/audio.');

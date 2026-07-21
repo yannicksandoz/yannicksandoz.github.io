@@ -48,7 +48,12 @@ export class HRTFPanner extends Module {
     }
   }
 
-  dispose() {
+  onAudioReleased() {
     this.panner?.disconnect();
+    this.panner = null;
+  }
+
+  dispose() {
+    this.onAudioReleased();
   }
 }

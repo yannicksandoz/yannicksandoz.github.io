@@ -20,6 +20,10 @@ export class Controls {
     this.orbit.minDistance = 0.5;
     this.orbit.maxDistance = 30;
     this.orbit.target.set(0, 1.8, 8);
+    // Tactile : 1 doigt = rotation, 2 doigts = déplacement (pan) + zoom (pincement).
+    // Pan sur le plan horizontal uniquement (on « marche », on ne vole pas).
+    this.orbit.touches = { ONE: THREE.TOUCH.ROTATE, TWO: THREE.TOUCH.DOLLY_PAN };
+    this.orbit.screenSpacePanning = false;
 
     this.speed = 7;
     this._keys = new Set();

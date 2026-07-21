@@ -9,14 +9,32 @@
 <body>
   <div id="app"></div>
 
-  <!-- Écran d'accueil : le clic sur « Entrer » débloque l'AudioContext -->
+  <!-- Fallback si WebGL2 est indisponible (rempli par main.js) -->
+  <div id="nogl" hidden>
+    <div class="enter-inner">
+      <h1>Galerie</h1>
+      <p class="sub">Votre navigateur ne prend pas en charge WebGL2, nécessaire à cette
+      expérience. Essayez un navigateur récent (Chrome, Firefox, Safari 16+) ou
+      vérifiez que l'accélération matérielle est activée.</p>
+    </div>
+  </div>
+
+  <!-- Écran d'accueil : chargement + déblocage de l'AudioContext -->
   <div id="enter-screen">
     <div class="enter-inner">
       <h1>Galerie</h1>
       <p class="sub">Un espace sonore immersif — casque recommandé</p>
-      <button id="enter-btn">Entrer</button>
+      <div id="load-bar"><i></i></div>
+      <button id="enter-btn" disabled>Chargement…</button>
       <p class="tip">ZQSD / WASD ou flèches pour se déplacer · souris pour orbiter · clic sur une œuvre pour l'approcher</p>
     </div>
+  </div>
+
+  <!-- Aide tactile éphémère (premier lancement mobile) -->
+  <div id="touch-hint" hidden>
+    <p><b>1 doigt</b> regarder autour</p>
+    <p><b>2 doigts</b> se déplacer · pincer pour zoomer</p>
+    <p><b>joystick</b> marcher</p>
   </div>
 
   <!-- Fiche d'œuvre affichée par le module FocusCamera -->
@@ -27,6 +45,15 @@
     <p class="tip">Échap ou × pour reculer</p>
   </div>
 
+  <!-- Chapeau (module TipJar) : redirection vers une page de paiement externe -->
+  <div id="tipjar-overlay" hidden>
+    <button class="tipjar-close" aria-label="Fermer">×</button>
+    <p class="tipjar-message"></p>
+    <a class="tipjar-button" target="_blank" rel="noopener noreferrer"></a>
+    <p class="tip">Paiement hébergé par un prestataire externe — rien ne transite par ce site.</p>
+  </div>
+  <button id="tipjar-corner" hidden aria-label="Soutenir l'artiste">♥</button>
+
   <!-- Panneau du mode édition (touche E) -->
   <div id="editor-panel" hidden></div>
 
@@ -35,6 +62,6 @@
   <!-- Joystick virtuel (mobile) -->
   <div id="joystick" hidden><div id="joystick-nub"></div></div>
 
-  <script type="module" src="/src/main.js"></script>
+  <script type="module" src="/engine/src/main.js"></script>
 </body>
 </html>

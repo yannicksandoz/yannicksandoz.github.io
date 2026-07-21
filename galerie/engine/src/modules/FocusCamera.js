@@ -74,7 +74,10 @@ export class FocusCamera extends Module {
 
   update(dt, _ctx) {
     if (this.state !== 'in' && this.state !== 'out') return;
-    const duration = this.params.duration ?? 1.4;
+    // prefers-reduced-motion : travelling quasi instantané
+    const duration = this.app.quality.reducedMotion
+      ? 0.3
+      : (this.params.duration ?? 1.4);
     this.t = Math.min(1, this.t + dt / duration);
     const k = easeInOutCubic(this.t);
 

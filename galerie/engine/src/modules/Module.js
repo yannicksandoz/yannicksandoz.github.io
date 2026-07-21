@@ -7,6 +7,10 @@
  *  - onAudioReady()  : appelé quand le bus audio de l'œuvre existe (après le
  *                      déblocage de l'AudioContext et le décodage des stems),
  *                      juste avant le démarrage des sources ;
+ *  - onAudioReleased() : le bus audio va être libéré (déchargement mémoire
+ *                      quand la caméra s'éloigne) — déconnecter ici tout nœud
+ *                      créé dans onAudioReady ; il pourra être recréé plus
+ *                      tard par un nouvel onAudioReady ;
  *  - update(dt, ctx) : appelé à chaque frame.
  *                      ctx = { app, camera, cameraPos, time, distance } ;
  *  - onClick()       : optionnel — clic sur l'œuvre ; retourner true pour
@@ -22,6 +26,7 @@ export class Module {
 
   init() {}
   onAudioReady() {}
+  onAudioReleased() {}
   update(_dt, _ctx) {}
   dispose() {}
 }

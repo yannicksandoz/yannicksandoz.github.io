@@ -3,6 +3,11 @@
  * créé au premier geste utilisateur (bouton « Entrer »), un bus maître,
  * un cache de buffers décodés, et la synchronisation du listener 3D
  * avec la caméra.
+ *
+ * Robustesse iOS Safari : l'AudioContext peut se retrouver suspendu à tout
+ * moment (interruption, retour d'onglet). Un listener global re-déclenche
+ * resume() + un buffer silencieux au premier tap suivant — le buffer muet
+ * force la réouverture du canal audio quand resume() seul ne suffit pas.
  */
 export class AudioEngine {
   constructor() {
@@ -21,8 +26,40 @@ export class AudioEngine {
       this.master.gain.value = 1;
       this.master.connect(this.ctx.destination);
       this.unlocked = true;
+
+      // Filet de sécurité iOS : à chaque tap, si le contexte n'est pas
+      // « running », on le relance depuis le geste.
+      const kick = () => {
+        if (this.ctx && this.ctx.state !== 'running') {
+          this.ctx.resume().catch(() => {});
+          this._playSilentBlip();
+        }
+      };
+      window.addEventListener('touchend', kick, { passive: true });
+      window.addEventListener('pointerdown', kick, { passive: true });
     }
-    if (this.ctx.state === 'suspended') this.ctx.resume();
+    if (this.ctx.state === 'suspended') this.ctx.resume().catch(() => {});
+    this._playSilentBlip();
+  }
+
+  /** Buffer d'un échantillon muet : réveille la sortie audio d'iOS. */
+  _playSilentBlip() {
+    if (!this.ctx) return;
+    try {
+      const buf = this.ctx.createBuffer(1, 1, this.ctx.sampleRate);
+      const src = this.ctx.createBufferSource();
+      src.buffer = buf;
+      src.connect(this.ctx.destination);
+      src.start(0);
+    } catch { /* sans gravité */ }
+  }
+
+  suspend() {
+    if (this.ctx?.state === 'running') this.ctx.suspend().catch(() => {});
+  }
+
+  resume() {
+    if (this.ctx?.state === 'suspended') this.ctx.resume().catch(() => {});
   }
 
   /** Charge et décode un fichier audio (mise en cache par URL). */
@@ -35,9 +72,15 @@ export class AudioEngine {
           return r.arrayBuffer();
         })
         .then((buf) => this.ctx.decodeAudioData(buf));
+      p.catch(() => this._cache.delete(url)); // un échec ne doit pas rester en cache
       this._cache.set(url, p);
     }
     return this._cache.get(url);
+  }
+
+  /** Oublie un buffer décodé (libération mémoire au déchargement d'une œuvre). */
+  release(url) {
+    this._cache.delete(url);
   }
 
   /** Aligne le listener Web Audio sur la caméra (position + orientation). */

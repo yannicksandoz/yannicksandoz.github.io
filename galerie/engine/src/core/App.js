@@ -4,8 +4,9 @@ import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
 import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
-import { VRButton } from 'three/addons/webxr/VRButton.js';
 import { AudioEngine } from './AudioEngine.js';
+import { QualityManager } from './Quality.js';
+import { LoadingTracker } from './utils.js';
 
 const FOG_COLOR = 0x05050a;
 
@@ -43,16 +44,22 @@ const GrainVignetteShader = {
 /**
  * Cœur minimal : scène, caméra, rendu, post-processing, boucle d'animation.
  * Tout le reste (œuvres, contrôles, éditeur) s'enregistre via addArtwork()
- * et onUpdate().
+ * et onUpdate(). Le profil de qualité (QualityManager) adapte le pipeline
+ * à l'appareil et au framerate mesuré.
  */
 export class App {
   constructor(container) {
     this.container = container;
     this.audio = new AudioEngine();
+    this.quality = new QualityManager();
+    this.loading = new LoadingTracker();
     this.artworks = [];
     this._updatables = [];
     this._clickHandlers = [];
+    this._stemBudgetAcc = 0;
     this.clock = new THREE.Clock();
+
+    const profile = this.quality.profile;
 
     // --- scène ---------------------------------------------------------
     this.scene = new THREE.Scene();
@@ -65,31 +72,39 @@ export class App {
     this.camera.position.set(0, 2.2, 14);
 
     // --- rendu ---------------------------------------------------------
-    this.renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
-    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    this.renderer = new THREE.WebGLRenderer({
+      antialias: profile.antialias,
+      powerPreference: 'high-performance'
+    });
+    this.renderer.setPixelRatio(profile.pixelRatio);
     this.renderer.setSize(window.innerWidth, window.innerHeight);
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
     this.renderer.toneMappingExposure = 1.1;
-    this.renderer.xr.enabled = true;
     container.appendChild(this.renderer.domElement);
+    this.quality.refineWithRenderer(this.renderer);
 
     // --- post-processing : bloom + grain -------------------------------
     this.composer = new EffectComposer(this.renderer);
+    this.composer.setPixelRatio(this.quality.profile.pixelRatio);
     this.composer.addPass(new RenderPass(this.scene, this.camera));
     this.bloom = new UnrealBloomPass(
-      new THREE.Vector2(window.innerWidth, window.innerHeight),
-      0.9,   // intensité
+      new THREE.Vector2(
+        Math.max(1, Math.round(window.innerWidth * this.quality.profile.bloomResScale)),
+        Math.max(1, Math.round(window.innerHeight * this.quality.profile.bloomResScale))
+      ),
+      this.quality.profile.bloomStrength,
       0.7,   // rayon
       0.55   // seuil : seules les zones émissives fleurissent
     );
     this.composer.addPass(this.bloom);
     this.composer.addPass(new OutputPass());
     this.grainPass = new ShaderPass(GrainVignetteShader);
+    this.grainPass.enabled = this.quality.profile.grain;
     this.composer.addPass(this.grainPass);
 
     this._buildEnvironment();
     this._setupPicking();
-    this._setupXR();
+    this._setupVisibility();
 
     window.addEventListener('resize', () => this._resize());
   }
@@ -112,8 +127,8 @@ export class App {
     grid.material.opacity = 0.5;
     this.scene.add(grid);
 
-    // Poussière en suspension
-    const count = 450;
+    // Poussière en suspension (densité selon le profil)
+    const count = this.quality.profile.dustCount;
     const pos = new Float32Array(count * 3);
     for (let i = 0; i < count; i++) {
       const r = 8 + Math.random() * 55;
@@ -161,14 +176,18 @@ export class App {
     });
   }
 
-  _setupXR() {
-    if (!navigator.xr) return;
-    navigator.xr.isSessionSupported('immersive-vr').then((ok) => {
-      if (!ok) return;
-      const btn = VRButton.createButton(this.renderer);
-      btn.style.zIndex = 12;
-      document.body.appendChild(btn);
-    }).catch(() => {});
+  /** Onglet masqué → boucle en pause + audio suspendu (économie de batterie). */
+  _setupVisibility() {
+    document.addEventListener('visibilitychange', () => {
+      if (document.hidden) {
+        this.renderer.setAnimationLoop(null);
+        this.audio.suspend();
+      } else {
+        this.clock.getDelta(); // purge le delta accumulé pendant la pause
+        if (this._started) this._runLoop();
+        this.audio.resume();
+      }
+    });
   }
 
   _resize() {
@@ -201,7 +220,38 @@ export class App {
     this._clickHandlers.push(fn);
   }
 
+  /**
+   * Budget global de stems simultanés (« voice stealing » par distance) :
+   * les œuvres les plus proches gardent leurs pistes, les plus lointaines
+   * sont suspendues quand le plafond du profil est atteint.
+   */
+  _updateStemBudget() {
+    const budget = this.quality.profile.maxStems;
+    const candidates = this.artworks
+      .filter((a) => a.audioReady && a.stems.length)
+      .map((a) => ({ a, d: a.distance }))
+      .filter((x) => x.d < x.a.maxAudibleRadius + 6)
+      .sort((p, q) => p.d - q.d);
+
+    const keep = new Set();
+    let used = 0;
+    for (const { a } of candidates) {
+      if (used + a.stems.length <= budget) {
+        keep.add(a);
+        used += a.stems.length;
+      }
+    }
+    for (const a of this.artworks) {
+      if (a.audioReady) a.setStemsActive(keep.has(a));
+    }
+  }
+
   start() {
+    this._started = true;
+    this._runLoop();
+  }
+
+  _runLoop() {
     const camPos = new THREE.Vector3();
     this.renderer.setAnimationLoop(() => {
       const dt = Math.min(this.clock.getDelta(), 0.1);
@@ -212,17 +262,18 @@ export class App {
       for (const fn of this._updatables) fn(dt, ctx);
       for (const a of this.artworks) a.update(dt, ctx);
 
-      this.audio.updateListener(this.camera);
-      this.dust.rotation.y += dt * 0.004;
-      this.grainPass.uniforms.uTime.value = t;
-
-      // L'EffectComposer n'est pas compatible avec le rendu stéréo WebXR :
-      // en session VR on rend directement.
-      if (this.renderer.xr.isPresenting) {
-        this.renderer.render(this.scene, this.camera);
-      } else {
-        this.composer.render();
+      this._stemBudgetAcc += dt;
+      if (this._stemBudgetAcc > 0.5) {
+        this._stemBudgetAcc = 0;
+        this._updateStemBudget();
       }
+
+      this.audio.updateListener(this.camera);
+      if (!this.quality.reducedMotion) this.dust.rotation.y += dt * 0.004;
+      this.grainPass.uniforms.uTime.value = t;
+      this.quality.tick(dt, this);
+
+      this.composer.render();
     });
   }
 }

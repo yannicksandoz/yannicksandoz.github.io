@@ -1,10 +1,16 @@
 # Galerie — espace sonore 3D
 
-Galerie d'art 3D immersive, **100 % statique et autohébergeable**, pensée comme
-un système modulaire : chaque œuvre est décrite par un fichier JSON qui active
-des *modules de comportement* (spatialisation audio, réactivité visuelle,
-caméra de focus…). Aucune base de données, aucun backend — un simple serveur
-de fichiers suffit.
+Galerie d'art 3D immersive, **100 % statique et autohébergeable**, séparée en
+deux moitiés qui ne se mélangent pas :
+
+- **`engine/`** — le **moteur** réutilisable (cœur, modules de comportement,
+  système de configuration), **propriétaire, tous droits réservés** ;
+- **`content/`** — le **contenu** (œuvres `works/*.json` + médias), propriété
+  de l'artiste, **tous droits réservés** (voir `content/RIGHTS.md`).
+
+Chaque œuvre est décrite par un JSON qui active des *modules* (spatialisation
+audio, réactivité visuelle, caméra de focus, chapeau…). Aucune base de
+données, aucun backend — un simple serveur de fichiers suffit.
 
 **Stack** : [Vite](https://vitejs.dev) · [Three.js](https://threejs.org)
 (EffectComposer : bloom + grain) · Web Audio API · modules ES.
@@ -19,44 +25,103 @@ npm run preview    # prévisualise le build
 npm run assets     # régénère les textures/stems de démo (aucune dépendance)
 ```
 
-**Navigation** : ZQSD / WASD / flèches pour se déplacer (Maj = courir), souris
-ou tactile pour orbiter, joystick virtuel sur mobile. Clic sur une œuvre pour
-l'approcher (Échap pour reculer). Le bouton **Entrer** débloque
-l'`AudioContext` (obligatoire sur tous les navigateurs). Un bouton VR apparaît
-si le navigateur supporte WebXR (nécessite HTTPS).
+**Navigation** — desktop : ZQSD / WASD / flèches (Maj = courir), souris pour
+orbiter, clic sur une œuvre pour l'approcher (Échap pour reculer).
+Mobile : **1 doigt** pour regarder autour, **2 doigts** pour se déplacer et
+pincer pour zoomer, joystick virtuel pour marcher. Le bouton **Entrer**
+débloque l'`AudioContext` (obligatoire sur tous les navigateurs, iOS en tête).
 
-## Architecture
+## Déploiement
 
-```
-src/
-├── main.js                  # amorçage + enregistrement des modules
-├── core/
-│   ├── App.js               # scène, boucle, post-processing, picking, XR
-│   ├── Artwork.js           # une œuvre : visuel + bus audio + modules
-│   ├── AudioEngine.js       # AudioContext partagé, cache, listener 3D
-│   ├── ConfigLoader.js      # lecture de public/works/*.json
-│   ├── ModuleRegistry.js    # registre type → classe de module
-│   └── utils.js             # smoothstep, easing, résolution d'URL
-├── modules/                 # les comportements activables par la config
-├── controls/Controls.js     # orbite + clavier + joystick tactile
-├── editor/Editor.js         # mode édition (touche E)
-└── ui/UI.js                 # écran d'accueil, fiche d'œuvre
-public/
-├── works/                   # configuration des œuvres (JSON)
-├── audio/                   # stems (chargés paresseusement)
-└── textures/                # images (chargées paresseusement)
+### Automatique — GitHub Pages (configuré)
+
+Le workflow [`.github/workflows/deploy.yml`](../.github/workflows/deploy.yml)
+construit le blog Jekyll **et** la galerie, puis publie le tout sur GitHub
+Pages : la galerie est servie sous **`/galerie/`** de l'URL Pages du dépôt.
+
+**Pour redéployer :** il suffit de pousser sur `master` (ou de lancer le
+workflow à la main : onglet *Actions* → *Deploy Pages (blog + galerie)* →
+*Run workflow*).
+
+```bash
+git push origin master        # → build + déploiement automatiques
 ```
 
-Le **cœur est minimal** : `App` fait tourner la scène et la boucle, `Artwork`
-matérialise une config. Tout le reste est un module avec un cycle de vie
-`init → onAudioReady → update → dispose`, instancié uniquement si la config
-d'une œuvre le demande. Les assets (textures, audio) ne sont chargés que
-lorsque la caméra s'approche à moins de `loadDistance` (50 par défaut).
+Prérequis à vérifier une seule fois : *Settings → Pages → Source* doit être
+sur **GitHub Actions** (le workflow tente de l'activer tout seul ; si le
+premier run échoue sur l'étape de déploiement, faites ce réglage puis
+relancez).
 
-## Décrire une œuvre
+### Manuel — Nginx
 
-Une œuvre = un fichier dans `public/works/`, référencé par
-`public/works/index.json` :
+```nginx
+server {
+    listen 443 ssl;
+    server_name galerie.exemple.org;
+    # ssl_certificate ... ; ssl_certificate_key ... ;
+
+    root /var/www/galerie;          # contenu de dist/
+    index index.html;
+
+    gzip on;
+    gzip_types application/javascript application/json text/css;
+
+    location ~* \.(wav|mp3|ogg|png|jpg|glb|gltf)$ {
+        expires 30d;
+        add_header Cache-Control "public, immutable";
+    }
+}
+```
+
+```bash
+npm run build && rsync -av dist/ serveur:/var/www/galerie/
+```
+
+### Manuel — Caddy
+
+```caddyfile
+galerie.exemple.org {
+    root * /var/www/galerie
+    file_server
+    encode gzip
+    @assets path *.wav *.mp3 *.ogg *.png *.jpg *.glb *.gltf
+    header @assets Cache-Control "public, max-age=2592000, immutable"
+}
+```
+
+`base: './'` est configuré dans Vite : le build fonctionne à la racine d'un
+domaine comme dans n'importe quel sous-dossier, sans réglage.
+
+## Utiliser le moteur avec VOTRE contenu
+
+Le moteur ne connaît pas les œuvres : il lit un dossier de contenu servi
+statiquement (par défaut `content/`). Pour brancher le vôtre **sans toucher
+au code du moteur** :
+
+1. Créez un dossier avec cette structure :
+
+   ```
+   mon-contenu/
+   ├── works/
+   │   ├── index.json        # ["oeuvre-1.json", "oeuvre-2.json"]
+   │   └── oeuvre-1.json
+   ├── audio/ …              # vos stems
+   └── textures/ …           # vos images (et models/ pour les .glb)
+   ```
+
+2. Pointez le moteur dessus au build (ou en dev) :
+
+   ```bash
+   GALERIE_CONTENT=../mon-contenu npm run build
+   GALERIE_CONTENT=../mon-contenu npm run dev
+   ```
+
+   (ou remplacez simplement le dossier `content/` par le vôtre).
+
+3. C'est tout : les chemins `image`, `stems[].file`, `model.url` des JSON
+   sont relatifs à la racine du dossier de contenu.
+
+### Décrire une œuvre
 
 ```jsonc
 {
@@ -89,148 +154,126 @@ Une œuvre = un fichier dans `public/works/`, référencé par
 }
 ```
 
-### Ajouter une œuvre, pas à pas
-
-1. Déposer l'image (ou le `.glb`) dans `public/textures/` (ou `public/models/`)
-   et les pistes audio dans `public/audio/` (WAV, OGG, MP3 — tout ce que
-   `decodeAudioData` accepte ; préférez des boucles sans couture).
-2. Créer `public/works/mon-oeuvre.json` sur le modèle ci-dessus.
-3. Ajouter `"mon-oeuvre.json"` dans `public/works/index.json`.
-4. Recharger la page — aucun build nécessaire en dev, les JSON sont lus au
-   démarrage.
-5. Affiner le placement en jeu : touche **E**, glisser le gizmo, régler les
-   rayons, puis **exporter** (voir plus bas).
+Ajout pas à pas : déposer les médias → créer le JSON → l'ajouter à
+`works/index.json` → recharger. Affinez ensuite en jeu : touche **E**,
+glisser le gizmo, régler les rayons (sphères visibles), puis **exporter** le
+JSON mis à jour (l'export `works.json` combiné, déposé dans `works/`, prend
+le pas sur `index.json`).
 
 ## Modules fournis
 
 | Module | Rôle | Paramètres principaux |
 |---|---|---|
-| `SpatialCrossfade` | Volume global de l'œuvre selon la distance (courbe smoothstep) | `radius` (silence), `inner` (plein volume), `maxGain` |
-| `StemMixer` | Mixe chaque stem selon **son propre** rayon (`radius`/`gain` des stems) — les couches se révèlent en approchant | `innerRatio` |
-| `HRTFPanner` | Spatialisation binaurale (PannerNode HRTF) : son localisé dans l'espace, au casque | `refDistance`, `maxDistance`, `rolloff`, `distanceModel` |
-| `AudioReactive` | AnalyserNode sur le bus de l'œuvre → pulsation d'échelle, émission du matériau, uniform `uAudio` des shaders, lumière | `band` (`low`/`mid`/`high`/`all`), `pulseScale`, `emissiveBoost`, `lightBoost`, `smoothing`, `gate` |
+| `SpatialCrossfade` | Volume global de l'œuvre selon la distance (smoothstep) | `radius`, `inner`, `maxGain` |
+| `StemMixer` | Mixe chaque stem selon **son propre** rayon — les couches se révèlent en approchant | `innerRatio` |
+| `HRTFPanner` | Spatialisation binaurale (PannerNode HRTF), son localisé au casque | `refDistance`, `maxDistance`, `rolloff`, `distanceModel` |
+| `AudioReactive` | AnalyserNode → pulsation, émission, uniform `uAudio`, lumière | `band`, `pulseScale`, `emissiveBoost`, `lightBoost`, `smoothing`, `gate` |
 | `FocusCamera` | Travelling doux vers l'œuvre au clic + fiche titre/description | `distance`, `height`, `duration` |
+| `TipJar` | Chapeau de fin d'expérience (voir ci-dessous) | `enabled`, `message`, `buttonLabel`, `url`, `visitRadius`, `delay` |
 
-Les modules se combinent librement — les trois œuvres de démo illustrent trois
-recettes différentes :
+Les trois œuvres de démo illustrent trois recettes : *Nébuleuse*
+(`SpatialCrossfade` + `AudioReactive`), *Triptyque des marées* (`StemMixer`,
+rayons 26/14/7), *Monolithe 55 Hz* (`HRTFPanner` + shader réactif + `TipJar`).
 
-- **Nébuleuse** : `SpatialCrossfade` + `AudioReactive` (l'image respire sur les basses) ;
-- **Triptyque des marées** : `StemMixer` avec trois rayons concentriques (26 / 14 / 7) ;
-- **Monolithe 55 Hz** : `HRTFPanner` (binaural) + `AudioReactive` pilotant les uniforms d'un shader custom.
+### Le chapeau (TipJar)
 
-## Créer un nouveau module
+Quand le visiteur a approché toutes les œuvres, un écran discret propose de
+soutenir l'artiste ; un petit ♥ en coin d'écran le garde accessible. Le
+bouton **redirige vers une page de paiement hébergée** (Ko-fi, Stripe Payment
+Link, PayPal.me, Liberapay…) dans un nouvel onglet : **aucune donnée bancaire
+ne transite par le site**, qui reste entièrement statique.
 
-Un module est une classe qui étend `Module` (`src/modules/Module.js`) :
+Activez-le sur **une seule** œuvre (n'importe laquelle) :
 
-```js
-// src/modules/OrbitMotion.js — exemple : l'œuvre tourne sur elle-même
-import { Module } from './Module.js';
-
-export class OrbitMotion extends Module {
-  init() {
-    // appelé une fois, la scène est prête ; this.artwork, this.params, this.app
-    this.speed = this.params.speed ?? 0.2;
+```json
+{
+  "type": "TipJar",
+  "params": {
+    "enabled": true,
+    "message": "Si cet espace vous a touché, vous pouvez soutenir son artiste.",
+    "buttonLabel": "Soutenir l'artiste",
+    "url": "https://ko-fi.com/votre-compte"
   }
-
-  onAudioReady() {
-    // optionnel : le bus audio de l'œuvre existe (this.artwork.bus, .stems),
-    // appelé juste AVANT le démarrage des sources
-  }
-
-  update(dt, ctx) {
-    // chaque frame ; ctx = { app, camera, cameraPos, time, distance }
-    this.artwork.group.rotation.y += this.speed * dt;
-  }
-
-  onClick() { /* optionnel : return true pour consommer le clic */ }
-
-  dispose() { /* libérer nœuds audio, listeners, objets 3D */ }
 }
 ```
 
-Puis l'enregistrer dans `src/main.js` :
+`enabled: false` (ou `url` vide) désactive tout, proprement. Remplacez
+l'URL d'exemple `https://ko-fi.com/REMPLACEZ-MOI` de la démo par votre lien.
+
+## Créer un nouveau module
+
+Un module est une classe qui étend `Module` (`engine/src/modules/Module.js`) :
+
+```js
+// engine/src/modules/OrbitMotion.js — exemple : l'œuvre tourne sur elle-même
+import { Module } from './Module.js';
+
+export class OrbitMotion extends Module {
+  init() {                       // la scène est prête
+    this.speed = this.params.speed ?? 0.2;
+  }
+  onAudioReady() {}              // le bus audio de l'œuvre vient d'être créé
+  onAudioReleased() {}           // il va être libéré (déchargement mémoire)
+  update(dt, ctx) {              // chaque frame ; ctx = { app, camera, cameraPos, time, distance }
+    this.artwork.group.rotation.y += this.speed * dt;
+  }
+  onClick() {}                   // clic sur l'œuvre ; return true = consommé
+  dispose() {}                   // libérer nœuds audio, listeners, objets 3D
+}
+```
+
+Enregistrement dans `engine/src/main.js` :
 
 ```js
 import { OrbitMotion } from './modules/OrbitMotion.js';
 registry.register('OrbitMotion', OrbitMotion);
 ```
 
-Il devient activable depuis n'importe quelle œuvre :
+Points d'appui : `this.artwork.bus` (GainNode de l'œuvre),
+`this.artwork.setAudioLevel(...)` (canal standard vers le visuel),
+`this.app.audio.ctx` (AudioContext partagé), `this.app.quality.profile`
+(profil de l'appareil), `this.app.controls` / `this.app.camera`.
 
-```json
-{ "type": "OrbitMotion", "params": { "speed": 0.35 } }
-```
+## Qualité adaptative & mobile
 
-Points d'appui utiles : `this.artwork.bus` (GainNode de l'œuvre, à tapper ou
-re-router), `this.artwork.setAudioLevel(...)` (canal standard vers le visuel),
-`this.app.audio.ctx` (AudioContext partagé), `this.app.controls` /
-`this.app.camera`.
+Le `QualityManager` (`engine/src/core/Quality.js`) choisit un profil au
+lancement puis l'ajuste en continu :
 
-## Mode édition (touche E)
+- **détection** : mobile vs desktop (pointer coarse + UA), lecture du GPU
+  (`WEBGL_debug_renderer_info`) pour rétrograder les GPU faibles ;
+- **plafonds** : `pixelRatio` ≤ 2 (desktop) / 1,5 (mobile), bloom au quart de
+  résolution et textures ≤ 1024 px sur mobile, **6 stems audio simultanés
+  max sur mobile** (24 sur desktop) avec *voice stealing* par distance : les
+  œuvres les plus proches gardent leurs pistes, les plus lointaines sont
+  suspendues ;
+- **gouverneur FPS** : sous 27 fps pendant 3 s, la qualité descend d'un cran
+  (pixelRatio → grain → bloom), sans jamais remonter (pas d'oscillation) ;
+- **mémoire** : textures et buffers audio chargés à l'approche
+  (`loadDistance`, 50 par défaut) et **libérés** au-delà de 1,6 × cette
+  distance (dispose des textures, arrêt des sources, buffers oubliés) ;
+- **iOS Safari** : resume() + buffer silencieux à chaque tap si le contexte
+  audio n'est plus « running » ;
+- **divers** : boucle et audio en pause quand l'onglet est masqué
+  (`visibilitychange`), `prefers-reduced-motion` respecté (pas de grain
+  animé, pas de pulsation géométrique, travellings quasi instantanés),
+  échec de chargement d'un asset = placeholder conservé + log, jamais de
+  plantage ; fallback explicite si WebGL2 est absent.
 
-- **Clic sur une œuvre** → gizmo de translation ([TransformControls](https://threejs.org/docs/#examples/en/controls/TransformControls)).
-- Les **sphères filaires** matérialisent les rayons audio : une couleur par
-  stem, violet pour le rayon du `SpatialCrossfade`. Les sliders du panneau les
-  redimensionnent en direct — le mix audio réagit immédiatement.
-- **Exporter `<id>.json`** télécharge la config de l'œuvre sélectionnée (à
-  remettre dans `public/works/`). **Tout exporter** télécharge un
-  `works.json` combiné : déposé dans `public/works/`, il **prend le pas** sur
-  `index.json` + fichiers individuels au chargement suivant.
+## Licences
 
-## Déploiement
+| Dossier | Licence |
+|---|---|
+| `engine/` (+ `index.html`, `vite.config.js`, `scripts/`) | **Propriétaire — tous droits réservés** — voir [`engine/LICENSE`](engine/LICENSE) |
+| `content/` | **Tous droits réservés** — voir [`content/RIGHTS.md`](content/RIGHTS.md) |
 
-`npm run build` produit `dist/` : des fichiers statiques, sans en-têtes
-spéciaux requis. `base: './'` est configuré : le site fonctionne à la racine
-d'un domaine comme dans un sous-dossier. Seule contrainte : **HTTPS** pour
-WebXR (et recommandé pour l'audio).
+Le moteur n'est pas libre. Aucun droit d'usage, de reproduction, de
+modification ou de redistribution n'est concédé par défaut. Le fait que le
+code arrive dans le navigateur d'un visiteur ne lui confère aucun droit :
+c'est nécessaire à l'exécution, rien de plus.
 
-### Nginx
+**Licence commerciale disponible sur demande** — contact :
+**yro.lab.licence@gmail.com**.
 
-```nginx
-server {
-    listen 443 ssl;
-    server_name galerie.exemple.org;
-    # ssl_certificate ... ; ssl_certificate_key ... ;
-
-    root /var/www/galerie;          # contenu de dist/
-    index index.html;
-
-    gzip on;
-    gzip_types application/javascript application/json text/css;
-
-    location ~* \.(wav|mp3|ogg|png|jpg|glb|gltf)$ {
-        expires 30d;
-        add_header Cache-Control "public, immutable";
-    }
-}
-```
-
-```bash
-rsync -av dist/ serveur:/var/www/galerie/
-```
-
-### Caddy
-
-```caddyfile
-galerie.exemple.org {
-    root * /var/www/galerie
-    file_server
-    encode gzip
-    @assets path *.wav *.mp3 *.ogg *.png *.jpg *.glb *.gltf
-    header @assets Cache-Control "public, max-age=2592000, immutable"
-}
-```
-
-Caddy gère les certificats HTTPS automatiquement. Pour GitHub Pages ou tout
-autre hébergeur statique : servez simplement le contenu de `dist/`.
-
-## Performances & mobile
-
-- `pixelRatio` plafonné à 2, bloom en demi-résolution, brouillard exponentiel
-  qui limite la profondeur utile de rendu ;
-- textures et stems chargés **paresseusement** à l'approche (`loadDistance`) ;
-- le `GLTFLoader` n'est téléchargé que si une œuvre utilise un modèle
-  (import dynamique, chunk séparé) ;
-- contrôles tactiles natifs (orbite/pincement) + joystick virtuel ;
-- audio : préférez des boucles courtes ; un WAV mono 22 kHz suffit largement
-  pour des nappes (les fichiers de démo font ~260 Ko chacun).
+Les œuvres du dossier `content/` ne sont **pas** couvertes par cette licence : ce
+sont des créations personnelles, tous droits réservés. Déployez le moteur
+avec votre propre contenu.

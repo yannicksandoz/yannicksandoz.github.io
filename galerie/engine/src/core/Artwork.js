@@ -14,13 +14,34 @@ function getGltfLoader() {
   return gltfLoaderPromise;
 }
 
+/** Redimensionne une texture au plafond du profil (mémoire GPU mobile). */
+function capTextureSize(texture, maxSize) {
+  const img = texture.image;
+  if (!img || Math.max(img.width, img.height) <= maxSize) return texture;
+  const scale = maxSize / Math.max(img.width, img.height);
+  const canvas = document.createElement('canvas');
+  canvas.width = Math.max(1, Math.round(img.width * scale));
+  canvas.height = Math.max(1, Math.round(img.height * scale));
+  canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+  texture.image = canvas;
+  texture.needsUpdate = true;
+  return texture;
+}
+
 /**
  * Une œuvre = un groupe Three.js positionné dans la scène + un bus audio +
  * une liste de modules de comportement instanciés depuis sa configuration.
  *
- * Chargement paresseux : le visuel et l'audio ne sont chargés que lorsque la
- * caméra s'approche à moins de `loadDistance` (défaut 50). En attendant, un
- * cadre sombre sert de silhouette.
+ * Cycle des assets (gestion mémoire) :
+ *  - la caméra passe sous `loadDistance` (défaut 50) → chargement du visuel
+ *    et des stems (décodage à la demande) ;
+ *  - elle repasse au-delà de `loadDistance × 1.6` → tout est libéré (dispose
+ *    des textures/géométries, arrêt des sources, buffers oubliés) ; l'œuvre
+ *    retrouve son placeholder et rechargera à la prochaine approche.
+ *
+ * Les sources audio ne démarrent jamais ici : App._updateStemBudget() décide
+ * quelles œuvres jouent (plafond de stems simultanés du profil qualité) via
+ * setStemsActive().
  */
 export class Artwork {
   constructor(config, app) {
@@ -41,8 +62,10 @@ export class Artwork {
     this.bus = null;
     this.stems = [];           // [{ cfg, gain, source, buffer }]
     this.audioReady = false;
+    this._stemsActive = false;
 
     this._visualRequested = false;
+    this._visualLoaded = false;
     this._audioRequested = false;
     this._distance = Infinity;
 
@@ -82,13 +105,16 @@ export class Artwork {
     const cfg = this.config;
     try {
       if (cfg.image) {
-        const tex = await textureLoader.loadAsync(assetUrl(cfg.image));
+        const tex = await this.app.loading.track(
+          textureLoader.loadAsync(assetUrl(cfg.image))
+        );
+        capTextureSize(tex, this.app.quality.profile.maxTextureSize);
         tex.colorSpace = THREE.SRGBColorSpace;
         tex.anisotropy = 4;
         this._setMesh(this._buildImageMesh(tex));
       } else if (cfg.model?.type === 'gltf') {
         const loader = await getGltfLoader();
-        const gltf = await loader.loadAsync(assetUrl(cfg.model.url));
+        const gltf = await this.app.loading.track(loader.loadAsync(assetUrl(cfg.model.url)));
         const root = gltf.scene;
         root.scale.setScalar(cfg.model.scale ?? 1);
         this._setMesh(root);
@@ -97,9 +123,31 @@ export class Artwork {
       } else {
         console.warn(`[galerie] Œuvre ${cfg.id} : ni image ni modèle reconnu.`);
       }
+      this._visualLoaded = true;
     } catch (err) {
+      // échec non fatal : l'œuvre garde son placeholder, la visite continue
       console.error(`[galerie] Visuel de « ${cfg.id} » impossible à charger :`, err);
     }
+  }
+
+  _unloadVisual() {
+    if (!this.mesh) return;
+    this.group.remove(this.mesh);
+    this.mesh.traverse((o) => {
+      o.geometry?.dispose();
+      if (o.material) {
+        (Array.isArray(o.material) ? o.material : [o.material]).forEach((m) => {
+          m.map?.dispose();
+          m.emissiveMap?.dispose();
+          m.dispose();
+        });
+      }
+    });
+    this.mesh = null;
+    this._reactiveMaterial = null;
+    this._visualLoaded = false;
+    this._visualRequested = false;
+    this._buildPlaceholder();
   }
 
   _buildImageMesh(texture) {
@@ -187,11 +235,11 @@ export class Artwork {
   async _loadAudio() {
     const engine = this.app.audio;
     const stemCfgs = this.config.stems ?? [];
-    if (!stemCfgs.length) { this.audioReady = true; return; }
+    if (!stemCfgs.length) return;
 
     try {
       const buffers = await Promise.all(
-        stemCfgs.map((s) => engine.load(assetUrl(s.file)))
+        stemCfgs.map((s) => this.app.loading.track(engine.load(assetUrl(s.file))))
       );
       const ctx = engine.ctx;
 
@@ -203,22 +251,69 @@ export class Artwork {
         const gain = ctx.createGain();
         gain.gain.value = cfg.gain ?? 1;
         gain.connect(this.bus);
-        const source = ctx.createBufferSource();
-        source.buffer = buffers[i];
-        source.loop = true;
-        source.connect(gain);
-        return { cfg, gain, source, buffer: buffers[i] };
+        return { cfg, gain, source: null, buffer: buffers[i] };
       });
 
       // Les modules branchent panner/analyser et prennent la main sur les
-      // gains AVANT le démarrage des sources (évite toute bouffée sonore).
+      // gains avant tout démarrage de source (évite toute bouffée sonore).
       this.audioReady = true;
       for (const m of this.modules) m.onAudioReady?.();
-      const t0 = engine.ctx.currentTime + 0.05;
-      for (const s of this.stems) s.source.start(t0);
+      // Le démarrage effectif est décidé par le budget de stems de l'App.
     } catch (err) {
       console.error(`[galerie] Audio de « ${this.config.id} » impossible à charger :`, err);
     }
+  }
+
+  /**
+   * Active/suspend les sources (appelé par App._updateStemBudget). Les stems
+   * d'une même œuvre démarrent au même instant pour rester en phase.
+   */
+  setStemsActive(active) {
+    if (!this.audioReady || active === this._stemsActive) return;
+    this._stemsActive = active;
+    const ctx = this.app.audio.ctx;
+    if (active) {
+      const t0 = ctx.currentTime + 0.05;
+      for (const s of this.stems) {
+        const src = ctx.createBufferSource();
+        src.buffer = s.buffer;
+        src.loop = true;
+        src.connect(s.gain);
+        src.start(t0);
+        s.source = src;
+      }
+    } else {
+      for (const s of this.stems) {
+        try { s.source?.stop(); } catch { /* déjà arrêtée */ }
+        s.source?.disconnect();
+        s.source = null;
+      }
+    }
+  }
+
+  _unloadAudio() {
+    this.setStemsActive(false);
+    for (const m of this.modules) m.onAudioReleased?.();
+    for (const s of this.stems) {
+      s.gain.disconnect();
+      this.app.audio.release(assetUrl(s.cfg.file));
+    }
+    this.bus?.disconnect();
+    this.bus = null;
+    this.stems = [];
+    this.audioReady = false;
+    this._audioRequested = false;
+  }
+
+  /** Rayon au-delà duquel l'œuvre est inaudible (pour le budget de stems). */
+  get maxAudibleRadius() {
+    let r = 0;
+    for (const s of this.config.stems ?? []) r = Math.max(r, s.radius ?? 12);
+    for (const m of this.config.modules ?? []) {
+      if (m.type === 'SpatialCrossfade') r = Math.max(r, m.params?.radius ?? 15);
+      if (m.type === 'HRTFPanner') r = Math.max(r, m.params?.maxDistance ?? 40);
+    }
+    return r || 15;
   }
 
   /* ------------------------------------------------------------ cycle --- */
@@ -226,8 +321,9 @@ export class Artwork {
   update(dt, ctx) {
     this._distance = ctx.cameraPos.distanceTo(this.group.position);
 
-    // chargement paresseux à l'approche
+    // chargement paresseux à l'approche, libération au-delà
     const loadDist = this.config.loadDistance ?? 50;
+    const unloadDist = loadDist * 1.6;
     if (!this._visualRequested && this._distance < loadDist) {
       this._visualRequested = true;
       this._loadVisual();
@@ -235,6 +331,10 @@ export class Artwork {
     if (!this._audioRequested && this.app.audio.unlocked && this._distance < loadDist) {
       this._audioRequested = true;
       this._loadAudio();
+    }
+    if (this._distance > unloadDist) {
+      if (this._visualLoaded) this._unloadVisual();
+      if (this.audioReady) this._unloadAudio();
     }
 
     if (this._reactiveMaterial?.uniforms?.uTime) {
@@ -280,11 +380,7 @@ export class Artwork {
 
   dispose() {
     for (const m of this.modules) m.dispose();
-    for (const s of this.stems) {
-      try { s.source.stop(); } catch { /* déjà arrêtée */ }
-      s.gain.disconnect();
-    }
-    this.bus?.disconnect();
+    this._unloadAudio();
     this.group.traverse((o) => {
       o.geometry?.dispose();
       if (o.material) {

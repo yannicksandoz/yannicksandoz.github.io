@@ -48,14 +48,22 @@ export class AudioReactive extends Module {
     if (target < gate) target = 0;
 
     this.level = damp(this.level, target, this.params.smoothing ?? 9, dt);
+    // prefers-reduced-motion : l'émission lumineuse reste, la pulsation
+    // géométrique (mouvement) est neutralisée
+    const reduced = this.app.quality.reducedMotion;
     this.artwork.setAudioLevel(this.level, {
-      pulseScale: this.params.pulseScale ?? 0.05,
+      pulseScale: reduced ? 0 : (this.params.pulseScale ?? 0.05),
       emissiveBoost: this.params.emissiveBoost ?? 1.2,
       lightBoost: this.params.lightBoost ?? 2.5
     });
   }
 
-  dispose() {
+  onAudioReleased() {
     this.analyser?.disconnect();
+    this.analyser = null;
+  }
+
+  dispose() {
+    this.onAudioReleased();
   }
 }
