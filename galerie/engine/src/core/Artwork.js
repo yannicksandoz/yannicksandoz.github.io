@@ -1,6 +1,5 @@
 import * as THREE from 'three';
 import { registry } from './ModuleRegistry.js';
-import { assetUrl } from './utils.js';
 
 const textureLoader = new THREE.TextureLoader();
 let gltfLoaderPromise = null;
@@ -29,33 +28,33 @@ function capTextureSize(texture, maxSize) {
 }
 
 /**
- * Une œuvre = un groupe Three.js positionné dans la scène + un bus audio +
+ * Une œuvre = un groupe Three.js positionné dans une pièce + un bus audio +
  * une liste de modules de comportement instanciés depuis sa configuration.
  *
- * Cycle des assets (gestion mémoire) :
- *  - la caméra passe sous `loadDistance` (défaut 50) → chargement du visuel
- *    et des stems (décodage à la demande) ;
- *  - elle repasse au-delà de `loadDistance × 1.6` → tout est libéré (dispose
- *    des textures/géométries, arrêt des sources, buffers oubliés) ; l'œuvre
- *    retrouve son placeholder et rechargera à la prochaine approche.
+ * Visuels possibles : image (plan texturé), vidéo (plan + VideoTexture,
+ * playsinline/muted pour iOS, son routé dans le bus spatialisé via
+ * MediaElementSource), modèle GLTF, ou primitive shader « monolith ».
  *
- * Les sources audio ne démarrent jamais ici : App._updateStemBudget() décide
- * quelles œuvres jouent (plafond de stems simultanés du profil qualité) via
- * setStemsActive().
+ * Cycle des assets : chargement sous `loadDistance`, libération au-delà de
+ * 1,6 × ; les pièces lointaines forcent la libération (forceUnload) et les
+ * pièces adjacentes préchargent sans jouer (setStemsActive / setVideoPlaying
+ * pilotés par App et RoomManager).
  */
 export class Artwork {
   constructor(config, app) {
     this.config = config;
     this.app = app;
+    this.room = null; // renseigné par App.addArtwork
 
     this.group = new THREE.Group();
     this.group.position.fromArray(config.position ?? [0, 1.8, 0]);
     this.group.rotation.y = THREE.MathUtils.degToRad(config.rotationY ?? 0);
+    this.group.scale.setScalar(config.scale ?? 1);
     this.group.userData.artwork = this;
 
     this.mesh = null;          // mesh final (visuel)
     this.hitMesh = null;       // cible du raycast (défini dès le placeholder)
-    this.baseScale = 1;
+    this.baseScale = 1;        // échelle du mesh (la pulsation la module)
     this.audioLevel = 0;       // alimenté par AudioReactive
 
     // état audio : bus → (modules peuvent insérer un panner) → master
@@ -63,6 +62,9 @@ export class Artwork {
     this.stems = [];           // [{ cfg, gain, source, buffer }]
     this.audioReady = false;
     this._stemsActive = false;
+
+    this._video = null;
+    this._mediaSrc = null;
 
     this._visualRequested = false;
     this._visualLoaded = false;
@@ -83,6 +85,11 @@ export class Artwork {
       .map((m) => registry.create(m.type, this, m.params, app))
       .filter(Boolean);
     for (const m of this.modules) m.init();
+  }
+
+  /** Chemin de config → URL réelle (les imports de l'éditeur sont des blobs). */
+  _resolve(path) {
+    return this.app.resolveAsset(path);
   }
 
   /* ----------------------------------------------------------- visuel --- */
@@ -106,22 +113,26 @@ export class Artwork {
     try {
       if (cfg.image) {
         const tex = await this.app.loading.track(
-          textureLoader.loadAsync(assetUrl(cfg.image))
+          textureLoader.loadAsync(this._resolve(cfg.image))
         );
         capTextureSize(tex, this.app.quality.profile.maxTextureSize);
         tex.colorSpace = THREE.SRGBColorSpace;
         tex.anisotropy = 4;
-        this._setMesh(this._buildImageMesh(tex));
+        this._setMesh(this._buildPanelMesh(tex));
+      } else if (cfg.video) {
+        this._setMesh(this._buildVideoMesh());
       } else if (cfg.model?.type === 'gltf') {
         const loader = await getGltfLoader();
-        const gltf = await this.app.loading.track(loader.loadAsync(assetUrl(cfg.model.url)));
+        const gltf = await this.app.loading.track(
+          loader.loadAsync(this._resolve(cfg.model.url))
+        );
         const root = gltf.scene;
         root.scale.setScalar(cfg.model.scale ?? 1);
         this._setMesh(root);
       } else if (cfg.model?.shape === 'monolith') {
         this._setMesh(this._buildMonolith(cfg.model));
       } else {
-        console.warn(`[galerie] Œuvre ${cfg.id} : ni image ni modèle reconnu.`);
+        console.warn(`[galerie] Œuvre ${cfg.id} : ni image, ni vidéo, ni modèle reconnu.`);
       }
       this._visualLoaded = true;
     } catch (err) {
@@ -132,6 +143,14 @@ export class Artwork {
 
   _unloadVisual() {
     if (!this.mesh) return;
+    if (this._video) {
+      this._video.pause();
+      this._mediaSrc?.disconnect();
+      this._mediaSrc = null;
+      this._video.removeAttribute('src');
+      this._video.load();
+      this._video = null;
+    }
     this.group.remove(this.mesh);
     this.mesh.traverse((o) => {
       o.geometry?.dispose();
@@ -150,7 +169,7 @@ export class Artwork {
     this._buildPlaceholder();
   }
 
-  _buildImageMesh(texture) {
+  _buildPanelMesh(texture) {
     const [w, h] = this.config.size ?? [4, 4];
     const holder = new THREE.Group();
 
@@ -177,6 +196,52 @@ export class Artwork {
     this._reactiveMaterial = panel.material;
     this._baseEmissive = panel.material.emissiveIntensity;
     return holder;
+  }
+
+  /**
+   * Plan vidéo : playsinline + muted autorisent l'autoplay iOS. Si
+   * `videoSound` est vrai, le son est routé dans le bus spatialisé de
+   * l'œuvre (MediaElementSource) après le déblocage audio.
+   */
+  _buildVideoMesh() {
+    const video = document.createElement('video');
+    video.muted = true;
+    video.loop = true;
+    video.playsInline = true;
+    video.setAttribute('playsinline', '');
+    video.setAttribute('webkit-playsinline', '');
+    video.preload = 'auto';
+    video.crossOrigin = 'anonymous';
+    video.src = this._resolve(this.config.video);
+    this._video = video;
+    if (!this.room || this.room.isCurrent) {
+      video.play().catch(() => { /* rejouera au prochain setVideoPlaying */ });
+    }
+
+    const texture = new THREE.VideoTexture(video);
+    texture.colorSpace = THREE.SRGBColorSpace;
+    const mesh = this._buildPanelMesh(texture);
+    this._tryAttachVideoAudio();
+    return mesh;
+  }
+
+  _tryAttachVideoAudio() {
+    if (!this.config.videoSound || !this._video || this._mediaSrc) return;
+    if (!this.bus || !this.app.audio.unlocked) return;
+    try {
+      this._mediaSrc = this.app.audio.ctx.createMediaElementSource(this._video);
+      this._mediaSrc.connect(this.bus);
+      this._video.muted = false;
+    } catch (err) {
+      console.warn(`[galerie] Son vidéo de « ${this.config.id} » indisponible :`, err);
+    }
+  }
+
+  /** Lecture/pause de la vidéo selon la pièce active (batterie + décodeur). */
+  setVideoPlaying(active) {
+    if (!this._video) return;
+    if (active) this._video.play().catch(() => {});
+    else this._video.pause();
   }
 
   _buildMonolith(params) {
@@ -213,7 +278,6 @@ export class Artwork {
         }`
     });
     const mesh = new THREE.Mesh(new THREE.BoxGeometry(1.1, height, 1.1, 1, 24, 1), mat);
-    mesh.position.y = 0; // le groupe porte déjà la hauteur
     this._reactiveMaterial = mat;
     return mesh;
   }
@@ -227,6 +291,7 @@ export class Artwork {
     }
     this.mesh = mesh;
     this.hitMesh = mesh;
+    mesh.scale.setScalar(this.baseScale);
     this.group.add(mesh);
   }
 
@@ -235,11 +300,11 @@ export class Artwork {
   async _loadAudio() {
     const engine = this.app.audio;
     const stemCfgs = this.config.stems ?? [];
-    if (!stemCfgs.length) return;
+    if (!stemCfgs.length && !this.config.videoSound) return;
 
     try {
       const buffers = await Promise.all(
-        stemCfgs.map((s) => this.app.loading.track(engine.load(assetUrl(s.file))))
+        stemCfgs.map((s) => this.app.loading.track(engine.load(this._resolve(s.file))))
       );
       const ctx = engine.ctx;
 
@@ -258,6 +323,7 @@ export class Artwork {
       // gains avant tout démarrage de source (évite toute bouffée sonore).
       this.audioReady = true;
       for (const m of this.modules) m.onAudioReady?.();
+      this._tryAttachVideoAudio();
       // Le démarrage effectif est décidé par le budget de stems de l'App.
     } catch (err) {
       console.error(`[galerie] Audio de « ${this.config.id} » impossible à charger :`, err);
@@ -296,13 +362,19 @@ export class Artwork {
     for (const m of this.modules) m.onAudioReleased?.();
     for (const s of this.stems) {
       s.gain.disconnect();
-      this.app.audio.release(assetUrl(s.cfg.file));
+      this.app.audio.release(this._resolve(s.cfg.file));
     }
     this.bus?.disconnect();
     this.bus = null;
     this.stems = [];
     this.audioReady = false;
     this._audioRequested = false;
+  }
+
+  /** Libération totale (pièce lointaine ou suppression). */
+  forceUnload() {
+    if (this._visualLoaded) this._unloadVisual();
+    if (this.audioReady) this._unloadAudio();
   }
 
   /** Rayon au-delà duquel l'œuvre est inaudible (pour le budget de stems). */
@@ -319,6 +391,12 @@ export class Artwork {
   /* ------------------------------------------------------------ cycle --- */
 
   update(dt, ctx) {
+    const roomState = this.room?.state ?? 'current';
+    if (roomState === 'far') {
+      this.forceUnload();
+      return;
+    }
+
     this._distance = ctx.cameraPos.distanceTo(this.group.position);
 
     // chargement paresseux à l'approche, libération au-delà
@@ -336,6 +414,8 @@ export class Artwork {
       if (this._visualLoaded) this._unloadVisual();
       if (this.audioReady) this._unloadAudio();
     }
+
+    if (roomState !== 'current') return; // pièce adjacente : préchargée, inactive
 
     if (this._reactiveMaterial?.uniforms?.uTime) {
       this._reactiveMaterial.uniforms.uTime.value = ctx.time;
@@ -380,7 +460,7 @@ export class Artwork {
 
   dispose() {
     for (const m of this.modules) m.dispose();
-    this._unloadAudio();
+    this.forceUnload();
     this.group.traverse((o) => {
       o.geometry?.dispose();
       if (o.material) {

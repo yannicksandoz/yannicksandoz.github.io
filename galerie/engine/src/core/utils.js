@@ -20,6 +20,17 @@ export function assetUrl(path) {
   return import.meta.env.BASE_URL + path;
 }
 
+/** Transforme un nom de fichier en identifiant sûr (« Mon Œuvre.png » → « mon-oeuvre »). */
+export function slugify(name) {
+  return name
+    .replace(/\.[^.]+$/, '')
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '') || 'objet';
+}
+
 /**
  * Comptabilise les chargements en cours pour la barre de progression de
  * l'écran d'accueil. Chaque promesse suivie incrémente le total, puis le

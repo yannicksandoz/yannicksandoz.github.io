@@ -4,9 +4,9 @@ import { assetUrl } from './utils.js';
  * Charge la liste des œuvres.
  *
  * Deux formats acceptés, par ordre de priorité :
- *  1. public/works/works.json — un tableau d'œuvres dans un seul fichier
+ *  1. works/works.json — un tableau d'œuvres dans un seul fichier
  *     (c'est le format produit par l'export du mode édition) ;
- *  2. public/works/index.json — un tableau de noms de fichiers, chacun
+ *  2. works/index.json — un tableau de noms de fichiers, chacun
  *     décrivant une œuvre (format recommandé pour l'édition à la main).
  */
 export async function loadWorks() {
@@ -18,6 +18,28 @@ export async function loadWorks() {
     index.map((file) => fetchJson(assetUrl(`works/${file}`)))
   );
   return works.filter(Boolean);
+}
+
+/**
+ * Charge la liste des pièces (rooms). Mêmes conventions que les œuvres :
+ * rooms/rooms.json (fichier combiné, produit par l'export de l'éditeur),
+ * sinon rooms/index.json + un fichier par pièce.
+ *
+ * Retourne null si aucune configuration de pièces n'existe — la galerie
+ * fonctionne alors en mode « pièce unique » contenant toutes les œuvres
+ * (compatibilité avec les scènes sans rooms).
+ */
+export async function loadRooms() {
+  const combined = await fetchJson(assetUrl('rooms/rooms.json'), true);
+  if (Array.isArray(combined)) return combined;
+
+  const index = await fetchJson(assetUrl('rooms/index.json'), true);
+  if (!Array.isArray(index)) return null;
+
+  const rooms = await Promise.all(
+    index.map((file) => fetchJson(assetUrl(`rooms/${file}`)))
+  );
+  return rooms.filter(Boolean);
 }
 
 async function fetchJson(url, optional = false) {

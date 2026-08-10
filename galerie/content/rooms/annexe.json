@@ -1,0 +1,19 @@
+{
+  "id": "annexe",
+  "title": "Annexe",
+  "spawn": [0, 2.2, 8],
+  "fogColor": "#0a0514",
+  "ambience": [
+    { "file": "audio/marees-basse.wav", "gain": 0.16 }
+  ],
+  "works": ["echo"],
+  "portals": [
+    {
+      "to": "hall",
+      "position": [3.5, 0, 10],
+      "rotationY": 195,
+      "label": "Hall",
+      "arrival": [-5, 2.2, -18]
+    }
+  ]
+}

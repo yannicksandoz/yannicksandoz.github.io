@@ -9,7 +9,10 @@ deux moitiés qui ne se mélangent pas :
   de l'artiste, **tous droits réservés** (voir `content/RIGHTS.md`).
 
 Chaque œuvre est décrite par un JSON qui active des *modules* (spatialisation
-audio, réactivité visuelle, caméra de focus, chapeau…). Aucune base de
+audio, réactivité visuelle, caméra de focus, chapeau…). Les œuvres vivent dans
+des **pièces connectées par des portails** (rooms/*.json), et un **éditeur de
+scène in-browser** permet de composer ces espaces à partir de médias importés
+(images, vidéos, sons) puis d'exporter le résultat en JSON. Aucune base de
 données, aucun backend — un simple serveur de fichiers suffit.
 
 **Stack** : [Vite](https://vitejs.dev) · [Three.js](https://threejs.org)
@@ -105,7 +108,11 @@ au code du moteur** :
    ├── works/
    │   ├── index.json        # ["oeuvre-1.json", "oeuvre-2.json"]
    │   └── oeuvre-1.json
+   ├── rooms/                # optionnel : pièces connectées (sinon pièce unique)
+   │   ├── index.json        # ["hall.json", …]
+   │   └── hall.json
    ├── audio/ …              # vos stems
+   ├── assets/ …             # médias importés via l'éditeur
    └── textures/ …           # vos images (et models/ pour les .glb)
    ```
 
@@ -135,11 +142,15 @@ au code du moteur** :
 
   // — visuel : au choix —
   "image": "textures/mon-image.png",
-  "size": [6, 4],                  // largeur, hauteur du panneau (avec "image")
+  "size": [6, 4],                  // largeur, hauteur du panneau (image/vidéo)
+  // ou une vidéo (playsinline + muted : l'autoplay passe sur iOS) :
+  "video": "assets/clip.mp4",
+  "videoSound": true,              // son de la vidéo routé dans le bus spatialisé
   // ou un modèle :
   "model": { "type": "gltf", "url": "models/piece.glb", "scale": 1 },
   // ou la primitive shader intégrée :
   "model": { "shape": "monolith", "height": 4.5, "color": "#66f0d8" },
+  "scale": 1,                      // échelle uniforme (gizmo « échelle »)
 
   // — audio : autant de pistes que voulu, lues en boucle —
   "stems": [
@@ -155,10 +166,108 @@ au code du moteur** :
 ```
 
 Ajout pas à pas : déposer les médias → créer le JSON → l'ajouter à
-`works/index.json` → recharger. Affinez ensuite en jeu : touche **E**,
-glisser le gizmo, régler les rayons (sphères visibles), puis **exporter** le
-JSON mis à jour (l'export `works.json` combiné, déposé dans `works/`, prend
-le pas sur `index.json`).
+`works/index.json` → recharger. Ou plus simple : composer directement dans
+**l'éditeur de scène** (ci-dessous) et exporter.
+
+### Décrire une pièce (rooms/*.json)
+
+```jsonc
+{
+  "id": "hall",
+  "title": "Hall",
+  "spawn": [0, 2.2, 14],           // point d'arrivée (position caméra)
+  "fogColor": "#05050a",           // ambiance visuelle de la pièce (optionnel)
+  "ambience": [                    // nappes propres à la pièce, fondues quand
+    { "file": "audio/vent.wav", "gain": 0.3 }   // on entre/sort (optionnel)
+  ],
+  "works": ["nebuleuse", "marees"],// œuvres présentes (ids de works/*.json)
+  "portals": [
+    {
+      "to": "annexe",              // pièce de destination
+      "position": [-5, 0, -22],    // pied du portail
+      "rotationY": 12,
+      "label": "Annexe",           // étiquette flottante
+      "arrival": [0, 2.2, 8]       // où l'on apparaît dans la destination
+    }
+  ]
+}
+```
+
+Référencées par `rooms/index.json` (ou un `rooms/rooms.json` combiné, produit
+par l'export de l'éditeur, qui prend le pas). **Sans dossier rooms/, la
+galerie fonctionne en pièce unique** contenant toutes les œuvres.
+
+Franchir un portail (s'en approcher, ou le toucher/cliquer) déclenche un fondu
+puis téléporte au point d'arrivée. Performance : seule la pièce courante est
+rendue (culling par pièce) ; ses voisines directes sont préchargées mais
+muettes et invisibles ; tout le reste est déchargé (textures, sources audio,
+buffers, vidéos en pause).
+
+## Éditeur de scène (mode auteur)
+
+**Lancer** : touche **E**, bouton **✎** (en haut à droite), ou ouvrir l'URL
+avec **`?edit`** (ex. `http://localhost:5173/?edit`). Les mêmes commandes
+referment l'éditeur. Utilisable au doigt sur iOS : panneaux repliables,
+champs numériques pour le placement précis, barre d'outils défilante.
+
+**Barre d'outils** : 📁 Médias (import), ⤒ JSON (réimport d'un export),
+＋ Objet, gizmos ↔ / ⟳ / ⤢ (raccourcis 1 / 2 / 3), ⧉ dupliquer,
+🗑 supprimer (Suppr), 💾 Exporter, ✕ quitter.
+
+### Importer des médias
+
+Glissez-déposez des fichiers sur la fenêtre (ou 📁 Médias) :
+
+- **image** (jpg/png/webp) → plan texturé ;
+- **vidéo** (mp4/webm) → plan avec VideoTexture (autoplay iOS : playsinline
+  + muted ; cochez « son de la vidéo » pour router l'audio dans le bus
+  spatialisé de l'objet, débloqué au tap) ;
+- **son(s)** (mp3/ogg/wav) → objet sonore spatialisé ; plusieurs fichiers
+  déposés ensemble forment un seul objet multi-stems.
+
+Avec un objet **sélectionné**, l'image/vidéo importée **remplace** son visuel
+et les sons **s'ajoutent** en stems. Le bouton « ＋ Ambiance » de la section
+Pièce importe un son comme ambiance de la pièce courante.
+
+Les fichiers importés restent dans le navigateur (URL blob) et sont
+référencés par un chemin relatif **`assets/<nom>`** dans les JSON — voir
+« Publier » ci-dessous pour les déposer dans le dépôt.
+
+### Éditer les objets
+
+Clic sur un objet → sélection : gizmo (déplacer/tourner/échelle) **et**
+champs numériques x/y/z, rotation, échelle dans le panneau — indispensables
+sur tactile. Le panneau expose : titre, description, taille du plan, stems
+(rayon/gain par piste, sphères de rayon visibles), son de vidéo, et les
+modules activés (crossfade spatial + rayon, HRTF, réactivité audio, focus
+caméra). Dupliquer/Supprimer via la barre d'outils.
+
+### Pièces et portails
+
+Section « Pièce » du panneau : changer de pièce active, la renommer, choisir
+sa couleur de brouillard, définir le point d'arrivée (« Point d'arrivée
+ici »), gérer son ambiance sonore. « ＋ Nouvelle pièce » crée une pièce vide
+et y bascule ; « ＋ Portail » relie la pièce courante à la pièce choisie (un
+portail de retour est créé automatiquement, déplaçable ensuite comme
+n'importe quel objet — clic dessus pour le sélectionner, cible/étiquette
+modifiables).
+
+### Publier (site 100 % statique, sans backend)
+
+1. **💾 Exporter** télécharge `works.json` et `rooms.json` ;
+2. déposez-les dans `content/works/` et `content/rooms/` (les fichiers
+   combinés prennent le pas sur les `index.json`) ;
+3. copiez les médias importés dans **`content/assets/`** en gardant les noms
+   listés dans le panneau « Publier » après l'export (les JSON les
+   référencent par `assets/<nom>`) ;
+4. `git add … && git commit && git push` → le déploiement automatique met le
+   site à jour.
+
+**Réimport** : ⤒ JSON (ou glisser un `.json` sur la fenêtre) recharge un
+export — works.json, rooms.json ou les deux — pour reprendre l'édition plus
+tard. Les médias déjà déployés dans `content/` se chargent normalement ; les
+blobs d'une session précédente, eux, ne survivent pas au rechargement de la
+page (re-glissez les fichiers ou déployez-les).
 
 ## Modules fournis
 
@@ -251,6 +360,10 @@ lancement puis l'ajuste en continu :
 - **mémoire** : textures et buffers audio chargés à l'approche
   (`loadDistance`, 50 par défaut) et **libérés** au-delà de 1,6 × cette
   distance (dispose des textures, arrêt des sources, buffers oubliés) ;
+- **pièces** : seule la pièce courante est rendue et audible ; les pièces
+  adjacentes (via portails) sont préchargées, les autres entièrement
+  libérées ; les vidéos hors pièce courante sont mises en pause et
+  déchargées ;
 - **iOS Safari** : resume() + buffer silencieux à chaque tap si le contexte
   audio n'est plus « running » ;
 - **divers** : boucle et audio en pause quand l'onglet est masqué

@@ -6,7 +6,7 @@ import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { AudioEngine } from './AudioEngine.js';
 import { QualityManager } from './Quality.js';
-import { LoadingTracker } from './utils.js';
+import { LoadingTracker, assetUrl } from './utils.js';
 
 const FOG_COLOR = 0x05050a;
 
@@ -54,6 +54,8 @@ export class App {
     this.quality = new QualityManager();
     this.loading = new LoadingTracker();
     this.artworks = [];
+    // Fichiers importés dans l'éditeur : chemin de config → URL blob
+    this.assetOverrides = new Map();
     this._updatables = [];
     this._clickHandlers = [];
     this._stemBudgetAcc = 0;
@@ -162,18 +164,31 @@ export class App {
         -(e.clientY / window.innerHeight) * 2 + 1
       );
       raycaster.setFromCamera(ndc, this.camera);
-      const meshes = this.artworks.map((a) => a.hitMesh).filter(Boolean);
-      const hits = raycaster.intersectObjects(meshes, true);
-      let artwork = null;
-      if (hits.length) {
-        let obj = hits[0].object;
-        while (obj && !obj.userData.artwork) obj = obj.parent;
-        artwork = obj?.userData.artwork ?? null;
+
+      // cibles : œuvres de la pièce courante + portails de la pièce courante
+      const meshes = this.artworks
+        .filter((a) => !a.room || a.room.state === 'current')
+        .map((a) => a.hitMesh)
+        .filter(Boolean);
+      if (this.rooms?.current) meshes.push(...this.rooms.current.portalMeshes);
+
+      const intersections = raycaster.intersectObjects(meshes, true);
+      let hit = null;
+      if (intersections.length) {
+        let obj = intersections[0].object;
+        while (obj && !obj.userData.artwork && !obj.userData.portal) obj = obj.parent;
+        if (obj?.userData.artwork) hit = { type: 'artwork', artwork: obj.userData.artwork };
+        else if (obj?.userData.portal) hit = { type: 'portal', portal: obj.userData.portal };
       }
       for (const h of this._clickHandlers) {
-        if (h(artwork, e)) return; // un handler peut consommer le clic
+        if (h(hit, e)) return; // un handler peut consommer le clic
       }
     });
+  }
+
+  /** Chemin de config → URL réelle (les imports de l'éditeur sont des blobs). */
+  resolveAsset(path) {
+    return this.assetOverrides.get(path) ?? assetUrl(path);
   }
 
   /** Onglet masqué → boucle en pause + audio suspendu (économie de batterie). */
@@ -205,9 +220,26 @@ export class App {
     this.activeFocus = module;
   }
 
-  addArtwork(artwork) {
+  /** Ajoute une œuvre, dans une pièce si le système de rooms est actif. */
+  addArtwork(artwork, room = null) {
     this.artworks.push(artwork);
-    this.scene.add(artwork.group);
+    if (room) {
+      artwork.room = room;
+      room.artworks.push(artwork);
+      room.group.add(artwork.group);
+    } else {
+      this.scene.add(artwork.group);
+    }
+  }
+
+  removeArtwork(artwork) {
+    const i = this.artworks.indexOf(artwork);
+    if (i >= 0) this.artworks.splice(i, 1);
+    if (artwork.room) {
+      const j = artwork.room.artworks.indexOf(artwork);
+      if (j >= 0) artwork.room.artworks.splice(j, 1);
+    }
+    artwork.dispose();
   }
 
   /** Enregistre un callback appelé à chaque frame : fn(dt, ctx). */
@@ -228,7 +260,8 @@ export class App {
   _updateStemBudget() {
     const budget = this.quality.profile.maxStems;
     const candidates = this.artworks
-      .filter((a) => a.audioReady && a.stems.length)
+      .filter((a) => a.audioReady && a.stems.length
+        && (!a.room || a.room.state === 'current'))
       .map((a) => ({ a, d: a.distance }))
       .filter((x) => x.d < x.a.maxAudibleRadius + 6)
       .sort((p, q) => p.d - q.d);
@@ -242,7 +275,10 @@ export class App {
       }
     }
     for (const a of this.artworks) {
-      if (a.audioReady) a.setStemsActive(keep.has(a));
+      if (a.audioReady) {
+        const inCurrentRoom = !a.room || a.room.state === 'current';
+        a.setStemsActive(inCurrentRoom && keep.has(a));
+      }
     }
   }
 

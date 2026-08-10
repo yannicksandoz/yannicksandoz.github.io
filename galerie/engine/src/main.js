@@ -1,7 +1,8 @@
 import './style.css';
 import { App } from './core/App.js';
-import { Artwork } from './core/Artwork.js';
-import { loadWorks } from './core/ConfigLoader.js';
+import { loadWorks, loadRooms } from './core/ConfigLoader.js';
+import { buildScene } from './core/SceneBuilder.js';
+import { RoomManager } from './core/RoomManager.js';
 import { registry } from './core/ModuleRegistry.js';
 import { Controls } from './controls/Controls.js';
 import { Editor } from './editor/Editor.js';
@@ -46,18 +47,26 @@ async function boot() {
   app.ui = new UI();
   app.ui.bindLoading(app.loading);
   app.controls = new Controls(app);
+  app.rooms = new RoomManager(app);
   app.editor = new Editor(app);
 
   app.onUpdate((dt) => app.controls.update(dt));
+  app.onUpdate((dt, ctx) => app.rooms.update(dt, ctx));
+  app.onUpdate((dt) => app.editor.update(dt));
 
-  // Gestion des clics hors mode édition : focus / défocus des œuvres.
-  app.onArtworkClick((artwork) => {
+  // Clics hors mode édition : focus des œuvres, franchissement des portails.
+  app.onArtworkClick((hit) => {
     if (app.editor.enabled) return false; // le handler de l'éditeur s'en charge
-    if (artwork) {
-      if (app.activeFocus && app.activeFocus.artwork !== artwork) {
+    if (hit?.type === 'portal') {
+      app.activeFocus?.release();
+      app.rooms.traverse(hit.portal);
+      return true;
+    }
+    if (hit?.type === 'artwork') {
+      if (app.activeFocus && app.activeFocus.artwork !== hit.artwork) {
         app.activeFocus.release();
       }
-      return artwork.handleClick();
+      return hit.artwork.handleClick();
     }
     if (app.activeFocus) {
       app.activeFocus.release();
@@ -66,19 +75,29 @@ async function boot() {
     return false;
   });
 
-  // Chargement des œuvres (les assets, eux, sont chargés paresseusement).
+  // Chargement des configurations (les assets, eux, sont paresseux).
   try {
-    const works = await app.loading.track(loadWorks());
-    for (const cfg of works) app.addArtwork(new Artwork(cfg, app));
+    const [works, rooms] = await Promise.all([
+      app.loading.track(loadWorks()),
+      loadRooms()
+    ]);
+    buildScene(app, works, rooms);
     app.ui.setReady();
   } catch {
     app.ui.showLoadError('Impossible de charger la configuration des œuvres (voir console).');
   }
 
   app.start(); // la scène tourne déjà derrière l'écran d'accueil
+  window.__galerie = app; // point d'entrée debug/console
+
+  // mode auteur direct : …/galerie/?edit
+  if (new URLSearchParams(location.search).has('edit') && !app.editor.enabled) {
+    app.editor.toggle();
+  }
 
   await app.ui.waitForEnter();
   app.audio.unlock(); // depuis le geste utilisateur : requis par les navigateurs
+  app.rooms.onAudioUnlocked();
   app.ui.maybeShowTouchHint(app.quality.isMobile);
 }
 
