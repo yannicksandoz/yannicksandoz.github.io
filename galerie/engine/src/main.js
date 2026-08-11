@@ -5,7 +5,7 @@ import { buildScene } from './core/SceneBuilder.js';
 import { RoomManager } from './core/RoomManager.js';
 import { registry } from './core/ModuleRegistry.js';
 import { Controls } from './controls/Controls.js';
-import { Editor } from './editor/Editor.js';
+import { setupEditorLoader } from './editorLoader.js';
 import { UI } from './ui/UI.js';
 
 // --- enregistrement des modules disponibles -------------------------------
@@ -48,15 +48,14 @@ async function boot() {
   app.ui.bindLoading(app.loading);
   app.controls = new Controls(app);
   app.rooms = new RoomManager(app);
-  app.editor = new Editor(app);
 
   app.onUpdate((dt) => app.controls.update(dt));
   app.onUpdate((dt, ctx) => app.rooms.update(dt, ctx));
-  app.onUpdate((dt) => app.editor.update(dt));
+  app.onUpdate((dt) => app.editor?.update(dt)); // absent tant que non chargé
 
   // Clics hors mode édition : focus des œuvres, franchissement des portails.
   app.onArtworkClick((hit) => {
-    if (app.editor.enabled) return false; // le handler de l'éditeur s'en charge
+    if (app.editor?.enabled) return false; // le handler de l'éditeur s'en charge
     if (hit?.type === 'portal') {
       app.activeFocus?.release();
       app.rooms.traverse(hit.portal);
@@ -90,10 +89,8 @@ async function boot() {
   app.start(); // la scène tourne déjà derrière l'écran d'accueil
   window.__galerie = app; // point d'entrée debug/console
 
-  // mode auteur direct : …/galerie/?edit
-  if (new URLSearchParams(location.search).has('edit') && !app.editor.enabled) {
-    app.editor.toggle();
-  }
+  // L'éditeur n'est téléchargé qu'au premier déclenchement (E, ✎, ?edit).
+  setupEditorLoader(app);
 
   await app.ui.waitForEnter();
   app.audio.unlock(); // depuis le geste utilisateur : requis par les navigateurs
