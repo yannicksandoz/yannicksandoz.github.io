@@ -9,7 +9,7 @@ name: Deploy Pages (blog + galerie)
 
 on:
   push:
-    branches: [master, claude/galerie-3d]
+    branches: [master]
   workflow_dispatch:
 
 permissions:
