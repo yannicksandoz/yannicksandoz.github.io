@@ -50,8 +50,22 @@ jobs:
           npm ci
           npm run build
 
+      # `cp -r src dest` copie DANS dest quand dest existe déjà (on obtiendrait
+      # _site/galerie/dist/). On supprime donc la cible d'abord, puis on vérifie
+      # que la page d'entrée est bien à /galerie/index.html — mieux vaut un
+      # workflow rouge qu'un déploiement vert servant un 404.
       - name: Assemblage (galerie sous /galerie/)
-        run: sudo cp -r galerie/dist _site/galerie
+        run: |
+          sudo rm -rf _site/galerie
+          sudo cp -r galerie/dist _site/galerie
+          echo "--- contenu de _site (2 niveaux) ---"
+          find _site -maxdepth 2 -not -path '*/.*' | sort | head -40
+          echo "--- contrôle ---"
+          test -f _site/galerie/index.html \
+            || { echo "::error::_site/galerie/index.html manquant"; exit 1; }
+          test -d _site/galerie/works \
+            || echo "::warning::_site/galerie/works absent (configs d'œuvres)"
+          echo "OK : /galerie/ servira $(du -sh _site/galerie | cut -f1)"
 
       - uses: actions/upload-pages-artifact@v3
         with:
