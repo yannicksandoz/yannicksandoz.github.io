@@ -50,10 +50,21 @@ workflow à la main : onglet *Actions* → *Deploy Pages (blog + galerie)* →
 git push origin master        # → build + déploiement automatiques
 ```
 
-Prérequis à vérifier une seule fois : *Settings → Pages → Source* doit être
-sur **GitHub Actions** (le workflow tente de l'activer tout seul ; si le
-premier run échoue sur l'étape de déploiement, faites ce réglage puis
-relancez).
+**Prérequis : *Settings → Pages → Source* doit être sur « GitHub Actions ».**
+Le workflow force ce réglage lui-même à chaque exécution (appel à l'API
+Pages), mais il vaut la peine de savoir pourquoi c'est indispensable.
+
+Tant que la source reste sur « Deploy from a branch », GitHub lance à chaque
+push son **propre** build Jekyll (workflow « pages build and deployment »)
+*en plus* du nôtre. Or ce build ignore `galerie/` — le dossier est exclu dans
+`_config.yml` puisque c'est un projet Vite, pas du Jekyll — et il écrase
+notre déploiement une fois sur deux. Symptôme caractéristique : **le blog
+s'affiche mais `/galerie/` renvoie 404**, alors que le workflow est vert et
+que l'artefact contient bien la galerie.
+
+Si vous revoyez ce symptôme, vérifiez dans l'onglet *Actions* qu'un run
+« pages build and deployment » ne se déclenche plus en parallèle du nôtre ;
+s'il est encore là, repassez la source sur « GitHub Actions » à la main.
 
 ### Manuel — Nginx
 
