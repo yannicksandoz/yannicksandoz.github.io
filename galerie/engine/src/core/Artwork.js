@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { registry } from './ModuleRegistry.js';
 import { buildPrimitive, isPrimitive } from './primitives.js';
+import { loadModel, fitModel, modelKind } from './modelLoaders.js';
 
 // crossOrigin « anonymous » : indispensable pour les médias distants, dont
 // les pixels doivent être lisibles par WebGL (l'hôte doit autoriser le CORS).
@@ -19,16 +20,6 @@ export function applyTransform(object3d, config) {
 
 const textureLoader = new THREE.TextureLoader();
 textureLoader.setCrossOrigin('anonymous');
-let gltfLoaderPromise = null;
-
-/** GLTFLoader chargé à la demande : pas de coût si aucune œuvre n'utilise de modèle. */
-function getGltfLoader() {
-  if (!gltfLoaderPromise) {
-    gltfLoaderPromise = import('three/addons/loaders/GLTFLoader.js')
-      .then(({ GLTFLoader }) => new GLTFLoader());
-  }
-  return gltfLoaderPromise;
-}
 
 /** Redimensionne une texture au plafond du profil (mémoire GPU mobile). */
 function capTextureSize(texture, maxSize) {
@@ -142,14 +133,8 @@ export class Artwork {
         this._setMesh(this._buildPanelMesh(tex));
       } else if (cfg.video) {
         this._setMesh(this._buildVideoMesh());
-      } else if (cfg.model?.type === 'gltf') {
-        const loader = await getGltfLoader();
-        const gltf = await this.app.loading.track(
-          loader.loadAsync(this._resolve(cfg.model.url))
-        );
-        const root = gltf.scene;
-        root.scale.setScalar(cfg.model.scale ?? 1);
-        this._setMesh(root);
+      } else if (cfg.model?.url) {
+        this._setMesh(await this._loadModelMesh(cfg.model));
       } else if (cfg.model?.shape === 'monolith') {
         this._setMesh(this._buildMonolith(cfg.model));
       } else if (isPrimitive(cfg.model?.shape)) {
@@ -159,12 +144,44 @@ export class Artwork {
       }
       this._visualLoaded = true;
       this._clearMediaError();
+      this.app.notifyVisualLoaded?.(this);
     } catch (err) {
       // échec non fatal : l'œuvre garde son placeholder, la visite continue.
       // Cause fréquente pour une URL distante : CORS refusé, 404 ou réseau.
       console.error(`[galerie] Visuel de « ${cfg.id} » impossible à charger :`, err);
       this.setMediaError(`visuel illisible (${cfg.image ?? cfg.video ?? cfg.model?.url ?? '?'})`);
     }
+  }
+
+  /**
+   * Modèle importé (GLB / glTF / OBJ). Les animations éventuelles sont
+   * jouées en boucle ; l'échelle est normalisée si la config le demande
+   * (`fit`), ce qui évite qu'un modèle en centimètres soit invisible.
+   */
+  async _loadModelMesh(model) {
+    const { object3d, animations, triangles } = await this.app.loading.track(
+      loadModel(this._resolve(model.url), {
+        kind: model.type ?? modelKind(model.url),
+        mtlUrl: model.mtl ? this._resolve(model.mtl) : undefined
+      })
+    );
+    this.modelTriangles = triangles;
+    if (triangles > 150000) {
+      // on n'empêche rien : c'est votre scène. Mais autant le savoir avant
+      // de constater les saccades sur un portable.
+      this.modelWarning = `${triangles.toLocaleString('fr-FR')} triangles — lourd pour un laptop`;
+      console.warn(`[galerie] « ${this.config.id} » : ${this.modelWarning}`);
+    }
+
+    if (model.fit !== false) fitModel(object3d, model.fit ?? 2);
+    if (Number.isFinite(model.scale)) object3d.scale.multiplyScalar(model.scale);
+
+    if (animations.length) {
+      this._mixer = new THREE.AnimationMixer(object3d);
+      for (const clip of animations) this._mixer.clipAction(clip).play();
+      this.modelAnimations = animations.length;
+    }
+    return object3d;
   }
 
   /** Signale un média illisible : placeholder rouge + message pour l'éditeur. */
@@ -202,6 +219,9 @@ export class Artwork {
         });
       }
     });
+    this._mixer?.stopAllAction();
+    this._mixer = null;
+    this.modelAnimations = 0;
     this.mesh = null;
     this._reactiveMaterial = null;
     this._visualLoaded = false;
@@ -462,6 +482,8 @@ export class Artwork {
     if (this._reactiveMaterial?.uniforms?.uTime) {
       this._reactiveMaterial.uniforms.uTime.value = ctx.time;
     }
+    // animations du modèle importé (immobiles si prefers-reduced-motion)
+    if (this._mixer && !this.app.quality.reducedMotion) this._mixer.update(dt);
 
     for (const m of this.modules) m.update(dt, { ...ctx, distance: this._distance });
   }

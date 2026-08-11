@@ -247,6 +247,15 @@ export class App {
     this._updatables.push(fn);
   }
 
+  /** Prévient les abonnés qu'une œuvre vient de charger son visuel. */
+  onVisualLoaded(fn) {
+    (this._visualListeners ??= []).push(fn);
+  }
+
+  notifyVisualLoaded(artwork) {
+    for (const fn of this._visualListeners ?? []) fn(artwork);
+  }
+
   /** Enregistre un handler de clic : fn(artworkOuNull, event) → bool (consommé). */
   onArtworkClick(fn) {
     this._clickHandlers.push(fn);

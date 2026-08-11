@@ -289,6 +289,7 @@ body.editing #edit-toggle { color: var(--accent); border-color: var(--accent); }
 .ed-sec textarea[data-url-field] { font-family: ui-monospace, monospace; font-size: 0.75rem; }
 .status-error { color: #ff9a9a; font-size: 0.75rem; line-height: 1.4; margin: 0.3rem 0; }
 .status-ok { color: #7fe0b0; }
+.status-warn { color: #ffbf6b; font-size: 0.75rem; line-height: 1.4; margin: 0.3rem 0; }
 #import-status:empty { display: none; }
 #import-status { margin: 0.3rem 0; font-size: 0.75rem; }
 #editor-panel h3 {
