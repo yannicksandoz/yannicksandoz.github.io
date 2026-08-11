@@ -1,8 +1,22 @@
 import * as THREE from 'three';
 import { registry } from './ModuleRegistry.js';
+import { buildPrimitive, isPrimitive } from './primitives.js';
 
 // crossOrigin « anonymous » : indispensable pour les médias distants, dont
 // les pixels doivent être lisibles par WebGL (l'hôte doit autoriser le CORS).
+/** Applique position / rotation (degrés XYZ) / échelle (XYZ) d'une config v2. */
+export function applyTransform(object3d, config) {
+  object3d.position.fromArray(config.position ?? [0, 1.8, 0]);
+  const r = config.rotation ?? [0, 0, 0];
+  object3d.rotation.set(
+    THREE.MathUtils.degToRad(r[0] ?? 0),
+    THREE.MathUtils.degToRad(r[1] ?? 0),
+    THREE.MathUtils.degToRad(r[2] ?? 0)
+  );
+  const s = config.scale ?? [1, 1, 1];
+  object3d.scale.set(s[0] ?? 1, s[1] ?? 1, s[2] ?? 1);
+}
+
 const textureLoader = new THREE.TextureLoader();
 textureLoader.setCrossOrigin('anonymous');
 let gltfLoaderPromise = null;
@@ -50,9 +64,7 @@ export class Artwork {
     this.room = null; // renseigné par App.addArtwork
 
     this.group = new THREE.Group();
-    this.group.position.fromArray(config.position ?? [0, 1.8, 0]);
-    this.group.rotation.y = THREE.MathUtils.degToRad(config.rotationY ?? 0);
-    this.group.scale.setScalar(config.scale ?? 1);
+    applyTransform(this.group, config);
     this.group.userData.artwork = this;
 
     this.mesh = null;          // mesh final (visuel)
@@ -108,8 +120,9 @@ export class Artwork {
       emissiveIntensity: this.mediaError ? 0.6 : 0.4
     });
     const size = this.config.size ?? [4, 4];
-    const geo = this.config.model
-      ? new THREE.BoxGeometry(1.2, this.config.model.height ?? 4, 1.2)
+    const m = this.config.model;
+    const geo = m
+      ? new THREE.BoxGeometry(1.2, m.height ?? m.size ?? 1.5, 1.2)
       : new THREE.PlaneGeometry(size[0], size[1]);
     this.hitMesh = new THREE.Mesh(geo, mat);
     this.group.add(this.hitMesh);
@@ -139,6 +152,8 @@ export class Artwork {
         this._setMesh(root);
       } else if (cfg.model?.shape === 'monolith') {
         this._setMesh(this._buildMonolith(cfg.model));
+      } else if (isPrimitive(cfg.model?.shape)) {
+        this._setMesh(buildPrimitive(cfg.model));
       } else {
         console.warn(`[galerie] Œuvre ${cfg.id} : ni image, ni vidéo, ni modèle reconnu.`);
       }

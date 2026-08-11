@@ -257,7 +257,12 @@ export class RoomManager {
 function buildPortalMesh(cfg, label) {
   const group = new THREE.Group();
   group.position.set(cfg.position[0], cfg.position[1] ?? 0, cfg.position[2]);
-  group.rotation.y = THREE.MathUtils.degToRad(cfg.rotationY ?? 0);
+  const r = cfg.rotation ?? [0, cfg.rotationY ?? 0, 0];
+  group.rotation.set(
+    THREE.MathUtils.degToRad(r[0] ?? 0),
+    THREE.MathUtils.degToRad(r[1] ?? 0),
+    THREE.MathUtils.degToRad(r[2] ?? 0)
+  );
 
   const mat = new THREE.MeshStandardMaterial({
     color: 0x0c0c14, roughness: 0.4, metalness: 0.6,

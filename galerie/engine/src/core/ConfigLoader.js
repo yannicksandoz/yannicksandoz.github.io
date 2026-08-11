@@ -1,4 +1,5 @@
 import { assetUrl } from './utils.js';
+import { migrateWork, migrateRoom } from './schema.js';
 
 /**
  * Charge la liste des œuvres.
@@ -11,13 +12,13 @@ import { assetUrl } from './utils.js';
  */
 export async function loadWorks() {
   const combined = await fetchJson(assetUrl('works/works.json'), true);
-  if (Array.isArray(combined)) return combined;
+  if (Array.isArray(combined)) return combined.map(migrateWork);
 
   const index = await fetchJson(assetUrl('works/index.json'));
   const works = await Promise.all(
     index.map((file) => fetchJson(assetUrl(`works/${file}`)))
   );
-  return works.filter(Boolean);
+  return works.filter(Boolean).map(migrateWork);
 }
 
 /**
@@ -31,7 +32,7 @@ export async function loadWorks() {
  */
 export async function loadRooms() {
   const combined = await fetchJson(assetUrl('rooms/rooms.json'), true);
-  if (Array.isArray(combined)) return combined;
+  if (Array.isArray(combined)) return combined.map(migrateRoom);
 
   const index = await fetchJson(assetUrl('rooms/index.json'), true);
   if (!Array.isArray(index)) return null;
@@ -39,7 +40,7 @@ export async function loadRooms() {
   const rooms = await Promise.all(
     index.map((file) => fetchJson(assetUrl(`rooms/${file}`)))
   );
-  return rooms.filter(Boolean);
+  return rooms.filter(Boolean).map(migrateRoom);
 }
 
 async function fetchJson(url, optional = false) {
