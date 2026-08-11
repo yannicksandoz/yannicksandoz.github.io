@@ -8,7 +8,8 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "assets": "node scripts/generate-assets.mjs"
+    "assets": "node scripts/generate-assets.mjs",
+    "test": "node scripts/test-commands.mjs"
   },
   "dependencies": {
     "three": "0.166.1"

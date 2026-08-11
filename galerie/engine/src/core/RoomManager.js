@@ -162,6 +162,9 @@ export class RoomManager {
         const buffers = await Promise.all(
           cfgs.map((c) => engine.load(this.app.resolveAsset(c.file)))
         );
+        // La pièce a pu être libérée pendant le décodage (changement de
+        // pièce, reconstruction de la scène en édition) : on abandonne.
+        if (!room.ambience) return;
         const ctx = engine.ctx;
         const bus = ctx.createGain();
         bus.gain.value = 0;
