@@ -14,9 +14,20 @@ export function easeInOutCubic(t) {
   return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
 }
 
-/** Préfixe les URLs relatives avec la base Vite (déploiement en sous-dossier). */
+/** Vrai pour une URL absolue (http(s):// ou //hôte) — média distant. */
+export function isAbsoluteUrl(path) {
+  return typeof path === 'string' && /^(https?:)?\/\//.test(path);
+}
+
+/**
+ * Résout une source média. Deux formes acceptées partout dans les configs,
+ * de façon transparente :
+ *  - chemin relatif au dossier de contenu (« assets/photo.jpg ») ;
+ *  - URL absolue vers un hôte distant (« https://exemple.org/photo.jpg »),
+ *    qui doit autoriser le CORS (voir README).
+ */
 export function assetUrl(path) {
-  if (/^(https?:)?\/\//.test(path) || path.startsWith('/')) return path;
+  if (isAbsoluteUrl(path) || path.startsWith('/')) return path;
   return import.meta.env.BASE_URL + path;
 }
 

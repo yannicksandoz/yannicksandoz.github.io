@@ -116,6 +116,10 @@ au code du moteur** :
    └── textures/ …           # vos images (et models/ pour les .glb)
    ```
 
+   Les médias peuvent aussi vivre hors du dépôt : toute source (`image`,
+   `video`, `stems[].file`, `ambience[].file`, `model.url`) accepte
+   indifféremment un chemin relatif ou une URL absolue.
+
 2. Pointez le moteur dessus au build (ou en dev) :
 
    ```bash
@@ -141,7 +145,8 @@ au code du moteur** :
   "lightColor": "#7a6cff",         // lumière d'appoint de l'œuvre (optionnel)
 
   // — visuel : au choix —
-  "image": "textures/mon-image.png",
+  // (toute source média accepte un chemin relatif OU une URL absolue)
+  "image": "textures/mon-image.png",   // ou "https://exemple.org/image.jpg"
   "size": [6, 4],                  // largeur, hauteur du panneau (image/vidéo)
   // ou une vidéo (playsinline + muted : l'autoplay passe sur iOS) :
   "video": "assets/clip.mp4",
@@ -210,28 +215,54 @@ avec **`?edit`** (ex. `http://localhost:5173/?edit`). Les mêmes commandes
 referment l'éditeur. Utilisable au doigt sur iOS : panneaux repliables,
 champs numériques pour le placement précis, barre d'outils défilante.
 
-**Barre d'outils** : 📁 Médias (import), ⤒ JSON (réimport d'un export),
-＋ Objet, gizmos ↔ / ⟳ / ⤢ (raccourcis 1 / 2 / 3), ⧉ dupliquer,
-🗑 supprimer (Suppr), 💾 Exporter, ✕ quitter.
+**Barre d'outils** : 📁 Médias (import de fichiers), 🔗 URL (média distant),
+⤒ JSON (réimport d'un export), ＋ Objet, gizmos ↔ / ⟳ / ⤢ (raccourcis
+1 / 2 / 3), ⧉ dupliquer, 🗑 supprimer (Suppr), 💾 Exporter, ✕ quitter.
 
 ### Importer des médias
 
-Glissez-déposez des fichiers sur la fenêtre (ou 📁 Médias) :
+Deux voies équivalentes : **fichiers locaux** (glisser-déposer sur la fenêtre,
+ou 📁 Médias) et **URLs externes** (bouton 🔗 URL, ou section « Importer » du
+panneau). Dans les deux cas, le média produit le même type d'objet :
 
 - **image** (jpg/png/webp) → plan texturé ;
 - **vidéo** (mp4/webm) → plan avec VideoTexture (autoplay iOS : playsinline
   + muted ; cochez « son de la vidéo » pour router l'audio dans le bus
   spatialisé de l'objet, débloqué au tap) ;
-- **son(s)** (mp3/ogg/wav) → objet sonore spatialisé ; plusieurs fichiers
-  déposés ensemble forment un seul objet multi-stems.
+- **son(s)** (mp3/ogg/wav) → objet sonore spatialisé ; plusieurs sons
+  importés ensemble forment un seul objet multi-stems.
 
 Avec un objet **sélectionné**, l'image/vidéo importée **remplace** son visuel
-et les sons **s'ajoutent** en stems. Le bouton « ＋ Ambiance » de la section
-Pièce importe un son comme ambiance de la pièce courante.
+et les sons **s'ajoutent** en stems. Le bouton « ＋ Ambiance » importe un son
+comme ambiance de la pièce courante.
 
-Les fichiers importés restent dans le navigateur (URL blob) et sont
-référencés par un chemin relatif **`assets/<nom>`** dans les JSON — voir
-« Publier » ci-dessous pour les déposer dans le dépôt.
+#### Fichier local ou URL externe ?
+
+|  | Fichier local | URL externe |
+|---|---|---|
+| Stocké dans le JSON | `assets/<nom>` (chemin relatif) | l'URL absolue, telle quelle |
+| Après rechargement de la page | **perdu** tant que le fichier n'est pas déposé dans `content/assets/` | **conservé** — rechargé depuis l'hôte distant |
+| Hébergement | votre dépôt (le média est versionné) | l'hôte distant, qui doit autoriser le **CORS** |
+
+Un média référencé par URL **persiste d'une session à l'autre** : c'est la
+voie la plus rapide pour composer une scène sans rien copier dans le dépôt.
+Un fichier importé, lui, vit en URL blob le temps de la session — il faut le
+déposer dans `content/assets/` pour la version déployée (voir « Publier »).
+
+**Contrainte CORS.** Un média distant est chargé en `crossOrigin="anonymous"`
+(obligatoire : WebGL doit pouvoir lire ses pixels, et l'audio son buffer).
+L'hôte doit donc renvoyer un en-tête `Access-Control-Allow-Origin` permissif.
+Beaucoup d'hébergeurs d'images grand public ne le font pas ; en cas de doute,
+préférez un stockage objet configuré pour le CORS (S3/R2/Bucket avec règle
+CORS), votre propre serveur, ou déposez simplement le fichier dans
+`content/assets/`.
+
+L'éditeur **valide chaque URL avant de créer l'objet** : une URL injoignable
+(CORS refusé, 404, réseau, format non pris en charge) est signalée sous le
+champ d'import et ignorée — rien n'est ajouté à la scène. Si un média cesse
+d'être joignable **plus tard** (hôte hors ligne, fichier supprimé), la scène
+ne plante pas : l'objet reste en place avec un **placeholder rouge**, l'erreur
+est écrite en console et affichée dans son panneau de propriétés.
 
 ### Éditer les objets
 
@@ -257,17 +288,18 @@ modifiables).
 1. **💾 Exporter** télécharge `works.json` et `rooms.json` ;
 2. déposez-les dans `content/works/` et `content/rooms/` (les fichiers
    combinés prennent le pas sur les `index.json`) ;
-3. copiez les médias importés dans **`content/assets/`** en gardant les noms
-   listés dans le panneau « Publier » après l'export (les JSON les
-   référencent par `assets/<nom>`) ;
+3. copiez les médias **importés en fichier** dans **`content/assets/`** en
+   gardant les noms listés dans le panneau « Publier » après l'export (les
+   JSON les référencent par `assets/<nom>`) ; les médias référencés par URL
+   n'ont rien à copier — leur URL absolue est déjà dans le JSON ;
 4. `git add … && git commit && git push` → le déploiement automatique met le
    site à jour.
 
 **Réimport** : ⤒ JSON (ou glisser un `.json` sur la fenêtre) recharge un
 export — works.json, rooms.json ou les deux — pour reprendre l'édition plus
-tard. Les médias déjà déployés dans `content/` se chargent normalement ; les
-blobs d'une session précédente, eux, ne survivent pas au rechargement de la
-page (re-glissez les fichiers ou déployez-les).
+tard. Les médias déjà déployés dans `content/` et **ceux référencés par URL**
+se rechargent normalement ; seuls les blobs d'une session précédente ne
+survivent pas au rechargement (re-glissez les fichiers ou déployez-les).
 
 ## Modules fournis
 
@@ -370,7 +402,8 @@ lancement puis l'ajuste en continu :
   (`visibilitychange`), `prefers-reduced-motion` respecté (pas de grain
   animé, pas de pulsation géométrique, travellings quasi instantanés),
   échec de chargement d'un asset = placeholder conservé + log, jamais de
-  plantage ; fallback explicite si WebGL2 est absent.
+  plantage (un média distant devenu injoignable vire au placeholder rouge) ;
+  fallback explicite si WebGL2 est absent.
 
 ## Licences
 

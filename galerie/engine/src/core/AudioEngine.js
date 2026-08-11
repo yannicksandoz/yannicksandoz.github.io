@@ -66,7 +66,9 @@ export class AudioEngine {
   load(url) {
     if (!this.ctx) return Promise.reject(new Error('AudioContext non débloqué'));
     if (!this._cache.has(url)) {
-      const p = fetch(url)
+      // mode cors explicite : un hôte distant doit autoriser le CORS pour
+      // que le buffer soit lisible (voir README)
+      const p = fetch(url, { mode: 'cors' })
         .then((r) => {
           if (!r.ok) throw new Error(`Audio introuvable : ${url} (${r.status})`);
           return r.arrayBuffer();

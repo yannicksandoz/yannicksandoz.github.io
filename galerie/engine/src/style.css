@@ -177,6 +177,11 @@ body.editing #edit-toggle { color: var(--accent); border-color: var(--accent); }
 .stem-row button:hover { color: #ff8a8a; }
 .row-inline { display: flex; gap: 0.4rem; align-items: center; margin: 0.4rem 0; }
 .row-inline select { flex: 1; }
+.ed-sec textarea[data-url-field] { font-family: ui-monospace, monospace; font-size: 0.75rem; }
+.status-error { color: #ff9a9a; font-size: 0.75rem; line-height: 1.4; margin: 0.3rem 0; }
+.status-ok { color: #7fe0b0; }
+#import-status:empty { display: none; }
+#import-status { margin: 0.3rem 0; font-size: 0.75rem; }
 #editor-panel h3 {
   font-weight: 500; letter-spacing: 0.1em; text-transform: uppercase;
   font-size: 0.75rem; color: var(--accent); margin-bottom: 0.6rem;

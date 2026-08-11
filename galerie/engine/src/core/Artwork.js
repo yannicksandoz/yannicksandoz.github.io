@@ -1,7 +1,10 @@
 import * as THREE from 'three';
 import { registry } from './ModuleRegistry.js';
 
+// crossOrigin « anonymous » : indispensable pour les médias distants, dont
+// les pixels doivent être lisibles par WebGL (l'hôte doit autoriser le CORS).
 const textureLoader = new THREE.TextureLoader();
+textureLoader.setCrossOrigin('anonymous');
 let gltfLoaderPromise = null;
 
 /** GLTFLoader chargé à la demande : pas de coût si aucune œuvre n'utilise de modèle. */
@@ -65,6 +68,7 @@ export class Artwork {
 
     this._video = null;
     this._mediaSrc = null;
+    this.mediaError = null; // message si un média est illisible (CORS, 404…)
 
     this._visualRequested = false;
     this._visualLoaded = false;
@@ -95,9 +99,13 @@ export class Artwork {
   /* ----------------------------------------------------------- visuel --- */
 
   _buildPlaceholder() {
+    // En cas de média illisible, le placeholder vire au rouge sourd :
+    // repère visuel immédiat dans l'éditeur, discret en visite.
     const mat = new THREE.MeshStandardMaterial({
-      color: 0x101018, roughness: 0.8, metalness: 0.2,
-      emissive: 0x1a1a2e, emissiveIntensity: 0.4
+      color: this.mediaError ? 0x1c0c10 : 0x101018,
+      roughness: 0.8, metalness: 0.2,
+      emissive: this.mediaError ? 0x4a1020 : 0x1a1a2e,
+      emissiveIntensity: this.mediaError ? 0.6 : 0.4
     });
     const size = this.config.size ?? [4, 4];
     const geo = this.config.model
@@ -135,10 +143,27 @@ export class Artwork {
         console.warn(`[galerie] Œuvre ${cfg.id} : ni image, ni vidéo, ni modèle reconnu.`);
       }
       this._visualLoaded = true;
+      this._clearMediaError();
     } catch (err) {
-      // échec non fatal : l'œuvre garde son placeholder, la visite continue
+      // échec non fatal : l'œuvre garde son placeholder, la visite continue.
+      // Cause fréquente pour une URL distante : CORS refusé, 404 ou réseau.
       console.error(`[galerie] Visuel de « ${cfg.id} » impossible à charger :`, err);
+      this.setMediaError(`visuel illisible (${cfg.image ?? cfg.video ?? cfg.model?.url ?? '?'})`);
     }
+  }
+
+  /** Signale un média illisible : placeholder rouge + message pour l'éditeur. */
+  setMediaError(message) {
+    this.mediaError = message;
+    if (this._placeholder) {
+      this._placeholder.material.color.set(0x1c0c10);
+      this._placeholder.material.emissive.set(0x4a1020);
+      this._placeholder.material.emissiveIntensity = 0.6;
+    }
+  }
+
+  _clearMediaError() {
+    this.mediaError = null;
   }
 
   _unloadVisual() {
@@ -326,7 +351,9 @@ export class Artwork {
       this._tryAttachVideoAudio();
       // Le démarrage effectif est décidé par le budget de stems de l'App.
     } catch (err) {
+      // idem visuel : on n'interrompt pas la visite pour un stem manquant
       console.error(`[galerie] Audio de « ${this.config.id} » impossible à charger :`, err);
+      this.setMediaError('son illisible (réseau, CORS ou format)');
     }
   }
 
