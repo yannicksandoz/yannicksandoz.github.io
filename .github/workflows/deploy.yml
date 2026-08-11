@@ -27,25 +27,12 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # Tant que la source Pages reste « Deploy from a branch », GitHub lance
-      # en parallèle son propre build Jekyll (« pages build and deployment »)
-      # qui ne contient PAS la galerie (exclue dans _config.yml) et qui écrase
-      # notre déploiement — d'où un 404 sur /galerie/ alors que le blog passe.
-      # On bascule donc la source sur « GitHub Actions », ce qui désactive ce
-      # build concurrent.
-      - name: Source Pages = GitHub Actions
-        run: |
-          code=$(curl -sS -o /tmp/pages.json -w '%{http_code}' -X PUT \
-            -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
-            -H "Accept: application/vnd.github+json" \
-            "https://api.github.com/repos/${{ github.repository }}/pages" \
-            -d '{"build_type":"workflow"}') || true
-          echo "PUT /pages build_type=workflow -> HTTP $code"
-          if [ "$code" != "204" ] && [ "$code" != "200" ]; then
-            cat /tmp/pages.json || true
-            echo "::warning::Bascule automatique impossible. Réglez Settings → Pages → Source sur « GitHub Actions »."
-          fi
-
+      # PRÉREQUIS : Settings → Pages → Source doit rester sur « GitHub Actions ».
+      # Sur une source « branche », GitHub lance en parallèle son propre build
+      # Jekyll (« pages build and deployment ») qui ne contient PAS la galerie
+      # (exclue dans _config.yml) et qui écrase ce déploiement — d'où un 404 sur
+      # /galerie/ alors que le blog s'affiche. Ce réglage ne peut pas être forcé
+      # depuis le workflow : GITHUB_TOKEN n'a pas les droits d'administration.
       - name: Configure GitHub Pages
         uses: actions/configure-pages@v5
         with:
