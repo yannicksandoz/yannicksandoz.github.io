@@ -303,6 +303,12 @@ sur tactile. Le panneau expose : titre, description, taille du plan, stems
 modules activés (crossfade spatial + rayon, HRTF, réactivité audio, focus
 caméra). Dupliquer/Supprimer via la barre d'outils.
 
+La hiérarchie (à gauche) permet de **masquer** (👁) et **verrouiller** (🔒) un
+objet pour travailler dans une scène chargée. Ces deux états décrivent votre
+session de travail, pas l'œuvre : ils **ne partent pas à l'export** et sont
+donc perdus au rechargement. C'est voulu — un objet replié pendant l'édition
+ne doit pas arriver masqué chez un visiteur.
+
 ### Bibliothèque 3D
 
 Le bouton **🧱 Bibliothèque** ouvre un catalogue de modèles prêts à poser :
@@ -468,8 +474,13 @@ Activez-le sur **une seule** œuvre (n'importe laquelle) :
 }
 ```
 
-`enabled: false` (ou `url` vide) désactive tout, proprement. Remplacez
-l'URL d'exemple `https://ko-fi.com/REMPLACEZ-MOI` de la démo par votre lien.
+`enabled: false` (ou `url` vide) désactive tout, proprement.
+
+La scène de démo pointe sur `https://ko-fi.com/yannicksandoz` (dans
+`content/works/monolithe.json`). Si vous déployez le moteur avec votre propre
+contenu, c'est l'une des trois choses à remplacer, avec le dossier `content/`
+et le contact de licence commerciale — sans quoi vous enverriez vos visiteurs
+soutenir quelqu'un d'autre.
 
 ## Créer un nouveau module
 
