@@ -2,7 +2,7 @@
  * Chargement paresseux de l'éditeur (côté runtime).
  *
  * Ce module reste minuscule et fait partie du bundle visiteur : il se
- * contente d'écouter les trois déclencheurs (touche E, bouton ✎, `?edit`)
+ * contente d'écouter les trois déclencheurs (touche ², bouton ✎, `?edit`)
  * et d'importer dynamiquement le vrai éditeur au premier d'entre eux.
  *
  * Tant que rien ne le déclenche, `app.editor` reste `undefined` — le
@@ -30,8 +30,12 @@ export function setupEditorLoader(app) {
     } catch { /* déjà signalé en console */ }
   };
 
+  // Touche physique à gauche du 1 (étiquetée ² sur PC FR, @ sur Mac FR,
+  // ` en QWERTY). E est désormais « pivoter à droite » : un raccourci
+  // d'édition sur une touche de navigation aurait ouvert l'éditeur en
+  // pleine visite.
   window.addEventListener('keydown', (e) => {
-    if (e.code !== 'KeyE') return;
+    if (e.code !== 'Backquote') return;
     if (e.target instanceof Element && e.target.matches('input, textarea, select')) return;
     toggle();
   });

@@ -1,12 +1,24 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { damp } from '../core/utils.js';
 
 /**
- * Navigation : orbite (souris / tactile) + déplacement clavier ZQSD/WASD
- * (e.code = touches physiques, donc identique en AZERTY et QWERTY) +
- * joystick virtuel sur écran tactile. Le déplacement translate à la fois
- * la caméra et la cible d'orbite, sur le plan horizontal.
+ * Navigation : orbite (souris / tactile) + déplacement clavier ZQSD/WASD +
+ * pivot Q/E + joystick virtuel sur écran tactile. Tout le clavier passe par
+ * `e.code` (touches physiques) : les mêmes touches marchent en AZERTY, en
+ * QWERTY et ailleurs, sans double détection. Le déplacement translate à la
+ * fois la caméra et la cible d'orbite, sur le plan horizontal.
+ *
+ * **Pivot Q/E** — tourner sur place, comme un glissement de souris mais au
+ * clavier : la CIBLE tourne autour de la caméra (l'inverse de l'orbite, où
+ * la caméra tourne autour de la cible). La vitesse est lissée à l'attaque
+ * et à la relâche (damp) pour retrouver l'inertie de la souris, et le
+ * déplacement simultané fonctionne puisque les deux entrées sont
+ * indépendantes. 120°/s : un tour complet en trois secondes — assez vif
+ * pour se retourner, assez calme pour viser une œuvre au casque.
  */
+const YAW_SPEED = THREE.MathUtils.degToRad(120);
+const UP = new THREE.Vector3(0, 1, 0);
 export class Controls {
   constructor(app) {
     this.app = app;
@@ -28,9 +40,10 @@ export class Controls {
     this.speed = 7;
     this._keys = new Set();
     this._joyVec = new THREE.Vector2();
+    this._yawVel = 0; // vitesse de pivot courante (lissée)
 
     window.addEventListener('keydown', (e) => {
-      if (e.target.matches('input, textarea')) return;
+      if (e.target.matches('input, textarea, select')) return;
       this._keys.add(e.code);
     });
     window.addEventListener('keyup', (e) => this._keys.delete(e.code));
@@ -90,6 +103,16 @@ export class Controls {
 
   update(dt) {
     if (!this.locked) {
+      // — pivot Q/E : tourner sur place —
+      const yawInput = (this._keys.has('KeyQ') ? 1 : 0) - (this._keys.has('KeyE') ? 1 : 0);
+      this._yawVel = damp(this._yawVel, yawInput * YAW_SPEED, 12, dt);
+      if (Math.abs(this._yawVel) > 0.001) {
+        const cam = this.app.camera.position;
+        const toTarget = this.orbit.target.clone().sub(cam);
+        toTarget.applyAxisAngle(UP, this._yawVel * dt);
+        this.orbit.target.copy(cam).add(toTarget);
+      }
+
       const { x, z } = this._moveInput();
       if (x || z) {
         const cam = this.app.camera;

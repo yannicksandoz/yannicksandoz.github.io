@@ -40,7 +40,7 @@ En mode Visiteur, trois choses disparaissent ensemble : le **JS**
 racine menant à l'éditeur, donc Rollup ne l'émet pas), le **CSS**
 (`editor/editor.css` est importé par l'éditeur, il suit) et le **DOM**
 (le bloc `<!-- editor:start … end -->` est retiré de `index.html`).
-Conséquence assumée : dans une galerie publiée, la touche **E**, le bouton
+Conséquence assumée : dans une galerie publiée, la touche **²**, le bouton
 **✎** et `?edit` ne font rien.
 
 ## Démarrage
@@ -100,8 +100,12 @@ ressemble à une clé d'API apparaît dans ce qui serait publié. Le workflow
 de déploiement le lance avant de publier ; rouge vaut mieux que vert avec
 l'outil d'auteur en ligne.
 
-**Navigation** — desktop : ZQSD / WASD / flèches (Maj = courir), souris pour
-orbiter, clic sur une œuvre pour l'approcher (Échap pour reculer).
+**Navigation** — desktop : ZQSD / WASD / flèches (Maj = courir), **A/E**
+(Q/E en QWERTY) pour pivoter sur place, souris pour orbiter, clic sur une
+œuvre pour l'approcher (Échap pour reculer). Tous les raccourcis sont liés
+aux **touches physiques** (`e.code`) : les mêmes positions marchent sur tous
+les claviers, et l'aide affiche les étiquettes réelles quand le navigateur
+sait les donner (`getLayoutMap`).
 Mobile : **1 doigt** pour regarder autour, **2 doigts** pour se déplacer et
 pincer pour zoomer, joystick virtuel pour marcher. Le bouton **Entrer**
 débloque l'`AudioContext` (obligatoire sur tous les navigateurs, iOS en tête).
@@ -312,7 +316,8 @@ buffers, vidéos en pause).
 
 ## Éditeur de scène (mode auteur)
 
-**Lancer** : touche **E**, bouton **✎** (en haut à droite), ou ouvrir l'URL
+**Lancer** : touche **²** (à gauche du 1 — `@` sur Mac FR), bouton **✎**
+(en haut à droite), ou ouvrir l'URL
 avec **`?edit`** (ex. `http://localhost:5173/?edit`). Les mêmes commandes
 referment l'éditeur. Utilisable au doigt sur iOS : panneaux repliables,
 champs numériques pour le placement précis, barre d'outils défilante.

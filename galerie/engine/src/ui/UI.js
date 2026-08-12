@@ -20,6 +20,30 @@ export class UI {
     this._onCloseFocus = null;
 
     this.focusClose.addEventListener('click', () => this._onCloseFocus?.());
+    this._refineKeyLabels();
+  }
+
+  /**
+   * Remplace les étiquettes de touches par celles du clavier RÉEL.
+   *
+   * Les raccourcis sont liés aux touches physiques (`e.code`), mais
+   * l'utilisateur lit des étiquettes : sur un AZERTY, la touche physique
+   * KeyQ s'appelle « A ». `getLayoutMap()` (Chrome/Edge) donne la
+   * correspondance ; ailleurs, les textes statiques restent — ils couvrent
+   * déjà les deux dispositions courantes (« A/E ou Q/E »).
+   */
+  async _refineKeyLabels() {
+    try {
+      const map = await navigator.keyboard?.getLayoutMap?.();
+      if (!map) return;
+      const of = (code, fallback) => (map.get(code) || fallback).toUpperCase();
+      document.querySelectorAll('[data-keylabel="pivot"]').forEach((el) => {
+        el.textContent = `${of('KeyQ', 'Q')}/${of('KeyE', 'E')}`;
+      });
+      document.querySelectorAll('[data-keylabel="edit"]').forEach((el) => {
+        el.textContent = of('Backquote', '²');
+      });
+    } catch { /* pas de carte de layout : les libellés neutres suffisent */ }
   }
 
   /** Branche la barre de progression sur le LoadingTracker de l'App. */
