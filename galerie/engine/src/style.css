@@ -220,3 +220,9 @@ html, body {
   #enter-screen, #touch-hint { transition: none; }
   #focus-overlay, #tipjar-overlay { animation: none; }
 }
+
+.credits-card .credits-source {
+  padding-bottom: 0.6rem; margin-bottom: 0.8rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+.credits-card .credits-source a { color: var(--accent); }

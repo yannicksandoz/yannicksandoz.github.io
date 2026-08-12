@@ -408,6 +408,33 @@ de votre mémoire.
 > d'accroche — un petit script qui transforme sa réponse en `items` suffira,
 > et les champs d'attribution sont déjà là pour ses modèles CC-BY.
 
+### Attribution des modèles importés
+
+Un modèle venu d'ailleurs porte `model.source`, et ce marqueur déclenche une
+obligation : **nom, auteur, licence et URL source deviennent des champs
+requis**. Une section *Attribution* apparaît dans l'inspecteur, les champs
+manquants y sont signalés en rouge, et **l'export est refusé** tant qu'ils le
+sont — avec le nom de l'œuvre et la liste de ce qui manque.
+
+C'est un refus, pas un avertissement. Une licence CC-BY oblige à citer ; un
+avertissement contournable n'est qu'une façon polie de ne pas le faire.
+
+**Le crédit est aussi écrit à côté de l'asset.** L'export produit un
+`<modèle>.glb.attribution.json` en plus des JSON de scène. Au chargement, le
+runtime relit ce fichier pour tout modèle importé dont le crédit serait
+incomplet, et le restaure. Supprimer une attribution demande donc d'effacer
+**deux** fichiers, dont un qui n'a aucune raison d'être ouvert — y compris
+quand un client reprend votre galerie et « nettoie » le JSON.
+
+Le coût est nul pour une scène sans import : aucune requête. Pour les
+autres, un petit JSON par modèle importé, en parallèle, et seulement si le
+crédit manque.
+
+Enfin, l'**écran de crédits** du mode Visiteur affiche la mention de la
+plateforme d'origine avec son lien — « Modèles fournis par Poly Pizza »,
+lien vers `https://poly.pizza` — dès qu'un modèle en vient. Elle n'est pas
+désactivable.
+
 ### Mode Voxel — construire cellule par cellule
 
 La barre d'outils propose deux modes : **◻ Objets** (médias, primitives,

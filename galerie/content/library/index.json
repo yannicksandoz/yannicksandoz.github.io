@@ -15,7 +15,8 @@
       "fit": 1.1,
       "author": "Galerie",
       "license": "CC0-1.0",
-      "sourceUrl": ""
+      "sourceUrl": "https://github.com/yannicksandoz/yannicksandoz.github.io",
+      "source": "library"
     },
     {
       "id": "socle-bas",
@@ -30,7 +31,8 @@
       "fit": 1.05,
       "author": "Galerie",
       "license": "CC0-1.0",
-      "sourceUrl": ""
+      "sourceUrl": "https://github.com/yannicksandoz/yannicksandoz.github.io",
+      "source": "library"
     },
     {
       "id": "vitrine",
@@ -46,7 +48,8 @@
       "fit": 1.7,
       "author": "Galerie",
       "license": "CC0-1.0",
-      "sourceUrl": ""
+      "sourceUrl": "https://github.com/yannicksandoz/yannicksandoz.github.io",
+      "source": "library"
     },
     {
       "id": "cimaise",
@@ -61,7 +64,8 @@
       "fit": 3,
       "author": "Galerie",
       "license": "CC0-1.0",
-      "sourceUrl": ""
+      "sourceUrl": "https://github.com/yannicksandoz/yannicksandoz.github.io",
+      "source": "library"
     },
     {
       "id": "colonne",
@@ -75,7 +79,8 @@
       "fit": 2.76,
       "author": "Galerie",
       "license": "CC0-1.0",
-      "sourceUrl": ""
+      "sourceUrl": "https://github.com/yannicksandoz/yannicksandoz.github.io",
+      "source": "library"
     },
     {
       "id": "arche",
@@ -90,7 +95,8 @@
       "fit": 2.55,
       "author": "Galerie",
       "license": "CC0-1.0",
-      "sourceUrl": ""
+      "sourceUrl": "https://github.com/yannicksandoz/yannicksandoz.github.io",
+      "source": "library"
     },
     {
       "id": "banc",
@@ -105,7 +111,8 @@
       "fit": 1.8,
       "author": "Galerie",
       "license": "CC0-1.0",
-      "sourceUrl": ""
+      "sourceUrl": "https://github.com/yannicksandoz/yannicksandoz.github.io",
+      "source": "library"
     },
     {
       "id": "cube-assise",
@@ -120,7 +127,8 @@
       "fit": 0.6,
       "author": "Galerie",
       "license": "CC0-1.0",
-      "sourceUrl": ""
+      "sourceUrl": "https://github.com/yannicksandoz/yannicksandoz.github.io",
+      "source": "library"
     },
     {
       "id": "cadre",
@@ -134,7 +142,8 @@
       "fit": 2,
       "author": "Galerie",
       "license": "CC0-1.0",
-      "sourceUrl": ""
+      "sourceUrl": "https://github.com/yannicksandoz/yannicksandoz.github.io",
+      "source": "library"
     },
     {
       "id": "estrade",
@@ -149,7 +158,8 @@
       "fit": 3,
       "author": "Galerie",
       "license": "CC0-1.0",
-      "sourceUrl": ""
+      "sourceUrl": "https://github.com/yannicksandoz/yannicksandoz.github.io",
+      "source": "library"
     }
   ]
 }

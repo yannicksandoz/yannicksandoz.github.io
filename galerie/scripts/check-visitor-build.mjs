@@ -26,13 +26,22 @@ const EMPREINTES_EDITEUR = [
 ];
 
 /**
- * Hôtes tiers. `ko-fi.com` n'y figure pas : le chapeau ouvre une page de
- * paiement AU CLIC, ce qui est un lien, pas une requête au chargement.
- * `poly.pizza` en revanche ne doit jamais apparaître : l'API n'est appelée
- * que par le mode Auteur, et une scène exportée référence des fichiers
- * locaux, jamais une URL Poly Pizza.
+ * Hôtes tiers **appelés**. La distinction qui compte n'est pas « ce nom
+ * apparaît » mais « le navigateur contacte ce serveur ».
+ *
+ * Deux hôtes sont donc absents de cette liste, et c'est délibéré :
+ *   • `ko-fi.com`  — le chapeau ouvre une page de paiement AU CLIC ;
+ *   • `poly.pizza` — la mention d'attribution est un LIEN, et elle est
+ *     obligatoire : l'interdire ici reviendrait à interdire de respecter
+ *     les conditions d'usage.
+ *
+ * Ce qui est interdit, c'est l'**API** : `api.poly.pizza` n'a rien à faire
+ * dans un build Visiteur, puisqu'une scène exportée référence des fichiers
+ * locaux et jamais une URL Poly Pizza.
  */
-const HOTES_INTERDITS = ['poly.pizza', 'api.poly', 'unpkg.com', 'cdn.jsdelivr', 'googleapis.com'];
+const HOTES_INTERDITS = [
+  'api.poly.pizza', 'unpkg.com', 'cdn.jsdelivr', 'googleapis.com'
+];
 
 /** Motifs de clé d'API : aucune ne doit jamais être commitée ni publiée. */
 const MOTIFS_CLE = [

@@ -228,7 +228,12 @@ for (const item of CATALOGUE) {
     fit: Math.round(extent * 100) / 100, // inséré à sa taille réelle
     author: 'Galerie',
     license: 'CC0-1.0',
-    sourceUrl: ''
+    sourceUrl: 'https://github.com/yannicksandoz/yannicksandoz.github.io',
+    // `source` marque l'origine d'un modèle. L'export exige une attribution
+    // complète pour tout modèle qui en porte une — y compris celui-ci, bien
+    // que CC0 n'oblige à rien : une règle sans exception est une règle qu'on
+    // n'oublie pas d'appliquer.
+    source: 'library'
   });
   console.log(`  ${item.id.padEnd(14)} ${String(glb.length).padStart(6)} o`);
 }

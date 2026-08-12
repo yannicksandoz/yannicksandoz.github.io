@@ -79,7 +79,9 @@ export function normalizeItem(item, index = 0, catalogUrl = '') {
     fit: Number.isFinite(item.fit) && item.fit > 0 ? item.fit : 2,
     author: String(item.author ?? ''),
     license: String(item.license ?? ''),
-    sourceUrl: String(item.sourceUrl ?? '')
+    sourceUrl: String(item.sourceUrl ?? ''),
+    // origine du modèle : sert de marqueur d'obligation d'attribution
+    source: String(item.source ?? 'catalogue')
   };
 }
 

@@ -6,7 +6,9 @@
 import { readFile } from 'node:fs/promises';
 import { normalizeItem, filterItems }
   from '../engine/src/core/library.js';
-import { creditOf, collectCredits } from '../engine/src/core/credits.js';
+import { creditOf, collectCredits, collectSources, validateWorkCredit,
+         validateScene, describeSceneFaults, attributionFile, attributionPath }
+  from '../engine/src/core/credits.js';
 
 let passed = 0, failed = 0;
 const eq = (a, b) => JSON.stringify(a) === JSON.stringify(b);
@@ -95,6 +97,91 @@ console.log('\ncrédits d’une scène');
     credits.some((c) => c.titles.includes('Mon œuvre')), false);
   check('scène sans crédit', collectCredits(works.slice(3)), []);
   check('scène vide', collectCredits(), []);
+}
+
+console.log('\nattribution — invariant, pas convention');
+{
+  const importe = (extra = {}) => ({
+    id: 'statue', title: 'Statue',
+    model: { type: 'gltf', url: 'assets/statue.glb', source: 'polypizza' },
+    credit: { author: 'Musée X', license: 'CC-BY 4.0', sourceUrl: 'https://poly.pizza/m/x' },
+    ...extra
+  });
+
+  check('modèle importé complet : conforme', validateWorkCredit(importe()), []);
+  check('auteur manquant détecté',
+    validateWorkCredit(importe({ credit: { license: 'CC-BY 4.0', sourceUrl: 'https://x' } })),
+    ['author']);
+  check('licence manquante détectée',
+    validateWorkCredit(importe({ credit: { author: 'A', sourceUrl: 'https://x' } })),
+    ['license']);
+  check('URL source manquante détectée',
+    validateWorkCredit(importe({ credit: { author: 'A', license: 'CC-BY' } })),
+    ['sourceUrl']);
+  check('crédit absent : les trois manquent',
+    validateWorkCredit(importe({ credit: undefined })),
+    ['author', 'license', 'sourceUrl']);
+  check('nom vide détecté', validateWorkCredit(importe({ title: '   ' })), ['name']);
+  check('champ vide compte comme manquant',
+    validateWorkCredit(importe({ credit: { author: '  ', license: 'CC-BY', sourceUrl: 'https://x' } })),
+    ['author']);
+
+  // ce qui n'est PAS importé n'a personne à citer
+  check('primitive non contrainte',
+    validateWorkCredit({ id: 'a', model: { shape: 'box' } }), []);
+  check('construction voxel non contrainte',
+    validateWorkCredit({ id: 'v', model: { type: 'voxel', dims: [4, 4, 4] } }), []);
+  check('image personnelle non contrainte',
+    validateWorkCredit({ id: 'i', image: 'textures/moi.png' }), []);
+  check('modèle local sans source non contraint',
+    validateWorkCredit({ id: 'm', model: { type: 'gltf', url: 'models/a.glb' } }), []);
+
+  // scène entière
+  const scene = [importe(), importe({ id: 'b', title: 'B', credit: { author: 'A' } }),
+    { id: 'c', title: 'C', model: { shape: 'box' } }];
+  const fautes = validateScene(scene);
+  check('une seule œuvre fautive', fautes.length, 1);
+  check('faute correctement identifiée',
+    { id: fautes[0].id, missing: fautes[0].missing },
+    { id: 'b', missing: ['license', 'sourceUrl'] });
+  check('message lisible pour l’auteur',
+    describeSceneFaults(fautes), '• « B » : licence, URL source');
+  check('scène entièrement conforme', validateScene([importe()]), []);
+  check('scène vide', validateScene(), []);
+}
+
+console.log('\nfichier compagnon');
+{
+  const work = {
+    id: 'statue', title: 'Statue',
+    model: { type: 'gltf', url: 'assets/statue.glb', source: 'polypizza' },
+    credit: { author: 'Musée X', license: 'CC-BY 4.0', sourceUrl: 'https://poly.pizza/m/x' }
+  };
+  check('chemin dérivé du modèle',
+    attributionPath('assets/statue.glb'), 'assets/statue.glb.attribution.json');
+  check('paramètres de requête ignorés',
+    attributionPath('https://h/x.glb?v=2'), 'https://h/x.glb.attribution.json');
+
+  const f = attributionFile(work);
+  check('le compagnon porte tout ce qu’il faut citer',
+    [f.name, f.author, f.license, f.sourceUrl, f.source],
+    ['Statue', 'Musée X', 'CC-BY 4.0', 'https://poly.pizza/m/x', 'polypizza']);
+  check('le compagnon désigne son modèle', f.model, 'assets/statue.glb');
+  check('le compagnon s’explique tout seul', f.note.length > 40, true);
+}
+
+console.log('\nmention obligatoire de plateforme');
+{
+  const works = [
+    { id: 'a', model: { source: 'polypizza' } },
+    { id: 'b', model: { source: 'polypizza' } },
+    { id: 'c', model: { source: 'library' } },
+    { id: 'd', model: { shape: 'box' } }
+  ];
+  check('une mention par plateforme, dédupliquée', collectSources(works), ['polypizza']);
+  check('le mobilier livré n’est pas une plateforme tierce',
+    collectSources([{ id: 'c', model: { source: 'library' } }]), []);
+  check('scène sans import : aucune mention', collectSources([{ id: 'd' }]), []);
 }
 
 console.log('\ncatalogue livré');

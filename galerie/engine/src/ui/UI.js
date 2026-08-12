@@ -1,4 +1,4 @@
-import { collectCredits } from '../core/credits.js';
+import { collectCredits, collectSources } from '../core/credits.js';
 
 /**
  * Interface DOM : écran d'accueil (chargement + déblocage AudioContext),
@@ -101,10 +101,11 @@ export class UI {
     if (!corner || !overlay || !list) return;
 
     const credits = collectCredits(works);
-    corner.hidden = credits.length === 0;
-    if (!credits.length) { overlay.hidden = true; return; }
+    const sources = collectSources(works);
+    corner.hidden = credits.length === 0 && sources.length === 0;
+    if (corner.hidden) { overlay.hidden = true; return; }
 
-    list.innerHTML = credits.map((c) => {
+    list.innerHTML = sources.map(mentionSource).join('') + credits.map((c) => {
       const who = esc(c.author || 'auteur non précisé');
       const name = c.sourceUrl
         ? `<a href="${esc(c.sourceUrl)}" target="_blank" rel="noopener noreferrer">${who}</a>`
@@ -126,4 +127,23 @@ export class UI {
 
 function esc(s) {
   return String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;');
+}
+
+/**
+ * Mention obligatoire d'une plateforme source.
+ *
+ * Poly Pizza demande une mention nommée avec lien vers le service, en plus
+ * de l'attribution de chaque auteur. C'est une condition d'usage, pas une
+ * politesse : elle s'affiche dès qu'un modèle en vient, et rien ne permet
+ * de la retirer.
+ */
+const PLATEFORMES = {
+  polypizza: { label: 'Modèles fournis par Poly Pizza', url: 'https://poly.pizza' }
+};
+
+function mentionSource(source) {
+  const p = PLATEFORMES[source];
+  if (!p) return '';
+  return `<p class="credits-source"><a href="${esc(p.url)}" target="_blank"
+    rel="noopener noreferrer">${esc(p.label)}</a></p>`;
 }
