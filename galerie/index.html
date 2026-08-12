@@ -64,6 +64,7 @@
   </div>
   <button id="credits-corner" hidden aria-label="Crédits" title="Crédits">ⓘ</button>
 
+  <!-- editor:start — retiré du build Visiteur par vite.config.js -->
   <!-- Éditeur de scène (touche E, bouton ✎ ou ?edit) -->
   <div id="editor-bar" hidden></div>
   <div id="editor-panel" hidden></div>
@@ -71,11 +72,12 @@
          accept="image/*,video/mp4,video/webm,audio/*,.jpg,.jpeg,.png,.webp,.mp4,.webm,.mp3,.ogg,.wav">
   <input type="file" id="editor-file-json" hidden multiple accept=".json,application/json">
   <button id="edit-toggle" title="Mode édition (E)" aria-label="Mode édition">✎</button>
+  <!-- editor:end -->
 
   <!-- Fondu de transition entre pièces -->
   <div id="room-fade"></div>
 
-  <div id="hint" hidden>ZQSD / WASD · clic : découvrir · <b>E</b> : édition</div>
+  <div id="hint" hidden>ZQSD / WASD · clic : découvrir<!-- editor:start --> · <b>E</b> : édition<!-- editor:end --></div>
 
   <!-- Joystick virtuel (mobile) -->
   <div id="joystick" hidden><div id="joystick-nub"></div></div>

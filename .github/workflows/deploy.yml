@@ -50,11 +50,22 @@ jobs:
           cache: npm
           cache-dependency-path: galerie/package-lock.json
 
-      - name: Build de la galerie (Vite)
+      # Build VISITEUR : GALERIE_EDITOR n'est pas armé, donc l'éditeur n'est
+      # pas seulement désactivé — il n'est pas émis. Voir vite.config.js.
+      - name: Build de la galerie (Vite, mode Visiteur)
         working-directory: galerie
         run: |
           npm ci
           npm run build
+
+      # Garde-fou : on inspecte le RÉSULTAT, pas la configuration. Une erreur
+      # de config est précisément ce qu'on cherche à attraper, et un chunk
+      # d'éditeur publié reste téléchargeable par simple URL même sur un
+      # dépôt privé. Rouge ici vaut mieux que vert avec l'outil d'auteur en
+      # ligne.
+      - name: Contrôle — aucun code d'éditeur dans ce qui sera publié
+        working-directory: galerie
+        run: npm run check
 
       # `cp -r src dest` copie DANS dest quand dest existe déjà (on obtiendrait
       # _site/galerie/dist/). On supprime donc la cible d'abord, puis on vérifie

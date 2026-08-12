@@ -18,15 +18,55 @@ données, aucun backend — un simple serveur de fichiers suffit.
 **Stack** : [Vite](https://vitejs.dev) · [Three.js](https://threejs.org)
 (EffectComposer : bloom + grain) · Web Audio API · modules ES.
 
+## Deux modes
+
+Le moteur se construit de deux façons, à partir de la même base de code.
+
+| | Mode **Visiteur** | Mode **Auteur** |
+|---|---|---|
+| Ce que c'est | la galerie publiée | l'éditeur complet |
+| Où | en ligne (GitHub Pages) | sur votre machine, jamais publié |
+| Éditeur | **absent du résultat** — pas désactivé, pas émis | présent |
+| Commande | `npm run build` | `npm run dev` / `npm run build:auteur` |
+
+La distinction n'est pas cosmétique. Auparavant l'éditeur était simplement
+chargé à la demande : le chunk partait quand même sur Pages et restait
+**téléchargeable par simple URL**, quelle que soit la visibilité du dépôt.
+Un site statique ne peut pas cacher ce qu'il publie — la seule protection
+est de ne pas le publier.
+
+En mode Visiteur, trois choses disparaissent ensemble : le **JS**
+(`editorLoader.js` est remplacé par un module vide, ce qui coupe la seule
+racine menant à l'éditeur, donc Rollup ne l'émet pas), le **CSS**
+(`editor/editor.css` est importé par l'éditeur, il suit) et le **DOM**
+(le bloc `<!-- editor:start … end -->` est retiré de `index.html`).
+Conséquence assumée : dans une galerie publiée, la touche **E**, le bouton
+**✎** et `?edit` ne font rien.
+
 ## Démarrage
 
 ```bash
 npm install
-npm run dev        # http://localhost:5173
-npm run build      # → dist/ (site statique prêt à déployer)
-npm run preview    # prévisualise le build
-npm run assets     # régénère les textures/stems de démo (aucune dépendance)
+npm run dev          # mode AUTEUR — http://localhost:5173, éditeur inclus
+npm run dev:visiteur # mode Visiteur, pour vérifier ce que verra le public
+npm run build        # → dist/        site publiable, SANS éditeur
+npm run check        # vérifie que dist/ ne contient rien d'éditeur
+npm run build:auteur # → dist-auteur/ build local avec éditeur (jamais publié)
+npm run preview      # prévisualise un build
+npm run test         # tests unitaires (161 assertions)
+npm run assets       # régénère les textures/stems de démo
+npm run library      # régénère le mobilier de galerie (GLB + vignettes)
 ```
+
+**Votre quotidien reste `npm run dev`** : l'éditeur y est complet, rien ne
+change. `dist-auteur/` est ignoré par git.
+
+`npm run check` inspecte le **résultat** du build, pas la configuration —
+une erreur de configuration est précisément ce qu'on cherche à attraper. Il
+échoue si une empreinte d'éditeur, un hôte tiers ou quelque chose qui
+ressemble à une clé d'API apparaît dans ce qui serait publié. Le workflow
+de déploiement le lance avant de publier ; rouge vaut mieux que vert avec
+l'outil d'auteur en ligne.
 
 **Navigation** — desktop : ZQSD / WASD / flèches (Maj = courir), souris pour
 orbiter, clic sur une œuvre pour l'approcher (Échap pour reculer).

@@ -7,12 +7,15 @@
   "type": "module",
   "description": "Galerie d'art 3D immersive, statique et modulaire (Vite + Three.js + Web Audio)",
   "scripts": {
-    "dev": "vite",
+    "dev": "GALERIE_EDITOR=1 vite",
+    "dev:visiteur": "vite",
     "build": "vite build",
+    "build:auteur": "GALERIE_EDITOR=1 vite build --outDir dist-auteur",
     "preview": "vite preview",
+    "check": "node scripts/check-visitor-build.mjs",
     "assets": "node scripts/generate-assets.mjs",
-    "test": "node scripts/test-commands.mjs && node scripts/test-schema.mjs && node scripts/test-voxel.mjs && node scripts/test-library.mjs",
-    "library": "node scripts/generate-library.mjs"
+    "library": "node scripts/generate-library.mjs",
+    "test": "node scripts/test-commands.mjs && node scripts/test-schema.mjs && node scripts/test-voxel.mjs && node scripts/test-library.mjs"
   },
   "dependencies": {
     "three": "0.166.1"
