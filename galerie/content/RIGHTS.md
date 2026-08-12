@@ -25,3 +25,22 @@ Les fichiers de démonstration générés par `npm run assets` (textures et sons
 synthétiques) peuvent être régénérés librement par le script — c'est le
 résultat de VOS exécutions du script ; les fichiers présents dans ce dossier
 restent couverts par la présente mention.
+
+## Exception — `content/library/` : domaine public (CC0-1.0)
+
+Le sous-dossier **`content/library/`** (mobilier de galerie : socles,
+cimaise, colonne, arche, banc, cadre, estrade… — modèles GLB, vignettes SVG
+et catalogue `index.json`) est **explicitement exclu** de la mention
+« tous droits réservés » ci-dessus.
+
+Il est placé sous [CC0-1.0](https://creativecommons.org/publicdomain/zero/1.0/deed.fr),
+c'est-à-dire dans le domaine public : réutilisez-le librement, y compris
+commercialement, sans attribution.
+
+La raison est simple : ce mobilier n'est pas une œuvre, c'est un outil. Il
+fait partie de ce que le moteur apporte, et il doit rester utilisable par qui
+obtient une licence du moteur. Il vit dans
+`content/` seulement parce que c'est le dossier servi au navigateur.
+
+Ces fichiers sont reproductibles à l'identique par `npm run library`, dont le
+source (`scripts/generate-library.mjs`) reste couvert par la licence du moteur.

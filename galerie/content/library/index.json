@@ -1,0 +1,155 @@
+{
+  "name": "Mobilier de galerie",
+  "description": "Supports neutres livrés avec le moteur — domaine public (CC0).",
+  "items": [
+    {
+      "id": "socle-haut",
+      "name": "Socle haut",
+      "description": "Socle d'exposition à hauteur d'œil.",
+      "tags": [
+        "socle",
+        "support"
+      ],
+      "url": "library/models/socle-haut.glb",
+      "thumbnail": "library/thumbs/socle-haut.svg",
+      "fit": 1.1,
+      "author": "Galerie",
+      "license": "CC0-1.0",
+      "sourceUrl": ""
+    },
+    {
+      "id": "socle-bas",
+      "name": "Socle bas",
+      "description": "Socle large pour un objet posé au sol.",
+      "tags": [
+        "socle",
+        "support"
+      ],
+      "url": "library/models/socle-bas.glb",
+      "thumbnail": "library/thumbs/socle-bas.svg",
+      "fit": 1.05,
+      "author": "Galerie",
+      "license": "CC0-1.0",
+      "sourceUrl": ""
+    },
+    {
+      "id": "vitrine",
+      "name": "Vitrine",
+      "description": "Socle surmonté d’un capot transparent.",
+      "tags": [
+        "socle",
+        "support",
+        "verre"
+      ],
+      "url": "library/models/vitrine.glb",
+      "thumbnail": "library/thumbs/vitrine.svg",
+      "fit": 1.7,
+      "author": "Galerie",
+      "license": "CC0-1.0",
+      "sourceUrl": ""
+    },
+    {
+      "id": "cimaise",
+      "name": "Cimaise",
+      "description": "Cloison autoportante pour accrocher des œuvres.",
+      "tags": [
+        "cloison",
+        "mur"
+      ],
+      "url": "library/models/cimaise.glb",
+      "thumbnail": "library/thumbs/cimaise.svg",
+      "fit": 3,
+      "author": "Galerie",
+      "license": "CC0-1.0",
+      "sourceUrl": ""
+    },
+    {
+      "id": "colonne",
+      "name": "Colonne",
+      "description": "Colonne à base et chapiteau.",
+      "tags": [
+        "architecture"
+      ],
+      "url": "library/models/colonne.glb",
+      "thumbnail": "library/thumbs/colonne.svg",
+      "fit": 2.76,
+      "author": "Galerie",
+      "license": "CC0-1.0",
+      "sourceUrl": ""
+    },
+    {
+      "id": "arche",
+      "name": "Arche",
+      "description": "Passage à encadrer — utile devant un portail.",
+      "tags": [
+        "architecture",
+        "passage"
+      ],
+      "url": "library/models/arche.glb",
+      "thumbnail": "library/thumbs/arche.svg",
+      "fit": 2.55,
+      "author": "Galerie",
+      "license": "CC0-1.0",
+      "sourceUrl": ""
+    },
+    {
+      "id": "banc",
+      "name": "Banc",
+      "description": "Banc de contemplation.",
+      "tags": [
+        "mobilier",
+        "assise"
+      ],
+      "url": "library/models/banc.glb",
+      "thumbnail": "library/thumbs/banc.svg",
+      "fit": 1.8,
+      "author": "Galerie",
+      "license": "CC0-1.0",
+      "sourceUrl": ""
+    },
+    {
+      "id": "cube-assise",
+      "name": "Cube d’assise",
+      "description": "Pouf cubique, à multiplier.",
+      "tags": [
+        "mobilier",
+        "assise"
+      ],
+      "url": "library/models/cube-assise.glb",
+      "thumbnail": "library/thumbs/cube-assise.svg",
+      "fit": 0.6,
+      "author": "Galerie",
+      "license": "CC0-1.0",
+      "sourceUrl": ""
+    },
+    {
+      "id": "cadre",
+      "name": "Cadre vide",
+      "description": "Cadre à poser devant un mur ou une œuvre.",
+      "tags": [
+        "accrochage"
+      ],
+      "url": "library/models/cadre.glb",
+      "thumbnail": "library/thumbs/cadre.svg",
+      "fit": 2,
+      "author": "Galerie",
+      "license": "CC0-1.0",
+      "sourceUrl": ""
+    },
+    {
+      "id": "estrade",
+      "name": "Estrade",
+      "description": "Plateforme basse avec une marche.",
+      "tags": [
+        "support",
+        "sol"
+      ],
+      "url": "library/models/estrade.glb",
+      "thumbnail": "library/thumbs/estrade.svg",
+      "fit": 3,
+      "author": "Galerie",
+      "license": "CC0-1.0",
+      "sourceUrl": ""
+    }
+  ]
+}

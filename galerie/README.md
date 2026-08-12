@@ -155,6 +155,10 @@ au code du moteur** :
   "rotation": [0, 0, 0],           // degrés, trois axes
   "loadDistance": 50,              // distance de chargement paresseux (optionnel)
   "lightColor": "#7a6cff",         // lumière d'appoint de l'œuvre (optionnel)
+  "lightIntensity": 4,             // idem — 1.5 environ pour du mobilier
+  "credit": {                      // cité dans l'écran de crédits (optionnel)
+    "author": "…", "license": "CC-BY 4.0", "sourceUrl": "https://…"
+  },
 
   // — visuel : au choix —
   // (toute source média accepte un chemin relatif OU une URL absolue)
@@ -298,6 +302,65 @@ sur tactile. Le panneau expose : titre, description, taille du plan, stems
 (rayon/gain par piste, sphères de rayon visibles), son de vidéo, et les
 modules activés (crossfade spatial + rayon, HRTF, réactivité audio, focus
 caméra). Dupliquer/Supprimer via la barre d'outils.
+
+### Bibliothèque 3D
+
+Le bouton **🧱 Bibliothèque** ouvre un catalogue de modèles prêts à poser :
+un clic sur une vignette dépose l'objet devant la caméra, à sa taille réelle
+et au sol. L'objet créé est une **œuvre ordinaire** — déplaçable, sonorisable,
+exportable comme les autres.
+
+Le moteur en livre dix : socles, vitrine, cimaise, colonne, arche, banc, cube
+d'assise, cadre, estrade (domaine public, CC0). Ce sont des supports neutres
+pour VOS œuvres, pas des œuvres. Ils sont fabriqués par
+`npm run library`, qui écrit les GLB, les vignettes et le catalogue dans
+`content/library/` à partir d'une seule description — à relancer seulement si
+vous modifiez ce catalogue.
+
+**Pointer votre propre catalogue.** Le champ « catalogue » en bas du panneau
+accepte n'importe quelle URL. Le format :
+
+```jsonc
+{
+  "name": "Ma bibliothèque",
+  "items": [
+    {
+      "id": "chaise",
+      "name": "Chaise",
+      "description": "…",
+      "tags": ["mobilier"],
+      "url": "models/chaise.glb",    // relatif AU CATALOGUE, ou absolu
+      "thumbnail": "thumbs/chaise.svg",
+      "fit": 0.9,                    // plus grande dimension, en mètres
+      "author": "Nom de l'auteur",
+      "license": "CC-BY 4.0",
+      "sourceUrl": "https://…"
+    }
+  ]
+}
+```
+
+Les URL relatives d'un catalogue distant sont résolues **contre ce
+catalogue**, pas contre votre dossier de contenu : une bibliothèque publiée
+ailleurs peut donc référencer ses modèles normalement. L'hôte doit autoriser
+le CORS. Une entrée sans `url` exploitable est ignorée plutôt que de casser
+le panneau — un catalogue tiers n'est pas forcément écrit avec soin.
+
+**Rien n'est copié.** Un objet posé ne retient qu'une **URL**, exactement
+comme un média importé par lien : pensez à publier vos modèles à côté de la
+scène, ou à pointer un hôte stable.
+
+**Crédits.** `author`, `license` et `sourceUrl` sont recopiés dans l'œuvre et
+ressortent dans l'**écran de crédits** de la galerie (bouton ⓘ, en bas à
+droite). Le bouton n'apparaît que si la scène contient effectivement quelque
+chose à citer, et les objets d'un même auteur sont regroupés en une ligne.
+Une licence CC-BY oblige à créditer : cette obligation ne doit pas dépendre
+de votre mémoire.
+
+> **Poly Pizza** n'est pas intégré : son API demande une clé et je n'ai pas
+> ses conditions d'usage sous la main. Le format ci-dessus est le point
+> d'accroche — un petit script qui transforme sa réponse en `items` suffira,
+> et les champs d'attribution sont déjà là pour ses modèles CC-BY.
 
 ### Mode Voxel — construire cellule par cellule
 
@@ -478,6 +541,7 @@ lancement puis l'ajuste en continu :
 |---|---|
 | `engine/` (+ `index.html`, `vite.config.js`, `scripts/`) | **Propriétaire — tous droits réservés** — voir [`engine/LICENSE`](engine/LICENSE) |
 | `content/` | **Tous droits réservés** — voir [`content/RIGHTS.md`](content/RIGHTS.md) |
+| `content/library/` | **CC0-1.0** (domaine public) — le mobilier livré est un outil, pas une œuvre |
 
 Le moteur n'est pas libre. Aucun droit d'usage, de reproduction, de
 modification ou de redistribution n'est concédé par défaut. Le fait que le
@@ -490,3 +554,7 @@ c'est nécessaire à l'exécution, rien de plus.
 Les œuvres du dossier `content/` ne sont **pas** couvertes par cette licence : ce
 sont des créations personnelles, tous droits réservés. Déployez le moteur
 avec votre propre contenu.
+
+Seule exception : **`content/library/`**, le mobilier de galerie livré avec
+le moteur, est dans le domaine public (CC0-1.0). Il n'est pas une œuvre mais
+un outil, et il doit rester utilisable par qui obtient une licence du moteur.

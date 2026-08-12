@@ -81,6 +81,7 @@ async function boot() {
       loadRooms()
     ]);
     buildScene(app, works, rooms);
+    app.ui.setCredits(works);
     app.ui.setReady();
   } catch {
     app.ui.showLoadError('Impossible de charger la configuration des œuvres (voir console).');

@@ -97,7 +97,8 @@ export class Artwork {
 
     // Lumière d'appoint propre à l'œuvre (pilotable par AudioReactive)
     const lightColor = config.lightColor ?? '#7a6cff';
-    this.light = new THREE.PointLight(new THREE.Color(lightColor), 4, 14, 1.8);
+    this.light = new THREE.PointLight(
+      new THREE.Color(lightColor), config.lightIntensity ?? 4, 14, 1.8);
     this.light.position.set(0, 0.4, 1.6);
     this.group.add(this.light);
     this.lightBaseIntensity = this.light.intensity;
