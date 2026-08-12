@@ -1,3 +1,5 @@
+import { existsSync } from 'node:fs';
+import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { defineConfig } from 'vite';
 
@@ -22,6 +24,26 @@ import { defineConfig } from 'vite';
  * supposer, et le workflow de déploiement échoue s'il trouve quoi que ce soit.
  */
 const modeAuteur = process.env.GALERIE_EDITOR === '1';
+
+/**
+ * L'éditeur peut vivre dans un sous-module privé. S'il n'est pas récupéré,
+ * un build Auteur échoue sur « Could not resolve ./editor/index.js », ce qui
+ * n'aide personne. On dit plutôt quoi taper.
+ *
+ * Le mode Visiteur, lui, n'a rien à vérifier : il n'importe pas l'éditeur,
+ * et c'est justement ce qui permet à la CI de construire sans y avoir accès.
+ */
+if (modeAuteur) {
+  const dossier = fileURLToPath(new URL('./engine/src/editor', import.meta.url));
+  if (!existsSync(join(dossier, 'index.js'))) {
+    throw new Error(
+      "Mode Auteur demandé, mais engine/src/editor/ est vide.\n"
+      + "Si l'éditeur est un sous-module privé :\n"
+      + '    git submodule update --init --recursive\n'
+      + "Sinon, construisez en mode Visiteur avec « npm run build »."
+    );
+  }
+}
 
 /** Retire du HTML le bloc balisé pour l'éditeur. */
 function retirerDomEditeur() {

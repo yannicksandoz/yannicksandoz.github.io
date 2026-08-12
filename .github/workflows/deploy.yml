@@ -25,7 +25,14 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
+      # Sans sous-modules — et c'est voulu : l'éditeur vit dans un dépôt
+      # privé, et le build Visiteur n'en a pas besoin. La CI construit donc
+      # sans jamais y avoir accès, ce qui rend la fuite impossible plutôt
+      # qu'interdite. (false est déjà le défaut ; on l'écrit pour que
+      # personne ne l'active « pour voir ».)
       - uses: actions/checkout@v4
+        with:
+          submodules: false
 
       # PRÉREQUIS : Settings → Pages → Source doit rester sur « GitHub Actions ».
       # Sur une source « branche », GitHub lance en parallèle son propre build

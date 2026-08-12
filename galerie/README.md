@@ -61,6 +61,38 @@ npm run library      # régénère le mobilier de galerie (GLB + vignettes)
 **Votre quotidien reste `npm run dev`** : l'éditeur y est complet, rien ne
 change. `dist-auteur/` est ignoré par git.
 
+### L'éditeur vit dans un dépôt privé
+
+`engine/src/editor/` est un **sous-module** pointant sur
+`yannicksandoz/yr0-editor`, dépôt privé. Le build sélectif empêche de
+*publier* l'éditeur ; le sous-module empêche de le *lire* dans le dépôt
+public. Il faut les deux : le premier protège le déploiement, le second le
+code source.
+
+```bash
+git clone --recurse-submodules https://github.com/yannicksandoz/yannicksandoz.github.io
+# ou, sur un clone existant :
+git submodule update --init --recursive
+```
+
+Sans accès au dépôt privé, le clone réussit quand même : le dossier reste
+vide, `npm run build` fonctionne, et seul `npm run dev` s'arrête — avec un
+message qui dit quoi taper. C'est exactement ce dont la CI a besoin :
+`actions/checkout` ne récupère pas les sous-modules par défaut, donc le
+déploiement se fait **sans jamais avoir accès à l'éditeur**.
+
+Après une modification de l'éditeur, deux commits : un dans le sous-module,
+un dans le dépôt public pour enregistrer la nouvelle révision.
+
+```bash
+cd engine/src/editor && git commit -am "…" && git push
+cd ../../.. && git add engine/src/editor && git commit -m "Editor: bump"
+```
+
+**Livrer l'éditeur à un client** : ajoutez-le en collaborateur sur
+`yr0-editor` seul. Il obtient l'éditeur et ses mises à jour, rien d'autre,
+et l'accès se révoque en un clic.
+
 `npm run check` inspecte le **résultat** du build, pas la configuration —
 une erreur de configuration est précisément ce qu'on cherche à attraper. Il
 échoue si une empreinte d'éditeur, un hôte tiers ou quelque chose qui
