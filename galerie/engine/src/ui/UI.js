@@ -64,6 +64,7 @@ export class UI {
   setReady() {
     this.enterBtn.disabled = false;
     this.enterBtn.textContent = 'Entrer';
+    document.getElementById('enter-audio')?.removeAttribute('aria-disabled');
   }
 
   showLoadError(message) {
@@ -71,15 +72,32 @@ export class UI {
     if (sub) sub.textContent = message;
   }
 
-  /** Résout quand l'utilisateur clique sur « Entrer ». */
+  /**
+   * Résout quand l'utilisateur choisit son mode d'entrée :
+   * { audioTour: false } — visite 3D (bouton « Entrer ») ;
+   * { audioTour: true }  — visite audio accessible.
+   *
+   * Les deux gestes débloquent l'AudioContext (l'appelant s'en charge).
+   * Le lien audio est PREMIER dans l'ordre de tabulation (premier focusable
+   * du document) : un utilisateur de lecteur d'écran le rencontre avant
+   * tout le reste. Il reste inerte tant que la configuration charge — même
+   * garde que le bouton Entrer, mais sans `disabled`, qui le rendrait
+   * infocusable.
+   */
   waitForEnter() {
     return new Promise((resolve) => {
-      this.enterBtn.addEventListener('click', () => {
+      const leave = (audioTour) => {
         this.enterScreen.classList.add('leaving');
         setTimeout(() => { this.enterScreen.remove(); }, 1300);
-        this.hint.hidden = false;
-        resolve();
-      }, { once: true });
+        if (!audioTour) this.hint.hidden = false;
+        resolve({ audioTour });
+      };
+      this.enterBtn.addEventListener('click', () => leave(false), { once: true });
+      const audioBtn = document.getElementById('enter-audio');
+      audioBtn?.addEventListener('click', () => {
+        if (this.enterBtn.disabled) return; // configuration pas encore lue
+        leave(true);
+      });
     });
   }
 

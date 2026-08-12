@@ -48,8 +48,15 @@ const GrainVignetteShader = {
  * à l'appareil et au framerate mesuré.
  */
 export class App {
-  constructor(container) {
+  /**
+   * `headless: true` — pas de WebGL du tout : ni renderer, ni composer, ni
+   * picking, ni décor. La scène, les pièces, les œuvres et surtout l'AUDIO
+   * fonctionnent à l'identique — c'est ce qui permet à la visite audio de
+   * servir de repli quand WebGL2 est indisponible, avec le même moteur.
+   */
+  constructor(container, { headless = false } = {}) {
     this.container = container;
+    this.headless = headless;
     this.audio = new AudioEngine();
     this.quality = new QualityManager();
     this.loading = new LoadingTracker();
@@ -72,6 +79,12 @@ export class App {
       60, window.innerWidth / window.innerHeight, 0.1, 220
     );
     this.camera.position.set(0, 2.2, 14);
+
+    if (headless) {
+      // ni rendu, ni décor : la boucle mettra à jour œuvres et auditeur
+      this._setupVisibility();
+      return;
+    }
 
     // --- rendu ---------------------------------------------------------
     this.renderer = new THREE.WebGLRenderer({
@@ -195,7 +208,7 @@ export class App {
   _setupVisibility() {
     document.addEventListener('visibilitychange', () => {
       if (document.hidden) {
-        this.renderer.setAnimationLoop(null);
+        this._stopLoop();
         this.audio.suspend();
       } else {
         this.clock.getDelta(); // purge le delta accumulé pendant la pause
@@ -205,7 +218,17 @@ export class App {
     });
   }
 
+  _stopLoop() {
+    if (this.headless) {
+      cancelAnimationFrame(this._raf);
+      this._raf = null;
+    } else {
+      this.renderer.setAnimationLoop(null);
+    }
+  }
+
   _resize() {
+    if (this.headless) return;
     const w = window.innerWidth, h = window.innerHeight;
     this.camera.aspect = w / h;
     this.camera.updateProjectionMatrix();
@@ -297,6 +320,30 @@ export class App {
   }
 
   _runLoop() {
+    if (this.headless) {
+      // Même cycle que la boucle rendue, sans composer : mise à jour des
+      // œuvres (chargement paresseux, modules), budget de stems, auditeur.
+      const camPos = new THREE.Vector3();
+      const tick = () => {
+        this._raf = requestAnimationFrame(tick);
+        const dt = Math.min(this.clock.getDelta(), 0.1);
+        const t = this.clock.elapsedTime;
+        this.camera.updateMatrixWorld(true);
+        this.camera.getWorldPosition(camPos);
+        const ctx = { app: this, camera: this.camera, cameraPos: camPos, time: t };
+        for (const fn of this._updatables) fn(dt, ctx);
+        for (const a of this.artworks) a.update(dt, ctx);
+        this._stemBudgetAcc += dt;
+        if (this._stemBudgetAcc > 0.5) {
+          this._stemBudgetAcc = 0;
+          this._updateStemBudget();
+        }
+        this.audio.updateListener(this.camera);
+      };
+      tick();
+      return;
+    }
+
     const camPos = new THREE.Vector3();
     this.renderer.setAnimationLoop(() => {
       const dt = Math.min(this.clock.getDelta(), 0.1);

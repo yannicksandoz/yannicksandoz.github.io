@@ -6,6 +6,7 @@
 import { readFile } from 'node:fs/promises';
 import { normalizeItem, filterItems }
   from '../engine/src/core/library.js';
+import { a11yGaps, describeA11yGaps, speakableTitle } from '../engine/src/core/a11y.js';
 import { creditOf, collectCredits, collectSources, validateWorkCredit,
          validateScene, describeSceneFaults, attributionFile, attributionPath }
   from '../engine/src/core/credits.js';
@@ -182,6 +183,28 @@ console.log('\nmention obligatoire de plateforme');
   check('le mobilier livré n’est pas une plateforme tierce',
     collectSources([{ id: 'c', model: { source: 'library' } }]), []);
   check('scène sans import : aucune mention', collectSources([{ id: 'd' }]), []);
+}
+
+console.log('\naccessibilité — titres et descriptions');
+{
+  check('œuvre complète : rien à signaler',
+    a11yGaps([{ id: 'a', title: 'A', description: 'Une œuvre.' }]), []);
+  check('titre manquant',
+    a11yGaps([{ id: 'a', description: 'x' }]),
+    [{ id: 'a', title: '', missing: ['titre'] }]);
+  check('description manquante',
+    a11yGaps([{ id: 'a', title: 'A' }]),
+    [{ id: 'a', title: 'A', missing: ['description'] }]);
+  check('les deux manquants',
+    a11yGaps([{ id: 'a' }])[0].missing, ['titre', 'description']);
+  check('titre fait d’espaces = manquant',
+    a11yGaps([{ id: 'a', title: '   ', description: 'x' }])[0].missing, ['titre']);
+  check('message lisible',
+    describeA11yGaps(a11yGaps([{ id: 'a' }, { id: 'b', title: 'B' }])),
+    '• « a » : titre et description manquants\n• « B » : description manquant');
+  check('scène vide', a11yGaps(), []);
+  check('libellé prononçable de repli', speakableTitle({ title: '  ' }), 'Sans titre');
+  check('libellé prononçable normal', speakableTitle({ title: 'Marées' }), 'Marées');
 }
 
 console.log('\ncatalogue livré');

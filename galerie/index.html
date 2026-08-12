@@ -25,6 +25,10 @@
       <h1>Galerie</h1>
       <p class="sub">Un espace sonore immersif — casque recommandé</p>
       <div id="load-bar"><i></i></div>
+      <!-- Premier focusable du document : un utilisateur de lecteur d'écran
+           le rencontre avant tout. aria-disabled (retiré quand la config est
+           prête) plutôt que disabled, qui le rendrait infocusable. -->
+      <button id="enter-audio" aria-disabled="true">Visite audio (accessible)</button>
       <button id="enter-btn" disabled>Chargement…</button>
       <p class="tip">ZQSD / WASD ou flèches pour se déplacer · <span data-keylabel="pivot">A/E ou Q/E</span> pour pivoter · souris pour orbiter · clic sur une œuvre pour l'approcher</p>
     </div>

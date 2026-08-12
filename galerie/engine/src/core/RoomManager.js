@@ -216,6 +216,10 @@ export class RoomManager {
     if (this._cooldown > 0) this._cooldown -= dt;
     if (!this.current || this._transitioning || this._cooldown > 0) return;
     if (this.app.editor?.enabled) return; // pas de téléportation en édition
+    // Visite audio : la pièce se change par la LISTE, jamais parce que
+    // l'approche d'une œuvre a frôlé un portail — une téléportation
+    // non sollicitée serait illisible à l'oreille.
+    if (this.app.audioTour?.active) return;
 
     // franchissement par proximité
     for (const mesh of this.current.portalMeshes) {

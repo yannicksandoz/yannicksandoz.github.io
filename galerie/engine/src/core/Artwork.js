@@ -511,7 +511,9 @@ export class Artwork {
     // chargement paresseux à l'approche, libération au-delà
     const loadDist = this.config.loadDistance ?? 50;
     const unloadDist = loadDist * 1.6;
-    if (!this._visualRequested && this._distance < loadDist) {
+    // Sans WebGL (visite audio en repli), aucun visuel n'est jamais chargé :
+    // ni textures, ni modèles — seul l'audio compte, et il suit son cours.
+    if (!this._visualRequested && !this.app.headless && this._distance < loadDist) {
       this._visualRequested = true;
       this._loadVisual();
     }

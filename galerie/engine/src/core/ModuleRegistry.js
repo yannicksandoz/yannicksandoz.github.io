@@ -22,7 +22,12 @@ class ModuleRegistry {
       console.warn(`[galerie] Module inconnu « ${type} » (œuvre ${artwork.config.id}) — ignoré.`);
       return null;
     }
-    return new Klass(artwork, params ?? {}, app);
+    const instance = new Klass(artwork, params ?? {}, app);
+    // Le nom du type voyage avec l'instance : `constructor.name` disparaît
+    // à la minification, ce champ non. C'est ce qui permet à la visite audio
+    // de reconnaître un FocusCamera existant plutôt que d'en empiler un.
+    instance.moduleType = type;
+    return instance;
   }
 
   has(type) {

@@ -23,6 +23,7 @@ export class Controls {
   constructor(app) {
     this.app = app;
     this.locked = false;   // verrouillé par FocusCamera pendant les travellings
+    this.suspended = false; // visite audio : le clavier appartient aux listes HTML
     this.dragging = false; // vrai pendant un drag de gizmo (mode édition)
 
     this.orbit = new OrbitControls(app.camera, app.renderer.domElement);
@@ -102,6 +103,14 @@ export class Controls {
   }
 
   update(dt) {
+    if (this.suspended) {
+      // La visite audio garde l'orbite à jour (FocusCamera pilote la cible)
+      // mais ne lit ni clavier ni joystick : les flèches parcourent les
+      // listes, pas la scène.
+      this.orbit.enabled = false;
+      this.orbit.update();
+      return;
+    }
     if (!this.locked) {
       // — pivot Q/E : tourner sur place —
       const yawInput = (this._keys.has('KeyQ') ? 1 : 0) - (this._keys.has('KeyE') ? 1 : 0);
