@@ -63,6 +63,32 @@ console.log('\npatch — portée déduite');
     patch(doc, ['works', 0, 'title'], 'x').scope, { works: ['a'] });
   check('pièce → structurel',
     patch(doc, ['rooms', 0, 'title'], 'x').scope, { structural: true });
+  check('rotation v2 → transformOnly',
+    patch(doc, ['works', 0, 'rotation'], [0, 45, 0]).scope,
+    { transformOnly: true, works: ['a'] });
+}
+
+console.log('\npatch — portée voxel (rafraîchit le maillage, pas l’œuvre)');
+{
+  const doc = makeDoc();
+  check('cellules → voxelOnly',
+    patch(doc, ['works', 0, 'model', 'cells'], [8, 0]).scope,
+    { voxelOnly: true, works: ['a'] });
+  check('palette → voxelOnly',
+    patch(doc, ['works', 0, 'model', 'palette', 0], '#fff').scope,
+    { voxelOnly: true, works: ['a'] });
+  check('autre champ de modèle → reconstruction de l’œuvre',
+    patch(doc, ['works', 0, 'model', 'url'], 'x.glb').scope, { works: ['a'] });
+  check('lot entièrement voxel → voxelOnly',
+    batch([
+      patch(doc, ['works', 0, 'model', 'dims'], [2, 2, 2], { scope: { voxelOnly: true, works: ['a'] } }),
+      patch(doc, ['works', 0, 'model', 'cells'], [8, 0])
+    ]).scope, { voxelOnly: true, works: ['a'] });
+  check('lot mixte → reconstruction de l’œuvre',
+    batch([
+      patch(doc, ['works', 0, 'model', 'cells'], [8, 0]),
+      patch(doc, ['works', 0, 'title'], 'Z')
+    ]).scope, { works: ['a'] });
 }
 
 console.log('\nsplice — insertion et suppression');

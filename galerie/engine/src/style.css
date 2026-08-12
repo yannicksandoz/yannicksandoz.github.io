@@ -219,6 +219,61 @@ body.editing #edit-toggle { color: var(--accent); border-color: var(--accent); }
   border: 1px solid rgba(255,255,255,0.12); font-size: 0.8rem;
 }
 #editor-import[hidden] { display: none; }
+/* le panneau voxel occupe le bas de l'écran : le tiroir d'import se décale */
+body.voxel-editing #editor-import { bottom: 13rem; }
+
+/* --- panneau voxel (bas) --- */
+#voxel-panel {
+  position: fixed; left: 50%; bottom: 0.6rem; transform: translateX(-50%);
+  z-index: 26; width: min(28rem, calc(100vw - 1.2rem));
+  padding: 0.6rem 0.9rem; border-radius: 0.7rem;
+  background: var(--panel); backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.12); font-size: 0.8rem;
+}
+#voxel-panel[hidden] { display: none; }
+.vx-head {
+  font-size: 0.72rem; letter-spacing: 0.1em; text-transform: uppercase;
+  color: var(--accent); margin-bottom: 0.4rem;
+}
+.vx-head .ins-id { display: inline; margin-left: 0.4rem; text-transform: none; letter-spacing: 0; }
+.vx-tools { display: flex; flex-wrap: wrap; gap: 0.3rem; }
+.vx-tools button {
+  padding: 0.35rem 0.6rem; background: transparent; color: var(--fg);
+  border: 1px solid rgba(255, 255, 255, 0.14); border-radius: 0.4rem;
+  font-size: 0.78rem; cursor: pointer; white-space: nowrap;
+}
+.vx-tools button:hover { background: rgba(159, 140, 255, 0.12); }
+.vx-tools button.active {
+  background: rgba(159, 140, 255, 0.22); border-color: rgba(159, 140, 255, 0.6);
+}
+.vx-palette { display: flex; flex-wrap: wrap; gap: 0.45rem; margin: 0.6rem 0 0.2rem; }
+.vx-swatch { display: flex; flex-direction: column; align-items: center; gap: 0.15rem; }
+.vx-swatch > button {
+  width: 1.9rem; height: 1.9rem; border-radius: 0.35rem; cursor: pointer;
+  border: 2px solid rgba(255, 255, 255, 0.15);
+}
+.vx-swatch.active > button { border-color: var(--fg); }
+.vx-swatch input[type="color"] {
+  width: 1.9rem; height: 0.85rem; padding: 0; border: none;
+  background: none; cursor: pointer; opacity: 0.55;
+}
+.vx-swatch input[type="color"]:hover { opacity: 1; }
+#voxel-panel .grid3 { margin: 0.5rem 0 0.2rem; }
+#voxel-panel .grid3 input[type="number"],
+#voxel-panel .field input[type="number"] {
+  width: 4.2rem; padding: 0.25rem 0.35rem; border-radius: 0.3rem;
+  background: rgba(255, 255, 255, 0.06); color: var(--fg);
+  border: 1px solid rgba(255, 255, 255, 0.12); font-size: 0.8rem;
+}
+#voxel-panel .field { display: block; margin: 0.4rem 0; color: var(--dim); font-size: 0.75rem; }
+#voxel-panel .muted { color: var(--dim); font-size: 0.72rem; line-height: 1.4; margin: 0.35rem 0; }
+#voxel-panel > button[data-vx="new"] {
+  margin-top: 0.5rem; padding: 0.4rem 0.9rem;
+  background: rgba(159, 140, 255, 0.15); color: var(--fg);
+  border: 1px solid rgba(159, 140, 255, 0.4); border-radius: 0.4rem;
+  cursor: pointer; font-size: 0.78rem;
+}
+#voxel-panel > button[data-vx="new"]:hover { background: rgba(159, 140, 255, 0.3); }
 
 /* --- aide raccourcis --- */
 #editor-help {
@@ -416,6 +471,18 @@ body.editing #edit-toggle { color: var(--accent); border-color: var(--accent); }
     top: 0.5rem; bottom: auto; left: 0.5rem; width: 12rem; max-height: 40vh;
   }
   #editor-import { bottom: 47vh; }
+  /* En mode Voxel sur petit écran, la palette prend le bas de l'écran et
+     l'inspecteur s'efface : les deux ne tiennent pas, et on ne règle pas des
+     paramètres audio en sculptant. Un tap sur « Objets » le ramène. */
+  #voxel-panel {
+    left: 0; right: 0; bottom: 0; width: 100%; transform: none;
+    border-radius: 0.9rem 0.9rem 0 0; max-height: 44vh; overflow-y: auto;
+  }
+  body.voxel-editing #editor-panel { display: none; }
+  body.voxel-editing #editor-bar { bottom: calc(44vh + 0.6rem); }
+  body.voxel-editing #editor-import { bottom: 45vh; }
+  #voxel-panel .grid3 input[type="number"],
+  #voxel-panel .field input[type="number"] { font-size: 16px; } /* pas de zoom iOS */
   .ed-sec input[type="number"] { width: 3.6rem; font-size: 16px; } /* pas de zoom iOS */
   .ed-sec .field input[type="text"], .ed-sec textarea { font-size: 16px; }
   body.editing #joystick { display: none; }

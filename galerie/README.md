@@ -150,8 +150,9 @@ au code du moteur** :
   "id": "mon-oeuvre",              // identifiant unique (nom d'export)
   "title": "Titre affiché",
   "description": "Texte de la fiche (module FocusCamera).",
+  "schemaVersion": 2,              // porté par le premier objet du fichier
   "position": [x, y, z],
-  "rotationY": 0,                  // degrés
+  "rotation": [0, 0, 0],           // degrés, trois axes
   "loadDistance": 50,              // distance de chargement paresseux (optionnel)
   "lightColor": "#7a6cff",         // lumière d'appoint de l'œuvre (optionnel)
 
@@ -166,7 +167,15 @@ au code du moteur** :
   "model": { "type": "gltf", "url": "models/piece.glb", "scale": 1 },
   // ou la primitive shader intégrée :
   "model": { "shape": "monolith", "height": 4.5, "color": "#66f0d8" },
-  "scale": 1,                      // échelle uniforme (gizmo « échelle »)
+  // ou une construction voxel (mode Voxel de l'éditeur) :
+  "model": {
+    "type": "voxel",
+    "dims": [16, 16, 16],          // nombre de cellules par axe (64 max)
+    "cell": 0.25,                  // arête d'une cellule, en mètres
+    "palette": ["#8a7cff", "#66f0d8"],
+    "cells": [40, 0, 3, 1, 4053, 0] // RLE : longueur, valeur, longueur, valeur…
+  },                               // valeur 0 = vide, n ≥ 1 = couleur n−1
+  "scale": [1, 1, 1],              // échelle par axe (gizmo « échelle »)
 
   // — audio : autant de pistes que voulu, lues en boucle —
   "stems": [
@@ -185,6 +194,12 @@ Ajout pas à pas : déposer les médias → créer le JSON → l'ajouter à
 `works/index.json` → recharger. Ou plus simple : composer directement dans
 **l'éditeur de scène** (ci-dessous) et exporter.
 
+**Compatibilité du format.** Les scènes écrites avant le schéma v2
+(`rotationY` scalaire, `scale` uniforme) se chargent telles quelles : la
+migration est appliquée en mémoire au chargement, dans le runtime comme dans
+l'éditeur. Vos anciens JSON n'ont rien à changer ; l'export, lui, écrit
+toujours du v2.
+
 ### Décrire une pièce (rooms/*.json)
 
 ```jsonc
@@ -201,7 +216,7 @@ Ajout pas à pas : déposer les médias → créer le JSON → l'ajouter à
     {
       "to": "annexe",              // pièce de destination
       "position": [-5, 0, -22],    // pied du portail
-      "rotationY": 12,
+      "rotation": [0, 12, 0],
       "label": "Annexe",           // étiquette flottante
       "arrival": [0, 2.2, 8]       // où l'on apparaît dans la destination
     }
@@ -283,6 +298,47 @@ sur tactile. Le panneau expose : titre, description, taille du plan, stems
 (rayon/gain par piste, sphères de rayon visibles), son de vidéo, et les
 modules activés (crossfade spatial + rayon, HRTF, réactivité audio, focus
 caméra). Dupliquer/Supprimer via la barre d'outils.
+
+### Mode Voxel — construire cellule par cellule
+
+La barre d'outils propose deux modes : **◻ Objets** (médias, primitives,
+gizmos) et **▦ Voxel** (touche **V**). Une construction voxel n'est pas un
+type d'objet à part : c'est une œuvre ordinaire dont le modèle est une
+grille. Elle accepte donc **stems, modules et transformation** comme les
+autres, sans réglage particulier — on peut spatialiser un son dans une
+maison qu'on vient de bâtir.
+
+Créer : « ＋ Primitive… → Construction voxel », ou le bouton
+« ＋ Nouvelle construction » du panneau. L'objet apparaît devant la caméra,
+posé au sol, avec son volume de construction et son quadrillage.
+
+Gestes, identiques à la souris et au doigt :
+
+| Geste | Effet |
+| --- | --- |
+| clic bref sur une face | pose une cellule contre cette face |
+| clic bref sur le quadrillage | pose une cellule au sol |
+| clic maintenu et glissé | orbite — rien n'est posé |
+| clic droit, ou Alt + clic | retire la cellule visée |
+| outil **⌫ Gomme** | le clic simple retire (utile au doigt) |
+| outil **⊙ Pipette** | reprend la couleur d'une cellule, puis repasse en pose |
+| outil **▤ Boîte** | deux clics : remplit le pavé entre les deux coins |
+
+La **palette** : la pastille choisit la couleur du pinceau, le petit carré
+sous elle la modifie — et toute la construction suit, puisque les cellules
+stockent un index et non une couleur. Les champs x/y/z redimensionnent la
+grille en conservant ce qui y tient encore ; « taille d'une cellule » change
+l'échelle du bâti sans toucher au dessin.
+
+Chaque geste est une entrée d'annulation (**Ctrl/Cmd + Z**) et rien n'est
+« cuit » : le JSON contient la grille, pas un maillage.
+
+**Ce que ça coûte.** La grille est encodée en RLE (`longueur, valeur, …`),
+donc une petite maison de 378 cellules pèse ≈ 1 ko de JSON. Le rendu est un
+**seul appel de dessin** quel que soit le nombre de cubes (`InstancedMesh`),
+et les cellules entièrement entourées ne sont pas instanciées. Coût mesuré
+d'une pose, reconstruction du maillage comprise : **0,017 ms** en 16³,
+**0,13 ms** en 32³, **1,1 ms** en 64³ (le maximum autorisé par axe).
 
 ### Pièces et portails
 

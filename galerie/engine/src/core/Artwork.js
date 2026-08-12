@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { registry } from './ModuleRegistry.js';
 import { buildPrimitive, isPrimitive } from './primitives.js';
 import { loadModel, fitModel, modelKind } from './modelLoaders.js';
+import { buildVoxelMesh } from './voxel.js';
 
 // crossOrigin « anonymous » : indispensable pour les médias distants, dont
 // les pixels doivent être lisibles par WebGL (l'hôte doit autoriser le CORS).
@@ -20,6 +21,20 @@ export function applyTransform(object3d, config) {
 
 const textureLoader = new THREE.TextureLoader();
 textureLoader.setCrossOrigin('anonymous');
+
+/** Libère géométries, matériaux et textures d'une sous-arborescence. */
+function disposeObject3D(root) {
+  root.traverse((o) => {
+    o.geometry?.dispose();
+    if (o.material) {
+      (Array.isArray(o.material) ? o.material : [o.material]).forEach((m) => {
+        m.map?.dispose();
+        m.emissiveMap?.dispose();
+        m.dispose();
+      });
+    }
+  });
+}
 
 /** Redimensionne une texture au plafond du profil (mémoire GPU mobile). */
 function capTextureSize(texture, maxSize) {
@@ -112,10 +127,21 @@ export class Artwork {
     });
     const size = this.config.size ?? [4, 4];
     const m = this.config.model;
-    const geo = m
-      ? new THREE.BoxGeometry(1.2, m.height ?? m.size ?? 1.5, 1.2)
-      : new THREE.PlaneGeometry(size[0], size[1]);
+    let geo;
+    if (m?.type === 'voxel') {
+      // Une construction vide se signale par un socle mince à l'emprise
+      // exacte de sa grille : un bloc au centre masquerait le quadrillage
+      // et gênerait la visée.
+      const cell = m.cell ?? 0.25;
+      const dims = m.dims ?? [16, 16, 16];
+      geo = new THREE.BoxGeometry(dims[0] * cell, 0.04, dims[2] * cell);
+    } else if (m) {
+      geo = new THREE.BoxGeometry(1.2, m.height ?? m.size ?? 1.5, 1.2);
+    } else {
+      geo = new THREE.PlaneGeometry(size[0], size[1]);
+    }
     this.hitMesh = new THREE.Mesh(geo, mat);
+    if (m?.type === 'voxel') this.hitMesh.position.y = 0.02;
     this.group.add(this.hitMesh);
     this._placeholder = this.hitMesh;
   }
@@ -133,6 +159,11 @@ export class Artwork {
         this._setMesh(this._buildPanelMesh(tex));
       } else if (cfg.video) {
         this._setMesh(this._buildVideoMesh());
+      } else if (cfg.model?.type === 'voxel') {
+        // Grille vide : on garde le placeholder, sinon l'objet deviendrait
+        // invisible ET impossible à sélectionner — donc impossible à remplir.
+        const mesh = buildVoxelMesh(cfg.model);
+        if (mesh) this._setMesh(mesh);
       } else if (cfg.model?.url) {
         this._setMesh(await this._loadModelMesh(cfg.model));
       } else if (cfg.model?.shape === 'monolith') {
@@ -184,6 +215,30 @@ export class Artwork {
     return object3d;
   }
 
+  /**
+   * Reconstruit le seul maillage voxel, sur place.
+   *
+   * Chemin rapide de l'éditeur : recréer toute l'œuvre à chaque cellule posée
+   * rechargerait ses stems et couperait le son. Ici on ne touche qu'à
+   * l'InstancedMesh — le bus audio, les modules et le groupe restent intacts.
+   * Renvoie false si l'œuvre n'est pas une construction voxel.
+   */
+  refreshVoxel() {
+    if (this.config.model?.type !== 'voxel') return false;
+    if (this.mesh) {
+      this.group.remove(this.mesh);
+      disposeObject3D(this.mesh);
+      this.mesh = null;
+      this.hitMesh = null;
+    }
+    const fresh = buildVoxelMesh(this.config.model);
+    if (fresh) this._setMesh(fresh);
+    else if (!this._placeholder) this._buildPlaceholder();
+    this._visualRequested = true;
+    this._visualLoaded = true;
+    return true;
+  }
+
   /** Signale un média illisible : placeholder rouge + message pour l'éditeur. */
   setMediaError(message) {
     this.mediaError = message;
@@ -209,16 +264,7 @@ export class Artwork {
       this._video = null;
     }
     this.group.remove(this.mesh);
-    this.mesh.traverse((o) => {
-      o.geometry?.dispose();
-      if (o.material) {
-        (Array.isArray(o.material) ? o.material : [o.material]).forEach((m) => {
-          m.map?.dispose();
-          m.emissiveMap?.dispose();
-          m.dispose();
-        });
-      }
-    });
+    disposeObject3D(this.mesh);
     this._mixer?.stopAllAction();
     this._mixer = null;
     this.modelAnimations = 0;

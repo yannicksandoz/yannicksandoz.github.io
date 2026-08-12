@@ -9,7 +9,7 @@
     "build": "vite build",
     "preview": "vite preview",
     "assets": "node scripts/generate-assets.mjs",
-    "test": "node scripts/test-commands.mjs && node scripts/test-schema.mjs"
+    "test": "node scripts/test-commands.mjs && node scripts/test-schema.mjs && node scripts/test-voxel.mjs"
   },
   "dependencies": {
     "three": "0.166.1"
