@@ -1,6 +1,8 @@
 {
   "name": "galerie-3d",
   "private": true,
+  "license": "SEE LICENSE IN engine/LICENSE",
+  "author": "Yannick Sandoz",
   "version": "1.0.0",
   "type": "module",
   "description": "Galerie d'art 3D immersive, statique et modulaire (Vite + Three.js + Web Audio)",

@@ -7,16 +7,18 @@ propriété exclusive de son auteur.
 **Tous droits réservés.** © Yannick Sandoz.
 
 Ce contenu est **explicitement HORS du périmètre de la licence du moteur**
-(dossier `engine/`). Obtenir une licence sur le moteur ne vous accorde
-aucun droit de reproduction, de distribution, de modification ni de
-représentation sur les œuvres de ce dossier.
+(dossier `engine/`). Obtenir une licence commerciale sur le moteur ne vous
+accorde aucun droit de reproduction, de distribution, de modification ni de
+représentation sur les œuvres de ce dossier : ce sont deux concessions
+distinctes, à demander séparément.
 
 Concrètement :
 
 - le **moteur** est propriétaire, tous droits réservés : son usage suppose une
   licence commerciale (voir `engine/LICENSE`) ;
 - vous ne pouvez **pas** réutiliser les œuvres de ce dossier dans vos propres
-  déploiements sans autorisation écrite préalable ;
+  déploiements sans autorisation écrite préalable — demande à
+  **yro.lab.licence@gmail.com** ;
 - pour faire tourner le moteur, remplacez ce dossier par **votre propre
   contenu** (voir le README, section « Utiliser le moteur avec votre
   contenu »).
@@ -38,9 +40,11 @@ c'est-à-dire dans le domaine public : réutilisez-le librement, y compris
 commercialement, sans attribution.
 
 La raison est simple : ce mobilier n'est pas une œuvre, c'est un outil. Il
-fait partie de ce que le moteur apporte, et il doit rester utilisable par qui
-obtient une licence du moteur. Il vit dans
-`content/` seulement parce que c'est le dossier servi au navigateur.
+fait partie de ce que le moteur apporte, et il doit rester utilisable sans
+restriction par qui obtient une licence du moteur — y compris après
+l'expiration de celle-ci. Il vit dans `content/` seulement parce que c'est le
+dossier servi au navigateur.
 
 Ces fichiers sont reproductibles à l'identique par `npm run library`, dont le
-source (`scripts/generate-library.mjs`) reste couvert par la licence du moteur.
+source (`scripts/generate-library.mjs`) reste, lui, couvert par la licence
+propriétaire du moteur : le mobilier produit est libre, le générateur non.

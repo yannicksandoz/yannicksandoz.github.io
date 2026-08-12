@@ -550,7 +550,7 @@ lancement puis l'ajuste en continu :
 
 | Dossier | Licence |
 |---|---|
-| `engine/` (+ `index.html`, `vite.config.js`, `scripts/`) | **Propriétaire — tous droits réservés** — voir [`engine/LICENSE`](engine/LICENSE) |
+| `engine/` (+ `index.html`, `vite.config.js`, `scripts/`) | **Propriétaire — tous droits réservés** © Yannick Sandoz, voir [`engine/LICENSE`](engine/LICENSE) |
 | `content/` | **Tous droits réservés** — voir [`content/RIGHTS.md`](content/RIGHTS.md) |
 | `content/library/` | **CC0-1.0** (domaine public) — le mobilier livré est un outil, pas une œuvre |
 
@@ -559,13 +559,24 @@ modification ou de redistribution n'est concédé par défaut. Le fait que le
 code arrive dans le navigateur d'un visiteur ne lui confère aucun droit :
 c'est nécessaire à l'exécution, rien de plus.
 
-**Licence commerciale disponible sur demande** — contact :
-**yro.lab.licence@gmail.com**.
+Les composants tiers — Three.js et ses modules d'exemple, Vite, le thème
+Jekyll du site, Primer — gardent leurs propres licences, listées dans
+[`../THIRD-PARTY-NOTICES.md`](../THIRD-PARTY-NOTICES.md).
 
-Les œuvres du dossier `content/` ne sont **pas** couvertes par cette licence : ce
-sont des créations personnelles, tous droits réservés. Déployez le moteur
-avec votre propre contenu.
+Le dossier `content/` contient des créations personnelles, également tous
+droits réservés : déployez le moteur avec votre propre contenu. Seule
+exception, **`content/library/`**, le mobilier de galerie, est dans le
+domaine public — c'est un outil, pas une œuvre, et il doit rester utilisable
+par qui obtient une licence du moteur.
 
-Seule exception : **`content/library/`**, le mobilier de galerie livré avec
-le moteur, est dans le domaine public (CC0-1.0). Il n'est pas une œuvre mais
-un outil, et il doit rester utilisable par qui obtient une licence du moteur.
+## Licence commerciale
+
+Ce projet est distribué sous licence propriétaire — tous droits réservés.
+Aucun usage n'est concédé par défaut. Pour tout usage, une licence
+commerciale est disponible auprès de Yannick Sandoz, titulaire des droits.
+
+Contact : **yro.lab.licence@gmail.com**
+
+Merci d'indiquer dans votre message : l'usage envisagé, le produit ou le
+contexte de déploiement, l'organisation concernée et sa taille, et le
+périmètre souhaité. Réponse sous une dizaine de jours. FR / EN.

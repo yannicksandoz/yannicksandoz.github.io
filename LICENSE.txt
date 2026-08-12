@@ -1,21 +1,51 @@
-The MIT License (MIT)
+CARTE DES LICENCES DE CE DÉPÔT
+==============================
 
-Copyright (c) 2019 GitHub
+Ce dépôt réunit des composants sous des licences DIFFÉRENTES. Il n'existe
+pas de licence unique couvrant l'ensemble. Le tableau ci-dessous fait foi ;
+chaque emplacement porte le texte complet de sa licence.
 
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
+  ┌────────────────────────────────┬──────────────────────────────────────┐
+  │ Emplacement                    │ Licence                              │
+  ├────────────────────────────────┼──────────────────────────────────────┤
+  │ Thème Jekyll (racine) :        │ MIT — © 2019 GitHub                  │
+  │   _config.yml, _data/,         │ Texte : LICENSE-theme-MIT.txt        │
+  │   _includes/, _layouts/,       │                                      │
+  │   _posts/, _sass/, assets/,    │                                      │
+  │   index.html, README.md        │                                      │
+  ├────────────────────────────────┼──────────────────────────────────────┤
+  │ galerie/engine/                │ PROPRIÉTAIRE — tous droits réservés  │
+  │ galerie/index.html             │ © Yannick Sandoz                     │
+  │ galerie/scripts/               │ Texte : galerie/engine/LICENSE       │
+  │ galerie/vite.config.js         │ Licence commerciale sur demande      │
+  ├────────────────────────────────┼──────────────────────────────────────┤
+  │ galerie/content/               │ Tous droits réservés                 │
+  │ (œuvres, médias, configs)      │ Texte : galerie/content/RIGHTS.md    │
+  ├────────────────────────────────┼──────────────────────────────────────┤
+  │ galerie/content/library/       │ CC0-1.0 (domaine public)             │
+  │ (mobilier de galerie)          │ Exception documentée dans RIGHTS.md  │
+  └────────────────────────────────┴──────────────────────────────────────┘
 
-The above copyright notice and this permission notice shall be included in
-all copies or substantial portions of the Software.
+La licence MIT présente à la racine de ce dépôt avant le 12 août 2026
+provenait du thème d'origine et n'a JAMAIS couvert le dossier galerie/.
+Elle a été déplacée dans LICENSE-theme-MIT.txt pour lever toute ambiguïté.
 
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
-THE SOFTWARE.
+Bibliothèques tierces (Three.js, Primer, plugins Jekyll…) : voir
+THIRD-PARTY-NOTICES.md à la racine.
+
+
+LICENCE COMMERCIALE
+-------------------
+
+Le moteur de galerie (galerie/engine/) est distribué sous licence
+propriétaire — tous droits réservés. Aucun droit d'usage, de reproduction,
+de modification ou de redistribution n'est concédé par défaut.
+
+Pour tout usage, une licence commerciale est disponible auprès de
+Yannick Sandoz, titulaire des droits.
+
+Contact : yro.lab.licence@gmail.com
+
+Merci d'indiquer dans votre message : l'usage envisagé, le produit ou le
+contexte de déploiement, l'organisation concernée et sa taille, et le
+périmètre souhaité. Réponse sous une dizaine de jours. FR / EN.

@@ -1,14 +1,74 @@
 MOTEUR DE GALERIE — LICENCE PROPRIÉTAIRE
+========================================
 
 Copyright © 2026 Yannick Sandoz. Tous droits réservés.
 
-Aucun droit d'usage, de reproduction, de représentation, de modification, de
-distribution, de sous-licence ni de vente n'est concédé par défaut. Le fait
-que le code soit transmis à un navigateur lors de la consultation d'une
-galerie publiée ne confère aucun de ces droits : c'est nécessaire à
-l'exécution, rien de plus.
+
+PÉRIMÈTRE
+---------
+
+Cette licence couvre le moteur de galerie 3D et son outillage :
+
+    galerie/engine/          moteur (runtime Visiteur et mode Auteur)
+    galerie/index.html
+    galerie/scripts/
+    galerie/vite.config.js
+    galerie/package.json
+
+Elle ne couvre pas :
+
+    galerie/content/         voir galerie/content/RIGHTS.md
+    galerie/content/library/ CC0-1.0 (domaine public)
+    la racine du dépôt       thème Jekyll sous MIT, voir LICENSE-theme-MIT.txt
+    les bibliothèques tierces voir THIRD-PARTY-NOTICES.md
+
+
+DROITS CONCÉDÉS
+---------------
+
+Aucun.
+
+Aucun droit d'usage, de reproduction, de représentation, de modification,
+de traduction, d'adaptation, de distribution, de sous-licence ni de vente
+n'est concédé par la présente. Le fait que le code soit transmis à votre
+navigateur lorsque vous consultez une galerie publiée ne vous confère
+aucun de ces droits : il est nécessaire à l'exécution, rien de plus.
+
+Sont notamment interdits sans autorisation écrite préalable :
+
+  - déployer ce moteur pour un site autre que ceux du titulaire des droits ;
+  - l'intégrer, même modifié, dans un produit ou un service ;
+  - le revendre, le louer, ou en concéder l'usage à un tiers ;
+  - en publier tout ou partie, y compris à des fins pédagogiques.
+
+
+LICENCE COMMERCIALE
+-------------------
 
 Pour tout usage, une licence commerciale est disponible auprès de
 Yannick Sandoz, titulaire des droits.
 
 Contact : yro.lab.licence@gmail.com
+
+Merci d'indiquer dans votre message : l'usage envisagé, le produit ou le
+contexte de déploiement, l'organisation concernée et sa taille, et le
+périmètre souhaité. Réponse sous une dizaine de jours. FR / EN.
+
+
+MODULES SOUS CONDITIONS DE TIERS
+--------------------------------
+
+Certains modules optionnels dépendent de services tiers et sont régis, pour
+cette part, par les conditions de ces tiers — hors de la présente concession.
+Ils requièrent la clé d'accès du licencié, jamais celle du titulaire des
+droits, et peuvent être retirés sans affecter le reste du moteur. Chacun
+porte sa propre notice dans son dossier.
+
+
+GARANTIE
+--------
+
+Le logiciel est fourni « en l'état », sans garantie d'aucune sorte, expresse
+ou implicite, notamment de qualité marchande, d'adéquation à un usage
+particulier ou d'absence de contrefaçon. Le titulaire des droits ne saurait
+être tenu responsable de tout dommage résultant de l'usage du logiciel.

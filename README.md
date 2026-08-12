@@ -225,4 +225,28 @@ You also have the option to add on to and extend Primer's styles by adding custo
 
 ## License
 
-The theme is available as open source under the terms of the [MIT License](https://opensource.org/licenses/MIT).
+**This repository does not have a single licence.** It combines components
+under different terms, and the MIT licence below covers **only the Jekyll
+theme** this site is derived from — never the `galerie/` directory.
+
+| Location | Licence |
+|---|---|
+| Jekyll theme (`_config.yml`, `_data/`, `_includes/`, `_layouts/`, `_posts/`, `_sass/`, `assets/`, `index.html`, this README) | [MIT](LICENSE-theme-MIT.txt) — © 2019 GitHub |
+| `galerie/engine/`, `galerie/index.html`, `galerie/scripts/` | **Proprietary — all rights reserved**, © Yannick Sandoz. See [`galerie/engine/LICENSE`](galerie/engine/LICENSE) |
+| `galerie/content/` | All rights reserved. See [`galerie/content/RIGHTS.md`](galerie/content/RIGHTS.md) |
+| `galerie/content/library/` | [CC0-1.0](https://creativecommons.org/publicdomain/zero/1.0/) (public domain) |
+
+The full map is in [`LICENSE.txt`](LICENSE.txt); third-party components are
+listed in [`THIRD-PARTY-NOTICES.md`](THIRD-PARTY-NOTICES.md).
+
+### Commercial licence
+
+The gallery engine is proprietary. No right of use, reproduction,
+modification or redistribution is granted by default. For any use, a
+commercial licence is available from Yannick Sandoz, the rights holder.
+
+Contact: **yro.lab.licence@gmail.com**
+
+Please state: the intended use, the product or deployment context, the
+organisation concerned and its size, and the scope you need. Reply within
+about ten days. FR / EN.
