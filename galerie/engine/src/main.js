@@ -128,7 +128,7 @@ function bootHeadless() {
 
   const btn = document.createElement('button');
   btn.id = 'nogl-audio';
-  btn.textContent = 'Visite audio (accessible)';
+  btn.textContent = 'Visite audio';
   inner.appendChild(btn);
 
   // Le moteur n'est construit qu'une fois : conservé ici, il est réutilisé

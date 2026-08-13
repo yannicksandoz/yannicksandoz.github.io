@@ -229,11 +229,13 @@ html, body {
 
 /* ------------------------------------------------------- visite audio --- */
 /* Entrée accessible : discrète mais réelle — lisible, focusable, contrastée */
+/* discret à dessein : VoiceOver le lit pareil, et l'écran reste celui
+   de la visite 3D — mais il demeure le premier focusable du document */
 #enter-audio {
-  display: block; margin: 0 auto 0.9rem; padding: 0.45rem 1.2rem;
+  display: block; margin: 1.6rem auto 0.7rem; padding: 0.25rem 0.8rem;
   background: transparent; color: var(--dim);
-  border: 1px solid rgba(255, 255, 255, 0.18); border-radius: 2rem;
-  font-size: 0.85rem; cursor: pointer;
+  border: 1px solid rgba(255, 255, 255, 0.12); border-radius: 2rem;
+  font-size: 0.72rem; letter-spacing: 0.06em; cursor: pointer;
   text-decoration: underline; text-underline-offset: 3px;
 }
 #enter-audio:hover, #enter-audio:focus-visible { color: var(--fg); border-color: var(--accent); }

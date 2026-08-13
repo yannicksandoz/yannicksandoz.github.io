@@ -1,3 +1,4 @@
+import * as THREE from 'three';
 import { registry } from '../core/ModuleRegistry.js';
 import { speakableTitle } from '../core/a11y.js';
 
@@ -32,10 +33,14 @@ export class AudioTour {
     this.active = false;
     this._lastFocusState = null;
     this._focusedTitle = '';
+    this._glide = null; // pré-écoute : point vers lequel l'auditeur glisse
 
     this._prepareArtworks();
     this._build();
-    app.onUpdate(() => this._observeFocus());
+    app.onUpdate((dt) => {
+      this._observeFocus();
+      this._glideStep(dt);
+    });
   }
 
   /**
@@ -107,6 +112,16 @@ export class AudioTour {
       }
     });
 
+    // Échap remonte d'un niveau : œuvre approchée → recul (géré par
+    // FocusCamera, au niveau window) ; sinon → la liste des pièces.
+    el.addEventListener('keydown', (e) => {
+      if (e.key !== 'Escape' || this.app.activeFocus) return;
+      const rooms = [...el.querySelectorAll('#at-rooms button')];
+      if (!rooms.length || rooms[0].closest('nav').hidden) return;
+      const cur = rooms.find((b) => b.getAttribute('aria-current') === 'true') ?? rooms[0];
+      this._moveFocus(rooms, cur);
+    });
+
     // flèches = tabindex itinérant, dans chacune des deux listes
     for (const listId of ['at-rooms', 'at-works']) {
       el.querySelector(`#${listId}`).addEventListener('keydown', (e) => {
@@ -154,6 +169,7 @@ export class AudioTour {
 
   stop() {
     this.active = false;
+    this._glide = null;
     this.app.controls.suspended = false;
     for (const el of this._inerted ?? []) el.inert = false;
     this._inerted = [];
@@ -219,11 +235,40 @@ export class AudioTour {
         li.appendChild(b);
       }
       b.addEventListener('click', () => this._approach(art));
+      b.addEventListener('focus', () => this._audition(art));
       ul.appendChild(li);
     });
     if (!artworks.length) {
       ul.innerHTML = '<li class="at-empty">Aucune œuvre dans cette pièce.</li>';
     }
+  }
+
+  /* ------------------------------------------------------- pré-écoute --- */
+
+  /**
+   * Parcourir la liste fait glisser l'auditeur d'œuvre en œuvre : le fondu
+   * enchaîné est celui, naturel, de la spatialisation — comme survoler un
+   * menu dont chaque entrée fait monter son propre son. Désactivable par
+   * `"audition": false` sur une œuvre ou sur sa pièce (certaines musiques
+   * ne supportent pas d'être fondues).
+   */
+  _audition(art) {
+    if (this.app.activeFocus) return; // une approche est en cours : elle prime
+    if (art.config.audition === false) return;
+    if (art.room?.config.audition === false) return;
+    const g = art.group;
+    const dir = new THREE.Vector3(0, 0, 1).applyQuaternion(g.quaternion);
+    const pos = g.position.clone().addScaledVector(dir, 7);
+    pos.y = g.position.y;
+    this._glide = { pos, target: g.position.clone() };
+  }
+
+  _glideStep(dt) {
+    if (!this.active || !this._glide || this.app.activeFocus) return;
+    // lissage exponentiel : mouvement réduit = glissement plus bref
+    const k = 1 - Math.exp(-(this.app.quality.reducedMotion ? 8 : 3) * dt);
+    this.app.camera.position.lerp(this._glide.pos, k);
+    this.app.controls.orbit.target.lerp(this._glide.target, k);
   }
 
   /* ----------------------------------------------------------- actions --- */
@@ -239,6 +284,7 @@ export class AudioTour {
     if (room.isCurrent) { this._announceRoom(room); return; }
     const entered = await this.app.rooms.setCurrent(room.config.id);
     if (!entered) return;
+    this._glide = null; // la caméra vient d'être replacée dans la pièce
     this._renderRooms();
     this._renderWorks();
     this._announceRoom(room);
