@@ -83,10 +83,20 @@ export class RoomManager {
 
   /* ------------------------------------------------- pièce courante ----- */
 
-  /** Change de pièce. instant = true pour l'éditeur (pas de fondu). */
+  /**
+   * Change de pièce. instant = true pour l'éditeur (pas de fondu).
+   * Rend true si le changement a eu lieu, false s'il a été refusé
+   * (pièce inconnue ou fondu déjà en cours) — l'appelant ne doit pas
+   * annoncer une pièce dans laquelle on n'est jamais entré.
+   */
   async setCurrent(id, { instant = false, arrival = null } = {}) {
     const room = this.rooms.get(id);
-    if (!room || this._transitioning) return;
+    if (!room || this._transitioning) return false;
+
+    // Un focus d'œuvre encore en travelling ne survivrait pas au changement :
+    // sa pièce cesse d'être mise à jour et il resterait figé, contrôles
+    // verrouillés. Résolution instantanée — la caméra est replacée juste après.
+    this.app.activeFocus?.cancel?.();
 
     if (!instant) {
       this._transitioning = true;
@@ -104,6 +114,7 @@ export class RoomManager {
       this._transitioning = false;
       this._cooldown = 1.2; // évite un aller-retour immédiat dans le portail
     }
+    return true;
   }
 
   _placeCamera(pos) {

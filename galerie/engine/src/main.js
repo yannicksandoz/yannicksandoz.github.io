@@ -131,32 +131,42 @@ function bootHeadless() {
   btn.textContent = 'Visite audio (accessible)';
   inner.appendChild(btn);
 
+  // Le moteur n'est construit qu'une fois : conservé ici, il est réutilisé
+  // si l'utilisateur quitte la visite puis la reprend — et jamais dupliqué
+  // après un échec suivi d'un « réessayer » (deux AudioContexts joueraient
+  // toutes les ambiances en double).
+  let headlessApp = null;
+
   btn.addEventListener('click', async () => {
     btn.disabled = true;
     btn.textContent = 'Chargement…';
     try {
-      const app = new App(document.getElementById('app'), { headless: true });
-      app.ui = new UI();
-      // Contrôles factices : la visite audio n'utilise ni clavier de
-      // déplacement ni orbite, mais FocusCamera lit `locked` et
-      // `orbit.target` — cette poignée suffit.
-      app.controls = {
-        locked: false, dragging: false, suspended: true,
-        orbit: { target: new THREE.Vector3(0, 1.8, 8) },
-        update() {}
-      };
-      app.rooms = new RoomManager(app);
-      app.onUpdate((dt, ctx) => app.rooms.update(dt, ctx));
-
-      const [works, rooms] = await Promise.all([loadWorks(), loadRooms()]);
-      buildScene(app, works, rooms);
-      app.ui.setCredits(works);
-      app.start();
-      window.__galerie = app;
-
-      app.audio.unlock(); // on est dans le geste utilisateur
-      app.rooms.onAudioUnlocked();
-      await startAudioTour(app);
+      // Tout ce qui peut échouer passe AVANT le démarrage du moteur : un
+      // échec ici laisse zéro boucle, zéro AudioContext débloqué derrière lui.
+      const { mountAudioTour } = await import('./ui/AudioTour.js');
+      if (!headlessApp) {
+        const [works, rooms] = await Promise.all([loadWorks(), loadRooms()]);
+        const app = new App(document.getElementById('app'), { headless: true });
+        app.ui = new UI();
+        // Contrôles factices : la visite audio n'utilise ni clavier de
+        // déplacement ni orbite, mais FocusCamera lit `locked` et
+        // `orbit.target` — cette poignée suffit.
+        app.controls = {
+          locked: false, dragging: false, suspended: true,
+          orbit: { target: new THREE.Vector3(0, 1.8, 8) },
+          update() {}
+        };
+        app.rooms = new RoomManager(app);
+        app.onUpdate((dt, ctx) => app.rooms.update(dt, ctx));
+        buildScene(app, works, rooms);
+        app.ui.setCredits(works);
+        app.start();
+        app.audio.unlock(); // le geste utilisateur est encore actif
+        app.rooms.onAudioUnlocked();
+        headlessApp = app;
+        window.__galerie = app;
+      }
+      mountAudioTour(headlessApp);
       nogl.hidden = true;
     } catch (err) {
       console.error('[galerie] Visite audio impossible à démarrer :', err);

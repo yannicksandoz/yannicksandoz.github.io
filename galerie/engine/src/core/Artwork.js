@@ -494,6 +494,13 @@ export class Artwork {
       if (m.type === 'SpatialCrossfade') r = Math.max(r, m.params?.radius ?? 15);
       if (m.type === 'HRTFPanner') r = Math.max(r, m.params?.maxDistance ?? 40);
     }
+    // Les modules injectés à l'exécution (visite audio) ne figurent pas dans
+    // la config : sans ce second parcours, le budget de stems couperait des
+    // œuvres que leur panner injecté devait garder audibles.
+    for (const m of this.modules ?? []) {
+      if (m.moduleType === 'SpatialCrossfade') r = Math.max(r, m.params?.radius ?? 15);
+      if (m.moduleType === 'HRTFPanner') r = Math.max(r, m.params?.maxDistance ?? 40);
+    }
     return r || 15;
   }
 

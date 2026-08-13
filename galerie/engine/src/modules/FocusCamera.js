@@ -72,8 +72,31 @@ export class FocusCamera extends Module {
     this.app.ui.hideFocus();
   }
 
+  /**
+   * Résolution instantanée, sans travelling de retour ni restauration de la
+   * caméra — pour un changement de pièce, où la caméra sera replacée de
+   * toute façon. Sans cela, un module en plein recul cesse d'être mis à
+   * jour dès que sa pièce n'est plus la courante : il resterait figé avec
+   * les contrôles verrouillés.
+   */
+  cancel() {
+    if (this.state === 'idle') return;
+    this.state = 'idle';
+    this.app.ui.hideFocus();
+    if (this.app.activeFocus === this) {
+      this.app.controls.locked = false;
+      this.app.setActiveFocus(null);
+    }
+  }
+
   update(dt, _ctx) {
     if (this.state !== 'in' && this.state !== 'out') return;
+    // Un autre module a pris le focus pendant notre recul : la caméra lui
+    // appartient — on s'efface sans l'animer ni toucher au verrou.
+    if (this.state === 'out' && this.app.activeFocus !== this) {
+      this.state = 'idle';
+      return;
+    }
     // prefers-reduced-motion : travelling quasi instantané
     const duration = this.app.quality.reducedMotion
       ? 0.3
@@ -89,8 +112,12 @@ export class FocusCamera extends Module {
         this.state = 'focused';
       } else {
         this.state = 'idle';
-        this.app.controls.locked = false;
-        this.app.setActiveFocus(null);
+        // seul le focus encore enregistré rend le verrou : si un autre
+        // module a pris la main entre-temps, c'est le sien désormais
+        if (this.app.activeFocus === this) {
+          this.app.controls.locked = false;
+          this.app.setActiveFocus(null);
+        }
       }
     }
   }

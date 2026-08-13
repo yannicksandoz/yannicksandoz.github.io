@@ -66,7 +66,7 @@ export class AudioTour {
     el.id = 'audio-tour';
     el.hidden = true;
     el.innerHTML = `
-      <div class="at-panel" role="region" aria-label="Visite audio de la galerie">
+      <div class="at-panel" role="dialog" aria-modal="true" aria-label="Visite audio de la galerie">
         <h2 id="at-title">Visite audio</h2>
         <p id="at-help">Flèches haut et bas pour parcourir, Entrée pour
         approcher une œuvre, Échap pour reculer. Le son est spatialisé :
@@ -87,6 +87,25 @@ export class AudioTour {
     this.liveEl = el.querySelector('#at-live');
 
     el.querySelector('#at-quit').addEventListener('click', () => this.stop());
+
+    // Dialogue modal : le focus boucle aux extrémités du panneau. `inert`
+    // (posé dans start) empêche déjà d'atteindre la page derrière ; sans ce
+    // bouclage, Tab en bout de course partirait dans le chrome du navigateur.
+    el.addEventListener('keydown', (e) => {
+      if (e.key !== 'Tab') return;
+      const focusables = [...el.querySelectorAll('button')]
+        .filter((b) => b.tabIndex >= 0 && !b.closest('[hidden]'));
+      if (!focusables.length) return;
+      const first = focusables[0];
+      const last = focusables[focusables.length - 1];
+      if (e.shiftKey && document.activeElement === first) {
+        e.preventDefault();
+        last.focus();
+      } else if (!e.shiftKey && document.activeElement === last) {
+        e.preventDefault();
+        first.focus();
+      }
+    });
 
     // flèches = tabindex itinérant, dans chacune des deux listes
     for (const listId of ['at-rooms', 'at-works']) {
@@ -114,6 +133,17 @@ export class AudioTour {
     this.app.controls.suspended = true;      // les flèches servent aux listes
     document.getElementById('app')?.setAttribute('aria-hidden', 'true');
     document.getElementById('hint')?.setAttribute('hidden', '');
+    // Confinement du focus : tout le reste du document devient inerte
+    // (infocusable ET invisible aux lecteurs d'écran). Sans cela, Tab
+    // atterrit sur les contrôles invisibles derrière l'overlay — le « × »
+    // de la fiche dévoilée à chaque approche, le « ⓘ » des crédits.
+    this._inerted = [];
+    for (const el of document.body.children) {
+      if (el !== this.el && !el.inert) {
+        el.inert = true;
+        this._inerted.push(el);
+      }
+    }
     this.el.hidden = false;
     this._renderRooms();
     this._renderWorks();
@@ -125,9 +155,26 @@ export class AudioTour {
   stop() {
     this.active = false;
     this.app.controls.suspended = false;
+    for (const el of this._inerted ?? []) el.inert = false;
+    this._inerted = [];
     document.getElementById('app')?.removeAttribute('aria-hidden');
-    document.getElementById('hint')?.removeAttribute('hidden');
     this.el.hidden = true;
+
+    if (this.app.headless) {
+      // Sans rendu, quitter la visite ne mène nulle part : on résout le
+      // focus en cours et on rend l'écran de repli, seul point de reprise.
+      this.app.activeFocus?.cancel?.();
+      const nogl = document.getElementById('nogl');
+      const btn = document.getElementById('nogl-audio');
+      if (nogl && btn) {
+        nogl.hidden = false;
+        btn.disabled = false;
+        btn.textContent = 'Reprendre la visite audio';
+        btn.focus();
+      }
+    } else {
+      document.getElementById('hint')?.removeAttribute('hidden');
+    }
   }
 
   /* ------------------------------------------------------------ listes --- */
@@ -181,11 +228,17 @@ export class AudioTour {
 
   /* ----------------------------------------------------------- actions --- */
 
-  /** Changement de pièce : les fondus existants du RoomManager jouent. */
+  /**
+   * Changement de pièce : les fondus existants du RoomManager jouent.
+   * setCurrent résout lui-même un éventuel focus d'œuvre en cours (cancel)
+   * et rend false si un fondu est déjà en route — dans ce cas on n'annonce
+   * rien : annoncer une pièce dans laquelle on n'est pas entré fausserait
+   * le modèle mental de l'utilisateur.
+   */
   async _gotoRoom(room) {
     if (room.isCurrent) { this._announceRoom(room); return; }
-    this.app.activeFocus?.release();
-    await this.app.rooms.setCurrent(room.config.id);
+    const entered = await this.app.rooms.setCurrent(room.config.id);
+    if (!entered) return;
     this._renderRooms();
     this._renderWorks();
     this._announceRoom(room);
