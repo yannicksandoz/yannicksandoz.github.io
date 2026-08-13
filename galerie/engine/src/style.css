@@ -251,7 +251,9 @@ html, body {
 /* Le panneau de visite : grand, contrasté — il sert aussi aux malvoyants */
 #audio-tour {
   position: fixed; inset: 0; z-index: 32; overflow-y: auto;
-  background: rgba(5, 5, 10, 0.92);
+  /* opaque : pendant la visite audio le rendu 3D est suspendu (App),
+     il n'y a littéralement rien à laisser transparaître */
+  background: rgb(5, 5, 10);
   display: flex; justify-content: center;
 }
 #audio-tour[hidden] { display: none; }

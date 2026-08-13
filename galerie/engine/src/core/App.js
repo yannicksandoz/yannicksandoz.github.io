@@ -94,7 +94,13 @@ export class App {
     this.renderer.setPixelRatio(profile.pixelRatio);
     this.renderer.setSize(window.innerWidth, window.innerHeight);
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    this.renderer.toneMappingExposure = 1.1;
+    // Étalonné pour un écran à grande plage dynamique (Retina/XDR, OLED).
+    // Sur une dalle standard (SDR — LCD d'entrée de gamme), les noirs
+    // profonds de la galerie s'écrasent : on relève l'exposition. La
+    // requête média est le meilleur signal auto disponible ; ce n'est pas
+    // une mesure de luminosité, mais elle sépare bien les deux mondes.
+    const hdr = window.matchMedia?.('(dynamic-range: high)').matches;
+    this.renderer.toneMappingExposure = hdr ? 1.1 : 1.45;
     container.appendChild(this.renderer.domElement);
     this.quality.refineWithRenderer(this.renderer);
 
@@ -361,6 +367,13 @@ export class App {
       }
 
       this.audio.updateListener(this.camera);
+
+      // Visite audio ouverte : le panneau opaque couvre tout — rendre des
+      // images derrière ne ferait que chauffer la machine (et le lecteur
+      // d'écran est gourmand). L'audio et les modules continuent, l'image
+      // reste sur la dernière trame.
+      if (this.audioTour?.active) return;
+
       if (!this.quality.reducedMotion) this.dust.rotation.y += dt * 0.004;
       this.grainPass.uniforms.uTime.value = t;
       this.quality.tick(dt, this);
