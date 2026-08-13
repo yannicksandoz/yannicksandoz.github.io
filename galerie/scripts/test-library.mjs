@@ -223,5 +223,120 @@ console.log('\ncatalogue livré');
     data.items.every((i) => i.url.startsWith('library/models/')), true);
 }
 
+/**
+ * Module Poly Pizza (éditeur) — normalisation et mapping d'attribution.
+ * Le module vit dans le sous-module privé : s'il n'est pas récupéré
+ * (CI, build Visiteur), la section se saute proprement au lieu de casser
+ * `npm test` — exactement comme le build Visiteur se passe de l'éditeur.
+ */
+const pp = await import('../engine/src/editor/polypizza/data.js').catch(() => null);
+if (!pp) {
+  console.log('\nPoly Pizza : sous-module éditeur absent — section sautée');
+} else {
+  console.log('\nPoly Pizza — normalisation (casse officielle PascalCase)');
+  {
+    // casse EXACTE de l'API officielle : Licence, « Tri Count », DPURL
+    const officiel = pp.normalizeModel({
+      ID: 'dLl4cyOOAcC', Title: 'Banc de parc', Description: 'Un banc.',
+      Attribution: 'Banc de parc by Quaternius (https://poly.pizza/m/dLl4cyOOAcC)',
+      Thumbnail: 'https://t.poly.pizza/dLl4cyOOAcC.webp',
+      Download: 'https://static.poly.pizza/dLl4cyOOAcC.glb',
+      'Tri Count': 1234,
+      Creator: { Username: 'Quaternius', DPURL: 'https://poly.pizza/u/Quaternius' },
+      Category: 'Furniture', Tags: ['banc', 'parc'],
+      Licence: 'CC0', Animated: false
+    });
+    check('identifiant', officiel.id, 'dLl4cyOOAcC');
+    check('titre', officiel.title, 'Banc de parc');
+    check('téléchargement', officiel.download, 'https://static.poly.pizza/dLl4cyOOAcC.glb');
+    check('« Tri Count » (clé avec espace) lu', officiel.triCount, 1234);
+    check('créateur', officiel.creator,
+      { username: 'Quaternius', profileUrl: 'https://poly.pizza/u/Quaternius' });
+    check('« Licence » (orthographe britannique) lue', officiel.licence, 'CC0');
+    check('étiquettes', officiel.tags, ['banc', 'parc']);
+    check('page du modèle dérivée de l’identifiant', officiel.pageUrl,
+      'https://poly.pizza/m/dLl4cyOOAcC');
+  }
+
+  console.log('\nPoly Pizza — normalisation (casse camelCase des clients tiers)');
+  {
+    const tiers = pp.normalizeModel({
+      id: 'abc123', title: 'Chaise', download: 'https://cdn/x.glb',
+      triCount: 500, creator: { username: 'Momo', dpurl: 'https://p/u/momo' },
+      license: 'CC-BY', animated: true, tags: ['chaise']
+    });
+    check('identifiant (camelCase)', tiers.id, 'abc123');
+    check('triCount (camelCase)', tiers.triCount, 500);
+    check('créateur (camelCase)', tiers.creator,
+      { username: 'Momo', profileUrl: 'https://p/u/momo' });
+    check('license (américain) lu aussi', tiers.licence, 'CC-BY');
+    check('animé', tiers.animated, true);
+    check('Licence prime sur license si les deux',
+      pp.normalizeModel({ ID: 'x', Download: 'https://d/x.glb',
+        Licence: 'CC0', license: 'CC-BY' }).licence, 'CC0');
+  }
+
+  console.log('\nPoly Pizza — entrées bancales');
+  {
+    check('null : rejeté', pp.normalizeModel(null), null);
+    check('sans identifiant : rejeté',
+      pp.normalizeModel({ Download: 'https://d/x.glb' }), null);
+    check('sans téléchargement : rejeté (rien à importer)',
+      pp.normalizeModel({ ID: 'x' }), null);
+    const nu = pp.normalizeModel({ ID: 'x', Download: 'https://d/x.glb' });
+    check('titre de repli', nu.title, 'Sans titre');
+    check('triangles inconnus : null', nu.triCount, null);
+    check('créateur absent : champs vides', nu.creator, { username: '', profileUrl: '' });
+  }
+
+  console.log('\nPoly Pizza — mapping vers l’attribution de la galerie');
+  {
+    const modele = pp.normalizeModel({
+      ID: 'dLl4cyOOAcC', Title: 'Banc de parc',
+      Download: 'https://static.poly.pizza/dLl4cyOOAcC.glb',
+      Creator: { Username: 'Quaternius', DPURL: 'https://poly.pizza/u/Quaternius' },
+      Licence: 'CC0'
+    });
+    check('crédit : la SOURCE est la page du modèle, pas le CDN ni l’API',
+      pp.creditFromModel(modele),
+      { author: 'Quaternius', license: 'CC0', sourceUrl: 'https://poly.pizza/m/dLl4cyOOAcC' });
+    check('licence absente laissée vide (l’export la réclamera)',
+      pp.creditFromModel(pp.normalizeModel({ ID: 'x', Download: 'https://d/x.glb' })).license,
+      '');
+
+    const item = pp.libraryItemFromModel(modele);
+    check('URL locale, jamais Poly Pizza', item.url,
+      'assets/polypizza/banc-de-parc-dLl4cyOOAcC.glb');
+    check('marqueur de plateforme', item.source, 'polypizza');
+    const norme = normalizeItem(item);
+    check('l’entrée survit au normaliseur de la bibliothèque', Boolean(norme), true);
+    check('la bibliothèque conserve le marqueur', norme.source, 'polypizza');
+    check('crédit complet après normalisation', creditOf(norme),
+      { author: 'Quaternius', license: 'CC0', sourceUrl: 'https://poly.pizza/m/dLl4cyOOAcC' });
+    check('le compagnon se placera à côté du fichier',
+      attributionPath(item.url),
+      'assets/polypizza/banc-de-parc-dLl4cyOOAcC.glb.attribution.json');
+    check('nom de fichier : titre assaini + identifiant (pas de collision)',
+      pp.modelFileName(pp.normalizeModel({ ID: 'zz9', Title: 'Banc de parc',
+        Download: 'https://d/x.glb' })),
+      'banc-de-parc-zz9.glb');
+  }
+
+  console.log('\nPoly Pizza — construction des requêtes');
+  {
+    check('mot-clé encodé dans le chemin',
+      pp.searchRequest({ query: 'banc de parc' }).path, '/search/banc%20de%20parc');
+    check('sans mot-clé : parcours', pp.searchRequest({}).path, '/search');
+    const p = pp.searchRequest({ query: 'x', limit: 50, page: 2 }).params;
+    check('limit borné au maximum de l’API (32)', p.limit, '32');
+    check('page transmise', p.page, '2');
+    check('limit plancher à 1', pp.searchRequest({ limit: 0 }).params.limit, '1');
+    check('filtres transmis seulement s’ils sont définis',
+      Object.keys(pp.searchRequest({ query: 'x' }).params), ['limit', 'page']);
+    check('filtre licence transmis',
+      pp.searchRequest({ license: 'CC0' }).params.license, 'CC0');
+  }
+}
+
 console.log(`\n${passed} réussis, ${failed} échoués\n`);
 process.exit(failed ? 1 : 0);

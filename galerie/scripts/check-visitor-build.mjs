@@ -22,7 +22,8 @@ const EMPREINTES_EDITEUR = [
   'voxel-panel', 'library-panel', 'lib-tile', 'vx-swatch',
   'mountEditor', 'TransformControls', 'GLTFExporter',
   'editor-file-media', 'editor-file-json',
-  'data-vx-', 'data-lib-add', 'data-a-prim'
+  'data-vx-', 'data-lib-add', 'data-a-prim',
+  'polypizza-panel', 'data-pp-', 'X-Auth-Token'
 ];
 
 /**
