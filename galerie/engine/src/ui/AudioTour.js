@@ -74,7 +74,11 @@ export class AudioTour {
     el.id = 'audio-tour';
     el.hidden = true;
     el.innerHTML = `
-      <div class="at-panel" role="dialog" aria-modal="true"
+      <!-- tabindex -1 : à l'ouverture, le focus se pose sur le dialogue
+           LUI-MÊME — le lecteur d'écran lit son nom puis l'explication
+           (aria-describedby). Focalisé d'emblée sur un bouton d'œuvre, il
+           annoncerait « Nébuleuse » sans jamais expliquer les contrôles. -->
+      <div class="at-panel" role="dialog" aria-modal="true" tabindex="-1"
            aria-label="Visite audio de la galerie" aria-describedby="at-help">
         <h2 id="at-title">Visite audio</h2>
         <!-- repère visuel de la pièce courante ; le lecteur d'écran, lui,
@@ -105,7 +109,11 @@ export class AudioTour {
       if (!focusables.length) return;
       const first = focusables[0];
       const last = focusables[focusables.length - 1];
-      if (e.shiftKey && document.activeElement === first) {
+      if (document.activeElement === el.querySelector('.at-panel')) {
+        // depuis le dialogue lui-même : Tab entre, Maj+Tab entre par la fin
+        e.preventDefault();
+        (e.shiftKey ? last : first).focus();
+      } else if (e.shiftKey && document.activeElement === first) {
         e.preventDefault();
         last.focus();
       } else if (!e.shiftKey && document.activeElement === last) {
@@ -125,15 +133,24 @@ export class AudioTour {
     });
 
     // La liste unique : haut/bas parcourt les œuvres (tabindex itinérant),
-    // gauche/droite change de pièce.
-    el.querySelector('#at-works').addEventListener('keydown', (e) => {
+    // gauche/droite change de pièce. Le focus initial étant sur le dialogue
+    // (le temps que l'explication soit lue), la première flèche y descend.
+    el.addEventListener('keydown', (e) => {
+      const works = el.querySelector('#at-works');
+      const inList = works.contains(document.activeElement);
+      const onPanel = document.activeElement === el.querySelector('.at-panel');
       if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+        if (!inList && !onPanel) return;
         e.preventDefault();
-        const items = [...e.currentTarget.querySelectorAll('button')];
+        const items = [...works.querySelectorAll('button')];
+        if (!items.length) return;
         const i = items.indexOf(document.activeElement);
-        const next = items[(i + (e.key === 'ArrowDown' ? 1 : -1) + items.length) % items.length];
-        if (next) this._moveFocus(items, next);
+        const next = i === -1
+          ? items[0] // depuis le dialogue : on entre dans la liste
+          : items[(i + (e.key === 'ArrowDown' ? 1 : -1) + items.length) % items.length];
+        this._moveFocus(items, next);
       } else if (e.key === 'ArrowRight' || e.key === 'ArrowLeft') {
+        if (!inList && !onPanel) return;
         e.preventDefault();
         this._stepRoom(e.key === 'ArrowRight' ? 1 : -1);
       }
@@ -167,7 +184,10 @@ export class AudioTour {
     this.el.hidden = false;
     this._renderWorks();
     this._updateRoomLabel();
-    this.el.querySelector('#at-works button')?.focus();
+    // Le focus se pose sur le dialogue : le lecteur d'écran lit le nom puis
+    // l'explication des contrôles AVANT toute œuvre. Flèche bas ou Tab pour
+    // entrer dans la liste.
+    this.el.querySelector('.at-panel').focus();
     const room = this.app.rooms.current;
     if (room) this._announceRoom(room);
   }
