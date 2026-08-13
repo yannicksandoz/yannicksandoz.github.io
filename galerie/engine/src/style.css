@@ -267,6 +267,7 @@ html, body {
   margin: 0.3rem 0 0; font-size: 0.85rem; letter-spacing: 0.12em;
   text-transform: uppercase; color: var(--accent);
 }
+#at-room:focus { outline: none; } /* focus programmatique après gauche/droite */
 #at-help { margin: 0.7rem 0 1.2rem; color: var(--dim); font-size: 0.92rem; }
 .at-panel ul { list-style: none; padding: 0; }
 .at-panel li { margin: 0.35rem 0; }

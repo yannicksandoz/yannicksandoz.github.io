@@ -81,9 +81,11 @@ export class AudioTour {
              l'explication (aria-describedby) — jamais une œuvre en premier.
              Échap depuis la liste y ramène (l'explication est relue). -->
         <h2 id="at-title" tabindex="-1" aria-describedby="at-help">Visite audio</h2>
-        <!-- repère visuel de la pièce courante ; le lecteur d'écran, lui,
-             la reçoit par les annonces — pas deux fois -->
-        <p id="at-room" aria-hidden="true"></p>
+        <!-- Repère de la pièce courante. Après un changement gauche/droite,
+             c'est LUI qui reçoit le focus : le lecteur d'écran lit d'abord
+             « Annexe — 1 œuvre » (le focus passe toujours avant la zone
+             d'annonces), puis l'annonce donne la première œuvre. -->
+        <p id="at-room" tabindex="-1"></p>
         <!-- aria-describedby de l'en-tête : lu à l'arrivée, télégraphique
              à dessein — chaque mot en plus est du temps volé au son. -->
         <p id="at-help">Haut et bas : œuvres. Gauche et droite : pièces.
@@ -140,7 +142,8 @@ export class AudioTour {
     el.addEventListener('keydown', (e) => {
       const works = el.querySelector('#at-works');
       const inList = works.contains(document.activeElement);
-      const onPanel = document.activeElement === el.querySelector('#at-title');
+      const onPanel = document.activeElement === el.querySelector('#at-title')
+        || document.activeElement === el.querySelector('#at-room');
       if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
         if (!inList && !onPanel) return;
         e.preventDefault();
@@ -232,9 +235,9 @@ export class AudioTour {
       label.hidden = true;
       return;
     }
-    const i = rooms.indexOf(cur);
+    const n = cur.artworks.length;
     label.hidden = false;
-    label.textContent = `Pièce ${i + 1}/${rooms.length} — ${cur.config.title ?? cur.config.id}`;
+    label.textContent = `${cur.config.title ?? cur.config.id} — ${n} œuvre${n > 1 ? 's' : ''}`;
   }
 
   _renderWorks() {
@@ -325,8 +328,12 @@ export class AudioTour {
     this._glide = null; // la caméra vient d'être replacée dans la pièce
     this._renderWorks();
     this._updateRoomLabel();
-    this._announceRoom(room);
-    this.el.querySelector('#at-works button')?.focus();
+    // Ordre d'annonce voulu : pièce — nombre d'œuvres — première œuvre.
+    // Le focus (lu en premier) va donc au repère de pièce ; la première
+    // œuvre suit par la zone d'annonces. Flèche bas pour y entrer.
+    this.el.querySelector('#at-room').focus();
+    const first = (this.app.rooms.current?.artworks ?? [])[0];
+    if (first) this._announce(speakableTitle(first.config));
   }
 
   /**
