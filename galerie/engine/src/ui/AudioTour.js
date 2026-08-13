@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { registry } from '../core/ModuleRegistry.js';
 import { speakableTitle } from '../core/a11y.js';
+import { easeInOutCubic } from '../core/utils.js';
 
 /**
  * Visite audio — navigation accessible par-dessus le runtime Visiteur.
@@ -15,9 +16,11 @@ import { speakableTitle } from '../core/a11y.js';
  * Chargé par import dynamique (voir main.js) : un visiteur qui n'ouvre pas
  * la visite audio n'en télécharge pas une ligne.
  *
- * Clavier : Tab entre les zones, flèches dans les listes (tabindex
- * itinérant), Entrée pour approcher, Échap pour reculer — Échap était déjà
- * le geste de recul du mode 3D, FocusCamera l'écoute déjà.
+ * Clavier — une seule liste, testée avec VoiceOver : haut/bas parcourt les
+ * œuvres (tabindex itinérant, le son glisse de l'une à l'autre),
+ * gauche/droite change de pièce, Entrée approche, Échap remonte (recul,
+ * puis bouton Quitter). Tab n'a que deux arrêts : la liste et Quitter.
+ * Quitter ramène à l'accueil.
  *
  * Annonces (aria-live) — granularité « standard » : changement de pièce,
  * arrivée sur l'œuvre, recul. La sélection elle-même n'est pas annoncée :
@@ -71,19 +74,18 @@ export class AudioTour {
     el.id = 'audio-tour';
     el.hidden = true;
     el.innerHTML = `
-      <div class="at-panel" role="dialog" aria-modal="true" aria-label="Visite audio de la galerie">
+      <div class="at-panel" role="dialog" aria-modal="true"
+           aria-label="Visite audio de la galerie" aria-describedby="at-help">
         <h2 id="at-title">Visite audio</h2>
-        <p id="at-help">Flèches haut et bas pour parcourir, Entrée pour
-        approcher une œuvre, Échap pour reculer. Le son est spatialisé :
-        un casque restitue la position des œuvres autour de vous.</p>
-        <nav aria-label="Pièces de la galerie">
-          <h3 id="at-rooms-h">Pièces</h3>
-          <ul id="at-rooms" role="list"></ul>
-        </nav>
-        <nav aria-label="Œuvres de la pièce">
-          <h3 id="at-works-h">Œuvres</h3>
-          <ul id="at-works" role="list"></ul>
-        </nav>
+        <!-- repère visuel de la pièce courante ; le lecteur d'écran, lui,
+             la reçoit par les annonces — pas deux fois -->
+        <p id="at-room" aria-hidden="true"></p>
+        <!-- aria-describedby : le lecteur d'écran lit cette explication une
+             fois, à l'ouverture du dialogue. Minimaliste à dessein. -->
+        <p id="at-help">Flèches haut et bas pour parcourir — le son glisse
+        d'œuvre en œuvre. Flèches gauche et droite pour changer de pièce.
+        Entrée pour approcher, Échap pour remonter. Casque recommandé.</p>
+        <ul id="at-works" role="list" aria-label="Œuvres"></ul>
         <button id="at-quit">Quitter la visite audio</button>
         <div id="at-live" aria-live="polite" class="at-sr-only"></div>
       </div>`;
@@ -113,26 +115,29 @@ export class AudioTour {
     });
 
     // Échap remonte d'un niveau : œuvre approchée → recul (géré par
-    // FocusCamera, au niveau window) ; sinon → la liste des pièces.
+    // FocusCamera, au niveau window) ; liste → bouton Quitter. Échap ne
+    // DÉCLENCHE jamais le quitter : il y amène le focus, Entrée décide.
     el.addEventListener('keydown', (e) => {
       if (e.key !== 'Escape' || this.app.activeFocus) return;
-      const rooms = [...el.querySelectorAll('#at-rooms button')];
-      if (!rooms.length || rooms[0].closest('nav').hidden) return;
-      const cur = rooms.find((b) => b.getAttribute('aria-current') === 'true') ?? rooms[0];
-      this._moveFocus(rooms, cur);
+      if (el.querySelector('#at-works').contains(document.activeElement)) {
+        el.querySelector('#at-quit').focus();
+      }
     });
 
-    // flèches = tabindex itinérant, dans chacune des deux listes
-    for (const listId of ['at-rooms', 'at-works']) {
-      el.querySelector(`#${listId}`).addEventListener('keydown', (e) => {
-        if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp') return;
+    // La liste unique : haut/bas parcourt les œuvres (tabindex itinérant),
+    // gauche/droite change de pièce.
+    el.querySelector('#at-works').addEventListener('keydown', (e) => {
+      if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
         e.preventDefault();
         const items = [...e.currentTarget.querySelectorAll('button')];
         const i = items.indexOf(document.activeElement);
         const next = items[(i + (e.key === 'ArrowDown' ? 1 : -1) + items.length) % items.length];
         if (next) this._moveFocus(items, next);
-      });
-    }
+      } else if (e.key === 'ArrowRight' || e.key === 'ArrowLeft') {
+        e.preventDefault();
+        this._stepRoom(e.key === 'ArrowRight' ? 1 : -1);
+      }
+    });
   }
 
   _moveFocus(items, target) {
@@ -145,7 +150,7 @@ export class AudioTour {
 
   start() {
     this.active = true;
-    this.app.controls.suspended = true;      // les flèches servent aux listes
+    this.app.controls.suspended = true;      // les flèches servent à la liste
     document.getElementById('app')?.setAttribute('aria-hidden', 'true');
     document.getElementById('hint')?.setAttribute('hidden', '');
     // Confinement du focus : tout le reste du document devient inerte
@@ -160,14 +165,23 @@ export class AudioTour {
       }
     }
     this.el.hidden = false;
-    this._renderRooms();
     this._renderWorks();
+    this._updateRoomLabel();
     this.el.querySelector('#at-works button')?.focus();
     const room = this.app.rooms.current;
     if (room) this._announceRoom(room);
   }
 
+  /** Quitter ramène à l'accueil — pas à la 3D : état neuf, deux boutons. */
   stop() {
+    if (!this.app.headless) {
+      location.reload();
+      return;
+    }
+
+    // Sans rendu il n'y a pas d'accueil complet à recharger : on rend
+    // l'écran de repli #nogl — c'est lui, l'accueil de ce mode — sans
+    // reconstruire le moteur déjà chargé.
     this.active = false;
     this._glide = null;
     this.app.controls.suspended = false;
@@ -175,42 +189,30 @@ export class AudioTour {
     this._inerted = [];
     document.getElementById('app')?.removeAttribute('aria-hidden');
     this.el.hidden = true;
-
-    if (this.app.headless) {
-      // Sans rendu, quitter la visite ne mène nulle part : on résout le
-      // focus en cours et on rend l'écran de repli, seul point de reprise.
-      this.app.activeFocus?.cancel?.();
-      const nogl = document.getElementById('nogl');
-      const btn = document.getElementById('nogl-audio');
-      if (nogl && btn) {
-        nogl.hidden = false;
-        btn.disabled = false;
-        btn.textContent = 'Reprendre la visite audio';
-        btn.focus();
-      }
-    } else {
-      document.getElementById('hint')?.removeAttribute('hidden');
+    this.app.activeFocus?.cancel?.();
+    const nogl = document.getElementById('nogl');
+    const btn = document.getElementById('nogl-audio');
+    if (nogl && btn) {
+      nogl.hidden = false;
+      btn.disabled = false;
+      btn.textContent = 'Reprendre la visite audio';
+      btn.focus();
     }
   }
 
   /* ------------------------------------------------------------ listes --- */
 
-  _renderRooms() {
-    const ul = this.el.querySelector('#at-rooms');
+  _updateRoomLabel() {
+    const label = this.el.querySelector('#at-room');
     const rooms = this.app.rooms.list();
-    // pièce unique : la navigation par pièces n'apporte rien, on la masque
-    ul.closest('nav').hidden = rooms.length < 2;
-    ul.innerHTML = '';
-    rooms.forEach((room, i) => {
-      const li = document.createElement('li');
-      const b = document.createElement('button');
-      b.textContent = `${room.config.title ?? room.config.id} — ${room.artworks.length} œuvre${room.artworks.length > 1 ? 's' : ''}`;
-      b.tabIndex = i === 0 ? 0 : -1;
-      b.setAttribute('aria-current', room.isCurrent ? 'true' : 'false');
-      b.addEventListener('click', () => this._gotoRoom(room));
-      li.appendChild(b);
-      ul.appendChild(li);
-    });
+    const cur = this.app.rooms.current;
+    if (!cur || rooms.length < 2) {
+      label.hidden = true;
+      return;
+    }
+    const i = rooms.indexOf(cur);
+    label.hidden = false;
+    label.textContent = `Pièce ${i + 1}/${rooms.length} — ${cur.config.title ?? cur.config.id}`;
   }
 
   _renderWorks() {
@@ -260,33 +262,54 @@ export class AudioTour {
     const dir = new THREE.Vector3(0, 0, 1).applyQuaternion(g.quaternion);
     const pos = g.position.clone().addScaledVector(dir, 7);
     pos.y = g.position.y;
-    this._glide = { pos, target: g.position.clone() };
+    this._glide = {
+      pts: [this.app.camera.position.clone(), pos],
+      tgts: [this.app.controls.orbit.target.clone(), g.position.clone()],
+      t: 0,
+      dur: this.app.quality.reducedMotion ? 0.4 : 1.6
+    };
+  }
+
+  /**
+   * Cadence du trajet, en trois temps : on quitte l'œuvre, on marque le
+   * pas au point médian — l'étape intermédiaire, où les deux œuvres
+   * s'entendent à égalité — puis on achève l'arrivée.
+   */
+  static _pace(t) {
+    if (t < 0.4) return easeInOutCubic(t / 0.4) * 0.5;
+    if (t < 0.6) return 0.5;
+    return 0.5 + easeInOutCubic((t - 0.6) / 0.4) * 0.5;
   }
 
   _glideStep(dt) {
     if (!this.active || !this._glide || this.app.activeFocus) return;
-    // lissage exponentiel : mouvement réduit = glissement plus bref
-    const k = 1 - Math.exp(-(this.app.quality.reducedMotion ? 8 : 3) * dt);
-    this.app.camera.position.lerp(this._glide.pos, k);
-    this.app.controls.orbit.target.lerp(this._glide.target, k);
+    const g = this._glide;
+    g.t = Math.min(1, g.t + dt / g.dur);
+    const k = AudioTour._pace(g.t);
+    this.app.camera.position.lerpVectors(g.pts[0], g.pts[1], k);
+    this.app.controls.orbit.target.lerpVectors(g.tgts[0], g.tgts[1], k);
+    if (g.t >= 1) this._glide = null; // arrivé : la caméra est posée
   }
 
   /* ----------------------------------------------------------- actions --- */
 
   /**
-   * Changement de pièce : les fondus existants du RoomManager jouent.
-   * setCurrent résout lui-même un éventuel focus d'œuvre en cours (cancel)
-   * et rend false si un fondu est déjà en route — dans ce cas on n'annonce
-   * rien : annoncer une pièce dans laquelle on n'est pas entré fausserait
-   * le modèle mental de l'utilisateur.
+   * Pièce précédente/suivante (flèches gauche/droite), en boucle. Les
+   * fondus existants du RoomManager jouent. setCurrent résout lui-même un
+   * éventuel focus d'œuvre en cours (cancel) et rend false si un fondu est
+   * déjà en route — dans ce cas on n'annonce rien : annoncer une pièce dans
+   * laquelle on n'est pas entré fausserait le modèle mental de l'utilisateur.
    */
-  async _gotoRoom(room) {
-    if (room.isCurrent) { this._announceRoom(room); return; }
+  async _stepRoom(dir) {
+    const rooms = this.app.rooms.list();
+    if (rooms.length < 2) return;
+    const i = rooms.indexOf(this.app.rooms.current);
+    const room = rooms[(i + dir + rooms.length) % rooms.length];
     const entered = await this.app.rooms.setCurrent(room.config.id);
     if (!entered) return;
     this._glide = null; // la caméra vient d'être replacée dans la pièce
-    this._renderRooms();
     this._renderWorks();
+    this._updateRoomLabel();
     this._announceRoom(room);
     this.el.querySelector('#at-works button')?.focus();
   }

@@ -21,6 +21,32 @@ export class UI {
 
     this.focusClose.addEventListener('click', () => this._onCloseFocus?.());
     this._refineKeyLabels();
+    this._confineToWelcome();
+  }
+
+  /**
+   * Tant qu'on est à l'accueil, le reste du document est inerte : sans cela
+   * un lecteur d'écran continue après les deux boutons et rencontre le ♥
+   * « Soutenir l'artiste », les coins crédits/édition, etc. — du bruit
+   * avant même d'être entré. Libéré par waitForEnter au moment du choix.
+   * (En mode sans WebGL2, l'écran d'accueil est déjà remplacé par #nogl :
+   * c'est alors lui le seul îlot vivant.)
+   */
+  _confineToWelcome() {
+    const island = this.enterScreen ?? document.getElementById('nogl');
+    if (!island) return;
+    this._welcomeInerted = [];
+    for (const el of document.body.children) {
+      if (el !== island && !el.inert) {
+        el.inert = true;
+        this._welcomeInerted.push(el);
+      }
+    }
+  }
+
+  _releaseWelcome() {
+    for (const el of this._welcomeInerted ?? []) el.inert = false;
+    this._welcomeInerted = [];
   }
 
   /**
@@ -87,6 +113,7 @@ export class UI {
   waitForEnter() {
     return new Promise((resolve) => {
       const leave = (audioTour) => {
+        this._releaseWelcome(); // le reste du document redevient vivant
         this.enterScreen.classList.add('leaving');
         setTimeout(() => { this.enterScreen.remove(); }, 1300);
         if (!audioTour) this.hint.hidden = false;

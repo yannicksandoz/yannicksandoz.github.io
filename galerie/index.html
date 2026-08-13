@@ -30,7 +30,10 @@
            prête) plutôt que disabled, qui le rendrait infocusable. -->
       <button id="enter-audio" aria-disabled="true">Visite audio</button>
       <button id="enter-btn" disabled>Chargement…</button>
-      <p class="tip">ZQSD / WASD ou flèches pour se déplacer · <span data-keylabel="pivot">A/E ou Q/E</span> pour pivoter · souris pour orbiter · clic sur une œuvre pour l'approcher</p>
+      <!-- aria-hidden : ce pense-bête décrit les contrôles VISUELS (souris,
+           déplacement 3D) — bruit inutile pour un lecteur d'écran, dont le
+           chemin est la visite audio, qui porte sa propre explication. -->
+      <p class="tip" aria-hidden="true">ZQSD / WASD ou flèches pour se déplacer · <span data-keylabel="pivot">A/E ou Q/E</span> pour pivoter · souris pour orbiter · clic sur une œuvre pour l'approcher</p>
     </div>
   </div>
 
@@ -81,7 +84,7 @@
   <!-- Fondu de transition entre pièces -->
   <div id="room-fade"></div>
 
-  <div id="hint" hidden>ZQSD / WASD · <span data-keylabel="pivot">A/E ou Q/E</span> : pivoter · clic : découvrir<!-- editor:start --> · <b data-keylabel="edit">²</b> : édition<!-- editor:end --></div>
+  <div id="hint" hidden aria-hidden="true">ZQSD / WASD · <span data-keylabel="pivot">A/E ou Q/E</span> : pivoter · clic : découvrir<!-- editor:start --> · <b data-keylabel="edit">²</b> : édition<!-- editor:end --></div>
 
   <!-- Joystick virtuel (mobile) -->
   <div id="joystick" hidden><div id="joystick-nub"></div></div>

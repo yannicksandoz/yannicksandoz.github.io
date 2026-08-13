@@ -107,6 +107,17 @@ async function boot() {
   } else {
     app.ui.maybeShowTouchHint(app.quality.isMobile);
   }
+
+  // Échap remonte, partout : en 3D sans œuvre approchée, il ouvre le
+  // panneau de la visite audio — menu accessible (œuvres, pièces, Quitter)
+  // et porte de sortie pour qui est entré en 3D sans le vouloir.
+  window.addEventListener('keydown', (e) => {
+    if (e.code !== 'Escape') return;
+    if (app.editor?.enabled) return;       // l'éditeur a son propre Échap
+    if (app.activeFocus) return;           // FocusCamera gère le recul
+    if (app.audioTour?.active) return;     // le panneau gère les siens
+    startAudioTour(app);
+  });
 }
 
 /**
