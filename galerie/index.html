@@ -25,11 +25,12 @@
       <h1>Galerie</h1>
       <p class="sub">Un espace sonore immersif — casque recommandé</p>
       <div id="load-bar"><i></i></div>
-      <!-- Premier focusable du document : un utilisateur de lecteur d'écran
-           le rencontre avant tout. aria-disabled (retiré quand la config est
-           prête) plutôt que disabled, qui le rendrait infocusable. -->
-      <button id="enter-audio" aria-disabled="true">Visite audio</button>
       <button id="enter-btn" disabled>Chargement…</button>
+      <!-- En DERNIER : un lecteur d'écran parcourt les deux boutons et
+           s'arrête naturellement sur celui-ci. aria-disabled (retiré quand
+           la config est prête) plutôt que disabled, qui le rendrait
+           infocusable. -->
+      <button id="enter-audio" aria-disabled="true">Visite audio</button>
       <!-- aria-hidden : ce pense-bête décrit les contrôles VISUELS (souris,
            déplacement 3D) — bruit inutile pour un lecteur d'écran, dont le
            chemin est la visite audio, qui porte sa propre explication. -->

@@ -230,9 +230,9 @@ html, body {
 /* ------------------------------------------------------- visite audio --- */
 /* Entrée accessible : discrète mais réelle — lisible, focusable, contrastée */
 /* discret à dessein : VoiceOver le lit pareil, et l'écran reste celui
-   de la visite 3D — mais il demeure le premier focusable du document */
+   de la visite 3D — placé APRÈS Entrer, on s'arrête dessus en le parcourant */
 #enter-audio {
-  display: block; margin: 1.6rem auto 0.7rem; padding: 0.25rem 0.8rem;
+  display: block; margin: 1.1rem auto 0; padding: 0.25rem 0.8rem;
   background: transparent; color: var(--dim);
   border: 1px solid rgba(255, 255, 255, 0.12); border-radius: 2rem;
   font-size: 0.72rem; letter-spacing: 0.06em; cursor: pointer;
@@ -261,7 +261,7 @@ html, body {
   width: min(38rem, 94vw); padding: 2rem 1.5rem 3rem;
   font-size: 1.05rem; line-height: 1.6;
 }
-.at-panel:focus { outline: none; } /* focus programmatique du dialogue : pas de cadre */
+#at-title:focus { outline: none; } /* focus programmatique de l'en-tête : pas de cadre */
 .at-panel h2 { font-weight: 300; letter-spacing: 0.15em; font-size: 1.6rem; }
 #at-room {
   margin: 0.3rem 0 0; font-size: 0.85rem; letter-spacing: 0.12em;

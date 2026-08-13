@@ -74,13 +74,13 @@ export class AudioTour {
     el.id = 'audio-tour';
     el.hidden = true;
     el.innerHTML = `
-      <!-- tabindex -1 : à l'ouverture, le focus se pose sur le dialogue
-           LUI-MÊME — le lecteur d'écran lit son nom puis l'explication
-           (aria-describedby). Focalisé d'emblée sur un bouton d'œuvre, il
-           annoncerait « Nébuleuse » sans jamais expliquer les contrôles. -->
-      <div class="at-panel" role="dialog" aria-modal="true" tabindex="-1"
-           aria-label="Visite audio de la galerie" aria-describedby="at-help">
-        <h2 id="at-title">Visite audio</h2>
+      <div class="at-panel" role="dialog" aria-modal="true"
+           aria-label="Visite audio de la galerie">
+        <!-- Point d'accueil de la visite : le focus se pose sur cet en-tête
+             (tabindex -1) et le lecteur d'écran lit « Visite audio » PUIS
+             l'explication (aria-describedby) — jamais une œuvre en premier.
+             Échap depuis la liste y ramène (l'explication est relue). -->
+        <h2 id="at-title" tabindex="-1" aria-describedby="at-help">Visite audio</h2>
         <!-- repère visuel de la pièce courante ; le lecteur d'écran, lui,
              la reçoit par les annonces — pas deux fois -->
         <p id="at-room" aria-hidden="true"></p>
@@ -109,8 +109,8 @@ export class AudioTour {
       if (!focusables.length) return;
       const first = focusables[0];
       const last = focusables[focusables.length - 1];
-      if (document.activeElement === el.querySelector('.at-panel')) {
-        // depuis le dialogue lui-même : Tab entre, Maj+Tab entre par la fin
+      if (document.activeElement === el.querySelector('#at-title')) {
+        // depuis l'en-tête d'accueil : Tab entre, Maj+Tab entre par la fin
         e.preventDefault();
         (e.shiftKey ? last : first).focus();
       } else if (e.shiftKey && document.activeElement === first) {
@@ -122,23 +122,26 @@ export class AudioTour {
       }
     });
 
-    // Échap remonte d'un niveau : œuvre approchée → recul (géré par
-    // FocusCamera, au niveau window) ; liste → bouton Quitter. Échap ne
-    // DÉCLENCHE jamais le quitter : il y amène le focus, Entrée décide.
+    // Échap remonte, étage par étage : œuvre approchée → recul (géré par
+    // FocusCamera, au niveau window) ; liste → en-tête d'accueil de la
+    // visite (l'explication est relue) ; en-tête ou ailleurs → sortie de
+    // la visite, retour à l'accueil.
     el.addEventListener('keydown', (e) => {
       if (e.key !== 'Escape' || this.app.activeFocus) return;
       if (el.querySelector('#at-works').contains(document.activeElement)) {
-        el.querySelector('#at-quit').focus();
+        el.querySelector('#at-title').focus();
+      } else {
+        this.stop();
       }
     });
 
     // La liste unique : haut/bas parcourt les œuvres (tabindex itinérant),
-    // gauche/droite change de pièce. Le focus initial étant sur le dialogue
+    // gauche/droite change de pièce. Le focus initial étant sur l'en-tête
     // (le temps que l'explication soit lue), la première flèche y descend.
     el.addEventListener('keydown', (e) => {
       const works = el.querySelector('#at-works');
       const inList = works.contains(document.activeElement);
-      const onPanel = document.activeElement === el.querySelector('.at-panel');
+      const onPanel = document.activeElement === el.querySelector('#at-title');
       if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
         if (!inList && !onPanel) return;
         e.preventDefault();
@@ -184,10 +187,10 @@ export class AudioTour {
     this.el.hidden = false;
     this._renderWorks();
     this._updateRoomLabel();
-    // Le focus se pose sur le dialogue : le lecteur d'écran lit le nom puis
-    // l'explication des contrôles AVANT toute œuvre. Flèche bas ou Tab pour
-    // entrer dans la liste.
-    this.el.querySelector('.at-panel').focus();
+    // Le focus se pose sur l'en-tête : le lecteur d'écran lit « Visite
+    // audio » puis l'explication des contrôles AVANT toute œuvre. Flèche
+    // bas ou Tab pour entrer dans la liste.
+    this.el.querySelector('#at-title').focus();
     const room = this.app.rooms.current;
     if (room) this._announceRoom(room);
   }
