@@ -282,7 +282,6 @@ html, body {
 .at-panel button:focus-visible {
   outline: 3px solid var(--accent); outline-offset: 2px;
 }
-.at-desc { display: block; margin: 0.25rem 0 0 1rem; color: var(--dim); font-size: 0.88rem; }
 .at-empty { color: var(--dim); }
 #at-quit {
   margin-top: 2rem; padding: 0.55rem 1.4rem;

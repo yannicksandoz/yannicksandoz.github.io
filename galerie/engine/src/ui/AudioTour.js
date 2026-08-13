@@ -84,11 +84,10 @@ export class AudioTour {
         <!-- repère visuel de la pièce courante ; le lecteur d'écran, lui,
              la reçoit par les annonces — pas deux fois -->
         <p id="at-room" aria-hidden="true"></p>
-        <!-- aria-describedby : le lecteur d'écran lit cette explication une
-             fois, à l'ouverture du dialogue. Minimaliste à dessein. -->
-        <p id="at-help">Flèches haut et bas pour parcourir — le son glisse
-        d'œuvre en œuvre. Flèches gauche et droite pour changer de pièce.
-        Entrée pour approcher, Échap pour remonter. Casque recommandé.</p>
+        <!-- aria-describedby de l'en-tête : lu à l'arrivée, télégraphique
+             à dessein — chaque mot en plus est du temps volé au son. -->
+        <p id="at-help">Haut et bas : œuvres. Gauche et droite : pièces.
+        Entrée : approcher. Échap : revenir. Casque recommandé.</p>
         <ul id="at-works" role="list" aria-label="Œuvres"></ul>
         <button id="at-quit">Quitter la visite audio</button>
         <div id="at-live" aria-live="polite" class="at-sr-only"></div>
@@ -244,21 +243,14 @@ export class AudioTour {
     const room = this.app.rooms.current;
     const artworks = room ? room.artworks : this.app.artworks;
     artworks.forEach((art, i) => {
+      // Titre seul, volontairement : en parcourant, le lecteur d'écran dit
+      // le nom puis SE TAIT — c'est le son qui parle. La description n'est
+      // lue qu'à l'approche (Entrée), dans l'annonce.
       const li = document.createElement('li');
       const b = document.createElement('button');
       b.textContent = speakableTitle(art.config);
       b.tabIndex = i === 0 ? 0 : -1;
-      const desc = String(art.config.description ?? '').trim();
-      if (desc) {
-        const d = document.createElement('span');
-        d.id = `at-desc-${art.config.id}`;
-        d.className = 'at-desc';
-        d.textContent = desc;
-        b.setAttribute('aria-describedby', d.id);
-        li.append(b, d);
-      } else {
-        li.appendChild(b);
-      }
+      li.appendChild(b);
       b.addEventListener('click', () => this._approach(art));
       b.addEventListener('focus', () => this._audition(art));
       ul.appendChild(li);
@@ -359,7 +351,7 @@ export class AudioTour {
 
   _announceRoom(room) {
     const n = room.artworks.length;
-    this._announce(`Pièce ${room.config.title ?? room.config.id}, ${n} œuvre${n > 1 ? 's' : ''}.`);
+    this._announce(`${room.config.title ?? room.config.id}, ${n} œuvre${n > 1 ? 's' : ''}.`);
   }
 
   /**
@@ -373,7 +365,10 @@ export class AudioTour {
     const state = f?.state ?? 'idle';
     if (state === 'focused' && this._lastFocusState !== 'focused') {
       this._focusedTitle = speakableTitle(f.artwork.config);
-      this._announce(`${this._focusedTitle}, approché.`);
+      // C'est ICI que la description se lit — à l'approche, jamais en
+      // parcourant la liste.
+      const desc = String(f.artwork.config.description ?? '').trim();
+      this._announce(`${this._focusedTitle}, approché.${desc ? ' ' + desc : ''}`);
     } else if (state === 'out' && (this._lastFocusState === 'focused' || this._lastFocusState === 'in')) {
       this._announce('Reculé.');
     }
