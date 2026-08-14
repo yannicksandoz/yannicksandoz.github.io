@@ -61,11 +61,56 @@ console.log('\npatch — portée déduite');
     patch(doc, ['works', 0, 'position'], [1, 1, 1]).scope, { transformOnly: true, works: ['a'] });
   check('propriété → œuvre ciblée',
     patch(doc, ['works', 0, 'title'], 'x').scope, { works: ['a'] });
-  check('pièce → structurel',
-    patch(doc, ['rooms', 0, 'title'], 'x').scope, { structural: true });
+  check('portail → structurel',
+    patch(doc, ['rooms', 0, 'portals', 0, 'to'], 'x').scope, { structural: true });
   check('rotation v2 → transformOnly',
     patch(doc, ['works', 0, 'rotation'], [0, 45, 0]).scope,
     { transformOnly: true, works: ['a'] });
+}
+
+console.log('\npatch — portée audio (le son se règle sans se couper)');
+{
+  const doc = makeDoc();
+  check('gain de stem → audioParamOnly',
+    patch(doc, ['works', 0, 'stems', 0, 'gain'], 0.5).scope,
+    { audioParamOnly: true, works: ['a'] });
+  check('rayon de stem → audioParamOnly',
+    patch(doc, ['works', 0, 'stems', 0, 'radius'], 8).scope,
+    { audioParamOnly: true, works: ['a'] });
+  check('fichier de stem → reconstruction de l’œuvre',
+    patch(doc, ['works', 0, 'stems', 0, 'file'], 'y.wav').scope, { works: ['a'] });
+  check('rayon de module → audioParamOnly',
+    patch(doc, ['works', 0, 'modules', 0, 'params', 'radius'], 20).scope,
+    { audioParamOnly: true, works: ['a'] });
+  check('autre param de module → reconstruction de l’œuvre',
+    patch(doc, ['works', 0, 'modules', 0, 'params', 'band'], 'low').scope,
+    { works: ['a'] });
+  check('gain d’ambiance → ambienceGainOnly',
+    patch(doc, ['rooms', 0, 'ambience', 0, 'gain'], 0.4).scope,
+    { ambienceGainOnly: true, rooms: ['hall'] });
+  check('fichier d’ambiance → structurel',
+    patch(doc, ['rooms', 0, 'ambience', 0, 'file'], 'y.mp3').scope,
+    { structural: true });
+  check('titre de pièce → uiOnly (rien à reconstruire)',
+    patch(doc, ['rooms', 0, 'title'], 'x').scope, { uiOnly: true });
+  check('couleur de primitive → primitiveStyleOnly',
+    patch(doc, ['works', 0, 'model', 'color'], '#38e0c8').scope,
+    { primitiveStyleOnly: true, works: ['a'] });
+  check('matériau de primitive → primitiveStyleOnly',
+    patch(doc, ['works', 0, 'model', 'roughness'], 0.9).scope,
+    { primitiveStyleOnly: true, works: ['a'] });
+  check('forme de primitive → reconstruction de l’œuvre',
+    patch(doc, ['works', 0, 'model', 'shape'], 'sphere').scope, { works: ['a'] });
+  check('lot entièrement audio → audioParamOnly',
+    batch([
+      patch(doc, ['works', 0, 'stems', 0, 'gain'], 0.5),
+      patch(doc, ['works', 0, 'stems', 0, 'radius'], 8)
+    ]).scope, { audioParamOnly: true, works: ['a'] });
+  check('lot audio + titre → reconstruction de l’œuvre',
+    batch([
+      patch(doc, ['works', 0, 'stems', 0, 'gain'], 0.5),
+      patch(doc, ['works', 0, 'title'], 'Z')
+    ]).scope, { works: ['a'] });
 }
 
 console.log('\npatch — portée voxel (rafraîchit le maillage, pas l’œuvre)');

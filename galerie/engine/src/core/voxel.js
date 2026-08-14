@@ -27,7 +27,9 @@ import * as THREE from 'three';
 export const DEFAULT_DIMS = [16, 16, 16];
 export const DEFAULT_CELL = 0.25;
 export const DEFAULT_PALETTE = [
-  '#8a7cff', '#66f0d8', '#ff7ab8', '#ffc46b', '#7fe0b0', '#e8e6f0', '#2a2a3e'
+  // la dernière entrée (« encre ») doit rester lisible dans la salle noire :
+  // #2a2a3e, quasi éteinte après l'émission ×0.45, semblait une pose ratée
+  '#8a7cff', '#66f0d8', '#ff7ab8', '#ffc46b', '#7fe0b0', '#e8e6f0', '#3d3d5c'
 ];
 
 /* ------------------------------------------------------------- indices --- */
