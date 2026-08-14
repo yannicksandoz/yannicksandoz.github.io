@@ -288,6 +288,14 @@ toujours du v2.
   "title": "Hall",
   "spawn": [0, 2.2, 14],           // point d'arrivée (position caméra)
   "fogColor": "#05050a",           // ambiance visuelle de la pièce (optionnel)
+  "floor": { "size": 80, "color": "#13131f", "grid": true },  // sol (false = aucun)
+  "keyLight": {                    // lumière clé de la pièce — la seule à
+    "color": "#b8c2ff",            // projeter des ombres (false = aucune)
+    "intensity": 2,
+    "azimuth": 35,                 // ° autour de la pièce (0 = +Z)
+    "elevation": 55                // ° au-dessus de l'horizon
+  },
+  "envIntensity": 1,               // × l'éclairage d'image global (IBL)
   "ambience": [                    // nappes propres à la pièce, fondues quand
     { "file": "audio/vent.wav", "gain": 0.3 }   // on entre/sort (optionnel)
   ],

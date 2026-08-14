@@ -25,7 +25,10 @@ export class QualityManager {
           grain: !this.reducedMotion,
           maxStems: 6,
           dustCount: 180,
-          maxTextureSize: 1024
+          maxTextureSize: 1024,
+          shadows: false,
+          shadowMapSize: 1024,
+          envIntensity: 0.5
         }
       : {
           tier: 'desktop',
@@ -36,7 +39,10 @@ export class QualityManager {
           grain: !this.reducedMotion,
           maxStems: 24,
           dustCount: 450,
-          maxTextureSize: 2048
+          maxTextureSize: 2048,
+          shadows: true,
+          shadowMapSize: 2048,
+          envIntensity: 0.5
         };
     this.profile.reducedMotion = this.reducedMotion;
     this.profile.isMobile = this.isMobile;
@@ -62,7 +68,9 @@ export class QualityManager {
         pixelRatio: Math.min(window.devicePixelRatio || 1, 1.25),
         bloomResScale: 0.25,
         maxStems: 8,
-        dustCount: 200
+        dustCount: 200,
+        shadows: false,
+        shadowMapSize: 1024
       });
       console.info('[galerie] GPU modeste détecté, profil réduit :', gpu);
     }
@@ -92,6 +100,10 @@ export class QualityManager {
       p.grain = false;
       app.grainPass.enabled = false;
       console.info('[galerie] FPS bas → grain désactivé');
+    } else if (p.shadows) {
+      p.shadows = false;
+      app.setShadowsEnabled?.(false);
+      console.info('[galerie] FPS bas → ombres désactivées');
     } else if (app.bloom.enabled) {
       app.bloom.enabled = false;
       console.info('[galerie] FPS bas → bloom désactivé');

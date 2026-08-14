@@ -4,6 +4,7 @@ import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
 import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
+import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { AudioEngine } from './AudioEngine.js';
 import { QualityManager } from './Quality.js';
 import { LoadingTracker, assetUrl } from './utils.js';
@@ -103,6 +104,10 @@ export class App {
     this.renderer.toneMappingExposure = hdr ? 1.1 : 1.45;
     container.appendChild(this.renderer.domElement);
     this.quality.refineWithRenderer(this.renderer);
+    // Ombres douces (PCF) — une seule source par pièce en projette (la
+    // lumière clé, voir RoomManager) : le coût reste borné et prévisible.
+    this.renderer.shadowMap.enabled = this.quality.profile.shadows;
+    this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 
     // --- post-processing : bloom + grain -------------------------------
     this.composer = new EffectComposer(this.renderer);
@@ -133,10 +138,21 @@ export class App {
   /* ------------------------------------------------------------------ */
 
   _buildEnvironment() {
-    // Relevée (0.7 → 1.15) et sol légèrement moins noir : depuis que la
-    // galerie a un plancher visible, l'ambiante doit le laisser se deviner
-    // partout — la nuit reste la nuit, mais on y voit ses pas.
-    this.scene.add(new THREE.HemisphereLight(0x2a2a44, 0x0a0a12, 1.15));
+    // Éclairage d'image (IBL), à la façon du mode Material Preview d'EEVEE :
+    // une pièce neutre pré-filtrée (PMREM) sert d'environnement à tous les
+    // matériaux standard. C'est elle qui donne aux surfaces leurs reflets et
+    // leur modelé — un caillou n'est plus une silhouette plate, un métal
+    // accroche la lumière. L'intensité vient du profil de qualité et peut
+    // être modulée par pièce (envIntensity, voir RoomManager).
+    const pmrem = new THREE.PMREMGenerator(this.renderer);
+    this.scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
+    this.envBaseIntensity = this.quality.profile.envIntensity ?? 0.5;
+    this.scene.environmentIntensity = this.envBaseIntensity;
+    pmrem.dispose();
+
+    // L'hémisphérique ne fait plus que teinter (voûte violette / sol sombre) :
+    // le remplissage vient de l'environnement, qui modèle bien mieux.
+    this.scene.add(new THREE.HemisphereLight(0x2a2a44, 0x0a0a12, 0.5));
 
     // Le sol appartient désormais aux PIÈCES (RoomManager.buildFloor) :
     // réglable par pièce, désactivable. L'ancien plan global de la scène
@@ -160,6 +176,17 @@ export class App {
       depthWrite: false, sizeAttenuation: true
     }));
     this.scene.add(this.dust);
+  }
+
+  /**
+   * Active/coupe les ombres à chaud (gouverneur de FPS, éditeur). Les
+   * matériaux compilent des variantes différentes avec/sans ombre : il faut
+   * les invalider, sinon le changement ne se voit qu'aux prochains objets.
+   */
+  setShadowsEnabled(on) {
+    if (!this.renderer || this.renderer.shadowMap.enabled === on) return;
+    this.renderer.shadowMap.enabled = on;
+    this.scene.traverse((o) => { if (o.material) o.material.needsUpdate = true; });
   }
 
   /**

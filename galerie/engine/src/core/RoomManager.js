@@ -43,9 +43,40 @@ export class RoomManager {
     room.group.visible = false;
     room.floor = buildFloor(config);
     if (room.floor) room.group.add(room.floor);
+    room.keyLight = buildKeyLight(config, this.app.quality?.profile);
+    if (room.keyLight) room.group.add(room.keyLight);
     this.app.scene.add(room.group);
     this.rooms.set(config.id, room);
     return room;
+  }
+
+  /**
+   * Réapplique la lumière clé d'une pièce après édition — sur place quand
+   * c'est possible (couleur, intensité, orientation : pas de réallocation
+   * de carte d'ombre), reconstruction seulement si elle apparaît/disparaît.
+   */
+  applyKeyLight(room) {
+    const cfg = room.config;
+    const wanted = cfg.keyLight !== false;
+    if (wanted !== Boolean(room.keyLight)) {
+      if (room.keyLight) {
+        room.group.remove(room.keyLight);
+        disposeKeyLight(room.keyLight);
+      }
+      room.keyLight = buildKeyLight(cfg, this.app.quality?.profile);
+      if (room.keyLight) room.group.add(room.keyLight);
+      return;
+    }
+    if (room.keyLight) orientKeyLight(room.keyLight, cfg);
+    if (room.isCurrent) this.applyEnvIntensity(room);
+  }
+
+  /** Intensité d'environnement (IBL) : profil de qualité × réglage de pièce. */
+  applyEnvIntensity(room = this.current) {
+    const scene = this.app.scene;
+    if (!('environmentIntensity' in scene)) return;
+    const base = this.app.envBaseIntensity ?? 0.5;
+    scene.environmentIntensity = base * (room?.config.envIntensity ?? 1);
   }
 
   /** Reconstruit le sol d'une pièce après édition (taille, couleur, absence). */
@@ -72,6 +103,7 @@ export class RoomManager {
       this._releaseAmbience(room);
       for (const m of room.portalMeshes) disposePortalMesh(m);
       if (room.floor) disposeFloor(room.floor);
+      if (room.keyLight) disposeKeyLight(room.keyLight);
       room.group.removeFromParent();
     }
     this.rooms.clear();
@@ -165,12 +197,13 @@ export class RoomManager {
       for (const a of room.artworks) a.setVideoPlaying(room.isCurrent);
       this._updateAmbience(room);
     }
-    // ambiance de la pièce (brouillard configurable par pièce)
+    // ambiance de la pièce (brouillard et éclairage configurables par pièce)
     const fog = this.current?.config.fogColor;
     if (fog) {
       this.app.scene.fog.color.set(fog);
       this.app.scene.background.set(fog);
     }
+    this.applyEnvIntensity();
   }
 
   /* ---------------------------------------------------------- ambiance --- */
@@ -340,6 +373,76 @@ function disposeFloor(group) {
     const mats = o.material ? (Array.isArray(o.material) ? o.material : [o.material]) : [];
     for (const m of mats) m.dispose();
   });
+}
+
+/* ----------------------------------------------------------- lumière clé --- */
+
+/**
+ * Lumière clé de la pièce — le « soleil » de la scène, comme la lampe
+ * principale d'un rendu EEVEE. Une seule directionnelle par pièce, la seule
+ * source à projeter des ombres : les œuvres se posent au sol au lieu de
+ * flotter, et le coût reste celui d'UNE carte d'ombre.
+ *
+ * Réglable par pièce dans le JSON, et absente si on la refuse :
+ *   "keyLight": false
+ *   "keyLight": { "color": "#b8c2ff", "intensity": 2, "azimuth": 35, "elevation": 55 }
+ *
+ * azimuth (°, 0 = +Z, sens horaire vu de dessus) et elevation (° au-dessus
+ * de l'horizon) décrivent la direction, comme le soleil de Blender.
+ */
+export const KEYLIGHT_DEFAULTS = { color: '#b8c2ff', intensity: 2, azimuth: 35, elevation: 55 };
+
+export function buildKeyLight(config, profile) {
+  if (config?.keyLight === false) return null;
+  const opt = { ...KEYLIGHT_DEFAULTS, ...(config?.keyLight ?? {}) };
+
+  const light = new THREE.DirectionalLight(new THREE.Color(opt.color), opt.intensity);
+  light.name = 'lumiere-cle';
+
+  if (profile?.shadows) {
+    light.castShadow = true;
+    const size = Number(config?.floor?.size) > 0 ? config.floor.size : FLOOR_DEFAULTS.size;
+    const half = size / 2 + 2;
+    const cam = light.shadow.camera;
+    cam.left = -half; cam.right = half;
+    cam.top = half; cam.bottom = -half;
+    cam.near = 1; cam.far = size * 2 + 30;
+    light.shadow.mapSize.setScalar(profile.shadowMapSize ?? 1024);
+    // le biais normal évite l'acné d'ombre sans décoller les contacts
+    light.shadow.normalBias = 0.05;
+    light.shadow.bias = -0.0002;
+  }
+
+  const group = new THREE.Group();
+  group.name = 'lumiere-cle-groupe';
+  group.add(light, light.target);
+  group.userData.light = light;
+  orientKeyLight(group, config);
+  return group;
+}
+
+/** (Ré)oriente et re-règle la lumière clé depuis la config, sans recréer. */
+export function orientKeyLight(group, config) {
+  const opt = { ...KEYLIGHT_DEFAULTS, ...(config?.keyLight ?? {}) };
+  const light = group.userData.light;
+  light.color.set(opt.color);
+  light.intensity = opt.intensity;
+  const az = THREE.MathUtils.degToRad(opt.azimuth);
+  const el = THREE.MathUtils.degToRad(THREE.MathUtils.clamp(opt.elevation, 5, 89));
+  const size = Number(config?.floor?.size) > 0 ? config.floor.size : FLOOR_DEFAULTS.size;
+  const dist = size * 0.75 + 10;
+  light.position.set(
+    Math.sin(az) * Math.cos(el) * dist,
+    Math.sin(el) * dist,
+    Math.cos(az) * Math.cos(el) * dist
+  );
+  light.target.position.set(0, 0, 0);
+}
+
+function disposeKeyLight(group) {
+  const light = group.userData.light;
+  light.shadow?.map?.dispose();
+  light.dispose();
 }
 
 /* ------------------------------------------------------- mesh de portail --- */

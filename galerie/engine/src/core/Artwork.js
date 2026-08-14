@@ -423,6 +423,11 @@ export class Artwork {
     this.mesh = mesh;
     this.hitMesh = mesh;
     mesh.scale.setScalar(this.baseScale);
+    // Chaque œuvre se pose au sol par son ombre (lumière clé de la pièce).
+    // Recevoir aussi : un modèle s'ombre lui-même, un socle reçoit l'œuvre.
+    mesh.traverse?.((o) => {
+      if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; }
+    });
     this.group.add(mesh);
   }
 
