@@ -108,15 +108,17 @@ async function boot() {
     app.ui.maybeShowTouchHint(app.quality.isMobile);
   }
 
-  // Échap remonte, partout : en 3D sans œuvre approchée, il ouvre le
-  // panneau de la visite audio — menu accessible (œuvres, pièces, Quitter)
-  // et porte de sortie pour qui est entré en 3D sans le vouloir.
-  window.addEventListener('keydown', (e) => {
+  // Échap remonte, partout : en 3D sans œuvre approchée, il ouvre le MENU
+  // de la visite (visite audio, aide clavier…) — c'est là que la visite
+  // audio devient découvrable une fois entré en 3D. Le menu se referme
+  // par Échap (son propre gestionnaire arrête la propagation).
+  window.addEventListener('keydown', async (e) => {
     if (e.code !== 'Escape') return;
     if (app.editor?.enabled) return;       // l'éditeur a son propre Échap
     if (app.activeFocus) return;           // FocusCamera gère le recul
-    if (app.audioTour?.active) return;     // le panneau gère les siens
-    startAudioTour(app);
+    if (app.audioTour?.active) return;     // la visite audio gère les siens
+    const { mountVisitMenu } = await import('./ui/VisitMenu.js');
+    mountVisitMenu(app);
   });
 }
 
