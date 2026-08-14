@@ -58,10 +58,39 @@ function retirerDomEditeur() {
   };
 }
 
+/**
+ * Proxy local pour l'éditeur (mode Auteur uniquement).
+ *
+ * L'API Poly Pizza refuse le préflight CORS qu'impose l'en-tête
+ * X-Auth-Token : depuis un navigateur, l'appel direct échoue en
+ * « injoignable » alors que le réseau va bien. En local, l'éditeur passe
+ * par ces chemins same-origin (voir editor/polypizza/api.js, qui retombe
+ * sur l'appel direct si le proxy est absent).
+ *
+ * Aucun effet sur ce qui est publié : ce proxy n'existe qu'à l'exécution
+ * de `vite`/`vite preview`, rien n'en est émis dans dist/, et le build
+ * Visiteur n'appelle jamais l'API (scripts/check-visitor-build.mjs y veille).
+ */
+const proxyPolyPizza = {
+  '/pp-api': {
+    target: 'https://api.poly.pizza',
+    changeOrigin: true,
+    rewrite: (p) => p.replace(/^\/pp-api/, '')
+  },
+  '/pp-static': {
+    target: 'https://static.poly.pizza',
+    changeOrigin: true,
+    rewrite: (p) => p.replace(/^\/pp-static/, '')
+  }
+};
+
 export default defineConfig({
   // Chemins relatifs : le build fonctionne à la racine d'un domaine
   // comme dans un sous-dossier (ex. https://exemple.org/galerie/).
   base: './',
+
+  server: { proxy: proxyPolyPizza },
+  preview: { proxy: proxyPolyPizza },
 
   // Séparation moteur / contenu : le dossier de contenu (œuvres + médias)
   // est servi tel quel à la racine du site. Pour brancher VOTRE contenu

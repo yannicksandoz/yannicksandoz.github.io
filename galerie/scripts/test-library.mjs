@@ -322,6 +322,31 @@ if (!pp) {
       'banc-de-parc-zz9.glb');
   }
 
+  console.log('\nPoly Pizza — proxy local anti-CORS');
+  {
+    const api = await import('../engine/src/editor/polypizza/api.js').catch(() => null);
+    if (!api) {
+      console.log('  (module api absent — sous-section sautée)');
+    } else {
+      check('en local : proxy d’abord, direct en repli',
+        api.apiUrls('/search/banc', { limit: '24' }, true),
+        ['/pp-api/v1.1/search/banc?limit=24',
+          'https://api.poly.pizza/v1.1/search/banc?limit=24']);
+      check('publié : appel direct seulement',
+        api.apiUrls('/search/banc', {}, false),
+        ['https://api.poly.pizza/v1.1/search/banc']);
+      check('téléchargement local : proxy du CDN d’abord',
+        api.downloadUrls('https://static.poly.pizza/x.glb', true),
+        ['/pp-static/x.glb', 'https://static.poly.pizza/x.glb']);
+      check('hôte inconnu : pas de proxy inventé',
+        api.downloadUrls('https://ailleurs.net/x.glb', true),
+        ['https://ailleurs.net/x.glb']);
+      check('publié : téléchargement direct',
+        api.downloadUrls('https://static.poly.pizza/x.glb', false),
+        ['https://static.poly.pizza/x.glb']);
+    }
+  }
+
   console.log('\nPoly Pizza — construction des requêtes');
   {
     check('mot-clé encodé dans le chemin',

@@ -12,6 +12,7 @@
     "build": "vite build",
     "build:auteur": "GALERIE_EDITOR=1 vite build --outDir dist-auteur",
     "preview": "vite preview",
+    "preview:auteur": "vite preview --outDir dist-auteur",
     "check": "node scripts/check-visitor-build.mjs",
     "assets": "node scripts/generate-assets.mjs",
     "library": "node scripts/generate-library.mjs",
