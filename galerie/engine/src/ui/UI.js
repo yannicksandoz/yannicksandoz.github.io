@@ -1,4 +1,5 @@
 import { collectCredits, collectSources } from '../core/credits.js';
+import { t, lang, traduireDom, onLangChange } from '../core/i18n.js';
 
 /**
  * Interface DOM : écran d'accueil (chargement + déblocage AudioContext),
@@ -20,8 +21,41 @@ export class UI {
     this._onCloseFocus = null;
 
     this.focusClose.addEventListener('click', () => this._onCloseFocus?.());
-    this._refineKeyLabels();
+    this._applyLang();
     this._confineToWelcome();
+    // Un changement de langue re-traduit le HTML statique et les textes
+    // composés (pense-bêtes, crédits) sans recharger la page.
+    onLangChange(() => this._applyLang());
+  }
+
+  /** (Re)pose les textes traduits, puis les vraies étiquettes de touches. */
+  _applyLang() {
+    traduireDom();
+    const enterBtn = this.enterBtn;
+    if (enterBtn) {
+      enterBtn.textContent = t(enterBtn.disabled ? 'enter.loading' : 'enter.enter');
+    }
+    this._renderKeyTexts();
+    this._refineKeyLabels();
+    this._credits?.();  // les crédits contiennent des libellés traduits
+  }
+
+  /**
+   * Textes contenant des étiquettes de touches : reconstruits en HTML pour
+   * que `data-keylabel` reste un point d'accroche de `_refineKeyLabels`.
+   */
+  _renderKeyTexts() {
+    const pivot = '<span data-keylabel="pivot">A/E ou Q/E</span>';
+    const tip = this.enterScreen?.querySelector('.tip');
+    if (tip) tip.innerHTML = t('enter.tip', { pivot });
+    if (this.hint) {
+      // Le fragment « édition » n'existe que dans le build Auteur (le HTML
+      // du build Visiteur ne le contient pas) : on le préserve tel quel.
+      const edit = this.hint.querySelector('[data-keylabel="edit"]');
+      const suffixe = edit ? ` · <b data-keylabel="edit">${edit.textContent}</b> : édition` : '';
+      const move = lang() === 'en' ? 'WASD' : 'ZQSD / WASD';
+      this.hint.innerHTML = t('hint.line', { move, pivot }) + suffixe;
+    }
   }
 
   /**
@@ -89,13 +123,16 @@ export class UI {
   /** Le bouton « Entrer » reste désactivé tant que la config n'est pas lue. */
   setReady() {
     this.enterBtn.disabled = false;
-    this.enterBtn.textContent = 'Entrer';
+    this.enterBtn.textContent = t('enter.enter');
     document.getElementById('enter-audio')?.removeAttribute('aria-disabled');
   }
 
   showLoadError(message) {
     const sub = this.enterScreen.querySelector('.sub');
-    if (sub) sub.textContent = message;
+    if (sub) {
+      sub.textContent = message ?? t('enter.error');
+      delete sub.dataset.i18n; // message d'erreur : ne pas le retraduire
+    }
   }
 
   /**
@@ -177,6 +214,10 @@ export class UI {
    * entièrement personnelle ne s'encombre de rien.
    */
   setCredits(works) {
+    // mémorisé : un changement de langue re-rend la liste (mention de
+    // plateforme et « auteur non précisé » sont traduits, le LIEN reste)
+    this._credits = () => this.setCredits(works);
+
     const corner = document.getElementById('credits-corner');
     const overlay = document.getElementById('credits-overlay');
     const list = document.getElementById('credits-list');
@@ -188,7 +229,7 @@ export class UI {
     if (corner.hidden) { overlay.hidden = true; return; }
 
     list.innerHTML = sources.map(mentionSource).join('') + credits.map((c) => {
-      const who = esc(c.author || 'auteur non précisé');
+      const who = esc(c.author || t('credits.unknown'));
       const name = c.sourceUrl
         ? `<a href="${esc(c.sourceUrl)}" target="_blank" rel="noopener noreferrer">${who}</a>`
         : who;
@@ -220,12 +261,13 @@ function esc(s) {
  * de la retirer.
  */
 const PLATEFORMES = {
-  polypizza: { label: 'Modèles fournis par Poly Pizza', url: 'https://poly.pizza' }
+  polypizza: { cle: 'credits.polypizza', url: 'https://poly.pizza' }
 };
 
 function mentionSource(source) {
   const p = PLATEFORMES[source];
   if (!p) return '';
+  // Le libellé se traduit, le lien ne bouge pas : c'est lui, l'obligation.
   return `<p class="credits-source"><a href="${esc(p.url)}" target="_blank"
-    rel="noopener noreferrer">${esc(p.label)}</a></p>`;
+    rel="noopener noreferrer">${esc(t(p.cle))}</a></p>`;
 }

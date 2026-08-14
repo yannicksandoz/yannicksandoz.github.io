@@ -8,6 +8,7 @@ import { registry } from './core/ModuleRegistry.js';
 import { Controls } from './controls/Controls.js';
 import { setupEditorLoader } from './editorLoader.js';
 import { UI } from './ui/UI.js';
+import { t, initLang } from './core/i18n.js';
 
 // --- enregistrement des modules disponibles -------------------------------
 // Pour ajouter un comportement : créer une classe dans engine/src/modules/
@@ -44,6 +45,10 @@ async function startAudioTour(app) {
 
 // --- amorçage --------------------------------------------------------------
 async function boot() {
+  // Avant tout affichage : `lang` du document suit le choix mémorisé — c'est
+  // lui qui décide de la voix des lecteurs d'écran.
+  initLang();
+
   if (!hasWebGL2()) {
     bootHeadless();
     return;
@@ -90,7 +95,7 @@ async function boot() {
     app.ui.setCredits(works);
     app.ui.setReady();
   } catch {
-    app.ui.showLoadError('Impossible de charger la configuration des œuvres (voir console).');
+    app.ui.showLoadError(t('enter.error'));
   }
 
   app.start(); // la scène tourne déjà derrière l'écran d'accueil
@@ -134,14 +139,11 @@ function bootHeadless() {
   const nogl = document.getElementById('nogl');
   nogl.hidden = false;
   const inner = nogl.querySelector('.enter-inner');
-  inner.querySelector('.sub').textContent =
-    "Votre navigateur ne prend pas en charge WebGL2, nécessaire à l'affichage "
-    + "3D. La galerie reste entièrement visitable à l'oreille : navigation au "
-    + "clavier, sons spatialisés — casque recommandé.";
+  inner.querySelector('.sub').textContent = t('nogl.sub');
 
   const btn = document.createElement('button');
   btn.id = 'nogl-audio';
-  btn.textContent = 'Visite audio';
+  btn.textContent = t('nogl.start');
   inner.appendChild(btn);
 
   // Le moteur n'est construit qu'une fois : conservé ici, il est réutilisé
@@ -152,7 +154,7 @@ function bootHeadless() {
 
   btn.addEventListener('click', async () => {
     btn.disabled = true;
-    btn.textContent = 'Chargement…';
+    btn.textContent = t('nogl.loading');
     try {
       // Tout ce qui peut échouer passe AVANT le démarrage du moteur : un
       // échec ici laisse zéro boucle, zéro AudioContext débloqué derrière lui.
@@ -183,7 +185,7 @@ function bootHeadless() {
       nogl.hidden = true;
     } catch (err) {
       console.error('[galerie] Visite audio impossible à démarrer :', err);
-      btn.textContent = 'Échec du chargement — réessayer';
+      btn.textContent = t('nogl.failed');
       btn.disabled = false;
     }
   });

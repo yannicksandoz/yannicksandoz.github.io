@@ -16,12 +16,28 @@
  * (liste → en-tête → sortie) — quand elle est active, le menu ne s'ouvre
  * pas (garde dans main.js).
  */
+import { t, lang, setLang, onLangChange } from '../core/i18n.js';
+
 export class VisitMenu {
   constructor(app) {
     this.app = app;
     this.open = false;
     this._inerted = [];
     this._build();
+    // Changer de langue depuis le menu le reconstruit dans la langue
+    // choisie, focus reposé sur le sélecteur pour ne pas perdre l'utilisateur.
+    onLangChange(() => {
+      const etaitOuvert = this.open;
+      const surLangue = this.el.contains(document.activeElement)
+        && document.activeElement.dataset.lang !== undefined;
+      if (etaitOuvert) this._releaseDom();
+      this.el.remove();
+      this._build();
+      if (etaitOuvert) {
+        this.show();
+        if (surLangue) this.el.querySelector(`[data-lang="${lang()}"]`)?.focus();
+      }
+    });
   }
 
   _build() {
@@ -29,26 +45,36 @@ export class VisitMenu {
     el.id = 'visit-menu';
     el.hidden = true;
     el.innerHTML = `
-      <div class="vm-panel" role="dialog" aria-modal="true" aria-label="Menu de la visite">
-        <h2 id="vm-title">Menu</h2>
+      <div class="vm-panel" role="dialog" aria-modal="true" aria-label="${t('menu.label')}">
+        <h2 id="vm-title">${t('menu.title')}</h2>
         <ul role="list">
-          <li><button id="vm-audio">Visite audio</button></li>
+          <li><button id="vm-audio">${t('menu.audio')}</button></li>
           <li>
-            <button id="vm-keys" aria-expanded="false" aria-controls="vm-keys-help">Clavier</button>
+            <button id="vm-keys" aria-expanded="false" aria-controls="vm-keys-help">${t('menu.keys')}</button>
             <div id="vm-keys-help" hidden>
-              <p>Se déplacer — ZQSD / WASD ou flèches</p>
-              <p>Pivoter — <span data-keylabel="pivot">A/E ou Q/E</span></p>
-              <p>Orbiter — souris</p>
-              <p>Approcher une œuvre — clic · Reculer — Échap</p>
+              <p>${t('menu.keys.move')}</p>
+              <p>${t('menu.keys.pivot', { pivot: '<span data-keylabel="pivot">A/E ou Q/E</span>' })}</p>
+              <p>${t('menu.keys.orbit')}</p>
+              <p>${t('menu.keys.focus')}</p>
             </div>
           </li>
         </ul>
-        <button id="vm-close">Reprendre la visite</button>
+        <div class="vm-lang" role="group" aria-label="${t('menu.lang')}">
+          <span id="vm-lang-label">${t('menu.lang')}</span>
+          <button data-lang="fr" lang="fr" aria-pressed="${lang() === 'fr'}">Français</button>
+          <button data-lang="en" lang="en" aria-pressed="${lang() === 'en'}">English</button>
+        </div>
+        <button id="vm-close">${t('menu.resume')}</button>
       </div>`;
     document.body.appendChild(el);
     this.el = el;
 
     el.querySelector('#vm-close').addEventListener('click', () => this.hide());
+    // Chaque bouton porte son propre `lang` : le lecteur d'écran prononce
+    // « English » à l'anglaise même quand la page est en français.
+    for (const b of el.querySelectorAll('[data-lang]')) {
+      b.addEventListener('click', () => setLang(b.dataset.lang));
+    }
     el.querySelector('#vm-audio').addEventListener('click', () => this._toAudioTour());
     el.querySelector('#vm-keys').addEventListener('click', (e) => {
       const help = el.querySelector('#vm-keys-help');
@@ -99,14 +125,19 @@ export class VisitMenu {
     this.app.ui?._refineKeyLabels?.();
   }
 
-  hide() {
-    if (!this.open) return;
+  /** Rend au document ce que le menu lui avait pris. */
+  _releaseDom() {
     this.open = false;
     this.app.controls.suspended = false;
     for (const el of this._inerted) el.inert = false;
     this._inerted = [];
     document.getElementById('app')?.removeAttribute('aria-hidden');
     this.el.hidden = true;
+  }
+
+  hide() {
+    if (!this.open) return;
+    this._releaseDom();
     document.activeElement?.blur?.(); // le clavier retourne à la scène
   }
 

@@ -1,7 +1,13 @@
 import * as THREE from 'three';
 import { registry } from '../core/ModuleRegistry.js';
-import { speakableTitle } from '../core/a11y.js';
+import { t, onLangChange } from '../core/i18n.js';
 import { easeInOutCubic } from '../core/utils.js';
+
+/** Titre prononçable, avec le repli traduit (a11y.js reste côté auteur). */
+const titre = (config) => {
+  const s = String(config?.title ?? '').trim();
+  return s || t('tour.untitled');
+};
 
 /**
  * Visite audio — navigation accessible par-dessus le runtime Visiteur.
@@ -40,6 +46,16 @@ export class AudioTour {
 
     this._prepareArtworks();
     this._build();
+    // Changement de langue : le panneau se reconstruit dans la nouvelle
+    // langue, et si la visite était ouverte elle se rouvre à l'identique
+    // (l'en-tête reprend le focus, la nouvelle explication est lue).
+    onLangChange(() => {
+      const etaitActif = this.active;
+      if (etaitActif) this._releaseDom();
+      this.el.remove();
+      this._build();
+      if (etaitActif) this.start();
+    });
     app.onUpdate((dt) => {
       this._observeFocus();
       this._glideStep(dt);
@@ -75,12 +91,12 @@ export class AudioTour {
     el.hidden = true;
     el.innerHTML = `
       <div class="at-panel" role="dialog" aria-modal="true"
-           aria-label="Visite audio de la galerie">
+           aria-label="${t('tour.label')}">
         <!-- Point d'accueil de la visite : le focus se pose sur cet en-tête
              (tabindex -1) et le lecteur d'écran lit « Visite audio » PUIS
              l'explication (aria-describedby) — jamais une œuvre en premier.
              Échap depuis la liste y ramène (l'explication est relue). -->
-        <h2 id="at-title" tabindex="-1" aria-describedby="at-help">Visite audio</h2>
+        <h2 id="at-title" tabindex="-1" aria-describedby="at-help">${t('tour.title')}</h2>
         <!-- Repère de la pièce courante. Après un changement gauche/droite,
              c'est LUI qui reçoit le focus : le lecteur d'écran lit d'abord
              « Annexe — 1 œuvre » (le focus passe toujours avant la zone
@@ -88,10 +104,9 @@ export class AudioTour {
         <p id="at-room" tabindex="-1"></p>
         <!-- aria-describedby de l'en-tête : lu à l'arrivée, télégraphique
              à dessein — chaque mot en plus est du temps volé au son. -->
-        <p id="at-help">Haut et bas : œuvres. Gauche et droite : pièces.
-        Entrée : approcher. Échap : revenir. Casque recommandé.</p>
-        <ul id="at-works" role="list" aria-label="Œuvres"></ul>
-        <button id="at-quit">Quitter la visite audio</button>
+        <p id="at-help">${t('tour.help')}</p>
+        <ul id="at-works" role="list" aria-label="${t('tour.works')}"></ul>
+        <button id="at-quit">${t('tour.quit')}</button>
         <div id="at-live" aria-live="polite" class="at-sr-only"></div>
       </div>`;
     document.body.appendChild(el);
@@ -197,6 +212,17 @@ export class AudioTour {
     if (room) this._announceRoom(room);
   }
 
+  /** Rend au document ce que la visite lui avait pris (inertie, focus). */
+  _releaseDom() {
+    this.active = false;
+    this._glide = null;
+    this.app.controls.suspended = false;
+    for (const el of this._inerted ?? []) el.inert = false;
+    this._inerted = [];
+    document.getElementById('app')?.removeAttribute('aria-hidden');
+    this.el.hidden = true;
+  }
+
   /** Quitter ramène à l'accueil — pas à la 3D : état neuf, deux boutons. */
   stop() {
     if (!this.app.headless) {
@@ -207,20 +233,14 @@ export class AudioTour {
     // Sans rendu il n'y a pas d'accueil complet à recharger : on rend
     // l'écran de repli #nogl — c'est lui, l'accueil de ce mode — sans
     // reconstruire le moteur déjà chargé.
-    this.active = false;
-    this._glide = null;
-    this.app.controls.suspended = false;
-    for (const el of this._inerted ?? []) el.inert = false;
-    this._inerted = [];
-    document.getElementById('app')?.removeAttribute('aria-hidden');
-    this.el.hidden = true;
+    this._releaseDom();
     this.app.activeFocus?.cancel?.();
     const nogl = document.getElementById('nogl');
     const btn = document.getElementById('nogl-audio');
     if (nogl && btn) {
       nogl.hidden = false;
       btn.disabled = false;
-      btn.textContent = 'Reprendre la visite audio';
+      btn.textContent = t('nogl.resume');
       btn.focus();
     }
   }
@@ -237,7 +257,7 @@ export class AudioTour {
     }
     const n = cur.artworks.length;
     label.hidden = false;
-    label.textContent = `${cur.config.title ?? cur.config.id} — ${n} œuvre${n > 1 ? 's' : ''}`;
+    label.textContent = t('tour.room', { room: cur.config.title ?? cur.config.id, n });
   }
 
   _renderWorks() {
@@ -251,7 +271,7 @@ export class AudioTour {
       // lue qu'à l'approche (Entrée), dans l'annonce.
       const li = document.createElement('li');
       const b = document.createElement('button');
-      b.textContent = speakableTitle(art.config);
+      b.textContent = titre(art.config);
       b.tabIndex = i === 0 ? 0 : -1;
       li.appendChild(b);
       b.addEventListener('click', () => this._approach(art));
@@ -259,7 +279,7 @@ export class AudioTour {
       ul.appendChild(li);
     });
     if (!artworks.length) {
-      ul.innerHTML = '<li class="at-empty">Aucune œuvre dans cette pièce.</li>';
+      ul.innerHTML = `<li class="at-empty">${t('tour.empty')}</li>`;
     }
   }
 
@@ -333,7 +353,7 @@ export class AudioTour {
     // œuvre suit par la zone d'annonces. Flèche bas pour y entrer.
     this.el.querySelector('#at-room').focus();
     const first = (this.app.rooms.current?.artworks ?? [])[0];
-    if (first) this._announce(speakableTitle(first.config));
+    if (first) this._announce(titre(first.config));
   }
 
   /**
@@ -357,8 +377,9 @@ export class AudioTour {
   }
 
   _announceRoom(room) {
-    const n = room.artworks.length;
-    this._announce(`${room.config.title ?? room.config.id}, ${n} œuvre${n > 1 ? 's' : ''}.`);
+    this._announce(t('tour.room', {
+      room: room.config.title ?? room.config.id, n: room.artworks.length
+    }));
   }
 
   /**
@@ -371,13 +392,14 @@ export class AudioTour {
     const f = this.app.activeFocus;
     const state = f?.state ?? 'idle';
     if (state === 'focused' && this._lastFocusState !== 'focused') {
-      this._focusedTitle = speakableTitle(f.artwork.config);
+      this._focusedTitle = titre(f.artwork.config);
       // C'est ICI que la description se lit — à l'approche, jamais en
       // parcourant la liste.
       const desc = String(f.artwork.config.description ?? '').trim();
-      this._announce(`${this._focusedTitle}, approché.${desc ? ' ' + desc : ''}`);
+      this._announce(t('tour.approached', { title: this._focusedTitle })
+        + (desc ? ' ' + desc : ''));
     } else if (state === 'out' && (this._lastFocusState === 'focused' || this._lastFocusState === 'in')) {
-      this._announce('Reculé.');
+      this._announce(t('tour.back'));
     }
     this._lastFocusState = state;
   }

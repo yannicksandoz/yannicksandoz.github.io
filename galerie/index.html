@@ -23,14 +23,14 @@
   <div id="enter-screen">
     <div class="enter-inner">
       <h1>Galerie</h1>
-      <p class="sub">Un espace sonore immersif — casque recommandé</p>
+      <p class="sub" data-i18n="enter.sub">Un espace sonore immersif — casque recommandé</p>
       <div id="load-bar"><i></i></div>
-      <button id="enter-btn" disabled>Chargement…</button>
+      <button id="enter-btn" disabled data-i18n="enter.loading">Chargement…</button>
       <!-- En DERNIER : un lecteur d'écran parcourt les deux boutons et
            s'arrête naturellement sur celui-ci. aria-disabled (retiré quand
            la config est prête) plutôt que disabled, qui le rendrait
            infocusable. -->
-      <button id="enter-audio" aria-disabled="true">Visite audio</button>
+      <button id="enter-audio" aria-disabled="true" data-i18n="enter.audio">Visite audio</button>
       <!-- aria-hidden : ce pense-bête décrit les contrôles VISUELS (souris,
            déplacement 3D) — bruit inutile pour un lecteur d'écran, dont le
            chemin est la visite audio, qui porte sa propre explication. -->
@@ -47,10 +47,10 @@
 
   <!-- Fiche d'œuvre affichée par le module FocusCamera -->
   <div id="focus-overlay" hidden>
-    <button id="focus-close" aria-label="Fermer">×</button>
+    <button id="focus-close" data-i18n-attr="aria-label:focus.close" aria-label="Fermer">×</button>
     <h2 id="focus-title"></h2>
     <p id="focus-desc"></p>
-    <p class="tip">Échap ou × pour reculer</p>
+    <p class="tip" data-i18n="focus.tip">Échap ou × pour reculer</p>
   </div>
 
   <!-- Chapeau (module TipJar) : redirection vers une page de paiement externe -->
@@ -58,19 +58,21 @@
     <button class="tipjar-close" aria-label="Fermer">×</button>
     <p class="tipjar-message"></p>
     <a class="tipjar-button" target="_blank" rel="noopener noreferrer"></a>
-    <p class="tip">Paiement hébergé par un prestataire externe — rien ne transite par ce site.</p>
+    <p class="tip" data-i18n="tipjar.tip">Paiement hébergé par un prestataire externe — rien ne transite par ce site.</p>
   </div>
-  <button id="tipjar-corner" hidden aria-label="Soutenir l'artiste">♥</button>
+  <button id="tipjar-corner" hidden data-i18n-attr="aria-label:tipjar.support"
+          aria-label="Soutenir l'artiste">♥</button>
 
   <!-- Crédits des modèles tiers — affiché seulement si la scène en contient -->
   <div id="credits-overlay" hidden>
     <div class="credits-card">
-      <h3>Crédits</h3>
+      <h3 data-i18n="credits.title">Crédits</h3>
       <div id="credits-list"></div>
-      <button data-credits-close>Fermer</button>
+      <button data-credits-close data-i18n="credits.close">Fermer</button>
     </div>
   </div>
-  <button id="credits-corner" hidden aria-label="Crédits" title="Crédits">ⓘ</button>
+  <button id="credits-corner" hidden data-i18n-attr="aria-label:credits.label,title:credits.label"
+          aria-label="Crédits" title="Crédits">ⓘ</button>
 
   <!-- editor:start — retiré du build Visiteur par vite.config.js -->
   <!-- Éditeur de scène (touche ², bouton ✎ ou ?edit) -->
