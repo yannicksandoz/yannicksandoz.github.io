@@ -133,20 +133,15 @@ export class App {
   /* ------------------------------------------------------------------ */
 
   _buildEnvironment() {
-    this.scene.add(new THREE.HemisphereLight(0x2a2a44, 0x050508, 0.7));
+    // Relevée (0.7 → 1.15) et sol légèrement moins noir : depuis que la
+    // galerie a un plancher visible, l'ambiante doit le laisser se deviner
+    // partout — la nuit reste la nuit, mais on y voit ses pas.
+    this.scene.add(new THREE.HemisphereLight(0x2a2a44, 0x0a0a12, 1.15));
 
-    const ground = new THREE.Mesh(
-      new THREE.CircleGeometry(90, 64),
-      new THREE.MeshStandardMaterial({ color: 0x0a0a0e, roughness: 0.95, metalness: 0.1 })
-    );
-    ground.rotation.x = -Math.PI / 2;
-    this.scene.add(ground);
-
-    const grid = new THREE.GridHelper(180, 90, 0x1a1a26, 0x12121c);
-    grid.position.y = 0.01;
-    grid.material.transparent = true;
-    grid.material.opacity = 0.5;
-    this.scene.add(grid);
+    // Le sol appartient désormais aux PIÈCES (RoomManager.buildFloor) :
+    // réglable par pièce, désactivable. L'ancien plan global de la scène
+    // se superposait au leur — deux surfaces au même y, scintillement
+    // garanti. Il n'en reste que la poussière, qui est bien à la scène.
 
     // Poussière en suspension (densité selon le profil)
     const count = this.quality.profile.dustCount;

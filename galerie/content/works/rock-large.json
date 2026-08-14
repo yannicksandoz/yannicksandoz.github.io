@@ -1,0 +1,34 @@
+{
+  "id": "rock-large",
+  "title": "Rock Large",
+  "description": "",
+  "position": [
+    9.29,
+    -0.44,
+    -14.49
+  ],
+  "rotation": [
+    0,
+    -10,
+    0
+  ],
+  "scale": [
+    1,
+    1,
+    1
+  ],
+  "modules": [],
+  "model": {
+    "type": "gltf",
+    "url": "library/models/rock-large.glb",
+    "fit": 2,
+    "source": "polypizza"
+  },
+  "lightColor": "#cfd0e0",
+  "lightIntensity": 1.6,
+  "credit": {
+    "author": "Quaternius",
+    "license": "CC0 1.0",
+    "sourceUrl": "https://poly.pizza/m/54jZKTAt5p"
+  }
+}
