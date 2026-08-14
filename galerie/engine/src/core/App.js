@@ -167,6 +167,59 @@ export class App {
     this.scene.add(this.dust);
   }
 
+  /**
+   * Cibles cliquables de la pièce courante (œuvres + portails).
+   * Le sol et les repères ne sont PAS des cibles : ce sont des décors.
+   */
+  _pickTargets() {
+    const meshes = this.artworks
+      .filter((a) => !a.room || a.room.state === 'current')
+      .map((a) => a.hitMesh)
+      .filter(Boolean);
+    if (this.rooms?.current) meshes.push(...this.rooms.current.portalMeshes);
+    return meshes;
+  }
+
+  /** Première œuvre ou portail sous un point écran, ou null. */
+  pickAt(x, y, raycaster = new THREE.Raycaster(), ndc = new THREE.Vector2()) {
+    ndc.set((x / window.innerWidth) * 2 - 1, -(y / window.innerHeight) * 2 + 1);
+    raycaster.setFromCamera(ndc, this.camera);
+    const intersections = raycaster.intersectObjects(this._pickTargets(), true);
+    let obj = intersections[0]?.object ?? null;
+    while (obj && !obj.userData.artwork && !obj.userData.portal) obj = obj.parent;
+    if (obj?.userData.artwork) return { type: 'artwork', artwork: obj.userData.artwork };
+    if (obj?.userData.portal) return { type: 'portal', portal: obj.userData.portal };
+    return null;
+  }
+
+  /**
+   * « Action » — ce que vise le centre de l'écran, activé au clavier.
+   *
+   * Le clic exige de pointer ; en marchant à la première personne on
+   * regarde déjà l'œuvre, et c'est ce regard qui doit suffire. La barre
+   * d'espace passe donc par le MÊME circuit que le clic (mêmes handlers,
+   * donc même fiche, même travelling, même priorité à l'éditeur) : rien
+   * n'est dupliqué, et Échap ferme comme avant.
+   *
+   * Une tolérance : si le centre exact ne touche rien, on essaie une
+   * petite couronne autour — viser à la souris est précis, viser en
+   * marchant ne l'est pas.
+   */
+  triggerAction() {
+    const cx = window.innerWidth / 2;
+    const cy = window.innerHeight / 2;
+    const r = Math.min(window.innerWidth, window.innerHeight) * 0.06;
+    const offsets = [[0, 0], [0, -r], [0, r], [-r, 0], [r, 0]];
+    for (const [dx, dy] of offsets) {
+      const hit = this.pickAt(cx + dx, cy + dy);
+      if (!hit) continue;
+      for (const h of this._clickHandlers) {
+        if (h(hit, { source: 'action' })) return true;
+      }
+    }
+    return false;
+  }
+
   _setupPicking() {
     // Distinction clic / drag d'orbite : on mesure le déplacement du pointeur.
     const raycaster = new THREE.Raycaster();
@@ -178,30 +231,23 @@ export class App {
     });
     this.renderer.domElement.addEventListener('pointerup', (e) => {
       if (Math.hypot(e.clientX - downX, e.clientY - downY) > 6) return;
-      ndc.set(
-        (e.clientX / window.innerWidth) * 2 - 1,
-        -(e.clientY / window.innerHeight) * 2 + 1
-      );
-      raycaster.setFromCamera(ndc, this.camera);
-
-      // cibles : œuvres de la pièce courante + portails de la pièce courante
-      const meshes = this.artworks
-        .filter((a) => !a.room || a.room.state === 'current')
-        .map((a) => a.hitMesh)
-        .filter(Boolean);
-      if (this.rooms?.current) meshes.push(...this.rooms.current.portalMeshes);
-
-      const intersections = raycaster.intersectObjects(meshes, true);
-      let hit = null;
-      if (intersections.length) {
-        let obj = intersections[0].object;
-        while (obj && !obj.userData.artwork && !obj.userData.portal) obj = obj.parent;
-        if (obj?.userData.artwork) hit = { type: 'artwork', artwork: obj.userData.artwork };
-        else if (obj?.userData.portal) hit = { type: 'portal', portal: obj.userData.portal };
-      }
+      const hit = this.pickAt(e.clientX, e.clientY, raycaster, ndc);
       for (const h of this._clickHandlers) {
         if (h(hit, e)) return; // un handler peut consommer le clic
       }
+    });
+
+    // Action au clavier : la barre d'espace agit sur ce que vise le centre
+    // de l'écran. Ignorée pendant la saisie, en visite audio (qui a sa
+    // propre navigation) et quand un bouton a le focus — sinon Espace
+    // l'activerait au lieu d'agir sur l'œuvre.
+    window.addEventListener('keydown', (e) => {
+      if (e.code !== 'Space' || e.repeat) return;
+      if (this.audioTour?.active) return;
+      const el = document.activeElement;
+      if (el instanceof Element
+          && el.matches('input, textarea, select, button, a, [tabindex]')) return;
+      if (this.triggerAction()) e.preventDefault();
     });
   }
 

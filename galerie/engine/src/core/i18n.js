@@ -18,7 +18,7 @@ const FR = {
   'enter.tip': "ZQSD / WASD ou flèches pour se déplacer · {pivot} pour pivoter · souris pour orbiter · clic sur une œuvre pour l'approcher",
   'enter.error': 'Impossible de charger la configuration des œuvres (voir console).',
 
-  'hint.line': '{move} · {pivot} : pivoter · clic : découvrir',
+  'hint.line': '{move} · {pivot} : pivoter · clic ou Espace : découvrir',
 
   'nogl.sub': "Votre navigateur ne prend pas en charge WebGL2, nécessaire à l'affichage 3D. La galerie reste entièrement visitable à l'oreille : navigation au clavier, sons spatialisés — casque recommandé.",
   'nogl.start': 'Visite audio',
@@ -32,7 +32,7 @@ const FR = {
   'menu.keys.move': 'Se déplacer — ZQSD / WASD ou flèches',
   'menu.keys.pivot': 'Pivoter — {pivot}',
   'menu.keys.orbit': 'Orbiter — souris',
-  'menu.keys.focus': 'Approcher une œuvre — clic · Reculer — Échap',
+  'menu.keys.focus': 'Approcher une œuvre — clic, ou Espace sur ce qu\'on regarde · Reculer — Échap',
   'menu.lang': 'Langue',
   'menu.resume': 'Reprendre la visite',
   'menu.label': 'Menu de la visite',
@@ -67,7 +67,7 @@ const EN = {
   'enter.tip': 'WASD or arrow keys to move · {pivot} to turn · mouse to orbit · click a work to approach it',
   'enter.error': 'Could not load the artwork configuration (see console).',
 
-  'hint.line': '{move} · {pivot}: turn · click: discover',
+  'hint.line': '{move} · {pivot}: turn · click or Space: discover',
 
   'nogl.sub': 'Your browser does not support WebGL2, which the 3D display requires. The gallery remains fully visitable by ear: keyboard navigation, spatialised sound — headphones recommended.',
   'nogl.start': 'Audio tour',
@@ -81,7 +81,7 @@ const EN = {
   'menu.keys.move': 'Move — WASD or arrow keys',
   'menu.keys.pivot': 'Turn — {pivot}',
   'menu.keys.orbit': 'Orbit — mouse',
-  'menu.keys.focus': 'Approach a work — click · Step back — Escape',
+  'menu.keys.focus': 'Approach a work — click, or Space on what you are looking at · Step back — Escape',
   'menu.lang': 'Language',
   'menu.resume': 'Resume the visit',
   'menu.label': 'Visit menu',

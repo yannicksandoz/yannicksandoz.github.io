@@ -41,9 +41,22 @@ export class RoomManager {
     };
     Object.defineProperty(room, 'isCurrent', { get: () => this.current === room });
     room.group.visible = false;
+    room.floor = buildFloor(config);
+    if (room.floor) room.group.add(room.floor);
     this.app.scene.add(room.group);
     this.rooms.set(config.id, room);
     return room;
+  }
+
+  /** Reconstruit le sol d'une pièce après édition (taille, couleur, absence). */
+  rebuildFloor(room) {
+    if (room.floor) {
+      room.group.remove(room.floor);
+      disposeFloor(room.floor);
+      room.floor = null;
+    }
+    room.floor = buildFloor(room.config);
+    if (room.floor) room.group.add(room.floor);
   }
 
   get(id) {
@@ -58,6 +71,7 @@ export class RoomManager {
     for (const room of this.rooms.values()) {
       this._releaseAmbience(room);
       for (const m of room.portalMeshes) disposePortalMesh(m);
+      if (room.floor) disposeFloor(room.floor);
       room.group.removeFromParent();
     }
     this.rooms.clear();
@@ -265,6 +279,67 @@ export class RoomManager {
   onAudioUnlocked() {
     for (const room of this.rooms.values()) this._updateAmbience(room);
   }
+}
+
+/* --------------------------------------------------------------- sol --- */
+
+/**
+ * Sol de la pièce — un plan simple, mais qui change tout : sans lui, les
+ * œuvres flottent dans un noir sans repère et l'on ne perçoit ni sa
+ * hauteur ni son déplacement. Une grille discrète donne l'échelle sans
+ * décorer.
+ *
+ * Réglable par pièce dans le JSON, et absent si on le refuse :
+ *   "floor": false                       → aucun sol
+ *   "floor": { "size": 60, "color": "#0d0d16", "grid": true }
+ *
+ * Défauts choisis sombres : la galerie reste une salle de nuit, le sol
+ * doit se deviner, pas éclairer.
+ */
+const FLOOR_DEFAULTS = { size: 80, color: '#13131f', grid: true, gridColor: '#39395c' };
+
+export function buildFloor(config) {
+  if (config?.floor === false) return null;
+  const opt = { ...FLOOR_DEFAULTS, ...(config?.floor === true ? {} : config?.floor ?? {}) };
+  const size = Number.isFinite(opt.size) && opt.size > 0 ? opt.size : FLOOR_DEFAULTS.size;
+
+  const group = new THREE.Group();
+  group.name = 'sol';
+  const plane = new THREE.Mesh(
+    new THREE.PlaneGeometry(size, size),
+    new THREE.MeshStandardMaterial({
+      color: new THREE.Color(opt.color ?? FLOOR_DEFAULTS.color),
+      roughness: 0.95,
+      metalness: 0.05
+    })
+  );
+  plane.rotation.x = -Math.PI / 2;
+  plane.receiveShadow = true;
+  // le sol ne doit pas intercepter le sélecteur d'œuvres ni les rayons de
+  // l'éditeur : il n'est pas une cible, seulement un repère
+  plane.userData.ignoreRaycast = true;
+  group.add(plane);
+
+  if (opt.grid) {
+    const divisions = Math.max(4, Math.round(size / 2));
+    const grid = new THREE.GridHelper(size, divisions,
+      new THREE.Color(opt.gridColor ?? FLOOR_DEFAULTS.gridColor),
+      new THREE.Color(opt.gridColor ?? FLOOR_DEFAULTS.gridColor));
+    grid.material.transparent = true;
+    grid.material.opacity = 0.5;
+    grid.material.depthWrite = false;
+    grid.position.y = 0.01; // évite le z-fighting avec le plan
+    group.add(grid);
+  }
+  return group;
+}
+
+function disposeFloor(group) {
+  group.traverse((o) => {
+    o.geometry?.dispose();
+    const mats = o.material ? (Array.isArray(o.material) ? o.material : [o.material]) : [];
+    for (const m of mats) m.dispose();
+  });
 }
 
 /* ------------------------------------------------------- mesh de portail --- */

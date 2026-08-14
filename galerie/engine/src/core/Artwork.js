@@ -36,6 +36,36 @@ function disposeObject3D(root) {
   });
 }
 
+/**
+ * Cadre d'un panneau : quatre montants, pas un bloc plein.
+ *
+ * Le plan porte déjà sa texture sur ses DEUX faces (side: DoubleSide) —
+ * mais un cadre plein posé derrière le masquait, et l'œuvre paraissait
+ * noire quand on passait de l'autre côté. Un cadre évidé laisse voir
+ * l'image en miroir depuis l'arrière, ce qui est exactement ce qu'on
+ * attend d'une toile suspendue dans un espace traversable.
+ */
+function buildFrame(w, h) {
+  const t = 0.09;  // épaisseur du montant
+  const d = 0.08;  // profondeur, centrée sur le plan : visible des deux côtés
+  const group = new THREE.Group();
+  const mat = new THREE.MeshStandardMaterial({
+    color: 0x0c0c12, roughness: 0.4, metalness: 0.7
+  });
+  const bars = [
+    [w + t * 2, t, 0, (h + t) / 2],
+    [w + t * 2, t, 0, -(h + t) / 2],
+    [t, h, -(w + t) / 2, 0],
+    [t, h, (w + t) / 2, 0]
+  ];
+  for (const [bw, bh, x, y] of bars) {
+    const bar = new THREE.Mesh(new THREE.BoxGeometry(bw, bh, d), mat);
+    bar.position.set(x, y, 0);
+    group.add(bar);
+  }
+  return group;
+}
+
 /** Redimensionne une texture au plafond du profil (mémoire GPU mobile). */
 function capTextureSize(texture, maxSize) {
   const img = texture.image;
@@ -292,13 +322,7 @@ export class Artwork {
       })
     );
     holder.add(panel);
-
-    const frame = new THREE.Mesh(
-      new THREE.BoxGeometry(w + 0.18, h + 0.18, 0.08),
-      new THREE.MeshStandardMaterial({ color: 0x0c0c12, roughness: 0.4, metalness: 0.7 })
-    );
-    frame.position.z = -0.05;
-    holder.add(frame);
+    holder.add(buildFrame(w, h));
 
     this._reactiveMaterial = panel.material;
     this._baseEmissive = panel.material.emissiveIntensity;
