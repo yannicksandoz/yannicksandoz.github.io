@@ -322,6 +322,24 @@ if (!pp) {
       'banc-de-parc-zz9.glb');
   }
 
+  console.log('\nPoly Pizza — import par URL ou code de modèle');
+  {
+    check('URL complète → code',
+      pp.modelIdFromInput('https://poly.pizza/m/XVRCQ0j2AF'), 'XVRCQ0j2AF');
+    check('URL sans protocole → code',
+      pp.modelIdFromInput('poly.pizza/m/XVRCQ0j2AF'), 'XVRCQ0j2AF');
+    check('URL avec requête/ancre → code',
+      pp.modelIdFromInput('https://poly.pizza/m/XVRCQ0j2AF?utm=x#top'), 'XVRCQ0j2AF');
+    check('code seul (chiffre + 9-14 alphanum.) → code',
+      pp.modelIdFromInput('  XVRCQ0j2AF '), 'XVRCQ0j2AF');
+    check('mot-clé ordinaire → recherche', pp.modelIdFromInput('banc de parc'), null);
+    check('mot long sans chiffre → recherche',
+      pp.modelIdFromInput('constructions'), null);
+    check('mot court → recherche', pp.modelIdFromInput('tree'), null);
+    check('URL explicite reconnue', pp.isModelUrl('https://poly.pizza/m/x1'), true);
+    check('code seul : pas une URL explicite', pp.isModelUrl('XVRCQ0j2AF'), false);
+  }
+
   console.log('\nPoly Pizza — proxy local anti-CORS');
   {
     const api = await import('../engine/src/editor/polypizza/api.js').catch(() => null);
