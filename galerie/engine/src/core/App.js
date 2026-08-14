@@ -191,11 +191,15 @@ export class App {
 
   /**
    * Cibles cliquables de la pièce courante (œuvres + portails).
-   * Le sol et les repères ne sont PAS des cibles : ce sont des décors.
+   * Le sol et les repères ne sont PAS des cibles, et un objet marqué
+   * `role: "decor"` non plus — un banc se contourne, il ne s'ouvre pas.
+   * En édition, tout redevient sélectionnable : le décor s'édite aussi.
    */
   _pickTargets() {
+    const editing = this.editor?.enabled;
     const meshes = this.artworks
       .filter((a) => !a.room || a.room.state === 'current')
+      .filter((a) => editing || a.config.role !== 'decor')
       .map((a) => a.hitMesh)
       .filter(Boolean);
     if (this.rooms?.current) meshes.push(...this.rooms.current.portalMeshes);

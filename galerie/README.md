@@ -289,6 +289,10 @@ toujours du v2.
   "spawn": [0, 2.2, 14],           // point d'arrivée (position caméra)
   "fogColor": "#05050a",           // ambiance visuelle de la pièce (optionnel)
   "floor": { "size": 80, "color": "#13131f", "grid": true },  // sol (false = aucun)
+  "shell": {                       // coque : murs de salle (absent = à ciel
+    "width": 26, "depth": 20,      // ouvert, comme le parvis d'entrée)
+    "height": 5, "color": "#1e1e2e", "ceiling": false
+  },
   "keyLight": {                    // lumière clé de la pièce — la seule à
     "color": "#b8c2ff",            // projeter des ombres (false = aucune)
     "intensity": 2,
@@ -314,7 +318,19 @@ toujours du v2.
 
 Référencées par `rooms/index.json` (ou un `rooms/rooms.json` combiné, produit
 par l'export de l'éditeur, qui prend le pas). **Sans dossier rooms/, la
-galerie fonctionne en pièce unique** contenant toutes les œuvres.
+galerie fonctionne en pièce unique** contenant toutes les œuvres. La
+**première pièce de l'index est le point d'entrée** de la visite.
+
+L'éditeur crée les pièces à partir de **modèles** (« ＋ Pièce ») : *salle*
+(exposition murée), *couloir* (passage étroit), *extérieur* (parvis ouvert
+sous le ciel — le modèle du hall d'entrée) ou *vide*. Un modèle n'est qu'un
+préréglage : sol, murs, brouillard et lumière restent modifiables champ par
+champ dans la section Pièce.
+
+Une œuvre peut être marquée **décor** (`"role": "decor"`) : elle meuble la
+scène (banc, rocher…) sans être une œuvre — ni listée dans la visite audio,
+ni cliquable, ni approchable. L'attribution d'un modèle importé reste due
+et affichée aux crédits, décor ou pas.
 
 Franchir un portail (s'en approcher, ou le toucher/cliquer) déclenche un fondu
 puis téléporte au point d'arrivée. Performance : seule la pièce courante est

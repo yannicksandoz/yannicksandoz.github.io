@@ -1,19 +1,36 @@
 {
   "id": "annexe",
   "title": "Annexe",
-  "spawn": [0, 2.2, 8],
+  "spawn": [
+    0,
+    2.2,
+    8
+  ],
   "fogColor": "#0a0514",
   "ambience": [
-    { "file": "audio/marees-basse.wav", "gain": 0.16 }
+    {
+      "file": "audio/marees-basse.wav",
+      "gain": 0.16
+    }
   ],
-  "works": ["echo"],
+  "works": [
+    "echo"
+  ],
   "portals": [
     {
-      "to": "hall",
-      "position": [3.5, 0, 10],
+      "to": "labo",
+      "position": [
+        3.5,
+        0,
+        10
+      ],
       "rotationY": 195,
       "label": "Hall",
-      "arrival": [-5, 2.2, -18]
+      "arrival": [
+        -5,
+        2.2,
+        -17
+      ]
     }
   ]
 }

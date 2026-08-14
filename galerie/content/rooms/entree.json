@@ -1,0 +1,56 @@
+{
+  "id": "entree",
+  "title": "Entrée",
+  "spawn": [
+    0,
+    2.2,
+    8
+  ],
+  "fogColor": "#04040a",
+  "floor": {
+    "size": 140,
+    "color": "#0f0f18",
+    "grid": true,
+    "gridColor": "#2c2c48"
+  },
+  "keyLight": {
+    "color": "#9fb4ff",
+    "intensity": 1.6,
+    "azimuth": 205,
+    "elevation": 35
+  },
+  "envIntensity": 1.15,
+  "works": [],
+  "portals": [
+    {
+      "to": "labo",
+      "position": [
+        -7,
+        0,
+        -13
+      ],
+      "rotationY": 15,
+      "label": "Labo",
+      "arrival": [
+        0,
+        2.2,
+        15
+      ]
+    },
+    {
+      "to": "archives",
+      "position": [
+        7,
+        0,
+        -13
+      ],
+      "rotationY": -15,
+      "label": "Archives",
+      "arrival": [
+        0,
+        2.2,
+        6
+      ]
+    }
+  ]
+}

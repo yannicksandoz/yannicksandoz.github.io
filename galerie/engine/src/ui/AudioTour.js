@@ -9,6 +9,9 @@ const titre = (config) => {
   return s || t('tour.untitled');
 };
 
+/** La visite ne parcourt que les œuvres : le décor (role: "decor") s'écarte. */
+const oeuvres = (artworks) => artworks.filter((a) => a.config.role !== 'decor');
+
 /**
  * Visite audio — navigation accessible par-dessus le runtime Visiteur.
  *
@@ -71,6 +74,9 @@ export class AudioTour {
    */
   _prepareArtworks() {
     for (const art of this.app.artworks) {
+      // Le décor (role: "decor") ne fait pas partie de la visite : on ne
+      // lui greffe ni approche ni binaural — il n'est pas listé non plus.
+      if (art.config.role === 'decor') continue;
       const has = (t) => art.modules.some((m) => m.moduleType === t);
       if ((art.config.stems?.length || art.config.videoSound) && !has('HRTFPanner')) {
         const m = registry.create('HRTFPanner', art, { refDistance: 3, maxDistance: 32 }, this.app);
@@ -255,7 +261,7 @@ export class AudioTour {
       label.hidden = true;
       return;
     }
-    const n = cur.artworks.length;
+    const n = oeuvres(cur.artworks).length;
     label.hidden = false;
     label.textContent = t('tour.room', { room: cur.config.title ?? cur.config.id, n });
   }
@@ -264,7 +270,7 @@ export class AudioTour {
     const ul = this.el.querySelector('#at-works');
     ul.innerHTML = '';
     const room = this.app.rooms.current;
-    const artworks = room ? room.artworks : this.app.artworks;
+    const artworks = oeuvres(room ? room.artworks : this.app.artworks);
     artworks.forEach((art, i) => {
       // Titre seul, volontairement : en parcourant, le lecteur d'écran dit
       // le nom puis SE TAIT — c'est le son qui parle. La description n'est
@@ -352,7 +358,7 @@ export class AudioTour {
     // Le focus (lu en premier) va donc au repère de pièce ; la première
     // œuvre suit par la zone d'annonces. Flèche bas pour y entrer.
     this.el.querySelector('#at-room').focus();
-    const first = (this.app.rooms.current?.artworks ?? [])[0];
+    const first = oeuvres(this.app.rooms.current?.artworks ?? [])[0];
     if (first) this._announce(titre(first.config));
   }
 
@@ -378,7 +384,7 @@ export class AudioTour {
 
   _announceRoom(room) {
     this._announce(t('tour.room', {
-      room: room.config.title ?? room.config.id, n: room.artworks.length
+      room: room.config.title ?? room.config.id, n: oeuvres(room.artworks).length
     }));
   }
 

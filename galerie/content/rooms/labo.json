@@ -1,0 +1,68 @@
+{
+  "id": "labo",
+  "title": "Labo",
+  "spawn": [
+    0,
+    2.2,
+    14
+  ],
+  "fogColor": "#06060c",
+  "works": [
+    "nebuleuse",
+    "marees",
+    "monolithe",
+    "rock-large",
+    "voxel",
+    "banc"
+  ],
+  "portals": [
+    {
+      "to": "annexe",
+      "position": [
+        -5,
+        0,
+        -21
+      ],
+      "rotationY": 12,
+      "label": "Annexe",
+      "arrival": [
+        0,
+        2.2,
+        8
+      ]
+    },
+    {
+      "to": "entree",
+      "position": [
+        0,
+        0,
+        20
+      ],
+      "rotationY": 180,
+      "label": "Entrée",
+      "arrival": [
+        -7,
+        2.2,
+        -9.5
+      ]
+    }
+  ],
+  "floor": {
+    "size": 48,
+    "color": "#13131f",
+    "grid": true,
+    "gridColor": "#39395c"
+  },
+  "shell": {
+    "width": 36,
+    "depth": 44,
+    "height": 6,
+    "color": "#1c1c2b"
+  },
+  "keyLight": {
+    "color": "#c4b8ff",
+    "intensity": 2.2,
+    "azimuth": 40,
+    "elevation": 60
+  }
+}

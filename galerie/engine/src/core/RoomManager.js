@@ -43,6 +43,8 @@ export class RoomManager {
     room.group.visible = false;
     room.floor = buildFloor(config);
     if (room.floor) room.group.add(room.floor);
+    room.shell = buildShell(config);
+    if (room.shell) room.group.add(room.shell);
     room.keyLight = buildKeyLight(config, this.app.quality?.profile);
     if (room.keyLight) room.group.add(room.keyLight);
     this.app.scene.add(room.group);
@@ -90,6 +92,40 @@ export class RoomManager {
     if (room.floor) room.group.add(room.floor);
   }
 
+  /** Reconstruit la coque (murs) d'une pièce après édition. */
+  rebuildShell(room) {
+    if (room.shell) {
+      room.group.remove(room.shell);
+      disposeShell(room.shell);
+      room.shell = null;
+    }
+    room.shell = buildShell(room.config);
+    if (room.shell) room.group.add(room.shell);
+  }
+
+  /**
+   * Réapplique toute l'architecture d'une pièce (sol, coque, lumière clé) —
+   * chemin d'édition des dimensions. La lumière clé n'est PAS recréée :
+   * réorientée et sa caméra d'ombre recadrée sur le nouveau sol, sans
+   * réallouer la carte d'ombre à chaque tick de curseur.
+   */
+  refreshRoomLook(room) {
+    this.rebuildFloor(room);
+    this.rebuildShell(room);
+    if (room.keyLight) {
+      orientKeyLight(room.keyLight, room.config);
+      frameKeyLightShadow(room.keyLight, room.config);
+    }
+    if (room.isCurrent) {
+      this.applyEnvIntensity(room);
+      const fog = room.config.fogColor;
+      if (fog) {
+        this.app.scene.fog.color.set(fog);
+        this.app.scene.background.set(fog);
+      }
+    }
+  }
+
   get(id) {
     return this.rooms.get(id);
   }
@@ -103,6 +139,7 @@ export class RoomManager {
       this._releaseAmbience(room);
       for (const m of room.portalMeshes) disposePortalMesh(m);
       if (room.floor) disposeFloor(room.floor);
+      if (room.shell) disposeShell(room.shell);
       if (room.keyLight) disposeKeyLight(room.keyLight);
       room.group.removeFromParent();
     }
@@ -329,7 +366,7 @@ export class RoomManager {
  * Défauts choisis sombres : la galerie reste une salle de nuit, le sol
  * doit se deviner, pas éclairer.
  */
-const FLOOR_DEFAULTS = { size: 80, color: '#13131f', grid: true, gridColor: '#39395c' };
+export const FLOOR_DEFAULTS = { size: 80, color: '#13131f', grid: true, gridColor: '#39395c' };
 
 export function buildFloor(config) {
   if (config?.floor === false) return null;
@@ -375,6 +412,115 @@ function disposeFloor(group) {
   });
 }
 
+/* ---------------------------------------------------------------- coque --- */
+
+/**
+ * Coque de la pièce — les murs qui font d'un sol une salle de musée.
+ *
+ * Réglable par pièce dans le JSON, absente si on n'en veut pas (extérieur) :
+ *   "shell": { "width": 26, "depth": 20, "height": 5,
+ *              "color": "#1c1c2b", "ceiling": false }
+ *
+ * Les murs REÇOIVENT les ombres mais n'en projettent pas : la lumière clé
+ * traverse — comme un éclairage de studio, la salle reste lisible quelle
+ * que soit l'orientation du « soleil ». Un plafond est possible mais absent
+ * par défaut : la nuit étoilée et la poussière font partie du lieu.
+ */
+export const SHELL_DEFAULTS = {
+  width: 26, depth: 20, height: 5, color: '#1c1c2b', ceiling: false
+};
+const WALL_T = 0.35; // épaisseur des murs
+
+export function buildShell(config) {
+  const s = config?.shell;
+  if (!s || s === false) return null;
+  const opt = { ...SHELL_DEFAULTS, ...(s === true ? {} : s) };
+  const w = Math.max(2, Number(opt.width) || SHELL_DEFAULTS.width);
+  const d = Math.max(2, Number(opt.depth) || SHELL_DEFAULTS.depth);
+  const h = Math.max(1, Number(opt.height) || SHELL_DEFAULTS.height);
+
+  const group = new THREE.Group();
+  group.name = 'coque';
+  const mat = new THREE.MeshStandardMaterial({
+    color: new THREE.Color(opt.color ?? SHELL_DEFAULTS.color),
+    roughness: 0.88, metalness: 0.04
+  });
+
+  const wall = (gw, gd, x, z) => {
+    const m = new THREE.Mesh(new THREE.BoxGeometry(gw, h, gd), mat);
+    m.position.set(x, h / 2, z);
+    m.receiveShadow = true;
+    m.userData.ignoreRaycast = true; // décor : jamais une cible de sélection
+    group.add(m);
+  };
+  wall(w + WALL_T, WALL_T, 0, -d / 2);  // fond
+  wall(w + WALL_T, WALL_T, 0, d / 2);   // face
+  wall(WALL_T, d - WALL_T, -w / 2, 0);  // gauche
+  wall(WALL_T, d - WALL_T, w / 2, 0);   // droite
+
+  if (opt.ceiling) {
+    const c = new THREE.Mesh(new THREE.BoxGeometry(w + WALL_T, WALL_T, d + WALL_T), mat);
+    c.position.set(0, h + WALL_T / 2, 0);
+    c.receiveShadow = true;
+    c.userData.ignoreRaycast = true;
+    group.add(c);
+  }
+  return group;
+}
+
+function disposeShell(group) {
+  group.traverse((o) => { o.geometry?.dispose(); });
+  // matériau partagé par tous les murs : une seule libération suffit
+  group.children[0]?.material?.dispose();
+}
+
+/* ------------------------------------------------------ modèles de pièce --- */
+
+/**
+ * Modèles de pièce — les briques de base d'un musée virtuel. Un modèle est
+ * un préréglage complet (sol, coque, brouillard, lumière) appliqué à la
+ * création d'une pièce ; tout reste modifiable ensuite, champ par champ.
+ *
+ *  - salle     : salle d'exposition murée, presque carrée ;
+ *  - couloir   : passage étroit et long, pour relier deux ailes ;
+ *  - exterieur : parvis ouvert sous le ciel — grand sol, pas de murs,
+ *                clair de lune rasant. C'est le modèle du hall d'entrée.
+ */
+export const ROOM_TEMPLATES = {
+  salle: {
+    label: 'Salle',
+    config: {
+      floor: { size: 30, color: '#15151f', grid: false },
+      shell: { width: 26, depth: 20, height: 5, color: '#1e1e2e' },
+      fogColor: '#06060c',
+      keyLight: { color: '#c4b8ff', intensity: 2.2, azimuth: 40, elevation: 60 },
+      envIntensity: 1,
+      spawn: [0, 2.2, 7]
+    }
+  },
+  couloir: {
+    label: 'Couloir',
+    config: {
+      floor: { size: 38, color: '#12121c', grid: false },
+      shell: { width: 6, depth: 34, height: 4, color: '#1a1a28' },
+      fogColor: '#05050b',
+      keyLight: { color: '#b8c2ff', intensity: 1.8, azimuth: 0, elevation: 70 },
+      envIntensity: 0.85,
+      spawn: [0, 2.2, 14]
+    }
+  },
+  exterieur: {
+    label: 'Extérieur',
+    config: {
+      floor: { size: 140, color: '#0f0f18', grid: true, gridColor: '#2c2c48' },
+      fogColor: '#04040a',
+      keyLight: { color: '#9fb4ff', intensity: 1.6, azimuth: 205, elevation: 35 },
+      envIntensity: 1.15,
+      spawn: [0, 2.2, 8]
+    }
+  }
+};
+
 /* ----------------------------------------------------------- lumière clé --- */
 
 /**
@@ -401,12 +547,6 @@ export function buildKeyLight(config, profile) {
 
   if (profile?.shadows) {
     light.castShadow = true;
-    const size = Number(config?.floor?.size) > 0 ? config.floor.size : FLOOR_DEFAULTS.size;
-    const half = size / 2 + 2;
-    const cam = light.shadow.camera;
-    cam.left = -half; cam.right = half;
-    cam.top = half; cam.bottom = -half;
-    cam.near = 1; cam.far = size * 2 + 30;
     light.shadow.mapSize.setScalar(profile.shadowMapSize ?? 1024);
     // le biais normal évite l'acné d'ombre sans décoller les contacts
     light.shadow.normalBias = 0.05;
@@ -418,7 +558,21 @@ export function buildKeyLight(config, profile) {
   group.add(light, light.target);
   group.userData.light = light;
   orientKeyLight(group, config);
+  frameKeyLightShadow(group, config);
   return group;
+}
+
+/** Cadre la caméra d'ombre sur le sol de la pièce (recadrable à chaud). */
+export function frameKeyLightShadow(group, config) {
+  const light = group.userData.light;
+  if (!light.castShadow) return;
+  const size = Number(config?.floor?.size) > 0 ? config.floor.size : FLOOR_DEFAULTS.size;
+  const half = size / 2 + 2;
+  const cam = light.shadow.camera;
+  cam.left = -half; cam.right = half;
+  cam.top = half; cam.bottom = -half;
+  cam.near = 1; cam.far = size * 2 + 30;
+  cam.updateProjectionMatrix();
 }
 
 /** (Ré)oriente et re-règle la lumière clé depuis la config, sans recréer. */
