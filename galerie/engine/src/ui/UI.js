@@ -100,25 +100,38 @@ export class UI {
 
   /**
    * Résout quand l'utilisateur choisit son mode d'entrée :
-   * { audioTour: false } — visite 3D (bouton « Entrer ») ;
+   * { audioTour: false } — visite 3D (bouton « Entrer », ou Entrée au
+   * clavier quand AUCUN bouton n'a le focus) ;
    * { audioTour: true }  — visite audio accessible.
    *
    * Les deux gestes débloquent l'AudioContext (l'appelant s'en charge).
-   * Le lien audio est PREMIER dans l'ordre de tabulation (premier focusable
-   * du document) : un utilisateur de lecteur d'écran le rencontre avant
-   * tout le reste. Il reste inerte tant que la configuration charge — même
-   * garde que le bouton Entrer, mais sans `disabled`, qui le rendrait
-   * infocusable.
+   * Le bouton audio est DERNIER dans l'ordre de tabulation : en parcourant
+   * l'écran, un utilisateur de lecteur d'écran s'arrête dessus. Il reste
+   * inerte tant que la configuration charge — même garde que le bouton
+   * Entrer, mais sans `disabled`, qui le rendrait infocusable.
+   *
+   * Entrée « globale » : entre en 3D par défaut, mais SEULEMENT si le
+   * focus n'est pas sur un élément activable — un utilisateur qui a tabulé
+   * sur un bouton garde son Entrée locale, et VoiceOver active l'élément
+   * sous son curseur par un clic, jamais par un Entrée brut.
    */
   waitForEnter() {
     return new Promise((resolve) => {
       const leave = (audioTour) => {
+        window.removeEventListener('keydown', onKey);
         this._releaseWelcome(); // le reste du document redevient vivant
         this.enterScreen.classList.add('leaving');
         setTimeout(() => { this.enterScreen.remove(); }, 1300);
         if (!audioTour) this.hint.hidden = false;
         resolve({ audioTour });
       };
+      const onKey = (e) => {
+        if (e.key !== 'Enter' || this.enterBtn.disabled) return;
+        const a = document.activeElement;
+        if (a && a !== document.body && a.matches?.('button, a, input, select, textarea, [tabindex]')) return;
+        leave(false);
+      };
+      window.addEventListener('keydown', onKey);
       this.enterBtn.addEventListener('click', () => leave(false), { once: true });
       const audioBtn = document.getElementById('enter-audio');
       audioBtn?.addEventListener('click', () => {
