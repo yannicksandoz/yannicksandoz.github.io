@@ -81,6 +81,12 @@ const proxyPolyPizza = {
     target: 'https://static.poly.pizza',
     changeOrigin: true,
     rewrite: (p) => p.replace(/^\/pp-static/, '')
+  },
+  // Freesound : même raison (en-tête Authorization → préflight CORS)
+  '/fs-api': {
+    target: 'https://freesound.org',
+    changeOrigin: true,
+    rewrite: (p) => p.replace(/^\/fs-api/, '')
   }
 };
 

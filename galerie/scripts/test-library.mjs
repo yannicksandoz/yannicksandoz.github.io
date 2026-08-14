@@ -381,5 +381,103 @@ if (!pp) {
   }
 }
 
+/**
+ * Module Freesound (éditeur) — normalisation, filtre de licence, mapping.
+ * Sauté proprement si le sous-module privé n'est pas récupéré.
+ */
+const fs = await import('../engine/src/editor/freesound/data.js').catch(() => null);
+if (!fs) {
+  console.log('\nFreesound : sous-module éditeur absent — section sautée');
+} else {
+  console.log('\nFreesound — licences : ce qui protège une galerie vendue');
+  {
+    check('CC0 : usage commercial permis',
+      fs.licenceCommerciale('http://creativecommons.org/publicdomain/zero/1.0/'), true);
+    check('CC-BY : permis',
+      fs.licenceCommerciale('http://creativecommons.org/licenses/by/4.0/'), true);
+    check('CC-BY-NC : REFUSÉ',
+      fs.licenceCommerciale('http://creativecommons.org/licenses/by-nc/4.0/'), false);
+    check('Sampling+ (non commercial) : refusé',
+      fs.licenceCommerciale('http://creativecommons.org/licenses/sampling+/1.0/'), false);
+    check('licence absente : refusée par prudence', fs.licenceCommerciale(''), false);
+    check('libellé court CC0',
+      fs.licenceCourte('http://creativecommons.org/publicdomain/zero/1.0/'), 'CC0');
+    check('libellé court CC-BY',
+      fs.licenceCourte('http://creativecommons.org/licenses/by/4.0/'), 'CC-BY');
+    check('libellé court CC-BY-NC',
+      fs.licenceCourte('http://creativecommons.org/licenses/by-nc/3.0/'), 'CC-BY-NC');
+  }
+
+  console.log('\nFreesound — normalisation et requêtes');
+  {
+    const brut = {
+      id: 12345, name: 'Vagues nuit', description: 'Mer calme.',
+      username: 'Momo', license: 'http://creativecommons.org/licenses/by/4.0/',
+      duration: 12.5, tags: ['mer'],
+      previews: {
+        'preview-hq-mp3': 'https://cdn.freesound.org/previews/12/12345_hq.mp3',
+        'preview-lq-ogg': 'https://cdn.freesound.org/previews/12/12345_lq.ogg'
+      }
+    };
+    const s = fs.normalizeSound(brut);
+    check('identifiant', s.id, '12345');
+    check('preview HQ préférée', s.preview.endsWith('_hq.mp3'), true);
+    check('format déduit de la preview', s.format, 'mp3');
+    check('licence courte portée', s.licenceCourte, 'CC-BY');
+    check('usage commercial évalué', s.commerciale, true);
+    check('page du son citable', s.pageUrl, 'https://freesound.org/s/12345/');
+    check('sans preview : rejeté',
+      fs.normalizeSound({ id: 1, previews: {} }), null);
+    check('sans identifiant : rejeté',
+      fs.normalizeSound({ previews: { 'preview-hq-mp3': 'https://x/y.mp3' } }), null);
+    check('ogg seul : format ogg',
+      fs.normalizeSound({ id: 2, previews: { 'preview-hq-ogg': 'https://x/y.ogg' } }).format,
+      'ogg');
+
+    check('chemin local, jamais une URL Freesound',
+      fs.assetPathFor(s), 'assets/freesound/vagues-nuit-12345.mp3');
+    check('métadonnées pour la médiathèque', fs.soundMetaFrom(s),
+      { source: 'freesound', author: 'Momo', license: 'CC-BY',
+        sourceUrl: 'https://freesound.org/s/12345/' });
+
+    const sansNc = fs.searchRequest({ query: 'mer' });
+    check('chemin de recherche', sansNc.path, '/search/text/');
+    check('filtre de licence par défaut : CC0 + CC-BY seulement',
+      sansNc.params.filter, 'license:"Creative Commons 0" OR license:"Attribution"');
+    check('avec NC : aucun filtre de licence',
+      'filter' in fs.searchRequest({ query: 'mer', nc: true }).params, false);
+    check('page_size borné', fs.searchRequest({ pageSize: 500 }).params.page_size, '50');
+    check('page plancher à 1', fs.searchRequest({ page: 0 }).params.page, '1');
+  }
+
+  console.log('\nFreesound — crédit reporté sur l’œuvre');
+  {
+    // même fonction que pour un son local : une seule logique d'attribution
+    const { creditFromSound } = await import('../engine/src/editor/media/soundCatalog.js');
+    const s = fs.normalizeSound({
+      id: 7, name: 'Cloche', username: 'Ana',
+      license: 'http://creativecommons.org/publicdomain/zero/1.0/',
+      previews: { 'preview-hq-mp3': 'https://cdn/7.mp3' }
+    });
+    check('un son de banque apporte un crédit complet',
+      creditFromSound(fs.soundMetaFrom(s), {}),
+      { author: 'Ana', license: 'CC0', sourceUrl: 'https://freesound.org/s/7/' });
+    check('la saisie de l’auteur n’est jamais écrasée',
+      creditFromSound(fs.soundMetaFrom(s), { author: 'Moi' }).author, 'Moi');
+  }
+
+  const fsApi = await import('../engine/src/editor/freesound/api.js').catch(() => null);
+  if (fsApi) {
+    console.log('\nFreesound — proxy local anti-CORS');
+    check('en local : proxy d’abord, direct en repli',
+      fsApi.apiUrls('/search/text/', { query: 'mer' }, true),
+      ['/fs-api/apiv2/search/text/?query=mer',
+        'https://freesound.org/apiv2/search/text/?query=mer']);
+    check('publié : appel direct seulement',
+      fsApi.apiUrls('/search/text/', {}, false),
+      ['https://freesound.org/apiv2/search/text/']);
+  }
+}
+
 console.log(`\n${passed} réussis, ${failed} échoués\n`);
 process.exit(failed ? 1 : 0);

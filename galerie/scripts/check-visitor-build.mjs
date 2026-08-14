@@ -24,7 +24,8 @@ const EMPREINTES_EDITEUR = [
   'editor-file-media', 'editor-file-json',
   'data-vx-', 'data-lib-add', 'data-a-prim',
   'polypizza-panel', 'data-pp-', 'X-Auth-Token',
-  'sons-panel', 'data-son-'
+  'sons-panel', 'data-son-',
+  'freesound-panel', 'data-fs-', 'freesound.org/apiv2'
 ];
 
 /**
@@ -39,10 +40,11 @@ const EMPREINTES_EDITEUR = [
  *
  * Ce qui est interdit, c'est l'**API** : `api.poly.pizza` n'a rien à faire
  * dans un build Visiteur, puisqu'une scène exportée référence des fichiers
- * locaux et jamais une URL Poly Pizza.
+ * locaux et jamais une URL Poly Pizza. Même règle pour `freesound.org/apiv2`
+ * — la page d'un son reste citable en lien dans les crédits, son API non.
  */
 const HOTES_INTERDITS = [
-  'api.poly.pizza', 'unpkg.com', 'cdn.jsdelivr', 'googleapis.com'
+  'api.poly.pizza', 'freesound.org/apiv2', 'unpkg.com', 'cdn.jsdelivr', 'googleapis.com'
 ];
 
 /** Motifs de clé d'API : aucune ne doit jamais être commitée ni publiée. */
