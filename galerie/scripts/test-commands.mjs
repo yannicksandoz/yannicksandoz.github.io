@@ -273,5 +273,50 @@ console.log('\nno-op — une écriture sans changement n’entre pas dans l’hi
     splice(doc, ['works', 0, 'stems'], 0, 1).isNoop(), false);
 }
 
+console.log('\nmédiathèque — recensement des sons du projet');
+{
+  const { collectSounds, isAudioPath, soundName, defaultSoundMeta, creditFromSound } =
+    await import('../engine/src/editor/media/soundCatalog.js');
+
+  check('audio reconnu', isAudioPath('assets/mer.mp3'), true);
+  check('audio avec paramètres', isAudioPath('https://h/x.ogg?v=2'), true);
+  check('modèle non audio', isAudioPath('assets/banc.glb'), false);
+  check('nom lisible local', soundName('assets/vagues-nuit.mp3'), 'vagues-nuit.mp3');
+  check('nom lisible distant', soundName('https://h/sons/mer%20calme.ogg'), 'mer calme.ogg');
+
+  const works = [
+    { id: 'a', stems: [{ file: 'assets/mer.mp3' }, { file: 'assets/vent.ogg' }] },
+    { id: 'b', stems: [{ file: 'assets/mer.mp3' }] },
+    { id: 'c' }
+  ];
+  const rooms = [{ id: 'hall', ambience: [{ file: 'assets/drone.mp3' }] }];
+  const session = ['assets/inutilise.wav', 'assets/photo.jpg'];
+  const sons = collectSounds(works, rooms, session);
+  check('dédupliqué par chemin', sons.length, 4);
+  const mer = sons.find((s) => s.path === 'assets/mer.mp3');
+  check('usages recensés (2 œuvres)', mer.uses.map((u) => u.id), ['a', 'b']);
+  check('ambiance recensée',
+    sons.find((s) => s.path === 'assets/drone.mp3').uses,
+    [{ type: 'ambience', id: 'hall' }]);
+  check('import de session jamais posé listé',
+    sons.find((s) => s.path === 'assets/inutilise.wav').uses, []);
+  check('les non-audio de session sont ignorés',
+    sons.some((s) => s.path === 'assets/photo.jpg'), false);
+  check('collections vides', collectSounds(), []);
+
+  check('défauts locaux : tous droits réservés',
+    defaultSoundMeta(), { source: 'locale', author: '', license: 'Tous droits réservés', sourceUrl: '' });
+  check('son local : rien à reporter sur le crédit',
+    creditFromSound(defaultSoundMeta(), {}), null);
+  check('son de banque : crédit reporté sans écraser l’existant',
+    creditFromSound(
+      { source: 'freesound', author: 'X', license: 'CC0', sourceUrl: 'https://f/s/1' },
+      { author: 'Déjà saisi' }),
+    { author: 'Déjà saisi', license: 'CC0', sourceUrl: 'https://f/s/1' });
+  check('rien de neuf : null (pas de commande inutile)',
+    creditFromSound({ source: 'freesound', author: 'X' },
+      { author: 'A', license: 'L', sourceUrl: 'U' }), null);
+}
+
 console.log(`\n${passed} réussis, ${failed} échoués\n`);
 process.exit(failed ? 1 : 0);

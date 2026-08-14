@@ -23,7 +23,8 @@ const EMPREINTES_EDITEUR = [
   'mountEditor', 'TransformControls', 'GLTFExporter',
   'editor-file-media', 'editor-file-json',
   'data-vx-', 'data-lib-add', 'data-a-prim',
-  'polypizza-panel', 'data-pp-', 'X-Auth-Token'
+  'polypizza-panel', 'data-pp-', 'X-Auth-Token',
+  'sons-panel', 'data-son-'
 ];
 
 /**
