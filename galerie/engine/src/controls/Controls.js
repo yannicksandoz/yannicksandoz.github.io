@@ -194,17 +194,21 @@ export class Controls {
     if (app.editor?.enabled) return;          // en édition, on survole tout
     if (app.rooms?._transitioning) return;
     const room = app.rooms?.current;
-    const half = app.rooms?.boundsLocal?.(room);
-    if (!half || !room) return;
+    const b = app.rooms?.boundsLocal?.(room);
+    if (!b || !room) return;
 
     const cam = app.camera.position;
     _local.copy(cam);
     room.group.worldToLocal(_local);
-    const x = THREE.MathUtils.clamp(_local.x, -half, half);
-    const z = THREE.MathUtils.clamp(_local.z, -half, half);
-    if (x === _local.x && z === _local.z) return;
+    const x = THREE.MathUtils.clamp(_local.x, -b.half, b.half);
+    const z = THREE.MathUtils.clamp(_local.z, -b.half, b.half);
+    // l'axe local Y aussi : sur un plan basculé, c'est une direction de
+    // marche, et rien d'autre ne la retient
+    const y = THREE.MathUtils.clamp(_local.y, b.yMin, b.yMax);
+    if (x === _local.x && z === _local.z && y === _local.y) return;
     _local.x = x;
     _local.z = z;
+    _local.y = y;
     room.group.localToWorld(_local);
     _delta.copy(_local).sub(cam);
     cam.add(_delta);

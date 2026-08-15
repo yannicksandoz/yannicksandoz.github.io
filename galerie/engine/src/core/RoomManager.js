@@ -145,7 +145,7 @@ export class RoomManager {
   }
 
   /**
-   * Demi-emprise foulable de la pièce courante, en coordonnées LOCALES.
+   * Boîte foulable de la pièce courante, en coordonnées LOCALES.
    *
    * Une pièce à ciel ouvert n'a pas de murs pour retenir le visiteur : sans
    * cette borne, on marche au-delà du bord du sol et l'on continue dans le
@@ -153,6 +153,15 @@ export class RoomManager {
    * elle est plus large), avec un pas de recul pour ne pas donner sur
    * l'abîme. Renvoie null si la pièce n'a ni sol ni coque — un espace qui
    * assume de n'avoir aucun bord.
+   *
+   * Les TROIS axes locaux comptent, pas seulement x et z : quand un mur
+   * devient le sol (Escher), l'axe local Y n'est plus la verticale mais une
+   * direction de marche. Ne borner que x et z laissait alors une fuite —
+   * sur le plan nord, on marchait indéfiniment le long de z. La borne
+   * verticale est large (la coque, plus six mètres) : elle retient celui qui
+   * s'échappe, jamais celui qui gravit un escalier.
+   *
+   * → { half, yMin, yMax } en mètres, tous en coordonnées locales.
    */
   boundsLocal(room = this.current) {
     const cfg = room?.config;
@@ -163,13 +172,16 @@ export class RoomManager {
       half = Number.isFinite(s) && s > 0 ? s / 2 : FLOOR_DEFAULTS.size / 2;
     }
     const shell = cfg.shell && cfg.shell !== true ? cfg.shell : (cfg.shell ? {} : null);
+    let yMax = Infinity;
     if (shell) {
       const w = Number(shell.width) > 0 ? shell.width : SHELL_DEFAULTS.width;
       const d = Number(shell.depth) > 0 ? shell.depth : SHELL_DEFAULTS.depth;
+      const h = Number(shell.height) > 0 ? shell.height : SHELL_DEFAULTS.height;
       half = Math.max(half, w / 2, d / 2);
+      yMax = h + 6;
     }
     if (!half) return null;
-    return Math.max(2, half - 1.5);
+    return { half: Math.max(2, half - 1.5), yMin: -1.5, yMax };
   }
 
   /**
@@ -565,10 +577,37 @@ export class RoomManager {
 
   /* ------------------------------------------------------------- cycle --- */
 
+  /**
+   * Réarme les zones (portails, bascules) que le visiteur a quittées, sans
+   * rien déclencher. Le même critère d'hystérésis que la détection : c'est
+   * la seule tenue de registre qui doive tourner pendant le temps mort.
+   */
+  _rearmPass(ctx) {
+    for (const mesh of this.current.portalMeshes) {
+      if (!mesh.userData.disarmed) continue;
+      const p = mesh.localToWorld(_worldPos.set(0, 1.35, 0));
+      const dx = ctx.cameraPos.x - p.x, dz = ctx.cameraPos.z - p.z;
+      if (dx * dx + dz * dz > REARM_DIST2) mesh.userData.disarmed = false;
+    }
+    for (const mesh of this.current.basculeMeshes ?? []) {
+      if (!mesh.userData.disarmed) continue;
+      const r = (mesh.userData.bascule.radius ?? 1.7) * 1.6;
+      const c = mesh.getWorldPosition(_worldPos);
+      const dx = ctx.cameraPos.x - c.x, dz = ctx.cameraPos.z - c.z;
+      if (dx * dx + dz * dz > r * r) mesh.userData.disarmed = false;
+    }
+  }
+
   update(dt, ctx) {
     if (this._tickBascule(dt)) return; // une bascule en cours pilote tout
     if (this._cooldown > 0) this._cooldown -= dt;
-    if (!this.current || this._transitioning || this._cooldown > 0) return;
+    if (!this.current || this._transitioning) return;
+    // Temps mort d'après-transition : on ne DÉCLENCHE rien, mais on tient
+    // quand même le registre des zones désarmées. Sinon un visiteur qui
+    // repart aussitôt franchit sa fenêtre de réarmement pendant le temps
+    // mort et retrouve l'anneau mort : l'escalier ne marche plus que dans
+    // un sens.
+    if (this._cooldown > 0) { this._rearmPass(ctx); return; }
     if (this.app.editor?.enabled) return; // pas de téléportation en édition
     // Visite audio : la pièce se change par la LISTE, jamais parce que
     // l'approche d'une œuvre a frôlé un portail — une téléportation
@@ -835,39 +874,65 @@ export function buildShell(config) {
     group.add(m);
   };
 
+  // Un mur dont la face inférieure repose EXACTEMENT sur le sol grésille :
+  // les deux faces sont au même y, le GPU tranche au hasard et le pied de
+  // mur clignote sur toute sa longueur. On l'enfonce de huit centimètres
+  // sous le sol — personne ne les voit, et le pied redevient net.
+  const SINK = 0.08;
+  const foot = (p) => (Math.abs(p.y - p.h / 2) < 1e-6
+    ? { ...p, h: p.h + SINK, y: p.y - SINK / 2 } : p);
+
   const has = (wall) => !Array.isArray(opt.walls) || opt.walls.includes(wall);
   const winsOf = (wall) => (opt.windows ?? []).filter((f) => f.wall === wall);
   const FT = 0.12;              // section du cadre de fenêtre
   const FD = WALL_T + 0.14;     // il déborde du mur : on le voit de biais
+  // Le cadre MORD sur la baie de quelques centimètres. Sans ce recouvrement,
+  // la face inférieure du linteau et celle du mur qui le surmonte sont
+  // exactement coplanaires : deux faces au même z, le GPU tranche au hasard
+  // d'un pixel à l'autre — la fenêtre « grésille ». Ici elles ne se touchent
+  // jamais, elles s'emboîtent.
+  const OV = 0.04;
+  // barreau horizontal : `edge` est le bord de la baie qu'il borde,
+  // `dir` vaut +1 s'il monte (linteau) ou -1 s'il descend (appui)
+  const barY = (edge, dir) => ({
+    h: FT + OV, y: edge + dir * (FT - OV) / 2
+  });
+  const barX = (edge, dir) => ({
+    len: FT + OV, c: edge + dir * (FT - OV) / 2
+  });
 
   // fond (-z) et face (+z) : segments le long de x, cadres autour des baies
   for (const [wall, zPos] of [['nord', -d / 2], ['sud', d / 2]]) {
     if (!has(wall)) continue;
     const wins = winsOf(wall);
-    for (const p of wallSegments(w + WALL_T, h, wins)) {
+    for (const p of wallSegments(w + WALL_T, h, wins).map(foot)) {
       box(p.len, p.h, WALL_T, p.c, p.y, zPos, matFor(wall));
     }
     for (const r of windowRects(w + WALL_T, h, wins)) {
-      const mid = (r.sill + r.top) / 2, wh = r.top - r.sill;
-      box(r.wl + 2 * FT, FT, FD, r.c, r.top + FT / 2, zPos, frameMat);
-      box(r.wl + 2 * FT, FT, FD, r.c, r.sill - FT / 2, zPos, frameMat);
-      box(FT, wh, FD, r.c - r.wl / 2 - FT / 2, mid, zPos, frameMat);
-      box(FT, wh, FD, r.c + r.wl / 2 + FT / 2, mid, zPos, frameMat);
+      const mid = (r.sill + r.top) / 2, wh = r.top - r.sill + 2 * OV;
+      const lin = barY(r.top, 1), app = barY(r.sill, -1);
+      const mg = barX(r.c - r.wl / 2, -1), md = barX(r.c + r.wl / 2, 1);
+      box(r.wl + 2 * FT, lin.h, FD, r.c, lin.y, zPos, frameMat);
+      box(r.wl + 2 * FT, app.h, FD, r.c, app.y, zPos, frameMat);
+      box(mg.len, wh, FD, mg.c, mid, zPos, frameMat);
+      box(md.len, wh, FD, md.c, mid, zPos, frameMat);
     }
   }
   // gauche (-x) et droite (+x) : segments le long de z
   for (const [wall, xPos] of [['ouest', -w / 2], ['est', w / 2]]) {
     if (!has(wall)) continue;
     const wins = winsOf(wall);
-    for (const p of wallSegments(d - WALL_T, h, wins)) {
+    for (const p of wallSegments(d - WALL_T, h, wins).map(foot)) {
       box(WALL_T, p.h, p.len, xPos, p.y, p.c, matFor(wall));
     }
     for (const r of windowRects(d - WALL_T, h, wins)) {
-      const mid = (r.sill + r.top) / 2, wh = r.top - r.sill;
-      box(FD, FT, r.wl + 2 * FT, xPos, r.top + FT / 2, r.c, frameMat);
-      box(FD, FT, r.wl + 2 * FT, xPos, r.sill - FT / 2, r.c, frameMat);
-      box(FD, wh, FT, xPos, mid, r.c - r.wl / 2 - FT / 2, frameMat);
-      box(FD, wh, FT, xPos, mid, r.c + r.wl / 2 + FT / 2, frameMat);
+      const mid = (r.sill + r.top) / 2, wh = r.top - r.sill + 2 * OV;
+      const lin = barY(r.top, 1), app = barY(r.sill, -1);
+      const mg = barX(r.c - r.wl / 2, -1), md = barX(r.c + r.wl / 2, 1);
+      box(FD, lin.h, r.wl + 2 * FT, xPos, lin.y, r.c, frameMat);
+      box(FD, app.h, r.wl + 2 * FT, xPos, app.y, r.c, frameMat);
+      box(FD, wh, mg.len, xPos, mid, mg.c, frameMat);
+      box(FD, wh, md.len, xPos, mid, md.c, frameMat);
     }
   }
 

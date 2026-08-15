@@ -9,10 +9,9 @@
   "fogColor": "#0b0614",
   "fogDensity": 0.0075,
   "floor": {
-    "size": 84.0,
+    "size": 80.0,
     "color": "#171226",
-    "grid": true,
-    "gridColor": "#544c86"
+    "grid": false
   },
   "shell": {
     "width": 80.0,
@@ -75,7 +74,7 @@
       "radius": 2.2,
       "plane": "est",
       "arrival": [
-        11.0,
+        13.5,
         3.9,
         10.0
       ],
@@ -83,8 +82,28 @@
     },
     {
       "position": [
+        39.75,
+        13.5,
+        10.0
+      ],
+      "rotation": [
+        -0.0,
+        0.0,
+        90.0
+      ],
+      "radius": 2.2,
+      "plane": "sol",
+      "arrival": [
+        38.3,
+        13.2,
+        10.0
+      ],
+      "label": "Retour au sol"
+    },
+    {
+      "position": [
         28.0,
-        11.0,
+        13.5,
         -38.6
       ],
       "rotation": [
@@ -95,15 +114,35 @@
       "radius": 2.2,
       "plane": "nord",
       "arrival": [
-        28.0,
+        24.5,
         3.6,
-        -11.0
+        -13.5
       ],
       "label": "Mur nord"
     },
     {
       "position": [
-        22.0,
+        24.5,
+        13.5,
+        -39.75
+      ],
+      "rotation": [
+        90.0,
+        0.0,
+        0.0
+      ],
+      "radius": 2.2,
+      "plane": "est",
+      "arrival": [
+        13.5,
+        14.2,
+        -38.6
+      ],
+      "label": "Retour au mur est"
+    },
+    {
+      "position": [
+        18.5,
         1.7,
         -34.5
       ],
@@ -115,11 +154,31 @@
       "radius": 2.2,
       "plane": "sol",
       "arrival": [
-        22.0,
+        18.5,
         3.9,
-        -34.5
+        -31.5
       ],
       "label": "Sol"
+    },
+    {
+      "position": [
+        18.5,
+        0.25,
+        -31.5
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "radius": 2.2,
+      "plane": "nord",
+      "arrival": [
+        18.5,
+        7.7,
+        -1.7
+      ],
+      "label": "Retour au mur nord"
     }
   ],
   "portals": [

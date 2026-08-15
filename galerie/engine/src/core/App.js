@@ -509,7 +509,7 @@ export class App {
       if (this.warpPass.enabled) this.warpPass.uniforms.uTime.value = t;
       this.quality.tick(dt, this);
 
-      this.vistas?.update(); // la pièce apparue se rend avant la vraie
+      this.vistas?.update(dt); // la pièce apparue se rend avant la vraie
       this.composer.render();
     });
   }

@@ -63,7 +63,7 @@
   "buisson-jardin-5.json",
   "lanterne-jardin-2.json",
   "moon.json",
-  "banc-belvedere.json",
+  "escalier-couloir.json",
   "escalier-r1.json",
   "palier-r1.json",
   "escalier-r2.json",
@@ -85,5 +85,5 @@
   "pilier-bel-1.json",
   "pilier-bel-2.json",
   "pilier-bel-3.json",
-  "escalier-couloir.json"
+  "banc-belvedere.json"
 ]

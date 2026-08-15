@@ -83,5 +83,41 @@
         -11
       ]
     }
+  ],
+  "vistas": [
+    {
+      "room": "jardin",
+      "wall": "nord",
+      "offset": -7,
+      "width": 4,
+      "height": 2,
+      "sill": 1.3,
+      "frame": false,
+      "anchor": {
+        "position": [
+          0,
+          1.8,
+          12
+        ],
+        "rotationY": 0
+      }
+    },
+    {
+      "room": "labo",
+      "wall": "nord",
+      "offset": 7,
+      "width": 4,
+      "height": 2,
+      "sill": 1.3,
+      "frame": false,
+      "anchor": {
+        "position": [
+          0,
+          1.8,
+          14
+        ],
+        "rotationY": 0
+      }
+    }
   ]
 }

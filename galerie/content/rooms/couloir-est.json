@@ -99,5 +99,41 @@
         30
       ]
     }
+  ],
+  "vistas": [
+    {
+      "room": "belvedere",
+      "wall": "est",
+      "offset": -8,
+      "width": 3,
+      "height": 1.7,
+      "sill": 1.1,
+      "frame": false,
+      "anchor": {
+        "position": [
+          0,
+          2.2,
+          26
+        ],
+        "rotationY": 0
+      }
+    },
+    {
+      "room": "jardin",
+      "wall": "ouest",
+      "offset": -2,
+      "width": 3,
+      "height": 1.7,
+      "sill": 1.1,
+      "frame": false,
+      "anchor": {
+        "position": [
+          -8,
+          1.8,
+          10
+        ],
+        "rotationY": 0
+      }
+    }
   ]
 }
