@@ -243,7 +243,13 @@ export class Artwork {
       for (const clip of animations) this._mixer.clipAction(clip).play();
       this.modelAnimations = animations.length;
     }
-    return object3d;
+    // Groupe porteur : _setMesh écrase l'échelle du mesh reçu (baseScale,
+    // pulsation d'AudioReactive). Sans cette enveloppe, cette écriture
+    // annulait la normalisation `fit` calculée juste au-dessus — tous les
+    // modèles revenaient à leur taille brute.
+    const holder = new THREE.Group();
+    holder.add(object3d);
+    return holder;
   }
 
   /**

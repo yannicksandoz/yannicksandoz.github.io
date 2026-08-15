@@ -291,7 +291,10 @@ toujours du v2.
   "floor": { "size": 80, "color": "#13131f", "grid": true },  // sol (false = aucun)
   "shell": {                       // coque : murs de salle (absent = à ciel
     "width": 26, "depth": 20,      // ouvert, comme le parvis d'entrée)
-    "height": 5, "color": "#1e1e2e", "ceiling": false
+    "height": 5, "color": "#1e1e2e", "ceiling": false,
+    "windows": [                   // baies percées, donnant sur l'espace
+      { "wall": "nord", "offset": 0, "width": 4, "height": 1.8, "sill": 1.1 }
+    ]
   },
   "keyLight": {                    // lumière clé de la pièce — la seule à
     "color": "#b8c2ff",            // projeter des ombres (false = aucune)

@@ -181,10 +181,16 @@ export class RoomManager {
     // verrouillés. Résolution instantanée — la caméra est replacée juste après.
     this.app.activeFocus?.cancel?.();
 
+    // Franchir un portail distord l'espace : montée du warp (~0,45 s) vers
+    // le noir, téléportation au pic, détente dans la pièce d'arrivée.
+    // Sans WebGL ou en mouvement réduit, le fondu simple reste le chemin.
+    const warp = !instant && this.app.warpPass && !this.app.quality.reducedMotion;
+
     if (!instant) {
       this._transitioning = true;
       this.fadeEl?.classList.add('active');
-      await wait(380);
+      if (warp) await this._animateWarp(0, 1, 430);
+      else await wait(380);
     }
 
     this.current = room;
@@ -194,10 +200,44 @@ export class RoomManager {
     if (!instant) {
       await wait(120);
       this.fadeEl?.classList.remove('active');
+      if (warp) {
+        await this._animateWarp(1, 0, 430);
+        this.app.warpPass.enabled = false;
+      }
       this._transitioning = false;
       this._cooldown = 1.2; // évite un aller-retour immédiat dans le portail
     }
     return true;
+  }
+
+  /** Anime l'uniform du warp entre deux valeurs (easing cubique). */
+  _animateWarp(from, to, ms) {
+    const pass = this.app.warpPass;
+    pass.enabled = true;
+    pass.uniforms.uWarp.value = from;
+    return new Promise((resolve) => {
+      let done = false;
+      const finish = () => {
+        if (done) return;
+        done = true;
+        pass.uniforms.uWarp.value = to;
+        resolve();
+      };
+      const t0 = performance.now();
+      const step = (now) => {
+        if (done) return;
+        const k = Math.min(1, (now - t0) / ms);
+        const e = k < 0.5 ? 4 * k * k * k : 1 - ((-2 * k + 2) ** 3) / 2;
+        pass.uniforms.uWarp.value = from + (to - from) * e;
+        if (k < 1) requestAnimationFrame(step);
+        else finish();
+      };
+      requestAnimationFrame(step);
+      // Borne dure : sur un appareil lent les frames s'espacent et le rAF
+      // étirerait la traversée — le warp coupe au temps prévu, quoi qu'il
+      // arrive. Une frame de marge pour finir proprement.
+      setTimeout(finish, ms + 130);
+    });
   }
 
   _placeCamera(pos) {
@@ -419,7 +459,14 @@ function disposeFloor(group) {
  *
  * Réglable par pièce dans le JSON, absente si on n'en veut pas (extérieur) :
  *   "shell": { "width": 26, "depth": 20, "height": 5,
- *              "color": "#1c1c2b", "ceiling": false }
+ *              "color": "#1c1c2b", "ceiling": false,
+ *              "windows": [ { "wall": "nord", "offset": 0,
+ *                             "width": 4, "height": 1.8, "sill": 1.1 } ] }
+ *
+ * Les fenêtres sont des baies percées dans un mur (nord = fond -z, sud =
+ * face +z, est = +x, ouest = -x ; offset le long du mur depuis son centre).
+ * Il n'y a pas de vitre : elles donnent sur l'espace — le ciel étoilé et
+ * le brouillard de la nuit, seule chose qui existe hors de la pièce.
  *
  * Les murs REÇOIVENT les ombres mais n'en projettent pas : la lumière clé
  * traverse — comme un éclairage de studio, la salle reste lisible quelle
@@ -427,9 +474,45 @@ function disposeFloor(group) {
  * par défaut : la nuit étoilée et la poussière font partie du lieu.
  */
 export const SHELL_DEFAULTS = {
-  width: 26, depth: 20, height: 5, color: '#1c1c2b', ceiling: false
+  width: 26, depth: 20, height: 5, color: '#1c1c2b', ceiling: false, windows: []
 };
 const WALL_T = 0.35; // épaisseur des murs
+
+/**
+ * Découpe un mur (longueur × hauteur) autour de ses baies : segments pleins
+ * entre les fenêtres, allège sous l'appui et linteau au-dessus. Renvoie des
+ * rectangles {c, len, y, h} en coordonnées locales du mur (c = centre le
+ * long du mur, y = centre en hauteur).
+ */
+function wallSegments(length, height, windows) {
+  const wins = (windows ?? [])
+    .map((w) => ({
+      from: Math.max(-length / 2, (w.offset ?? 0) - (w.width ?? 4) / 2),
+      to: Math.min(length / 2, (w.offset ?? 0) + (w.width ?? 4) / 2),
+      sill: Math.max(0, Math.min(height - 0.2, w.sill ?? 1.1)),
+      top: Math.min(height, (w.sill ?? 1.1) + (w.height ?? 1.8))
+    }))
+    .filter((w) => w.to > w.from)
+    .sort((a, b) => a.from - b.from);
+
+  const parts = [];
+  let cursor = -length / 2;
+  for (const win of wins) {
+    if (win.from > cursor) {
+      parts.push({ c: (cursor + win.from) / 2, len: win.from - cursor, y: height / 2, h: height });
+    }
+    const wl = win.to - win.from, wc = (win.from + win.to) / 2;
+    if (win.sill > 0) parts.push({ c: wc, len: wl, y: win.sill / 2, h: win.sill });
+    if (win.top < height) {
+      parts.push({ c: wc, len: wl, y: (win.top + height) / 2, h: height - win.top });
+    }
+    cursor = win.to;
+  }
+  if (cursor < length / 2) {
+    parts.push({ c: (cursor + length / 2) / 2, len: length / 2 - cursor, y: height / 2, h: height });
+  }
+  return parts;
+}
 
 export function buildShell(config) {
   const s = config?.shell;
@@ -446,24 +529,32 @@ export function buildShell(config) {
     roughness: 0.88, metalness: 0.04
   });
 
-  const wall = (gw, gd, x, z) => {
-    const m = new THREE.Mesh(new THREE.BoxGeometry(gw, h, gd), mat);
-    m.position.set(x, h / 2, z);
+  const box = (gw, gh, gd, x, y, z) => {
+    const m = new THREE.Mesh(new THREE.BoxGeometry(gw, gh, gd), mat);
+    m.position.set(x, y, z);
     m.receiveShadow = true;
     m.userData.ignoreRaycast = true; // décor : jamais une cible de sélection
     group.add(m);
   };
-  wall(w + WALL_T, WALL_T, 0, -d / 2);  // fond
-  wall(w + WALL_T, WALL_T, 0, d / 2);   // face
-  wall(WALL_T, d - WALL_T, -w / 2, 0);  // gauche
-  wall(WALL_T, d - WALL_T, w / 2, 0);   // droite
+
+  const winsOf = (wall) => (opt.windows ?? []).filter((f) => f.wall === wall);
+  // fond (-z) et face (+z) : segments le long de x
+  for (const p of wallSegments(w + WALL_T, h, winsOf('nord'))) {
+    box(p.len, p.h, WALL_T, p.c, p.y, -d / 2);
+  }
+  for (const p of wallSegments(w + WALL_T, h, winsOf('sud'))) {
+    box(p.len, p.h, WALL_T, p.c, p.y, d / 2);
+  }
+  // gauche (-x) et droite (+x) : segments le long de z
+  for (const p of wallSegments(d - WALL_T, h, winsOf('ouest'))) {
+    box(WALL_T, p.h, p.len, -w / 2, p.y, p.c);
+  }
+  for (const p of wallSegments(d - WALL_T, h, winsOf('est'))) {
+    box(WALL_T, p.h, p.len, w / 2, p.y, p.c);
+  }
 
   if (opt.ceiling) {
-    const c = new THREE.Mesh(new THREE.BoxGeometry(w + WALL_T, WALL_T, d + WALL_T), mat);
-    c.position.set(0, h + WALL_T / 2, 0);
-    c.receiveShadow = true;
-    c.userData.ignoreRaycast = true;
-    group.add(c);
+    box(w + WALL_T, WALL_T, d + WALL_T, 0, h + WALL_T / 2, 0);
   }
   return group;
 }

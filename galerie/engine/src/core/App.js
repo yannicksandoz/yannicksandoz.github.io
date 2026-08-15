@@ -43,6 +43,52 @@ const GrainVignetteShader = {
 };
 
 /**
+ * Distorsion de franchissement de portail — un « warp » à la Minecraft :
+ * l'image s'aspire vers le centre en tourbillonnant, les canaux rouge et
+ * bleu se séparent (aberration chromatique), le pourtour s'assombrit
+ * jusqu'au noir au pic — c'est là que la téléportation se produit, puis
+ * tout se détend dans la pièce d'arrivée. `uWarp` va de 0 (repos) à 1 (pic).
+ */
+const WarpShader = {
+  uniforms: {
+    tDiffuse: { value: null },
+    uWarp: { value: 0 },
+    uTime: { value: 0 }
+  },
+  vertexShader: /* glsl */ `
+    varying vec2 vUv;
+    void main() {
+      vUv = uv;
+      gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+    }`,
+  fragmentShader: /* glsl */ `
+    uniform sampler2D tDiffuse;
+    uniform float uWarp, uTime;
+    varying vec2 vUv;
+    void main() {
+      vec2 c = vUv - 0.5;
+      float r = length(c);
+      float a = atan(c.y, c.x);
+      // aspiration radiale + vrille qui s'accentue vers le bord
+      float pull = 1.0 - uWarp * 0.75 * r;
+      float twist = uWarp * uWarp * 2.6 * r + uWarp * uTime * 1.2;
+      vec2 warped = vec2(cos(a + twist), sin(a + twist)) * r * pull + 0.5;
+      // aberration chromatique : R et B décalés le long du rayon
+      float ca = uWarp * 0.02 * (0.3 + r);
+      vec2 dir = r > 0.0001 ? normalize(c) : vec2(0.0);
+      vec3 col = vec3(
+        texture2D(tDiffuse, warped + dir * ca).r,
+        texture2D(tDiffuse, warped).g,
+        texture2D(tDiffuse, warped - dir * ca).b
+      );
+      // fermeture au noir : totale au pic, quel que soit le rayon
+      float dark = smoothstep(0.0, 1.0, uWarp * (0.45 + r * 1.6));
+      col *= 1.0 - min(1.0, dark + uWarp * uWarp);
+      gl_FragColor = vec4(col, 1.0);
+    }`
+};
+
+/**
  * Cœur minimal : scène, caméra, rendu, post-processing, boucle d'animation.
  * Tout le reste (œuvres, contrôles, éditeur) s'enregistre via addArtwork()
  * et onUpdate(). Le profil de qualité (QualityManager) adapte le pipeline
@@ -123,6 +169,11 @@ export class App {
       0.55   // seuil : seules les zones émissives fleurissent
     );
     this.composer.addPass(this.bloom);
+    // Warp de portail : inséré avant la sortie, inactif au repos (une passe
+    // désactivée ne coûte rien au composer).
+    this.warpPass = new ShaderPass(WarpShader);
+    this.warpPass.enabled = false;
+    this.composer.addPass(this.warpPass);
     this.composer.addPass(new OutputPass());
     this.grainPass = new ShaderPass(GrainVignetteShader);
     this.grainPass.enabled = this.quality.profile.grain;
@@ -448,6 +499,7 @@ export class App {
 
       if (!this.quality.reducedMotion) this.dust.rotation.y += dt * 0.004;
       this.grainPass.uniforms.uTime.value = t;
+      if (this.warpPass.enabled) this.warpPass.uniforms.uTime.value = t;
       this.quality.tick(dt, this);
 
       this.composer.render();
