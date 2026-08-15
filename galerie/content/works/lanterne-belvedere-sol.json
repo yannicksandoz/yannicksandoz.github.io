@@ -1,0 +1,31 @@
+{
+  "id": "lanterne-belvedere-sol",
+  "title": "Lanterne",
+  "description": "",
+  "position": [
+    -4.5,
+    0.88,
+    3.5
+  ],
+  "rotation": [
+    0,
+    0,
+    0
+  ],
+  "scale": [
+    0.45,
+    1.1,
+    0.45
+  ],
+  "modules": [],
+  "role": "decor",
+  "model": {
+    "shape": "cylinder",
+    "color": "#d8c0ff",
+    "roughness": 0.6,
+    "metalness": 0,
+    "emissive": 0.3
+  },
+  "lightColor": "#c8a8ff",
+  "lightIntensity": 2.2
+}

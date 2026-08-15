@@ -83,6 +83,21 @@
         2.2,
         8
       ]
+    },
+    {
+      "to": "belvedere",
+      "position": [
+        -2.2,
+        0,
+        -5
+      ],
+      "rotationY": 90,
+      "label": "Belvédère",
+      "arrival": [
+        0,
+        2.2,
+        3
+      ]
     }
   ]
 }

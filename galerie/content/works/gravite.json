@@ -1,0 +1,37 @@
+{
+  "id": "gravite",
+  "title": "Gravité",
+  "description": "Un tore suspendu au centre d'une pièce qui n'a pas décidé où est le bas. Prenez les portails : chaque plan de la pièce devient tour à tour le sol.",
+  "position": [
+    0,
+    2.5,
+    0
+  ],
+  "rotation": [
+    35,
+    0,
+    20
+  ],
+  "scale": [
+    1,
+    1,
+    1
+  ],
+  "model": {
+    "shape": "torus",
+    "color": "#d8a8ff",
+    "roughness": 0.35,
+    "metalness": 0.5,
+    "emissive": 0.3
+  },
+  "lightColor": "#d8a8ff",
+  "lightIntensity": 5,
+  "modules": [
+    {
+      "type": "FocusCamera",
+      "params": {
+        "distance": 5
+      }
+    }
+  ]
+}

@@ -80,5 +80,23 @@
         13
       ]
     }
+  ],
+  "vistas": [
+    {
+      "room": "entree",
+      "wall": "nord",
+      "offset": 0,
+      "width": 5,
+      "height": 2.2,
+      "sill": 1,
+      "anchor": {
+        "position": [
+          0,
+          1.8,
+          -4
+        ],
+        "rotationY": 0
+      }
+    }
   ]
 }

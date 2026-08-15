@@ -1,0 +1,108 @@
+{
+  "id": "belvedere",
+  "title": "Belvédère",
+  "spawn": [
+    0,
+    2.2,
+    3
+  ],
+  "fogColor": "#0a0410",
+  "floor": {
+    "size": 16,
+    "color": "#16101e",
+    "grid": false
+  },
+  "shell": {
+    "width": 14,
+    "depth": 14,
+    "height": 5,
+    "color": "#221a30",
+    "ceiling": true
+  },
+  "keyLight": {
+    "color": "#d8a8ff",
+    "intensity": 1.7,
+    "azimuth": 300,
+    "elevation": 55
+  },
+  "envIntensity": 0.9,
+  "works": [
+    "gravite",
+    "lanterne-belvedere-sol",
+    "lanterne-belvedere-est",
+    "stele-belvedere"
+  ],
+  "portals": [
+    {
+      "to": "couloir-est",
+      "position": [
+        0,
+        0,
+        6
+      ],
+      "rotationY": 180,
+      "label": "Couloir",
+      "arrival": [
+        0,
+        2.2,
+        -6
+      ]
+    },
+    {
+      "to": "belvedere",
+      "plane": "est",
+      "position": [
+        4.5,
+        0,
+        0
+      ],
+      "rotationY": -90,
+      "label": "Mur est",
+      "arrival": [
+        0,
+        2.2,
+        3
+      ]
+    },
+    {
+      "to": "belvedere",
+      "plane": "plafond",
+      "position": [
+        6.8,
+        3.5,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        90
+      ],
+      "label": "Plafond",
+      "arrival": [
+        0,
+        2.2,
+        3
+      ]
+    },
+    {
+      "to": "belvedere",
+      "plane": "sol",
+      "position": [
+        0,
+        4.9,
+        -3
+      ],
+      "rotation": [
+        180,
+        0,
+        0
+      ],
+      "label": "Sol",
+      "arrival": [
+        0,
+        2.2,
+        3
+      ]
+    }
+  ]
+}

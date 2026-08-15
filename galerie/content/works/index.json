@@ -49,5 +49,9 @@
   "lanterne-biblio-2.json",
   "lanterne-couloir-1.json",
   "lanterne-couloir-2.json",
-  "escalier-couloir.json"
+  "escalier-couloir.json",
+  "gravite.json",
+  "lanterne-belvedere-sol.json",
+  "lanterne-belvedere-est.json",
+  "stele-belvedere.json"
 ]
