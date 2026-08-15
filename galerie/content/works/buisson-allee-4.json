@@ -21,10 +21,10 @@
   "role": "decor",
   "model": {
     "shape": "sphere",
-    "color": "#1a3822",
+    "color": "#2a5232",
     "roughness": 1,
     "metalness": 0,
-    "emissive": 0.04
+    "emissive": 0.05
   },
   "lightIntensity": 0
 }

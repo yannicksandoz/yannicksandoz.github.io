@@ -1,11 +1,11 @@
 {
-  "id": "lanterne-archives-1",
+  "id": "lanterne-jardin-2",
   "title": "Lanterne",
   "description": "",
   "position": [
-    -11,
+    -3.2,
     0.88,
-    -8
+    4
   ],
   "rotation": [
     0,
@@ -21,11 +21,11 @@
   "role": "decor",
   "model": {
     "shape": "cylinder",
-    "color": "#bfe8e0",
+    "color": "#ffd9a8",
     "roughness": 0.6,
-    "metalness": 0,
+    "metalness": 0.0,
     "emissive": 0.32
   },
-  "lightColor": "#9fd8d0",
-  "lightIntensity": 3.5
+  "lightIntensity": 3.5,
+  "lightColor": "#ffcf9e"
 }

@@ -6,20 +6,20 @@
     2.2,
     8
   ],
-  "fogColor": "#04040a",
+  "fogColor": "#090b16",
   "floor": {
     "size": 140,
-    "color": "#0f0f18",
+    "color": "#191d2e",
     "grid": true,
-    "gridColor": "#2c2c48"
+    "gridColor": "#3c4266"
   },
   "keyLight": {
-    "color": "#9fb4ff",
-    "intensity": 1.6,
+    "color": "#c8d4ff",
+    "intensity": 2.4,
     "azimuth": 205,
-    "elevation": 35
+    "elevation": 40
   },
-  "envIntensity": 1.15,
+  "envIntensity": 1.5,
   "works": [
     "pierre-entree-1",
     "pierre-entree-2",
@@ -73,6 +73,65 @@
         2.2,
         12
       ]
+    }
+  ],
+  "shell": {
+    "width": 60,
+    "depth": 44,
+    "height": 10,
+    "color": "#232840",
+    "walls": [
+      "nord"
+    ]
+  },
+  "vistas": [
+    {
+      "room": "belvedere",
+      "wall": "nord",
+      "offset": -18,
+      "width": 5,
+      "height": 2.4,
+      "sill": 5,
+      "anchor": {
+        "position": [
+          0,
+          2,
+          3
+        ],
+        "rotationY": 0
+      }
+    },
+    {
+      "room": "bibliotheque",
+      "wall": "nord",
+      "offset": 0,
+      "width": 6,
+      "height": 2.6,
+      "sill": 6.2,
+      "anchor": {
+        "position": [
+          0,
+          1.8,
+          6
+        ],
+        "rotationY": 0
+      }
+    },
+    {
+      "room": "annexe",
+      "wall": "nord",
+      "offset": 18,
+      "width": 5,
+      "height": 2.4,
+      "sill": 5,
+      "anchor": {
+        "position": [
+          0,
+          1.8,
+          7
+        ],
+        "rotationY": 0
+      }
     }
   ]
 }

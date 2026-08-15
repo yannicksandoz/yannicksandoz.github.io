@@ -6,19 +6,19 @@
     2.2,
     11
   ],
-  "fogColor": "#040804",
+  "fogColor": "#0a120a",
   "floor": {
     "size": 64,
-    "color": "#0d120d",
+    "color": "#1a241a",
     "grid": false
   },
   "keyLight": {
-    "color": "#b8e8c0",
-    "intensity": 1.7,
+    "color": "#d8ffd8",
+    "intensity": 2.4,
     "azimuth": 15,
     "elevation": 55
   },
-  "envIntensity": 1.05,
+  "envIntensity": 1.5,
   "works": [
     "chemin-allee",
     "buisson-allee-1",

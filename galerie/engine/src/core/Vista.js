@@ -118,8 +118,10 @@ export class VistaManager {
   }
 
   /**
-   * Rend l'apparition la plus proche de la pièce courante, si vivante.
-   * Appelé par la boucle de l'App AVANT le rendu principal.
+   * Rend UNE apparition de la pièce courante par frame, en alternance :
+   * un mur peut en porter plusieurs, chacune reste vivante, le coût reste
+   * celui d'un seul rendu. Appelé par la boucle de l'App AVANT le rendu
+   * principal.
    */
   update() {
     if (!this.live || !this.app.renderer) return;
@@ -129,14 +131,8 @@ export class VistaManager {
     if (!vistas.length) return;
 
     const camWorld = this.app.camera;
-    let vista = vistas[0];
-    if (vistas.length > 1) {
-      let best = Infinity;
-      for (const v of vistas) {
-        const dist = v.mesh.getWorldPosition(_pos).distanceToSquared(camWorld.position);
-        if (dist < best) { best = dist; vista = v; }
-      }
-    }
+    this._turn = ((this._turn ?? -1) + 1) % vistas.length;
+    const vista = vistas[this._turn];
     const target = rooms.get(vista.cfg.room);
     if (!target || target === current) return;
 

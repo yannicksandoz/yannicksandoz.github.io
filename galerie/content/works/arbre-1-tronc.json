@@ -1,0 +1,30 @@
+{
+  "id": "arbre-1-tronc",
+  "title": "Arbre",
+  "description": "",
+  "position": [
+    -12,
+    1.1,
+    -8
+  ],
+  "rotation": [
+    0,
+    0,
+    0
+  ],
+  "scale": [
+    0.3,
+    1.4,
+    0.3
+  ],
+  "modules": [],
+  "role": "decor",
+  "model": {
+    "shape": "cylinder",
+    "color": "#4a3a28",
+    "roughness": 0.95,
+    "metalness": 0.0,
+    "emissive": 0.02
+  },
+  "lightIntensity": 0
+}

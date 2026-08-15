@@ -15,7 +15,7 @@
   "shell": {
     "width": 26,
     "depth": 20,
-    "height": 5,
+    "height": 7.5,
     "color": "#18262a",
     "windows": [
       {
@@ -94,6 +94,22 @@
           0,
           1.8,
           -4
+        ],
+        "rotationY": 0
+      }
+    },
+    {
+      "room": "belvedere",
+      "wall": "est",
+      "offset": 5,
+      "width": 3.5,
+      "height": 1.8,
+      "sill": 4.6,
+      "anchor": {
+        "position": [
+          0,
+          2,
+          3
         ],
         "rotationY": 0
       }

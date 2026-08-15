@@ -1,11 +1,11 @@
 {
-  "id": "chemin-allee",
-  "title": "Chemin",
+  "id": "sable-jardin",
+  "title": "Sable",
   "description": "",
   "position": [
     0,
-    0.03,
-    0
+    0.02,
+    -2
   ],
   "rotation": [
     0,
@@ -13,17 +13,17 @@
     0
   ],
   "scale": [
-    3,
-    0.06,
-    26
+    14,
+    0.04,
+    10
   ],
   "modules": [],
   "role": "decor",
   "model": {
     "shape": "box",
-    "color": "#3c3c30",
-    "roughness": 1,
-    "metalness": 0,
+    "color": "#4a4436",
+    "roughness": 1.0,
+    "metalness": 0.0,
     "emissive": 0.05
   },
   "lightIntensity": 0

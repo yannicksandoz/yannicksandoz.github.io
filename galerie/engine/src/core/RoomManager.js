@@ -656,7 +656,7 @@ export const ROOM_TEMPLATES = {
     label: 'Salle',
     config: {
       floor: { size: 30, color: '#15151f', grid: false },
-      shell: { width: 26, depth: 20, height: 5, color: '#1e1e2e' },
+      shell: { width: 26, depth: 20, height: 6.5, color: '#1e1e2e' },
       fogColor: '#06060c',
       keyLight: { color: '#c4b8ff', intensity: 2.2, azimuth: 40, elevation: 60 },
       envIntensity: 1,
@@ -667,7 +667,7 @@ export const ROOM_TEMPLATES = {
     label: 'Couloir',
     config: {
       floor: { size: 38, color: '#12121c', grid: false },
-      shell: { width: 6, depth: 34, height: 4, color: '#1a1a28' },
+      shell: { width: 6, depth: 34, height: 5, color: '#1a1a28' },
       fogColor: '#05050b',
       keyLight: { color: '#b8c2ff', intensity: 1.8, azimuth: 0, elevation: 70 },
       envIntensity: 0.85,
@@ -677,10 +677,10 @@ export const ROOM_TEMPLATES = {
   exterieur: {
     label: 'Extérieur',
     config: {
-      floor: { size: 140, color: '#0f0f18', grid: true, gridColor: '#2c2c48' },
-      fogColor: '#04040a',
-      keyLight: { color: '#9fb4ff', intensity: 1.6, azimuth: 205, elevation: 35 },
-      envIntensity: 1.15,
+      floor: { size: 140, color: '#191d2e', grid: true, gridColor: '#3c4266' },
+      fogColor: '#090b16',
+      keyLight: { color: '#c8d4ff', intensity: 3.2, azimuth: 205, elevation: 40 },
+      envIntensity: 1.9,
       spawn: [0, 2.2, 8]
     }
   }

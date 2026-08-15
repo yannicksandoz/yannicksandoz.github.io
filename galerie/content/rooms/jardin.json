@@ -6,19 +6,19 @@
     2.2,
     12
   ],
-  "fogColor": "#070604",
+  "fogColor": "#161209",
   "floor": {
     "size": 90,
-    "color": "#17140f",
+    "color": "#2e2a1e",
     "grid": false
   },
   "keyLight": {
-    "color": "#ffd9a8",
-    "intensity": 1.8,
+    "color": "#ffe2b8",
+    "intensity": 2.6,
     "azimuth": 130,
-    "elevation": 28
+    "elevation": 45
   },
-  "envIntensity": 1.2,
+  "envIntensity": 1.6,
   "works": [
     "pierre-jardin-1",
     "pierre-jardin-2",
@@ -29,7 +29,19 @@
     "buisson-jardin-2",
     "buisson-jardin-3",
     "lanterne-jardin",
-    "banc-jardin"
+    "banc-jardin",
+    "sable-jardin",
+    "bassin-jardin",
+    "chemin-jardin",
+    "arbre-1-tronc",
+    "arbre-1-couronne",
+    "arbre-2-tronc",
+    "arbre-2-couronne",
+    "arbre-3-tronc",
+    "arbre-3-couronne",
+    "buisson-jardin-4",
+    "buisson-jardin-5",
+    "lanterne-jardin-2"
   ],
   "portals": [
     {
@@ -61,6 +73,34 @@
         2.2,
         11
       ]
+    }
+  ],
+  "shell": {
+    "width": 46,
+    "depth": 40,
+    "height": 6,
+    "color": "#3a3226",
+    "walls": [
+      "nord",
+      "ouest"
+    ]
+  },
+  "vistas": [
+    {
+      "room": "annexe",
+      "wall": "nord",
+      "offset": 6,
+      "width": 4,
+      "height": 2,
+      "sill": 3.4,
+      "anchor": {
+        "position": [
+          0,
+          1.8,
+          7
+        ],
+        "rotationY": 0
+      }
     }
   ]
 }

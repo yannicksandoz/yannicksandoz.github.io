@@ -53,5 +53,18 @@
   "gravite.json",
   "lanterne-belvedere-sol.json",
   "lanterne-belvedere-est.json",
-  "stele-belvedere.json"
+  "stele-belvedere.json",
+  "sable-jardin.json",
+  "bassin-jardin.json",
+  "chemin-jardin.json",
+  "arbre-1-tronc.json",
+  "arbre-1-couronne.json",
+  "arbre-2-tronc.json",
+  "arbre-2-couronne.json",
+  "arbre-3-tronc.json",
+  "arbre-3-couronne.json",
+  "buisson-jardin-4.json",
+  "buisson-jardin-5.json",
+  "lanterne-jardin-2.json",
+  "moon.json"
 ]

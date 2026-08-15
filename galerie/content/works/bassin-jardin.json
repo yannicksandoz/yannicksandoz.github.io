@@ -1,11 +1,11 @@
 {
-  "id": "chemin-allee",
-  "title": "Chemin",
+  "id": "bassin-jardin",
+  "title": "Bassin",
   "description": "",
   "position": [
-    0,
-    0.03,
-    0
+    9,
+    0.05,
+    6
   ],
   "rotation": [
     0,
@@ -13,18 +13,18 @@
     0
   ],
   "scale": [
-    3,
-    0.06,
-    26
+    7,
+    0.03,
+    5
   ],
   "modules": [],
   "role": "decor",
   "model": {
     "shape": "box",
-    "color": "#3c3c30",
-    "roughness": 1,
-    "metalness": 0,
-    "emissive": 0.05
+    "color": "#16283e",
+    "roughness": 0.06,
+    "metalness": 0.92,
+    "emissive": 0.1
   },
   "lightIntensity": 0
 }

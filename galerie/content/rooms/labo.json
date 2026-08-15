@@ -13,7 +13,8 @@
     "monolithe",
     "rock-large",
     "voxel",
-    "banc"
+    "banc",
+    "moon"
   ],
   "portals": [
     {
@@ -56,12 +57,12 @@
   "shell": {
     "width": 36,
     "depth": 44,
-    "height": 6,
+    "height": 8,
     "color": "#1c1c2b"
   },
   "keyLight": {
     "color": "#c4b8ff",
-    "intensity": 2.2,
+    "intensity": 2.6,
     "azimuth": 40,
     "elevation": 60
   },
@@ -73,6 +74,22 @@
       "width": 6,
       "height": 2.6,
       "sill": 0.9,
+      "anchor": {
+        "position": [
+          0,
+          1.8,
+          10
+        ],
+        "rotationY": 0
+      }
+    },
+    {
+      "room": "couloir-est",
+      "wall": "est",
+      "offset": -10,
+      "width": 4,
+      "height": 2,
+      "sill": 4.8,
       "anchor": {
         "position": [
           0,

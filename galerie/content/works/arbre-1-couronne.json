@@ -1,11 +1,11 @@
 {
-  "id": "chemin-allee",
-  "title": "Chemin",
+  "id": "arbre-1-couronne",
+  "title": "Arbre",
   "description": "",
   "position": [
-    0,
-    0.03,
-    0
+    -12,
+    3.1,
+    -8
   ],
   "rotation": [
     0,
@@ -13,18 +13,18 @@
     0
   ],
   "scale": [
-    3,
-    0.06,
-    26
+    2.6,
+    2.1,
+    2.6
   ],
   "modules": [],
   "role": "decor",
   "model": {
-    "shape": "box",
-    "color": "#3c3c30",
+    "shape": "sphere",
+    "color": "#2e5a34",
     "roughness": 1,
-    "metalness": 0,
-    "emissive": 0.05
+    "metalness": 0.0,
+    "emissive": 0.03
   },
   "lightIntensity": 0
 }
