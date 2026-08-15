@@ -34,6 +34,8 @@ const _mat = new THREE.Matrix4();
 const _inv = new THREE.Matrix4();
 const _scale = new THREE.Vector3();
 const _pos = new THREE.Vector3();
+const _dir = new THREE.Vector3();
+const _toCam = new THREE.Vector3();
 
 export class VistaManager {
   constructor(app) {
@@ -59,9 +61,11 @@ export class VistaManager {
 
   dispose(room) {
     for (const v of room.vistas ?? []) {
-      v.mesh.geometry.dispose();
-      v.mesh.material.map?.dispose?.();
-      v.mesh.material.dispose();
+      v.mesh.traverse((o) => {
+        o.geometry?.dispose();
+        o.material?.map?.dispose?.();
+        o.material?.dispose?.();
+      });
       v.rt?.dispose();
     }
     room.vistas = [];
@@ -89,7 +93,10 @@ export class VistaManager {
 
     let material, rt = null;
     if (this.live && this.app.renderer) {
-      const px = Math.min(220, 1024 / Math.max(bw, bh));
+      // Résolution volontairement modeste : l'apparition est une lucarne
+      // vers ailleurs, pas un miroir 4K — et chaque texel se paie à chaque
+      // frame. Le léger flou participe d'ailleurs à l'irréel.
+      const px = Math.min(96, 512 / Math.max(bw, bh));
       rt = new THREE.WebGLRenderTarget(
         Math.round(bw * px), Math.round(bh * px),
         { samples: 0 }
@@ -114,6 +121,24 @@ export class VistaManager {
     mesh.rotation.y = THREE.MathUtils.degToRad(f.rotY);
     mesh.userData.ignoreRaycast = true;
     mesh.name = `apparition-${cfg.room}`;
+
+    // Cadre : sans lui, l'apparition se lit comme une tache — avec lui,
+    // comme une baie. Teinte de portail : c'est de la même magie.
+    const frameMat = new THREE.MeshStandardMaterial({
+      color: 0x241f38, roughness: 0.5, metalness: 0.3,
+      emissive: 0x9f8cff, emissiveIntensity: 0.35
+    });
+    const T = 0.14, D = 0.3;
+    const bar = (bx, by, x, y) => {
+      const b = new THREE.Mesh(new THREE.BoxGeometry(bx, by, D), frameMat);
+      b.position.set(x, y, 0);
+      b.userData.ignoreRaycast = true;
+      mesh.add(b);
+    };
+    bar(bw + 2 * T, T, 0, bh / 2 + T / 2);   // linteau
+    bar(bw + 2 * T, T, 0, -bh / 2 - T / 2);  // appui
+    bar(T, bh, -bw / 2 - T / 2, 0);          // montants
+    bar(T, bh, bw / 2 + T / 2, 0);
     return { cfg, mesh, rt };
   }
 
@@ -127,10 +152,24 @@ export class VistaManager {
     if (!this.live || !this.app.renderer) return;
     const rooms = this.app.rooms;
     const current = rooms?.current;
-    const vistas = (current?.vistas ?? []).filter((v) => v.rt);
+    // pas de rendu d'apparition pendant un warp : la frame est déjà chère
+    if (rooms?._transitioning) return;
+    // une frame sur deux suffit : l'œil pardonne 30 Hz à une lucarne,
+    // pas une galerie qui saccade
+    this._beat = !this._beat;
+    if (this._beat) return;
+    const camWorld = this.app.camera;
+    const vistas = (current?.vistas ?? []).filter((v) => {
+      if (!v.rt) return false;
+      // hors de portée ou vue de dos : rien à rafraîchir
+      v.mesh.getWorldPosition(_pos);
+      if (_pos.distanceToSquared(camWorld.position) > 1600) return false;
+      _dir.set(0, 0, 1).transformDirection(v.mesh.matrixWorld);
+      _toCam.copy(camWorld.position).sub(_pos);
+      return _dir.dot(_toCam) > 0;
+    });
     if (!vistas.length) return;
 
-    const camWorld = this.app.camera;
     this._turn = ((this._turn ?? -1) + 1) % vistas.length;
     const vista = vistas[this._turn];
     const target = rooms.get(vista.cfg.room);

@@ -213,6 +213,42 @@ export class UI {
    * n'apparaît que s'il y a effectivement quelque chose à citer — une scène
    * entièrement personnelle ne s'encombre de rien.
    */
+  /**
+   * Badge de pièce (haut-gauche) : un petit bouton rond qui ouvre le menu
+   * de la visite — Échap reste, mais le menu a désormais une porte
+   * VISIBLE — et le nom de la pièce courante à côté : on sait toujours
+   * où l'on est. Alimenté par RoomManager à chaque changement de pièce.
+   */
+  mountRoomBadge(app) {
+    const el = document.createElement('div');
+    el.id = 'room-badge';
+    el.hidden = true; // apparaît avec le premier titre de pièce
+    const btn = document.createElement('button');
+    btn.id = 'room-menu-btn';
+    btn.type = 'button';
+    btn.textContent = '☰';
+    const name = document.createElement('span');
+    name.id = 'room-badge-name';
+    el.append(btn, name);
+    document.body.appendChild(el);
+    this._roomBadge = el;
+    this._roomBadgeName = name;
+    const label = () => btn.setAttribute('aria-label', t('menu.open'));
+    label();
+    onLangChange(label);
+    btn.addEventListener('click', async () => {
+      const { mountVisitMenu } = await import('./VisitMenu.js');
+      mountVisitMenu(app);
+    });
+  }
+
+  /** Met à jour le nom de pièce du badge (masqué tant qu'il n'y en a pas). */
+  setRoomTitle(title) {
+    if (!this._roomBadgeName) return;
+    this._roomBadgeName.textContent = title ?? '';
+    this._roomBadge.hidden = !title;
+  }
+
   setCredits(works) {
     // mémorisé : un changement de langue re-rend la liste (mention de
     // plateforme et « auteur non précisé » sont traduits, le LIEN reste)

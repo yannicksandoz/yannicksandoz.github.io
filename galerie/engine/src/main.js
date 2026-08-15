@@ -57,6 +57,7 @@ async function boot() {
   const app = new App(document.getElementById('app'));
   app.ui = new UI();
   app.ui.bindLoading(app.loading);
+  app.ui.mountRoomBadge(app);
   app.controls = new Controls(app);
   app.rooms = new RoomManager(app);
 

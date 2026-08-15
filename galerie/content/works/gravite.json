@@ -4,7 +4,7 @@
   "description": "Un tore suspendu au centre d'une pièce qui n'a pas décidé où est le bas. Prenez les portails : chaque plan de la pièce devient tour à tour le sol.",
   "position": [
     0,
-    2.5,
+    2.75,
     0
   ],
   "rotation": [

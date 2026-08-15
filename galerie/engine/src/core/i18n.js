@@ -34,6 +34,7 @@ const FR = {
   'menu.keys.orbit': 'Orbiter — souris',
   'menu.keys.focus': 'Approcher une œuvre — clic, ou Espace sur ce qu\'on regarde · Reculer — Échap',
   'menu.lang': 'Langue',
+  'menu.open': 'Ouvrir le menu de la visite',
   'menu.resume': 'Reprendre la visite',
   'menu.label': 'Menu de la visite',
 
@@ -83,6 +84,7 @@ const EN = {
   'menu.keys.orbit': 'Orbit — mouse',
   'menu.keys.focus': 'Approach a work — click, or Space on what you are looking at · Step back — Escape',
   'menu.lang': 'Language',
+  'menu.open': 'Open the visit menu',
   'menu.resume': 'Resume the visit',
   'menu.label': 'Visit menu',
 

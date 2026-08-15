@@ -4,28 +4,36 @@
   "spawn": [
     0,
     2.2,
-    3
+    5.5
   ],
   "fogColor": "#0a0410",
   "floor": {
-    "size": 16,
-    "color": "#16101e",
-    "grid": false
+    "size": 22,
+    "color": "#14101c",
+    "grid": true,
+    "gridColor": "#4a4472"
   },
   "shell": {
-    "width": 14,
-    "depth": 14,
-    "height": 5,
-    "color": "#221a30",
-    "ceiling": true
+    "width": 20,
+    "depth": 20,
+    "height": 5.5,
+    "color": "#241c34",
+    "ceiling": true,
+    "wallColors": {
+      "nord": "#2a3a68",
+      "sud": "#6a3a30",
+      "est": "#2e5a3a",
+      "ouest": "#6a5326",
+      "plafond": "#3a2a58"
+    }
   },
   "keyLight": {
     "color": "#d8a8ff",
-    "intensity": 1.7,
+    "intensity": 1.9,
     "azimuth": 300,
     "elevation": 55
   },
-  "envIntensity": 0.9,
+  "envIntensity": 1.1,
   "works": [
     "gravite",
     "lanterne-belvedere-sol",
@@ -38,7 +46,7 @@
       "position": [
         0,
         0,
-        6
+        9
       ],
       "rotationY": 180,
       "label": "Couloir",
@@ -52,7 +60,7 @@
       "to": "belvedere",
       "plane": "est",
       "position": [
-        4.5,
+        7,
         0,
         0
       ],
@@ -61,15 +69,15 @@
       "arrival": [
         0,
         2.2,
-        3
+        5
       ]
     },
     {
       "to": "belvedere",
       "plane": "plafond",
       "position": [
-        6.8,
-        3.5,
+        9.8,
+        4,
         0
       ],
       "rotation": [
@@ -81,7 +89,7 @@
       "arrival": [
         0,
         2.2,
-        3
+        5
       ]
     },
     {
@@ -89,8 +97,8 @@
       "plane": "sol",
       "position": [
         0,
-        4.9,
-        -3
+        5.3,
+        -4
       ],
       "rotation": [
         180,
@@ -101,7 +109,7 @@
       "arrival": [
         0,
         2.2,
-        3
+        5
       ]
     }
   ]

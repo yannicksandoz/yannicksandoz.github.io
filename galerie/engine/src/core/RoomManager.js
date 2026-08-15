@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { assetUrl } from './utils.js';
 
 const PORTAL_COLOR = 0x9f8cff;
+const REARM_DIST2 = 7; // (m²) zone à quitter pour réarmer un portail d'arrivée
 const _worldPos = new THREE.Vector3(); // tampons du test de proximité
 const _worldUp = new THREE.Vector3();
 
@@ -245,6 +246,10 @@ export class RoomManager {
     this.orientRoom(room, plane);
     this._applyPolicy();
     this._placeCamera(arrival ?? room.config.spawn ?? [0, 2.2, 10]);
+    // Un portail dans lequel on ATTERRIT est désarmé : il ne se re-déclenche
+    // qu'une fois sa zone quittée — sinon, arrivée près du portail de retour
+    // = renvoi immédiat d'où l'on vient.
+    this._disarmPortalsNearCamera();
 
     if (!instant) {
       await wait(120);
@@ -287,6 +292,17 @@ export class RoomManager {
       // arrive. Une frame de marge pour finir proprement.
       setTimeout(finish, ms + 130);
     });
+  }
+
+  /** Désarme les portails de la pièce courante trop proches de la caméra. */
+  _disarmPortalsNearCamera() {
+    const cam = this.app.camera.position;
+    for (const mesh of this.current?.portalMeshes ?? []) {
+      const p = mesh.localToWorld(_worldPos.set(0, 1.35, 0));
+      const dx = cam.x - p.x;
+      const dz = cam.z - p.z;
+      mesh.userData.disarmed = (dx * dx + dz * dz) < REARM_DIST2;
+    }
   }
 
   _placeCamera(pos) {
@@ -336,6 +352,9 @@ export class RoomManager {
       this.app.scene.background.set(fog);
     }
     this.applyEnvIntensity();
+    // le badge (haut-gauche) affiche toujours la pièce où l'on se trouve
+    this.app.ui?.setRoomTitle?.(
+      this.current?.config.title ?? this.current?.config.id);
   }
 
   /* ---------------------------------------------------------- ambiance --- */
@@ -425,7 +444,14 @@ export class RoomManager {
       const dx = ctx.cameraPos.x - p.x;
       const dz = ctx.cameraPos.z - p.z;
       const dy = ctx.cameraPos.y - p.y;
-      if (dx * dx + dz * dz < 2.6 && Math.abs(dy) < 1.25) {
+      const d2 = dx * dx + dz * dz;
+      // un portail désarmé (on a atterri dedans) se réarme en QUITTANT sa
+      // zone — hystérésis : le rayon de réarmement dépasse celui d'entrée
+      if (mesh.userData.disarmed) {
+        if (d2 > REARM_DIST2) mesh.userData.disarmed = false;
+        continue;
+      }
+      if (d2 < 2.6 && Math.abs(dy) < 1.25) {
         this.traverse(mesh.userData.portal);
         return;
       }
@@ -534,6 +560,13 @@ function disposeFloor(group) {
  * plafond en option — d'un pavillon ouvert sur trois côtés à la boîte
  * close d'une pièce à la Escher.
  *
+ * `wallColors` teinte chaque face indépendamment (murs et plafond) :
+ *   "wallColors": { "nord": "#2a3a68", "est": "#2e5a3a", "plafond": "#3a2a58" }
+ * C'est la boussole des pièces Escher — quand le mur vert devient le sol,
+ * on SAIT qu'on a changé de plan. Les fenêtres portent un cadre
+ * (`frameColor`) légèrement saillant et lumineux : une baie se lit comme
+ * une baie, pas comme un trou.
+ *
  * Les fenêtres sont des baies percées dans un mur (nord = fond -z, sud =
  * face +z, est = +x, ouest = -x ; offset le long du mur depuis son centre).
  * Il n'y a pas de vitre : elles donnent sur l'espace — le ciel étoilé et
@@ -587,6 +620,19 @@ function wallSegments(length, height, windows) {
   return parts;
 }
 
+/** Rectangles de baies clampés au mur (mêmes règles que wallSegments). */
+function windowRects(length, height, windows) {
+  return (windows ?? [])
+    .map((f) => {
+      const from = Math.max(-length / 2, (f.offset ?? 0) - (f.width ?? 4) / 2);
+      const to = Math.min(length / 2, (f.offset ?? 0) + (f.width ?? 4) / 2);
+      const sill = Math.max(0, Math.min(height - 0.2, f.sill ?? 1.1));
+      const top = Math.min(height, (f.sill ?? 1.1) + (f.height ?? 1.8));
+      return { c: (from + to) / 2, wl: to - from, sill, top };
+    })
+    .filter((r) => r.wl > 0);
+}
+
 export function buildShell(config) {
   const s = config?.shell;
   if (!s || s === false) return null;
@@ -597,12 +643,24 @@ export function buildShell(config) {
 
   const group = new THREE.Group();
   group.name = 'coque';
-  const mat = new THREE.MeshStandardMaterial({
-    color: new THREE.Color(opt.color ?? SHELL_DEFAULTS.color),
-    roughness: 0.88, metalness: 0.04
+  const materials = new Map(); // une couleur = un matériau, partagé
+  const matFor = (face) => {
+    const color = opt.wallColors?.[face] ?? opt.color ?? SHELL_DEFAULTS.color;
+    if (!materials.has(color)) {
+      materials.set(color, new THREE.MeshStandardMaterial({
+        color: new THREE.Color(color), roughness: 0.88, metalness: 0.04
+      }));
+    }
+    return materials.get(color);
+  };
+  const frameMat = new THREE.MeshStandardMaterial({
+    color: new THREE.Color(opt.frameColor ?? '#4a4668'),
+    roughness: 0.55, metalness: 0.25,
+    emissive: new THREE.Color(opt.frameColor ?? '#4a4668'),
+    emissiveIntensity: 0.3
   });
 
-  const box = (gw, gh, gd, x, y, z) => {
+  const box = (gw, gh, gd, x, y, z, mat) => {
     const m = new THREE.Mesh(new THREE.BoxGeometry(gw, gh, gd), mat);
     m.position.set(x, y, z);
     m.receiveShadow = true;
@@ -612,31 +670,53 @@ export function buildShell(config) {
 
   const has = (wall) => !Array.isArray(opt.walls) || opt.walls.includes(wall);
   const winsOf = (wall) => (opt.windows ?? []).filter((f) => f.wall === wall);
-  // fond (-z) et face (+z) : segments le long de x
-  if (has('nord')) for (const p of wallSegments(w + WALL_T, h, winsOf('nord'))) {
-    box(p.len, p.h, WALL_T, p.c, p.y, -d / 2);
-  }
-  if (has('sud')) for (const p of wallSegments(w + WALL_T, h, winsOf('sud'))) {
-    box(p.len, p.h, WALL_T, p.c, p.y, d / 2);
+  const FT = 0.12;              // section du cadre de fenêtre
+  const FD = WALL_T + 0.14;     // il déborde du mur : on le voit de biais
+
+  // fond (-z) et face (+z) : segments le long de x, cadres autour des baies
+  for (const [wall, zPos] of [['nord', -d / 2], ['sud', d / 2]]) {
+    if (!has(wall)) continue;
+    const wins = winsOf(wall);
+    for (const p of wallSegments(w + WALL_T, h, wins)) {
+      box(p.len, p.h, WALL_T, p.c, p.y, zPos, matFor(wall));
+    }
+    for (const r of windowRects(w + WALL_T, h, wins)) {
+      const mid = (r.sill + r.top) / 2, wh = r.top - r.sill;
+      box(r.wl + 2 * FT, FT, FD, r.c, r.top + FT / 2, zPos, frameMat);
+      box(r.wl + 2 * FT, FT, FD, r.c, r.sill - FT / 2, zPos, frameMat);
+      box(FT, wh, FD, r.c - r.wl / 2 - FT / 2, mid, zPos, frameMat);
+      box(FT, wh, FD, r.c + r.wl / 2 + FT / 2, mid, zPos, frameMat);
+    }
   }
   // gauche (-x) et droite (+x) : segments le long de z
-  if (has('ouest')) for (const p of wallSegments(d - WALL_T, h, winsOf('ouest'))) {
-    box(WALL_T, p.h, p.len, -w / 2, p.y, p.c);
-  }
-  if (has('est')) for (const p of wallSegments(d - WALL_T, h, winsOf('est'))) {
-    box(WALL_T, p.h, p.len, w / 2, p.y, p.c);
+  for (const [wall, xPos] of [['ouest', -w / 2], ['est', w / 2]]) {
+    if (!has(wall)) continue;
+    const wins = winsOf(wall);
+    for (const p of wallSegments(d - WALL_T, h, wins)) {
+      box(WALL_T, p.h, p.len, xPos, p.y, p.c, matFor(wall));
+    }
+    for (const r of windowRects(d - WALL_T, h, wins)) {
+      const mid = (r.sill + r.top) / 2, wh = r.top - r.sill;
+      box(FD, FT, r.wl + 2 * FT, xPos, r.top + FT / 2, r.c, frameMat);
+      box(FD, FT, r.wl + 2 * FT, xPos, r.sill - FT / 2, r.c, frameMat);
+      box(FD, wh, FT, xPos, mid, r.c - r.wl / 2 - FT / 2, frameMat);
+      box(FD, wh, FT, xPos, mid, r.c + r.wl / 2 + FT / 2, frameMat);
+    }
   }
 
   if (opt.ceiling) {
-    box(w + WALL_T, WALL_T, d + WALL_T, 0, h + WALL_T / 2, 0);
+    box(w + WALL_T, WALL_T, d + WALL_T, 0, h + WALL_T / 2, 0, matFor('plafond'));
   }
   return group;
 }
 
 function disposeShell(group) {
-  group.traverse((o) => { o.geometry?.dispose(); });
-  // matériau partagé par tous les murs : une seule libération suffit
-  group.children[0]?.material?.dispose();
+  const mats = new Set();
+  group.traverse((o) => {
+    o.geometry?.dispose();
+    if (o.material) mats.add(o.material);
+  });
+  for (const m of mats) m.dispose();
 }
 
 /* ------------------------------------------------------ modèles de pièce --- */
