@@ -4,19 +4,19 @@
   "spawn": [
     0,
     2.2,
-    5.5
+    24
   ],
   "fogColor": "#0a0410",
   "floor": {
-    "size": 22,
+    "size": 84,
     "color": "#14101c",
     "grid": true,
     "gridColor": "#4a4472"
   },
   "shell": {
-    "width": 20,
-    "depth": 20,
-    "height": 5.5,
+    "width": 80.0,
+    "depth": 80.0,
+    "height": 21.0,
     "color": "#241c34",
     "ceiling": true,
     "wallColors": {
@@ -29,16 +29,82 @@
   },
   "keyLight": {
     "color": "#d8a8ff",
-    "intensity": 1.9,
+    "intensity": 2.4,
     "azimuth": 300,
-    "elevation": 55
+    "elevation": 62
   },
-  "envIntensity": 1.1,
+  "envIntensity": 1.15,
   "works": [
-    "gravite",
+    "escalier-r1",
+    "escalier-r2",
+    "escalier-r3",
+    "escalier-r4",
+    "escalier-r5",
     "lanterne-belvedere-sol",
     "lanterne-belvedere-est",
-    "stele-belvedere"
+    "lanterne-belvedere-plafond",
+    "stele-belvedere",
+    "banc-belvedere",
+    "gravite"
+  ],
+  "bascules": [
+    {
+      "position": [
+        38.6,
+        20.0,
+        8.0
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "radius": 1.8,
+      "plane": "est",
+      "arrival": [
+        20.0,
+        3.7,
+        8.0
+      ]
+    },
+    {
+      "position": [
+        20.0,
+        20.0,
+        -6.0
+      ],
+      "rotation": [
+        -0.0,
+        0.0,
+        90.0
+      ],
+      "radius": 1.8,
+      "plane": "plafond",
+      "arrival": [
+        20.0,
+        3.3,
+        6.0
+      ]
+    },
+    {
+      "position": [
+        -8.0,
+        1.0,
+        0.7
+      ],
+      "rotation": [
+        -180.0,
+        0.0,
+        0.0
+      ],
+      "radius": 1.8,
+      "plane": "sol",
+      "arrival": [
+        -8.0,
+        3.3,
+        0.7
+      ]
+    }
   ],
   "portals": [
     {
@@ -46,7 +112,7 @@
       "position": [
         0,
         0,
-        9
+        30
       ],
       "rotationY": 180,
       "label": "Couloir",
@@ -54,62 +120,6 @@
         0,
         2.2,
         -6
-      ]
-    },
-    {
-      "to": "belvedere",
-      "plane": "est",
-      "position": [
-        7,
-        0,
-        0
-      ],
-      "rotationY": -90,
-      "label": "Mur est",
-      "arrival": [
-        0,
-        2.2,
-        5
-      ]
-    },
-    {
-      "to": "belvedere",
-      "plane": "plafond",
-      "position": [
-        9.8,
-        4,
-        0
-      ],
-      "rotation": [
-        0,
-        0,
-        90
-      ],
-      "label": "Plafond",
-      "arrival": [
-        0,
-        2.2,
-        5
-      ]
-    },
-    {
-      "to": "belvedere",
-      "plane": "sol",
-      "position": [
-        0,
-        5.3,
-        -4
-      ],
-      "rotation": [
-        180,
-        0,
-        0
-      ],
-      "label": "Sol",
-      "arrival": [
-        0,
-        2.2,
-        5
       ]
     }
   ]

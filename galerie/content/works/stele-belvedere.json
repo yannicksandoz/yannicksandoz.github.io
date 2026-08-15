@@ -3,14 +3,14 @@
   "title": "Stèle",
   "description": "",
   "position": [
-    3,
-    4.85,
-    -3
+    -4.0,
+    20.35,
+    -4.0
   ],
   "rotation": [
-    180,
-    0,
-    0
+    -180.0,
+    20.0,
+    0.0
   ],
   "scale": [
     0.9,
@@ -26,6 +26,7 @@
     "metalness": 0.1,
     "emissive": 0.08
   },
+  "lightIntensity": 0.8,
   "lightColor": "#b090e0",
-  "lightIntensity": 1
+  "loadDistance": 95
 }

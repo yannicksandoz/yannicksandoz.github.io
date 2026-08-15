@@ -51,6 +51,8 @@ export class RoomManager {
     if (room.shell) room.group.add(room.shell);
     room.keyLight = buildKeyLight(config, this.app.quality?.profile);
     if (room.keyLight) room.group.add(room.keyLight);
+    room.basculeMeshes = buildBascules(config);
+    for (const m of room.basculeMeshes) room.group.add(m);
     this.app.vistas?.build(room);
     this.app.scene.add(room.group);
     this.rooms.set(config.id, room);
@@ -117,6 +119,95 @@ export class RoomManager {
     }
     g.updateMatrixWorld(true);
     room.plane = plane;
+  }
+
+  /**
+   * Surfaces sur lesquelles on peut MARCHER dans la pièce courante : le
+   * sol, la coque (un mur devenu sol à la Escher se foule), et les objets
+   * marqués `walkable: true` — les escaliers. C'est ce que le suivi de
+   * sol des contrôles interroge chaque frame.
+   */
+  walkables() {
+    const room = this.current;
+    if (!room) return [];
+    const list = [];
+    if (room.floor) for (const c of room.floor.children) if (c.isMesh) list.push(c);
+    room.shell?.traverse((o) => { if (o.isMesh) list.push(o); });
+    for (const a of room.artworks) {
+      if (a.config.walkable && a.mesh) list.push(a.mesh);
+    }
+    return list;
+  }
+
+  /**
+   * Bascule de plan — la transition Escher CONTINUE, réservée aux hauts
+   * d'escaliers : pas de warp, pas de fondu — le monde pivote autour du
+   * visiteur pendant ~1,6 s, et le mur qu'il longeait devient son sol.
+   * La continuité est garantie par la construction : un escalier qui
+   * ABOUTIT au mur cible place déjà le visiteur, après rotation, au ras
+   * du nouveau sol — la caméra glisse à peine.
+   */
+  basculer(room, cfg) {
+    if (this._transitioning) return;
+    this._transitioning = true;
+    this.app.activeFocus?.cancel?.();
+    if (this.app.controls) this.app.controls.locked = true;
+
+    const g = room.group;
+    const q0 = g.quaternion.clone();
+    const p0 = g.position.clone();
+    this.orientRoom(room, cfg.plane ?? 'sol'); // mesure l'état final…
+    const q1 = g.quaternion.clone();
+    const p1 = g.position.clone();
+    g.quaternion.copy(q0); // …puis repart de l'état présent
+    g.position.copy(p0);
+    g.updateMatrixWorld(true);
+
+    const cam = this.app.camera;
+    const dir = new THREE.Vector3();
+    cam.getWorldDirection(dir);
+    this._bascule = {
+      room, q0, q1, p0, p1,
+      c0: cam.position.clone(),
+      c1: new THREE.Vector3(...(cfg.arrival ?? [0, 2.2, 0])),
+      dir, t: 0, dur: cfg.duration ?? 1.6
+    };
+  }
+
+  /** Fait avancer la bascule en cours. Rend true tant qu'elle anime. */
+  _tickBascule(dt) {
+    const b = this._bascule;
+    if (!b) return false;
+    b.t += dt;
+    const k = Math.min(1, b.t / b.dur);
+    const e = k < 0.5 ? 4 * k * k * k : 1 - ((-2 * k + 2) ** 3) / 2;
+    b.room.group.quaternion.slerpQuaternions(b.q0, b.q1, e);
+    b.room.group.position.lerpVectors(b.p0, b.p1, e);
+    b.room.group.updateMatrixWorld(true);
+    const cam = this.app.camera;
+    cam.position.lerpVectors(b.c0, b.c1, e);
+    // le regard garde sa direction : c'est le MONDE qui tourne, pas la tête
+    this.app.controls?.orbit.target.copy(cam.position).addScaledVector(b.dir, 4);
+    if (k >= 1) {
+      this._bascule = null;
+      this._transitioning = false;
+      if (this.app.controls) this.app.controls.locked = false;
+      this._cooldown = 1.2;
+      this._disarmPortalsNearCamera();
+      this._disarmBasculesNearCamera();
+    }
+    return true;
+  }
+
+  _disarmBasculesNearCamera() {
+    const cam = this.app.camera.position;
+    for (const mesh of this.current?.basculeMeshes ?? []) {
+      const r = (mesh.userData.bascule.radius ?? 1.7) * 1.6;
+      mesh.getWorldPosition(_worldPos);
+      const dx = cam.x - _worldPos.x;
+      const dz = cam.z - _worldPos.z;
+      mesh.userData.disarmed = (dx * dx + dz * dz) < r * r;
+    }
   }
 
   /** Intensité d'environnement (IBL) : profil de qualité × réglage de pièce. */
@@ -189,6 +280,10 @@ export class RoomManager {
       if (room.floor) disposeFloor(room.floor);
       if (room.shell) disposeShell(room.shell);
       if (room.keyLight) disposeKeyLight(room.keyLight);
+      for (const m of room.basculeMeshes ?? []) {
+        m.geometry.dispose();
+        m.material.dispose();
+      }
       this.app.vistas?.dispose(room);
       room.group.removeFromParent();
     }
@@ -422,6 +517,7 @@ export class RoomManager {
   /* ------------------------------------------------------------- cycle --- */
 
   update(dt, ctx) {
+    if (this._tickBascule(dt)) return; // une bascule en cours pilote tout
     if (this._cooldown > 0) this._cooldown -= dt;
     if (!this.current || this._transitioning || this._cooldown > 0) return;
     if (this.app.editor?.enabled) return; // pas de téléportation en édition
@@ -453,6 +549,28 @@ export class RoomManager {
       }
       if (d2 < 2.6 && Math.abs(dy) < 1.25) {
         this.traverse(mesh.userData.portal);
+        return;
+      }
+    }
+    // zones de bascule (hauts d'escaliers) : mêmes règles de désarmement
+    for (const mesh of this.current.basculeMeshes ?? []) {
+      // un anneau n'agit que depuis SON plan : face tournée vers le haut.
+      // Celui du plafond, vu du sol, pend à l'envers — décor, pas piège.
+      _worldUp.set(0, 0, 1).transformDirection(mesh.matrixWorld);
+      if (_worldUp.y < 0.7) continue;
+      const cfg = mesh.userData.bascule;
+      const r = cfg.radius ?? 1.7;
+      const c = mesh.getWorldPosition(_worldPos);
+      const dx = ctx.cameraPos.x - c.x;
+      const dz = ctx.cameraPos.z - c.z;
+      const dy = ctx.cameraPos.y - c.y;
+      const d2 = dx * dx + dz * dz;
+      if (mesh.userData.disarmed) {
+        if (d2 > (r * 1.6) ** 2) mesh.userData.disarmed = false;
+        continue;
+      }
+      if (d2 < r * r && dy > 0 && dy < 3.2) {
+        this.basculer(this.current, cfg);
         return;
       }
     }
@@ -842,6 +960,42 @@ function disposeKeyLight(group) {
   const light = group.userData.light;
   light.shadow?.map?.dispose();
   light.dispose();
+}
+
+/* ------------------------------------------------------ zones de bascule --- */
+
+/**
+ * Anneau lumineux au sol : la marque d'une bascule de plan. Configurable
+ * par pièce :
+ *   "bascules": [ { "position": [x, y, z], "rotation": [0, 0, 0],
+ *                   "radius": 1.7, "plane": "est", "arrival": [x, y, z] } ]
+ * `rotation` couche l'anneau sur le plan auquel il appartient (un anneau
+ * du mur est s'auteure [0, 0, 90], comme les portails Escher).
+ */
+export function buildBascules(config) {
+  return (config?.bascules ?? []).map((cfg) => {
+    const r = cfg.radius ?? 1.7;
+    const mesh = new THREE.Mesh(
+      new THREE.TorusGeometry(r * 0.72, 0.07, 10, 44),
+      new THREE.MeshStandardMaterial({
+        color: 0x0c0c14, roughness: 0.35, metalness: 0.5,
+        emissive: PORTAL_COLOR, emissiveIntensity: 0.9
+      })
+    );
+    const [rx, ry, rz] = cfg.rotation ?? [0, 0, 0];
+    mesh.rotation.set(
+      THREE.MathUtils.degToRad(rx),
+      THREE.MathUtils.degToRad(ry),
+      THREE.MathUtils.degToRad(rz)
+    );
+    mesh.rotateX(-Math.PI / 2); // à plat sur son plan
+    mesh.position.set(cfg.position[0], (cfg.position[1] ?? 0), cfg.position[2]);
+    mesh.translateZ(0.08); // léger décollement : pas de z-fighting avec le sol
+    mesh.userData.bascule = cfg;
+    mesh.userData.ignoreRaycast = true;
+    mesh.name = 'bascule';
+    return mesh;
+  });
 }
 
 /* ------------------------------------------------------- mesh de portail --- */

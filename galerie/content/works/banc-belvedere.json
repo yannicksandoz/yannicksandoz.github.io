@@ -1,0 +1,35 @@
+{
+  "id": "banc-belvedere",
+  "title": "Banc",
+  "description": "",
+  "position": [
+    40.0,
+    6.0,
+    -2.0
+  ],
+  "rotation": [
+    -45.0,
+    0.0,
+    90.0
+  ],
+  "scale": [
+    1,
+    1,
+    1
+  ],
+  "modules": [],
+  "role": "decor",
+  "model": {
+    "type": "gltf",
+    "url": "library/models/banc.glb",
+    "fit": 1.8,
+    "source": "library"
+  },
+  "lightIntensity": 0,
+  "credit": {
+    "author": "Galerie",
+    "license": "CC0-1.0",
+    "sourceUrl": "https://github.com/yannicksandoz/yannicksandoz.github.io"
+  },
+  "loadDistance": 95
+}

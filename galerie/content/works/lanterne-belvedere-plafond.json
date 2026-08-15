@@ -1,14 +1,14 @@
 {
-  "id": "lanterne-belvedere-sol",
+  "id": "lanterne-belvedere-plafond",
   "title": "Lanterne",
   "description": "",
   "position": [
-    -8.0,
-    0.88,
-    20.0
+    6.0,
+    20.12,
+    -8.0
   ],
   "rotation": [
-    -0.0,
+    -180.0,
     0.0,
     0.0
   ],

@@ -19,6 +19,9 @@ import { damp } from '../core/utils.js';
  */
 const YAW_SPEED = THREE.MathUtils.degToRad(120);
 const UP = new THREE.Vector3(0, 1, 0);
+const DOWN = new THREE.Vector3(0, -1, 0);
+const EYE = 2.2; // hauteur des yeux au-dessus du sol foulé
+const _rayOrigin = new THREE.Vector3();
 export class Controls {
   constructor(app) {
     this.app = app;
@@ -42,6 +45,8 @@ export class Controls {
     this._keys = new Set();
     this._joyVec = new THREE.Vector2();
     this._yawVel = 0; // vitesse de pivot courante (lissée)
+    this._groundRay = new THREE.Raycaster();
+    this._groundRay.far = 40;
 
     window.addEventListener('keydown', (e) => {
       if (e.target.matches('input, textarea, select')) return;
@@ -140,7 +145,37 @@ export class Controls {
         this.orbit.target.add(move);
       }
     }
+    this._followGround(dt);
     this.orbit.enabled = !this.locked && !this.dragging;
     this.orbit.update();
+  }
+
+  /**
+   * Suivi du sol : la caméra épouse ce qu'elle foule — plancher, mur devenu
+   * sol (Escher) et surtout ESCALIERS (`walkable: true` sur l'objet). Un
+   * rayon part des genoux vers le bas ; la hauteur d'yeux est lissée, les
+   * marches deviennent une pente douce. Le rayon part BAS (60 cm au-dessus
+   * des yeux) : une volée d'escalier qui passe au-dessus de la tête ne doit
+   * pas nous téléporter dessus.
+   */
+  _followGround(dt) {
+    const app = this.app;
+    if (this.locked || this.suspended || this.dragging) return;
+    if (app.editor?.enabled) return;          // en édition, on vole
+    if (app.rooms?._transitioning) return;    // une bascule pilote la caméra
+    const targets = app.rooms?.walkables?.() ?? [];
+    if (!targets.length) return;
+    const cam = app.camera.position;
+    _rayOrigin.set(cam.x, cam.y + 0.6, cam.z);
+    this._groundRay.set(_rayOrigin, DOWN);
+    const hit = this._groundRay.intersectObjects(targets, false)[0];
+    if (!hit) return; // hors de tout : on garde l'altitude
+    const eye = hit.point.y + EYE;
+    const y = damp(cam.y, eye, 9, dt);
+    const dy = y - cam.y;
+    if (Math.abs(dy) > 1e-4) {
+      cam.y = y;
+      this.orbit.target.y += dy;
+    }
   }
 }
