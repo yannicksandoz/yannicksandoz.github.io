@@ -72,5 +72,6 @@
     ]
   },
   "lightColor": "#aab4e8",
-  "lightIntensity": 1.2
+  "lightIntensity": 1.2,
+  "walkable": true
 }

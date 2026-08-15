@@ -1,0 +1,32 @@
+{
+  "id": "lanterne-bel-nord-2",
+  "title": "Lanterne",
+  "description": "",
+  "position": [
+    -14.0,
+    26.0,
+    -38.9
+  ],
+  "rotation": [
+    90.0,
+    0.0,
+    0.0
+  ],
+  "scale": [
+    0.5,
+    1.2,
+    0.5
+  ],
+  "modules": [],
+  "role": "decor",
+  "model": {
+    "shape": "cylinder",
+    "color": "#e8dcff",
+    "roughness": 0.55,
+    "metalness": 0.0,
+    "emissive": 0.55
+  },
+  "lightIntensity": 3.2,
+  "loadDistance": 240,
+  "lightColor": "#cbb4ff"
+}

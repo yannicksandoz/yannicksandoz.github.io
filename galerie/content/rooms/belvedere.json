@@ -4,106 +4,122 @@
   "spawn": [
     0,
     2.2,
-    24
+    30
   ],
-  "fogColor": "#0a0410",
+  "fogColor": "#0b0614",
+  "fogDensity": 0.0075,
   "floor": {
-    "size": 84,
-    "color": "#14101c",
+    "size": 84.0,
+    "color": "#171226",
     "grid": true,
-    "gridColor": "#4a4472"
+    "gridColor": "#544c86"
   },
   "shell": {
     "width": 80.0,
     "depth": 80.0,
-    "height": 21.0,
+    "height": 80.0,
     "color": "#241c34",
     "ceiling": true,
     "wallColors": {
-      "nord": "#2a3a68",
-      "sud": "#6a3a30",
-      "est": "#2e5a3a",
-      "ouest": "#6a5326",
-      "plafond": "#3a2a58"
+      "nord": "#3a4a86",
+      "sud": "#7a3f34",
+      "est": "#35704c",
+      "ouest": "#7a6330",
+      "plafond": "#453163"
     }
   },
   "keyLight": {
-    "color": "#d8a8ff",
-    "intensity": 2.4,
-    "azimuth": 300,
-    "elevation": 62
+    "color": "#e0c4ff",
+    "intensity": 2.6,
+    "azimuth": 315,
+    "elevation": 58
   },
-  "envIntensity": 1.15,
+  "envIntensity": 1.35,
   "works": [
     "escalier-r1",
+    "palier-r1",
     "escalier-r2",
+    "palier-r2",
     "escalier-r3",
+    "palier-r3",
     "escalier-r4",
     "escalier-r5",
-    "lanterne-belvedere-sol",
-    "lanterne-belvedere-est",
-    "lanterne-belvedere-plafond",
-    "stele-belvedere",
+    "escalier-r6",
+    "palier-r4",
+    "palier-r5",
+    "lanterne-bel-sol-1",
+    "lanterne-bel-sol-2",
+    "lanterne-bel-sol-3",
+    "lanterne-bel-est-1",
+    "lanterne-bel-est-2",
+    "lanterne-bel-nord-1",
+    "lanterne-bel-nord-2",
+    "pilier-bel-1",
+    "pilier-bel-2",
+    "pilier-bel-3",
     "banc-belvedere",
     "gravite"
   ],
   "bascules": [
     {
       "position": [
-        38.6,
-        20.0,
-        8.0
+        38.3,
+        11.0,
+        10.0
       ],
       "rotation": [
         0.0,
         0.0,
         0.0
       ],
-      "radius": 1.8,
+      "radius": 2.2,
       "plane": "est",
       "arrival": [
-        20.0,
-        3.7,
-        8.0
-      ]
+        11.0,
+        3.9,
+        10.0
+      ],
+      "label": "Mur est"
     },
     {
       "position": [
-        20.0,
-        20.0,
-        -6.0
+        28.0,
+        11.0,
+        -38.6
       ],
       "rotation": [
         -0.0,
         0.0,
         90.0
       ],
-      "radius": 1.8,
-      "plane": "plafond",
+      "radius": 2.2,
+      "plane": "nord",
       "arrival": [
-        20.0,
-        3.3,
-        6.0
-      ]
+        28.0,
+        3.6,
+        -11.0
+      ],
+      "label": "Mur nord"
     },
     {
       "position": [
-        -8.0,
-        1.0,
-        0.7
+        22.0,
+        1.7,
+        -34.5
       ],
       "rotation": [
-        -180.0,
+        90.0,
         0.0,
         0.0
       ],
-      "radius": 1.8,
+      "radius": 2.2,
       "plane": "sol",
       "arrival": [
-        -8.0,
-        3.3,
-        0.7
-      ]
+        22.0,
+        3.9,
+        -34.5
+      ],
+      "label": "Sol"
     }
   ],
   "portals": [
@@ -112,7 +128,7 @@
       "position": [
         0,
         0,
-        30
+        34
       ],
       "rotationY": 180,
       "label": "Couloir",

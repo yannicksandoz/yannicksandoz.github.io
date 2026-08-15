@@ -1,0 +1,32 @@
+{
+  "id": "lanterne-bel-sol-2",
+  "title": "Lanterne",
+  "description": "",
+  "position": [
+    -20.0,
+    1.1,
+    12.0
+  ],
+  "rotation": [
+    -0.0,
+    0.0,
+    0.0
+  ],
+  "scale": [
+    0.5,
+    1.2,
+    0.5
+  ],
+  "modules": [],
+  "role": "decor",
+  "model": {
+    "shape": "cylinder",
+    "color": "#e8dcff",
+    "roughness": 0.55,
+    "metalness": 0.0,
+    "emissive": 0.55
+  },
+  "lightIntensity": 3.2,
+  "loadDistance": 240,
+  "lightColor": "#cbb4ff"
+}

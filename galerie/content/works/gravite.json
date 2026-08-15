@@ -1,10 +1,10 @@
 {
   "id": "gravite",
   "title": "Gravité",
-  "description": "Un tore suspendu au centre d'une pièce qui n'a pas décidé où est le bas. Montez les escaliers : au sommet, le monde pivote — le mur devient sol, et la pièce se relit entière.",
+  "description": "Un tore suspendu au centre d'un cube qui n'a pas décidé où est le bas. Trois escaliers, trois gravités : montez, et au sommet l'espace pivote autour de vous — le mur devient sol, la pièce se relit entière.",
   "position": [
     0,
-    10.5,
+    40.0,
     0
   ],
   "rotation": [
@@ -13,26 +13,26 @@
     20
   ],
   "scale": [
-    2.6,
-    2.6,
-    2.6
+    4,
+    4,
+    4
   ],
   "model": {
     "shape": "torus",
     "color": "#d8a8ff",
     "roughness": 0.35,
     "metalness": 0.5,
-    "emissive": 0.3
+    "emissive": 0.35
   },
   "lightColor": "#d8a8ff",
-  "lightIntensity": 6,
+  "lightIntensity": 9,
+  "loadDistance": 240,
   "modules": [
     {
       "type": "FocusCamera",
       "params": {
-        "distance": 9
+        "distance": 14
       }
     }
-  ],
-  "loadDistance": 95
+  ]
 }
