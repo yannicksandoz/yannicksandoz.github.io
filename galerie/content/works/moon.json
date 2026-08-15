@@ -1,0 +1,35 @@
+{
+  "id": "moon",
+  "title": "Moon",
+  "description": "#space",
+  "position": [
+    9.19,
+    6.94,
+    -15.59
+  ],
+  "rotation": [
+    0,
+    -12,
+    0
+  ],
+  "scale": [
+    1,
+    1,
+    1
+  ],
+  "modules": [],
+  "role": "decor",
+  "model": {
+    "type": "gltf",
+    "url": "library/models/moon.glb",
+    "fit": 5.7,
+    "source": "polypizza"
+  },
+  "lightColor": "#cfd0e0",
+  "lightIntensity": 12,
+  "credit": {
+    "author": "Poly by Google",
+    "license": "CC-BY 3.0",
+    "sourceUrl": "https://poly.pizza/m/9OPocAqXM0u"
+  }
+}

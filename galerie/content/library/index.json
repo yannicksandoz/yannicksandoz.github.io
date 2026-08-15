@@ -176,6 +176,22 @@
       "license": "CC0 1.0",
       "sourceUrl": "https://poly.pizza/m/54jZKTAt5p",
       "source": "polypizza"
+    },
+    {
+      "id": "moon",
+      "name": "Lune",
+      "description": "Lune low-poly « Poly by Google » — un astre à suspendre.",
+      "tags": [
+        "lune",
+        "espace",
+        "décor"
+      ],
+      "url": "library/models/moon.glb",
+      "fit": 5.7,
+      "author": "Poly by Google",
+      "license": "CC-BY 3.0",
+      "sourceUrl": "https://poly.pizza/m/9OPocAqXM0u",
+      "source": "polypizza"
     }
   ]
 }
