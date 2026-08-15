@@ -100,6 +100,9 @@ export class QualityManager {
       p.grain = false;
       app.grainPass.enabled = false;
       console.info('[galerie] FPS bas → grain désactivé');
+    } else if (app.vistas?.live) {
+      app.vistas.live = false;
+      console.info('[galerie] FPS bas → apparitions figées');
     } else if (p.shadows) {
       p.shadows = false;
       app.setShadowsEnabled?.(false);

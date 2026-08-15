@@ -292,10 +292,18 @@ toujours du v2.
   "shell": {                       // coque : murs de salle (absent = à ciel
     "width": 26, "depth": 20,      // ouvert, comme le parvis d'entrée)
     "height": 5, "color": "#1e1e2e", "ceiling": false,
+    "walls": ["nord", "est"],      // de 0 à 4 murs (absent = les 4)
     "windows": [                   // baies percées, donnant sur l'espace
       { "wall": "nord", "offset": 0, "width": 4, "height": 1.8, "sill": 1.1 }
     ]
   },
+  "vistas": [                      // apparitions : une pièce d'ailleurs,
+    {                              // vivante, sur un mur de celle-ci —
+      "room": "jardin",            // la caméra suit le visiteur (parallaxe)
+      "wall": "nord", "offset": 0, "width": 5, "height": 2.4, "sill": 0.9,
+      "anchor": { "position": [0, 1.8, 10], "rotationY": 0 }
+    }
+  ],
   "keyLight": {                    // lumière clé de la pièce — la seule à
     "color": "#b8c2ff",            // projeter des ombres (false = aucune)
     "intensity": 2,
@@ -309,12 +317,17 @@ toujours du v2.
   "works": ["nebuleuse", "marees"],// œuvres présentes (ids de works/*.json)
   "portals": [
     {
-      "to": "annexe",              // pièce de destination
+      "to": "annexe",              // pièce de destination (soi-même autorisé)
       "position": [-5, 0, -22],    // pied du portail
       "rotation": [0, 12, 0],
       "label": "Annexe",           // étiquette flottante
-      "arrival": [0, 2.2, 8]       // où l'on apparaît dans la destination
-    }
+      "arrival": [0, 2.2, 8],      // où l'on apparaît dans la destination
+      "plane": "est"               // Escher : plan d'arrivée (sol par défaut,
+    }                              // nord/sud/est/ouest/plafond) — la pièce
+                                   // entière pivote pour que ce plan devienne
+                                   // le sol ; un portail peut être posé couché
+                                   // sur un mur (rotation [0,0,90]) : il ne se
+                                   // franchit qu'une fois debout sur ce plan
   ]
 }
 ```

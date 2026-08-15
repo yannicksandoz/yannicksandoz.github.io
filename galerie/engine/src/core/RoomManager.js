@@ -2,6 +2,8 @@ import * as THREE from 'three';
 import { assetUrl } from './utils.js';
 
 const PORTAL_COLOR = 0x9f8cff;
+const _worldPos = new THREE.Vector3(); // tampons du test de proximité
+const _worldUp = new THREE.Vector3();
 
 /**
  * Système de pièces connectées.
@@ -40,6 +42,7 @@ export class RoomManager {
       state: 'far'
     };
     Object.defineProperty(room, 'isCurrent', { get: () => this.current === room });
+    room.plane = 'sol';
     room.group.visible = false;
     room.floor = buildFloor(config);
     if (room.floor) room.group.add(room.floor);
@@ -47,6 +50,7 @@ export class RoomManager {
     if (room.shell) room.group.add(room.shell);
     room.keyLight = buildKeyLight(config, this.app.quality?.profile);
     if (room.keyLight) room.group.add(room.keyLight);
+    this.app.vistas?.build(room);
     this.app.scene.add(room.group);
     this.rooms.set(config.id, room);
     return room;
@@ -71,6 +75,47 @@ export class RoomManager {
     }
     if (room.keyLight) orientKeyLight(room.keyLight, cfg);
     if (room.isCurrent) this.applyEnvIntensity(room);
+  }
+
+  /**
+   * Oriente une pièce pour qu'un de ses plans devienne le sol — le cœur
+   * des espaces à la Escher. On ne penche jamais la caméra : c'est la
+   * PIÈCE entière (groupe Three.js) qui tourne, puis se translate pour
+   * que la surface visée repose à y = 0. La gravité, les contrôles et le
+   * regard du visiteur ne changent pas ; c'est le monde qui a pivoté.
+   *
+   * `plane` : 'sol' (défaut, identité), 'nord', 'sud', 'est', 'ouest',
+   * 'plafond'. Les demi-dimensions viennent de la coque (ou du sol à
+   * défaut) : un portail peut donc déposer le visiteur debout sur un mur
+   * de la même pièce — les œuvres, elles, pendent désormais de côté.
+   */
+  orientRoom(room, plane = 'sol') {
+    const g = room.group;
+    const shell = room.config.shell && room.config.shell !== true
+      ? room.config.shell : {};
+    const w = Number(shell.width) > 0 ? shell.width : SHELL_DEFAULTS.width;
+    const d = Number(shell.depth) > 0 ? shell.depth : SHELL_DEFAULTS.depth;
+    const h = Number(shell.height) > 0 ? shell.height : SHELL_DEFAULTS.height;
+    const X = new THREE.Vector3(1, 0, 0);
+    const Z = new THREE.Vector3(0, 0, 1);
+    const ORIENTATIONS = {
+      sol: [null, 0, 0],
+      nord: [X, -90, d / 2],   // mur du fond (z = -profondeur/2)
+      sud: [X, 90, d / 2],
+      est: [Z, -90, w / 2],    // mur de droite (x = +largeur/2)
+      ouest: [Z, 90, w / 2],
+      plafond: [X, 180, h]
+    };
+    const [axis, angle, lift] = ORIENTATIONS[plane] ?? ORIENTATIONS.sol;
+    if (!axis) {
+      g.quaternion.identity();
+      g.position.set(0, 0, 0);
+    } else {
+      g.quaternion.setFromAxisAngle(axis, THREE.MathUtils.degToRad(angle));
+      g.position.set(0, lift, 0);
+    }
+    g.updateMatrixWorld(true);
+    room.plane = plane;
   }
 
   /** Intensité d'environnement (IBL) : profil de qualité × réglage de pièce. */
@@ -112,6 +157,8 @@ export class RoomManager {
   refreshRoomLook(room) {
     this.rebuildFloor(room);
     this.rebuildShell(room);
+    this.app.vistas?.dispose(room);
+    this.app.vistas?.build(room);
     if (room.keyLight) {
       orientKeyLight(room.keyLight, room.config);
       frameKeyLightShadow(room.keyLight, room.config);
@@ -141,6 +188,7 @@ export class RoomManager {
       if (room.floor) disposeFloor(room.floor);
       if (room.shell) disposeShell(room.shell);
       if (room.keyLight) disposeKeyLight(room.keyLight);
+      this.app.vistas?.dispose(room);
       room.group.removeFromParent();
     }
     this.rooms.clear();
@@ -172,7 +220,7 @@ export class RoomManager {
    * (pièce inconnue ou fondu déjà en cours) — l'appelant ne doit pas
    * annoncer une pièce dans laquelle on n'est jamais entré.
    */
-  async setCurrent(id, { instant = false, arrival = null } = {}) {
+  async setCurrent(id, { instant = false, arrival = null, plane = 'sol' } = {}) {
     const room = this.rooms.get(id);
     if (!room || this._transitioning) return false;
 
@@ -194,6 +242,7 @@ export class RoomManager {
     }
 
     this.current = room;
+    this.orientRoom(room, plane);
     this._applyPolicy();
     this._placeCamera(arrival ?? room.config.spawn ?? [0, 2.2, 10]);
 
@@ -257,15 +306,21 @@ export class RoomManager {
    * adjacentes = préchargées mais invisibles, lointaines = libérées.
    */
   _applyPolicy() {
-    const adjacent = new Set(
-      (this.current?.config.portals ?? []).map((p) => p.to)
-    );
+    // Voisines : par portail, et par apparition — une pièce qui apparaît
+    // sur un mur doit être chargée pour être rendue.
+    const adjacent = new Set([
+      ...(this.current?.config.portals ?? []).map((p) => p.to),
+      ...(this.current?.config.vistas ?? []).map((v) => v.room)
+    ]);
     for (const room of this.rooms.values()) {
       const prev = room.state;
       room.state = room.isCurrent ? 'current'
         : adjacent.has(room.config.id) ? 'adjacent'
         : 'far';
       room.group.visible = room.isCurrent;
+      // seule la pièce courante peut être orientée à la Escher : les autres
+      // reposent à plat (le rendu des apparitions y compte)
+      if (!room.isCurrent && room.plane !== 'sol') this.orientRoom(room, 'sol');
 
       if (room.state === 'far' && prev !== 'far') {
         for (const a of room.artworks) a.forceUnload();
@@ -356,12 +411,21 @@ export class RoomManager {
     // non sollicitée serait illisible à l'oreille.
     if (this.app.audioTour?.active) return;
 
-    // franchissement par proximité
+    // Franchissement par proximité — en coordonnées MONDE : une pièce
+    // orientée à la Escher a tourné, ses portails aussi. Le test se fait
+    // au CENTRE du portail, hauteur comprise : un portail couché sur un
+    // mur ou pendu au plafond ne happe pas le visiteur qui marche dessous.
     for (const mesh of this.current.portalMeshes) {
-      const p = mesh.userData.portal.cfg;
-      const dx = ctx.cameraPos.x - p.position[0];
-      const dz = ctx.cameraPos.z - p.position[2];
-      if (dx * dx + dz * dz < 2.6) {
+      // seul un portail DEBOUT se franchit à la marche : un portail couché
+      // sur un mur (vu depuis le sol d'une pièce Escher) reste un décor
+      // intrigant — on le prendra depuis son propre plan, ou au clic
+      _worldUp.set(0, 1, 0).transformDirection(mesh.matrixWorld);
+      if (_worldUp.y < 0.7) continue;
+      const p = mesh.localToWorld(_worldPos.set(0, 1.35, 0));
+      const dx = ctx.cameraPos.x - p.x;
+      const dz = ctx.cameraPos.z - p.z;
+      const dy = ctx.cameraPos.y - p.y;
+      if (dx * dx + dz * dz < 2.6 && Math.abs(dy) < 1.25) {
         this.traverse(mesh.userData.portal);
         return;
       }
@@ -382,7 +446,9 @@ export class RoomManager {
       return;
     }
     const arrival = portal.cfg.arrival ?? target.config.spawn ?? [0, 2.2, 10];
-    this.setCurrent(target.config.id, { arrival });
+    // `plane` : sur quel plan de la pièce cible on débarque (Escher).
+    // La cible peut être LA MÊME pièce — on en ressort sur un autre mur.
+    this.setCurrent(target.config.id, { arrival, plane: portal.cfg.plane ?? 'sol' });
   }
 
   /** L'ambiance démarre après le déblocage audio : à rappeler à ce moment. */
@@ -460,8 +526,13 @@ function disposeFloor(group) {
  * Réglable par pièce dans le JSON, absente si on n'en veut pas (extérieur) :
  *   "shell": { "width": 26, "depth": 20, "height": 5,
  *              "color": "#1c1c2b", "ceiling": false,
+ *              "walls": ["nord", "est"],          // absent = les 4 murs
  *              "windows": [ { "wall": "nord", "offset": 0,
  *                             "width": 4, "height": 1.8, "sill": 1.1 } ] }
+ *
+ * Un espace n'est jamais forcé au confinement : de 0 à 4 murs (`walls`),
+ * plafond en option — d'un pavillon ouvert sur trois côtés à la boîte
+ * close d'une pièce à la Escher.
  *
  * Les fenêtres sont des baies percées dans un mur (nord = fond -z, sud =
  * face +z, est = +x, ouest = -x ; offset le long du mur depuis son centre).
@@ -474,8 +545,10 @@ function disposeFloor(group) {
  * par défaut : la nuit étoilée et la poussière font partie du lieu.
  */
 export const SHELL_DEFAULTS = {
-  width: 26, depth: 20, height: 5, color: '#1c1c2b', ceiling: false, windows: []
+  width: 26, depth: 20, height: 5, color: '#1c1c2b', ceiling: false,
+  walls: null, windows: []
 };
+export const WALL_NAMES = ['nord', 'sud', 'est', 'ouest'];
 const WALL_T = 0.35; // épaisseur des murs
 
 /**
@@ -537,19 +610,20 @@ export function buildShell(config) {
     group.add(m);
   };
 
+  const has = (wall) => !Array.isArray(opt.walls) || opt.walls.includes(wall);
   const winsOf = (wall) => (opt.windows ?? []).filter((f) => f.wall === wall);
   // fond (-z) et face (+z) : segments le long de x
-  for (const p of wallSegments(w + WALL_T, h, winsOf('nord'))) {
+  if (has('nord')) for (const p of wallSegments(w + WALL_T, h, winsOf('nord'))) {
     box(p.len, p.h, WALL_T, p.c, p.y, -d / 2);
   }
-  for (const p of wallSegments(w + WALL_T, h, winsOf('sud'))) {
+  if (has('sud')) for (const p of wallSegments(w + WALL_T, h, winsOf('sud'))) {
     box(p.len, p.h, WALL_T, p.c, p.y, d / 2);
   }
   // gauche (-x) et droite (+x) : segments le long de z
-  for (const p of wallSegments(d - WALL_T, h, winsOf('ouest'))) {
+  if (has('ouest')) for (const p of wallSegments(d - WALL_T, h, winsOf('ouest'))) {
     box(WALL_T, p.h, p.len, -w / 2, p.y, p.c);
   }
-  for (const p of wallSegments(d - WALL_T, h, winsOf('est'))) {
+  if (has('est')) for (const p of wallSegments(d - WALL_T, h, winsOf('est'))) {
     box(WALL_T, p.h, p.len, w / 2, p.y, p.c);
   }
 

@@ -5,6 +5,7 @@ import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js'
 import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+import { VistaManager } from './Vista.js';
 import { AudioEngine } from './AudioEngine.js';
 import { QualityManager } from './Quality.js';
 import { LoadingTracker, assetUrl } from './utils.js';
@@ -182,6 +183,9 @@ export class App {
     this._buildEnvironment();
     this._setupPicking();
     this._setupVisibility();
+    // Apparitions (pièces d'ailleurs sur un plan) — après le renderer :
+    // leur rendu vivant dépend de lui et du palier de qualité.
+    this.vistas = new VistaManager(this);
 
     window.addEventListener('resize', () => this._resize());
   }
@@ -502,6 +506,7 @@ export class App {
       if (this.warpPass.enabled) this.warpPass.uniforms.uTime.value = t;
       this.quality.tick(dt, this);
 
+      this.vistas?.update(); // la pièce apparue se rend avant la vraie
       this.composer.render();
     });
   }
