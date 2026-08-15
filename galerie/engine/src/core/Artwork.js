@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { registry } from './ModuleRegistry.js';
 import { buildPrimitive, isPrimitive } from './primitives.js';
 import { loadModel, fitModel, modelKind } from './modelLoaders.js';
-import { buildVoxelMesh } from './voxel.js';
+import { buildVoxelMesh, buildVoxelCollider } from './voxel.js';
 
 // crossOrigin « anonymous » : indispensable pour les médias distants, dont
 // les pixels doivent être lisibles par WebGL (l'hôte doit autoriser le CORS).
@@ -428,6 +428,17 @@ export class Artwork {
     }
     this.mesh = mesh;
     this.hitMesh = mesh;
+    // Une masse foulable (escalier, palier) reçoit un maillage de collision
+    // en pavés : la même forme, mais quelques dizaines de boîtes au lieu de
+    // milliers de cellules — c'est lui que les rayons de marche interrogent.
+    this.collider = null;
+    if (this.config.walkable && this.config.model?.type === 'voxel') {
+      const c = buildVoxelCollider(this.config.model);
+      if (c) {
+        mesh.add(c);           // enfant du mesh : il en hérite la transformation
+        this.collider = c;
+      }
+    }
     mesh.scale.setScalar(this.baseScale);
     // Chaque œuvre se pose au sol par son ombre (lumière clé de la pièce).
     // Recevoir aussi : un modèle s'ombre lui-même, un socle reçoit l'œuvre.

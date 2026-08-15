@@ -2,6 +2,8 @@ import * as THREE from 'three';
 import { assetUrl } from './utils.js';
 
 const PORTAL_COLOR = 0x9f8cff;
+/** Densité de brouillard par défaut — celle d'une salle d'exposition. */
+export const FOG_DENSITY = 0.026;
 const REARM_DIST2 = 7; // (m²) zone à quitter pour réarmer un portail d'arrivée
 const _worldPos = new THREE.Vector3(); // tampons du test de proximité
 const _worldUp = new THREE.Vector3();
@@ -134,7 +136,10 @@ export class RoomManager {
     if (room.floor) for (const c of room.floor.children) if (c.isMesh) list.push(c);
     room.shell?.traverse((o) => { if (o.isMesh) list.push(o); });
     for (const a of room.artworks) {
-      if (a.config.walkable && a.mesh) list.push(a.mesh);
+      if (!a.config.walkable || !a.mesh) continue;
+      // le maillage de collision quand il existe (quelques pavés), sinon le
+      // maillage de rendu — voir Artwork._setMesh et voxel.buildVoxelCollider
+      list.push(a.collider ?? a.mesh);
     }
     return list;
   }
@@ -191,7 +196,10 @@ export class RoomManager {
     if (k >= 1) {
       this._bascule = null;
       this._transitioning = false;
-      if (this.app.controls) this.app.controls.locked = false;
+      if (this.app.controls) {
+        this.app.controls.locked = false;
+        this.app.controls.resyncCollision();
+      }
       this._cooldown = 1.2;
       this._disarmPortalsNearCamera();
       this._disarmBasculesNearCamera();
@@ -257,12 +265,27 @@ export class RoomManager {
     }
     if (room.isCurrent) {
       this.applyEnvIntensity(room);
-      const fog = room.config.fogColor;
-      if (fog) {
-        this.app.scene.fog.color.set(fog);
-        this.app.scene.background.set(fog);
-      }
+      this.applyFog(room);
     }
+  }
+
+  /**
+   * Brouillard de la pièce : teinte et DENSITÉ. La densité compte autant que
+   * la couleur — la valeur d'une petite salle (0,026) rend une pièce de
+   * quatre-vingts mètres opaque à mi-distance, et l'architecture qui fait
+   * tout l'intérêt d'un grand volume disparaît. Chaque pièce choisit donc la
+   * sienne (`fogDensity`), à défaut celle du moteur.
+   */
+  applyFog(room = this.current) {
+    const scene = this.app.scene;
+    if (!scene?.fog) return;
+    const color = room?.config.fogColor;
+    if (color) {
+      scene.fog.color.set(color);
+      scene.background.set(color);
+    }
+    const d = Number(room?.config.fogDensity);
+    scene.fog.density = Number.isFinite(d) && d >= 0 ? d : FOG_DENSITY;
   }
 
   get(id) {
@@ -403,6 +426,8 @@ export class RoomManager {
   _placeCamera(pos) {
     const cam = this.app.camera;
     cam.position.set(pos[0], pos[1], pos[2]);
+    // téléportation : la collision doit repartir d'ici, pas d'il y a une frame
+    this.app.controls?.resyncCollision?.();
     // regarde vers le centre de la pièce
     const dir = new THREE.Vector3(-pos[0], 0, -pos[2]);
     if (dir.lengthSq() < 0.01) dir.set(0, 0, -1);
@@ -441,11 +466,7 @@ export class RoomManager {
       this._updateAmbience(room);
     }
     // ambiance de la pièce (brouillard et éclairage configurables par pièce)
-    const fog = this.current?.config.fogColor;
-    if (fog) {
-      this.app.scene.fog.color.set(fog);
-      this.app.scene.background.set(fog);
-    }
+    this.applyFog();
     this.applyEnvIntensity();
     // le badge (haut-gauche) affiche toujours la pièce où l'on se trouve
     this.app.ui?.setRoomTitle?.(

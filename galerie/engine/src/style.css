@@ -157,7 +157,13 @@ html, body {
 
 /* --------------------------------------------- badge de pièce (menu) --- */
 #room-badge {
-  position: fixed; left: 1rem; top: 1rem; z-index: 14;
+  /* safe-area : l'encoche et la barre d'état des mobiles ne le couvrent pas */
+  position: fixed;
+  left: max(1rem, env(safe-area-inset-left, 0px));
+  top: max(1rem, env(safe-area-inset-top, 0px));
+  /* au-dessus du joystick (15) et du pense-bête (10), SOUS les couches qui
+     doivent tout couvrir : chapeau (26), fondu de pièce (28), accueil (30) */
+  z-index: 24;
   display: flex; align-items: center; gap: 0.6rem;
 }
 #room-badge[hidden] { display: none; }
@@ -174,6 +180,12 @@ html, body {
   background: rgba(10, 10, 18, 0.6); color: var(--dim);
   font-size: 0.78rem; letter-spacing: 0.06em;
   pointer-events: none;
+}
+@media (pointer: coarse) {
+  #room-menu-btn { width: 3rem; height: 3rem; font-size: 1.2rem; }
+}
+#room-menu-btn:focus-visible {
+  outline: 2px solid var(--accent); outline-offset: 2px;
 }
 
 /* ---------------------------------------------------------- crédits --- */

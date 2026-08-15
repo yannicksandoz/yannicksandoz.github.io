@@ -20,8 +20,14 @@ import { damp } from '../core/utils.js';
 const YAW_SPEED = THREE.MathUtils.degToRad(120);
 const UP = new THREE.Vector3(0, 1, 0);
 const DOWN = new THREE.Vector3(0, -1, 0);
-const EYE = 2.2; // hauteur des yeux au-dessus du sol foulé
+const EYE = 2.2;       // hauteur des yeux au-dessus du sol foulé
+const CHEST = 1.15;    // hauteur du rayon de collision au-dessus des pieds :
+                       // au-dessus de deux contremarches (2 × 0,5 m), un
+                       // escalier se gravit ; un mur ou une masse bloquent
 const _rayOrigin = new THREE.Vector3();
+const _prevPos = new THREE.Vector3();
+const _delta = new THREE.Vector3();
+const _tryDir = new THREE.Vector3();
 export class Controls {
   constructor(app) {
     this.app = app;
@@ -47,6 +53,15 @@ export class Controls {
     this._yawVel = 0; // vitesse de pivot courante (lissée)
     this._groundRay = new THREE.Raycaster();
     this._groundRay.far = 40;
+    this._wallRay = new THREE.Raycaster();
+    // position en fin de frame précédente : la référence de la collision —
+    // tout ce qui a bougé la caméra depuis (clavier, orbite, pan tactile)
+    // est corrigé d'un seul geste
+    this._lastPos = new THREE.Vector3().copy(app.camera.position);
+    this._groundY = null;   // altitude du sol sous les pieds (suivi de sol)
+    this._frame = 0;        // les surfaces foulables se relisent une fois/frame
+    this._targetsFrame = -1;
+    this._targetsCache = [];
 
     window.addEventListener('keydown', (e) => {
       if (e.target.matches('input, textarea, select')) return;
@@ -108,12 +123,18 @@ export class Controls {
   }
 
   update(dt) {
+    this._frame++;
     if (this.suspended) {
       // La visite audio garde l'orbite à jour (FocusCamera pilote la cible)
       // mais ne lit ni clavier ni joystick : les flèches parcourent les
       // listes, pas la scène.
       this.orbit.enabled = false;
       this.orbit.update();
+      // la visite audio déplace la caméra d'œuvre en œuvre : on garde la
+      // référence de collision à jour, sinon le retour en 3D produirait un
+      // faux « déplacement » de plusieurs mètres
+      this._lastPos.copy(this.app.camera.position);
+      this._groundY = null;
       return;
     }
     if (!this.locked) {
@@ -145,9 +166,122 @@ export class Controls {
         this.orbit.target.add(move);
       }
     }
-    this._followGround(dt);
     this.orbit.enabled = !this.locked && !this.dragging;
     this.orbit.update();
+    // APRÈS l'orbite : tout le déplacement de la frame est passé (clavier,
+    // joystick, pan à deux doigts) — on le corrige d'un seul geste, par
+    // rapport à la position de FIN de frame précédente.
+    this._collide();
+    this._followGround(dt);
+    this._lastPos.copy(this.app.camera.position);
+  }
+
+  /**
+   * Surfaces foulables de la pièce courante, relues une fois par frame —
+   * avec leur sphère englobante en coordonnées MONDE.
+   *
+   * Ces sphères ne sont pas un luxe : `Raycaster.far` n'est pas consulté par
+   * le test de sphère d'un InstancedMesh (three r166). Sans elles, un rayon
+   * de cinquante centimètres parcourt quand même toutes les instances de
+   * toutes les masses de la pièce. On fait donc respecter la portée
+   * nous-mêmes, en écartant d'emblée ce qui est trop loin.
+   *
+   * Recalculées chaque frame et non mémorisées par pièce : une bascule fait
+   * tourner le groupe de la pièce, et l'éditeur reconstruit les voxels — un
+   * cache serait périmé sans prévenir.
+   */
+  _targets(reach = 0) {
+    if (this._targetsFrame !== this._frame) {
+      this._targetsFrame = this._frame;
+      const list = this.app.rooms?.walkables?.() ?? [];
+      this._targetsCache = list;
+      this._spheres = list.map((o) => {
+        const g = o.geometry;
+        if (!g) return null;
+        if (o.isInstancedMesh) {
+          if (!o.boundingSphere) o.computeBoundingSphere();
+          if (!o.boundingSphere) return null;
+          return o.boundingSphere.clone().applyMatrix4(o.matrixWorld);
+        }
+        if (!g.boundingSphere) g.computeBoundingSphere();
+        if (!g.boundingSphere) return null;
+        return g.boundingSphere.clone().applyMatrix4(o.matrixWorld);
+      });
+    }
+    if (reach <= 0) return this._targetsCache;
+    const from = this.app.camera.position;
+    return this._targetsCache.filter((o, i) => {
+      const s = this._spheres[i];
+      if (!s) return true;                  // sphère inconnue : on n'écarte pas
+      const d = s.radius + reach;
+      return s.center.distanceToSquared(from) <= d * d;
+    });
+  }
+
+  /**
+   * À appeler après avoir déplacé la caméra AUTREMENT qu'en marchant
+   * (téléportation d'un portail, fin de bascule, point d'arrivée) : sans
+   * cela, le saut serait pris pour un pas et la collision l'annulerait.
+   * Un signal explicite vaut mieux qu'un seuil de distance, qui laissait
+   * passer les grands pas et refusait les petites téléportations.
+   */
+  resyncCollision() {
+    this._lastPos.copy(this.app.camera.position);
+    this._groundY = null;
+  }
+
+  /**
+   * Collision : on ne traverse ni les murs ni la masse d'un escalier. Le
+   * déplacement de la frame est rejoué par un rayon à hauteur de poitrine ;
+   * s'il rencontre une surface foulable, on tente de GLISSER (axe X puis Z),
+   * sinon on reste sur place. Sous deux contremarches (~1,1 m), rien ne
+   * bloque : les escaliers se gravissent, les murs s'imposent.
+   */
+  _collide() {
+    const app = this.app;
+    if (this.locked || this.suspended || this.dragging) return;
+    if (app.editor?.enabled) return;
+    if (app.rooms?._transitioning) return;
+    const cam = app.camera.position;
+    _prevPos.copy(this._lastPos);
+    _delta.copy(cam).sub(_prevPos);
+    _delta.y = 0;
+    const len = _delta.length();
+    if (len < 1e-4) return;              // immobile : rien à corriger
+    const targets = this._targets(len + 0.6);
+    if (!targets.length) return;
+
+    // Hauteur du rayon : mesurée depuis le SOL RÉEL sous les pieds, jamais
+    // depuis la caméra. En montant vite, la hauteur d'yeux est amortie et
+    // traîne sous la pente : partir d'elle ferait plonger le rayon dans les
+    // marches, et l'escalier deviendrait un mur.
+    const ground = this._groundY ?? (_prevPos.y - EYE);
+    const feetY = ground + CHEST;
+    const blocked = (dx, dz, dist) => {
+      _tryDir.set(dx, 0, dz).normalize();
+      _rayOrigin.set(_prevPos.x, feetY, _prevPos.z);
+      this._wallRay.set(_rayOrigin, _tryDir);
+      this._wallRay.far = dist + 0.35;
+      return this._wallRay.intersectObjects(targets, true).length > 0;
+    };
+
+    if (!blocked(_delta.x, _delta.z, len)) return;
+    // glissement : on garde la composante qui passe
+    if (Math.abs(_delta.x) > 1e-4 && !blocked(_delta.x, 0, Math.abs(_delta.x))) {
+      cam.z = _prevPos.z;
+      this.orbit.target.z -= _delta.z;
+      return;
+    }
+    if (Math.abs(_delta.z) > 1e-4 && !blocked(0, _delta.z, Math.abs(_delta.z))) {
+      cam.x = _prevPos.x;
+      this.orbit.target.x -= _delta.x;
+      return;
+    }
+    // bloqué net : on annule le déplacement horizontal de la frame
+    cam.x = _prevPos.x;
+    cam.z = _prevPos.z;
+    this.orbit.target.x -= _delta.x;
+    this.orbit.target.z -= _delta.z;
   }
 
   /**
@@ -157,21 +291,28 @@ export class Controls {
    * marches deviennent une pente douce. Le rayon part BAS (60 cm au-dessus
    * des yeux) : une volée d'escalier qui passe au-dessus de la tête ne doit
    * pas nous téléporter dessus.
+   *
+   * Le lissage est ASYMÉTRIQUE : on gravit une marche d'un pas (montée
+   * franche), on redescend en douceur. Un amortissement symétrique assez
+   * lent pour rendre la descente agréable ferait traîner la caméra sous la
+   * pente en montée — et la collision, qui se mesure depuis le sol, s'en
+   * trouverait faussée.
    */
   _followGround(dt) {
     const app = this.app;
     if (this.locked || this.suspended || this.dragging) return;
     if (app.editor?.enabled) return;          // en édition, on vole
     if (app.rooms?._transitioning) return;    // une bascule pilote la caméra
-    const targets = app.rooms?.walkables?.() ?? [];
+    const targets = this._targets(this._groundRay.far);
     if (!targets.length) return;
     const cam = app.camera.position;
     _rayOrigin.set(cam.x, cam.y + 0.6, cam.z);
     this._groundRay.set(_rayOrigin, DOWN);
-    const hit = this._groundRay.intersectObjects(targets, false)[0];
+    const hit = this._groundRay.intersectObjects(targets, true)[0];
     if (!hit) return; // hors de tout : on garde l'altitude
+    this._groundY = hit.point.y;               // référence de la collision
     const eye = hit.point.y + EYE;
-    const y = damp(cam.y, eye, 9, dt);
+    const y = damp(cam.y, eye, eye > cam.y ? 22 : 9, dt);
     const dy = y - cam.y;
     if (Math.abs(dy) > 1e-4) {
       cam.y = y;

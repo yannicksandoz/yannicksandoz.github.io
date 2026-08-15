@@ -127,6 +127,87 @@ export function buildVoxelMesh(model, grid = gridOf(model)) {
 }
 
 /**
+ * Maillage de COLLISION d'une grille : la même forme, en beaucoup moins de
+ * pièces.
+ *
+ * Le maillage de rendu est un InstancedMesh d'une cellule par cube — un
+ * escalier plein en compte deux mille. Or un lancer de rayon contre un
+ * InstancedMesh coûte O(nombre d'instances) : marcher dans un escalier
+ * revenait à multiplier deux mille matrices par rayon, quatre fois par
+ * frame. Pire, la borne `far` du Raycaster n'est même pas consultée par le
+ * test de sphère englobante d'InstancedMesh : un rayon de cinquante
+ * centimètres payait le plein tarif.
+ *
+ * On fusionne donc les cellules pleines en PAVÉS (greedy meshing) : chaque
+ * marche d'un escalier devient une seule boîte. La forme est rigoureusement
+ * la même — les pavés recouvrent exactement les cellules pleines — mais un
+ * escalier de deux mille cellules se réduit à quarante boîtes.
+ *
+ * Renvoie null si la grille est vide.
+ */
+export function buildVoxelCollider(model, grid = gridOf(model)) {
+  const dims = model.dims ?? DEFAULT_DIMS;
+  const cell = model.cell ?? DEFAULT_CELL;
+  const pris = new Uint8Array(grid.length);
+  const pavés = [];
+
+  const plein = (x, y, z) => grid[cellIndex(dims, x, y, z)] && !pris[cellIndex(dims, x, y, z)];
+
+  for (let z = 0; z < dims[2]; z++) {
+    for (let y = 0; y < dims[1]; y++) {
+      for (let x = 0; x < dims[0]; x++) {
+        if (!plein(x, y, z)) continue;
+        // on étend le pavé tant que la tranche entière reste pleine
+        let sx = 1;
+        while (x + sx < dims[0] && plein(x + sx, y, z)) sx++;
+        let sy = 1;
+        grandirY: while (y + sy < dims[1]) {
+          for (let i = 0; i < sx; i++) if (!plein(x + i, y + sy, z)) break grandirY;
+          sy++;
+        }
+        let sz = 1;
+        grandirZ: while (z + sz < dims[2]) {
+          for (let j = 0; j < sy; j++) {
+            for (let i = 0; i < sx; i++) {
+              if (!plein(x + i, y + j, z + sz)) break grandirZ;
+            }
+          }
+          sz++;
+        }
+        for (let k = 0; k < sz; k++) {
+          for (let j = 0; j < sy; j++) {
+            for (let i = 0; i < sx; i++) pris[cellIndex(dims, x + i, y + j, z + k)] = 1;
+          }
+        }
+        pavés.push([x, y, z, sx, sy, sz]);
+      }
+    }
+  }
+  if (!pavés.length) return null;
+
+  const geometry = new THREE.BoxGeometry(1, 1, 1);
+  const mesh = new THREE.InstancedMesh(geometry, new THREE.MeshBasicMaterial(),
+    pavés.length);
+  mesh.visible = false;          // il ne sert qu'aux rayons
+  mesh.name = 'collision-voxel';
+  mesh.userData.ignoreRaycast = false;
+  const m = new THREE.Matrix4();
+  for (let i = 0; i < pavés.length; i++) {
+    const [x, y, z, sx, sy, sz] = pavés[i];
+    const c0 = cellCenter(dims, cell, x, y, z);
+    m.makeScale(sx * cell, sy * cell, sz * cell);
+    m.setPosition(
+      c0[0] + (sx - 1) * cell / 2,
+      c0[1] + (sy - 1) * cell / 2,
+      c0[2] + (sz - 1) * cell / 2
+    );
+    mesh.setMatrixAt(i, m);
+  }
+  mesh.instanceMatrix.needsUpdate = true;
+  return mesh;
+}
+
+/**
  * Matériau des cellules.
  *
  * La galerie est une salle noire : un matériau seulement éclairé y disparaît

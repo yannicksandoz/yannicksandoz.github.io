@@ -6,6 +6,7 @@ import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { VistaManager } from './Vista.js';
+import { FOG_DENSITY } from './RoomManager.js';
 import { AudioEngine } from './AudioEngine.js';
 import { QualityManager } from './Quality.js';
 import { LoadingTracker, assetUrl } from './utils.js';
@@ -121,7 +122,9 @@ export class App {
     // --- scène ---------------------------------------------------------
     this.scene = new THREE.Scene();
     this.scene.background = new THREE.Color(FOG_COLOR);
-    this.scene.fog = new THREE.FogExp2(FOG_COLOR, 0.026);
+    // densité relue par pièce (RoomManager.applyFog) : une grande salle a
+    // besoin d'un brouillard bien plus ténu pour laisser voir son fond
+    this.scene.fog = new THREE.FogExp2(FOG_COLOR, FOG_DENSITY);
 
     this.camera = new THREE.PerspectiveCamera(
       60, window.innerWidth / window.innerHeight, 0.1, 220

@@ -297,14 +297,17 @@ toujours du v2.
       { "wall": "nord", "offset": 0, "width": 4, "height": 1.8, "sill": 1.1 }
     ]
   },
+  "fogDensity": 0.0075,            // densité du brouillard (0,026 par défaut :
+                                   // une salle de 80 m a besoin de bien moins,
+                                   // sinon son fond disparaît)
   "bascules": [                    // hauts d'escaliers : atteindre l'anneau
     {                              // fait PIVOTER la pièce (rotation continue,
       "position": [38, 20, 8],     // sans warp) — le plan choisi devient le
       "radius": 1.8,               // sol. Un escalier `walkable: true` se
-      "plane": "est",              // gravit à la marche (la caméra suit) ;
-      "arrival": [20, 3.7, 8]      // un escalier qui ABOUTIT au mur cible
-    }                              // donne une continuité parfaite.
-  ],
+      "plane": "est",              // gravit à la marche (la caméra suit, et
+      "arrival": [20, 3.7, 8]      // sa masse arrête : on ne la traverse pas) ;
+    }                              // un escalier qui ABOUTIT au mur cible
+  ],                               // donne une continuité parfaite.
   "vistas": [                      // apparitions : une pièce d'ailleurs,
     {                              // vivante, sur un mur de celle-ci —
       "room": "jardin",            // la caméra suit le visiteur (parallaxe)

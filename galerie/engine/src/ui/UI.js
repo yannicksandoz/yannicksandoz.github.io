@@ -81,6 +81,7 @@ export class UI {
   _releaseWelcome() {
     for (const el of this._welcomeInerted ?? []) el.inert = false;
     this._welcomeInerted = [];
+    this._welcomeReleased = true;
   }
 
   /**
@@ -231,6 +232,13 @@ export class UI {
     name.id = 'room-badge-name';
     el.append(btn, name);
     document.body.appendChild(el);
+    // Le badge naît APRÈS _confineToWelcome : sans cela il resterait
+    // cliquable et lu par-dessus l'écran d'accueil, alors que tout le reste
+    // du document est neutralisé — on l'inclut donc dans le confinement.
+    if (this._welcomeInerted?.length !== undefined && !this._welcomeReleased) {
+      el.inert = true;
+      this._welcomeInerted.push(el);
+    }
     this._roomBadge = el;
     this._roomBadgeName = name;
     const label = () => btn.setAttribute('aria-label', t('menu.open'));
