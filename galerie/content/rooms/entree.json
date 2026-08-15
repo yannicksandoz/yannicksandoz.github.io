@@ -20,7 +20,14 @@
     "elevation": 35
   },
   "envIntensity": 1.15,
-  "works": [],
+  "works": [
+    "pierre-entree-1",
+    "pierre-entree-2",
+    "lanterne-entree-1",
+    "lanterne-entree-2",
+    "lanterne-entree-3",
+    "banc-entree"
+  ],
   "portals": [
     {
       "to": "labo",
@@ -50,6 +57,21 @@
         0,
         2.2,
         6
+      ]
+    },
+    {
+      "to": "jardin",
+      "position": [
+        -14,
+        0,
+        2
+      ],
+      "rotationY": 105,
+      "label": "Jardin",
+      "arrival": [
+        0,
+        2.2,
+        12
       ]
     }
   ]

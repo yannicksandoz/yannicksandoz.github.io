@@ -1,0 +1,30 @@
+{
+  "id": "buisson-allee-2",
+  "title": "Buisson",
+  "description": "",
+  "position": [
+    2.6,
+    0.46,
+    -5
+  ],
+  "rotation": [
+    0,
+    0,
+    0
+  ],
+  "scale": [
+    1.1,
+    0.935,
+    1.1
+  ],
+  "modules": [],
+  "role": "decor",
+  "model": {
+    "shape": "sphere",
+    "color": "#24422a",
+    "roughness": 1,
+    "metalness": 0,
+    "emissive": 0.04
+  },
+  "lightIntensity": 0
+}

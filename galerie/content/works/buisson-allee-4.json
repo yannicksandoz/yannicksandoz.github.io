@@ -1,0 +1,30 @@
+{
+  "id": "buisson-allee-4",
+  "title": "Buisson",
+  "description": "",
+  "position": [
+    2.6,
+    0.5,
+    3
+  ],
+  "rotation": [
+    0,
+    0,
+    0
+  ],
+  "scale": [
+    1.2,
+    1.02,
+    1.2
+  ],
+  "modules": [],
+  "role": "decor",
+  "model": {
+    "shape": "sphere",
+    "color": "#1a3822",
+    "roughness": 1,
+    "metalness": 0,
+    "emissive": 0.04
+  },
+  "lightIntensity": 0
+}

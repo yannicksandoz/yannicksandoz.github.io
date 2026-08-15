@@ -1,0 +1,88 @@
+{
+  "id": "couloir-est",
+  "title": "Couloir des fenêtres",
+  "spawn": [
+    0,
+    2.2,
+    13
+  ],
+  "fogColor": "#05060c",
+  "floor": {
+    "size": 38,
+    "color": "#12121c",
+    "grid": false
+  },
+  "shell": {
+    "width": 6,
+    "depth": 34,
+    "height": 4,
+    "color": "#171722",
+    "windows": [
+      {
+        "wall": "est",
+        "offset": -8,
+        "width": 3,
+        "height": 1.7,
+        "sill": 1.1
+      },
+      {
+        "wall": "est",
+        "offset": 4,
+        "width": 3,
+        "height": 1.7,
+        "sill": 1.1
+      },
+      {
+        "wall": "ouest",
+        "offset": -2,
+        "width": 3,
+        "height": 1.7,
+        "sill": 1.1
+      }
+    ]
+  },
+  "keyLight": {
+    "color": "#aab4e8",
+    "intensity": 1.8,
+    "azimuth": 90,
+    "elevation": 65
+  },
+  "envIntensity": 0.85,
+  "works": [
+    "lanterne-couloir-1",
+    "lanterne-couloir-2",
+    "escalier-couloir"
+  ],
+  "portals": [
+    {
+      "to": "archives",
+      "position": [
+        0,
+        0,
+        15
+      ],
+      "rotationY": 180,
+      "label": "Archives",
+      "arrival": [
+        9,
+        2.2,
+        0
+      ]
+    },
+    {
+      "to": "bibliotheque",
+      "position": [
+        0,
+        0,
+        -15
+      ],
+      "rotationY": 0,
+      "label": "Bibliothèque",
+      "arrival": [
+        0,
+        2.2,
+        8
+      ]
+    }
+  ]
+}

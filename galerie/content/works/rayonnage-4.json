@@ -1,0 +1,30 @@
+{
+  "id": "rayonnage-4",
+  "title": "Rayonnage",
+  "description": "",
+  "position": [
+    12.9,
+    1.6,
+    -6
+  ],
+  "rotation": [
+    0,
+    0,
+    0
+  ],
+  "scale": [
+    0.5,
+    3.2,
+    3.6
+  ],
+  "modules": [],
+  "role": "decor",
+  "model": {
+    "shape": "box",
+    "color": "#4a3826",
+    "roughness": 0.95,
+    "metalness": 0,
+    "emissive": 0.08
+  },
+  "lightIntensity": 0
+}

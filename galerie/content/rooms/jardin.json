@@ -1,0 +1,66 @@
+{
+  "id": "jardin",
+  "title": "Jardin zen",
+  "spawn": [
+    0,
+    2.2,
+    12
+  ],
+  "fogColor": "#070604",
+  "floor": {
+    "size": 90,
+    "color": "#17140f",
+    "grid": false
+  },
+  "keyLight": {
+    "color": "#ffd9a8",
+    "intensity": 1.8,
+    "azimuth": 130,
+    "elevation": 28
+  },
+  "envIntensity": 1.2,
+  "works": [
+    "pierre-jardin-1",
+    "pierre-jardin-2",
+    "pierre-jardin-3",
+    "pierre-jardin-4",
+    "pierre-jardin-5",
+    "buisson-jardin-1",
+    "buisson-jardin-2",
+    "buisson-jardin-3",
+    "lanterne-jardin",
+    "banc-jardin"
+  ],
+  "portals": [
+    {
+      "to": "entree",
+      "position": [
+        0,
+        0,
+        14
+      ],
+      "rotationY": 180,
+      "label": "Entrée",
+      "arrival": [
+        -13,
+        2.2,
+        3
+      ]
+    },
+    {
+      "to": "allee",
+      "position": [
+        11,
+        0,
+        -9
+      ],
+      "rotationY": -50,
+      "label": "Allée",
+      "arrival": [
+        0,
+        2.2,
+        11
+      ]
+    }
+  ]
+}

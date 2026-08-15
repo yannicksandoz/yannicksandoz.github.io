@@ -1,0 +1,65 @@
+{
+  "id": "allee",
+  "title": "Allée",
+  "spawn": [
+    0,
+    2.2,
+    11
+  ],
+  "fogColor": "#040804",
+  "floor": {
+    "size": 64,
+    "color": "#0d120d",
+    "grid": false
+  },
+  "keyLight": {
+    "color": "#b8e8c0",
+    "intensity": 1.7,
+    "azimuth": 15,
+    "elevation": 55
+  },
+  "envIntensity": 1.05,
+  "works": [
+    "chemin-allee",
+    "buisson-allee-1",
+    "buisson-allee-2",
+    "buisson-allee-3",
+    "buisson-allee-4",
+    "buisson-allee-5",
+    "buisson-allee-6",
+    "lanterne-allee-1",
+    "lanterne-allee-2"
+  ],
+  "portals": [
+    {
+      "to": "jardin",
+      "position": [
+        0,
+        0,
+        13
+      ],
+      "rotationY": 180,
+      "label": "Jardin",
+      "arrival": [
+        9.5,
+        2.2,
+        -7.5
+      ]
+    },
+    {
+      "to": "bibliotheque",
+      "position": [
+        0,
+        0,
+        -14
+      ],
+      "rotationY": 0,
+      "label": "Bibliothèque",
+      "arrival": [
+        -10,
+        2.2,
+        0
+      ]
+    }
+  ]
+}

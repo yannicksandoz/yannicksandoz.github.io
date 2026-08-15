@@ -1,0 +1,31 @@
+{
+  "id": "stele-archives-4",
+  "title": "Stèle",
+  "description": "",
+  "position": [
+    5,
+    0.65,
+    1
+  ],
+  "rotation": [
+    0,
+    -10,
+    0
+  ],
+  "scale": [
+    0.9,
+    1.3,
+    0.9
+  ],
+  "modules": [],
+  "role": "decor",
+  "model": {
+    "shape": "box",
+    "color": "#232330",
+    "roughness": 0.85,
+    "metalness": 0.1,
+    "emissive": 0.06
+  },
+  "lightColor": "#9fb4d8",
+  "lightIntensity": 0.8
+}

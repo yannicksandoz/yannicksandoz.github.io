@@ -1,15 +1,15 @@
 {
-  "id": "rock-large",
-  "title": "Rock Large",
+  "id": "pierre-entree-1",
+  "title": "Pierre",
   "description": "",
   "position": [
-    9.29,
+    -16,
     0,
-    -14.49
+    -8
   ],
   "rotation": [
     0,
-    -10,
+    -25,
     0
   ],
   "scale": [
@@ -18,18 +18,18 @@
     1
   ],
   "modules": [],
+  "role": "decor",
   "model": {
     "type": "gltf",
     "url": "library/models/rock-large.glb",
-    "fit": 9.3,
+    "fit": 2.4,
     "source": "polypizza"
   },
-  "lightColor": "#cfd0e0",
-  "lightIntensity": 1.6,
   "credit": {
     "author": "Quaternius",
     "license": "CC0 1.0",
     "sourceUrl": "https://poly.pizza/m/54jZKTAt5p"
   },
-  "role": "decor"
+  "lightColor": "#cfd0e0",
+  "lightIntensity": 0.6
 }

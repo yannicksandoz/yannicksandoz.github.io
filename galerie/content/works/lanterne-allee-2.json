@@ -1,0 +1,31 @@
+{
+  "id": "lanterne-allee-2",
+  "title": "Lanterne",
+  "description": "",
+  "position": [
+    2.4,
+    0.88,
+    5.5
+  ],
+  "rotation": [
+    0,
+    0,
+    0
+  ],
+  "scale": [
+    0.45,
+    1.1,
+    0.45
+  ],
+  "modules": [],
+  "role": "decor",
+  "model": {
+    "shape": "cylinder",
+    "color": "#e8ffd0",
+    "roughness": 0.6,
+    "metalness": 0,
+    "emissive": 0.6
+  },
+  "lightColor": "#d0f0b0",
+  "lightIntensity": 4
+}

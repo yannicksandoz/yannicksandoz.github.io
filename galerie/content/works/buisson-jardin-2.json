@@ -1,0 +1,30 @@
+{
+  "id": "buisson-jardin-2",
+  "title": "Buisson",
+  "description": "",
+  "position": [
+    -5.4,
+    0.42,
+    -1.6
+  ],
+  "rotation": [
+    0,
+    0,
+    0
+  ],
+  "scale": [
+    1.0,
+    0.85,
+    1.0
+  ],
+  "modules": [],
+  "role": "decor",
+  "model": {
+    "shape": "sphere",
+    "color": "#24422a",
+    "roughness": 1,
+    "metalness": 0,
+    "emissive": 0.04
+  },
+  "lightIntensity": 0
+}

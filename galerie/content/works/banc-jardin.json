@@ -1,0 +1,35 @@
+{
+  "id": "banc-jardin",
+  "title": "Banc",
+  "description": "",
+  "position": [
+    3,
+    0,
+    9
+  ],
+  "rotation": [
+    0,
+    190,
+    0
+  ],
+  "scale": [
+    1,
+    1,
+    1
+  ],
+  "modules": [],
+  "role": "decor",
+  "model": {
+    "type": "gltf",
+    "url": "library/models/banc.glb",
+    "fit": 1.8,
+    "source": "library"
+  },
+  "credit": {
+    "author": "Galerie",
+    "license": "CC0-1.0",
+    "sourceUrl": "https://github.com/yannicksandoz/yannicksandoz.github.io"
+  },
+  "lightColor": "#cfd0e0",
+  "lightIntensity": 1.2
+}

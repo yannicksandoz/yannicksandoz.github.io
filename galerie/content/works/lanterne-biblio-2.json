@@ -1,0 +1,31 @@
+{
+  "id": "lanterne-biblio-2",
+  "title": "Lanterne",
+  "description": "",
+  "position": [
+    8,
+    0.88,
+    8
+  ],
+  "rotation": [
+    0,
+    0,
+    0
+  ],
+  "scale": [
+    0.45,
+    1.1,
+    0.45
+  ],
+  "modules": [],
+  "role": "decor",
+  "model": {
+    "shape": "cylinder",
+    "color": "#ffd9a8",
+    "roughness": 0.6,
+    "metalness": 0,
+    "emissive": 0.6
+  },
+  "lightColor": "#ffcf9e",
+  "lightIntensity": 5
+}

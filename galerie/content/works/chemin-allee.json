@@ -1,0 +1,30 @@
+{
+  "id": "chemin-allee",
+  "title": "Chemin",
+  "description": "",
+  "position": [
+    0,
+    0.03,
+    0
+  ],
+  "rotation": [
+    0,
+    0,
+    0
+  ],
+  "scale": [
+    3,
+    0.06,
+    26
+  ],
+  "modules": [],
+  "role": "decor",
+  "model": {
+    "shape": "box",
+    "color": "#23231d",
+    "roughness": 1,
+    "metalness": 0,
+    "emissive": 0.02
+  },
+  "lightIntensity": 0
+}

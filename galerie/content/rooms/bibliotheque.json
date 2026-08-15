@@ -1,0 +1,87 @@
+{
+  "id": "bibliotheque",
+  "title": "Bibliothèque",
+  "spawn": [
+    0,
+    2.2,
+    8
+  ],
+  "fogColor": "#0b0704",
+  "floor": {
+    "size": 32,
+    "color": "#191410",
+    "grid": false
+  },
+  "shell": {
+    "width": 28,
+    "depth": 22,
+    "height": 5.5,
+    "color": "#241c12",
+    "windows": [
+      {
+        "wall": "nord",
+        "offset": -7,
+        "width": 4,
+        "height": 2,
+        "sill": 1.3
+      },
+      {
+        "wall": "nord",
+        "offset": 7,
+        "width": 4,
+        "height": 2,
+        "sill": 1.3
+      }
+    ]
+  },
+  "keyLight": {
+    "color": "#ffcf9e",
+    "intensity": 2.4,
+    "azimuth": 205,
+    "elevation": 50
+  },
+  "envIntensity": 0.95,
+  "works": [
+    "rayonnage-1",
+    "rayonnage-2",
+    "rayonnage-3",
+    "rayonnage-4",
+    "rayonnage-5",
+    "rayonnage-6",
+    "banc-bibliotheque",
+    "lanterne-biblio-1",
+    "lanterne-biblio-2"
+  ],
+  "portals": [
+    {
+      "to": "couloir-est",
+      "position": [
+        0,
+        0,
+        10
+      ],
+      "rotationY": 0,
+      "label": "Couloir",
+      "arrival": [
+        0,
+        2.2,
+        -13
+      ]
+    },
+    {
+      "to": "allee",
+      "position": [
+        -12,
+        0,
+        0
+      ],
+      "rotationY": 90,
+      "label": "Allée",
+      "arrival": [
+        0,
+        2.2,
+        -11
+      ]
+    }
+  ]
+}
