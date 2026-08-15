@@ -72,3 +72,21 @@ export class LoadingTracker {
     for (const fn of this._listeners) fn(this.done, this.total);
   }
 }
+
+/**
+ * Cet objet est-il de la MATIÈRE — quelque chose que l'on heurte et sur quoi
+ * l'on marche ?
+ *
+ * Une construction voxel est de la matière par nature : un bloc que l'on voit
+ * plein et que l'on traverse est la plus déroutante des surprises. Elle est
+ * donc solide d'office, et l'on peut l'assouplir au cas par cas
+ * (`"walkable": false`) pour une œuvre qu'on veut pouvoir pénétrer. Tout le
+ * reste — panneaux, primitives, modèles importés — reste franchissable tant
+ * qu'on ne l'a pas déclaré foulable, pour ne pas transformer chaque lanterne
+ * en obstacle.
+ */
+export function isWalkable(config) {
+  if (config?.walkable === false) return false;
+  if (config?.walkable) return true;
+  return config?.model?.type === 'voxel';
+}

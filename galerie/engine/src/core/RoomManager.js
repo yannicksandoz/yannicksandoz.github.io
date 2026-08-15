@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { assetUrl } from './utils.js';
+import { assetUrl, isWalkable } from './utils.js';
 
 const PORTAL_COLOR = 0x9f8cff;
 /** Densité de brouillard par défaut — celle d'une salle d'exposition. */
@@ -136,12 +136,40 @@ export class RoomManager {
     if (room.floor) for (const c of room.floor.children) if (c.isMesh) list.push(c);
     room.shell?.traverse((o) => { if (o.isMesh) list.push(o); });
     for (const a of room.artworks) {
-      if (!a.config.walkable || !a.mesh) continue;
+      if (!isWalkable(a.config) || !a.mesh) continue;
       // le maillage de collision quand il existe (quelques pavés), sinon le
       // maillage de rendu — voir Artwork._setMesh et voxel.buildVoxelCollider
       list.push(a.collider ?? a.mesh);
     }
     return list;
+  }
+
+  /**
+   * Demi-emprise foulable de la pièce courante, en coordonnées LOCALES.
+   *
+   * Une pièce à ciel ouvert n'a pas de murs pour retenir le visiteur : sans
+   * cette borne, on marche au-delà du bord du sol et l'on continue dans le
+   * vide, indéfiniment. La limite se prend sur le sol (et sur la coque quand
+   * elle est plus large), avec un pas de recul pour ne pas donner sur
+   * l'abîme. Renvoie null si la pièce n'a ni sol ni coque — un espace qui
+   * assume de n'avoir aucun bord.
+   */
+  boundsLocal(room = this.current) {
+    const cfg = room?.config;
+    if (!cfg) return null;
+    let half = 0;
+    if (cfg.floor !== false) {
+      const s = Number(cfg.floor?.size);
+      half = Number.isFinite(s) && s > 0 ? s / 2 : FLOOR_DEFAULTS.size / 2;
+    }
+    const shell = cfg.shell && cfg.shell !== true ? cfg.shell : (cfg.shell ? {} : null);
+    if (shell) {
+      const w = Number(shell.width) > 0 ? shell.width : SHELL_DEFAULTS.width;
+      const d = Number(shell.depth) > 0 ? shell.depth : SHELL_DEFAULTS.depth;
+      half = Math.max(half, w / 2, d / 2);
+    }
+    if (!half) return null;
+    return Math.max(2, half - 1.5);
   }
 
   /**

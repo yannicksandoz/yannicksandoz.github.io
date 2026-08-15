@@ -21,6 +21,7 @@ const YAW_SPEED = THREE.MathUtils.degToRad(120);
 const UP = new THREE.Vector3(0, 1, 0);
 const DOWN = new THREE.Vector3(0, -1, 0);
 const EYE = 2.2;       // hauteur des yeux au-dessus du sol foulé
+const GROUND_REACH = 40; // portée du rayon de sol (une chute de haut se suit)
 const CHEST = 1.15;    // hauteur du rayon de collision au-dessus des pieds :
                        // au-dessus de deux contremarches (2 × 0,5 m), un
                        // escalier se gravit ; un mur ou une masse bloquent
@@ -28,6 +29,7 @@ const _rayOrigin = new THREE.Vector3();
 const _prevPos = new THREE.Vector3();
 const _delta = new THREE.Vector3();
 const _tryDir = new THREE.Vector3();
+const _local = new THREE.Vector3();
 export class Controls {
   constructor(app) {
     this.app = app;
@@ -172,8 +174,41 @@ export class Controls {
     // joystick, pan à deux doigts) — on le corrige d'un seul geste, par
     // rapport à la position de FIN de frame précédente.
     this._collide();
+    this._keepInside();
     this._followGround(dt);
     this._lastPos.copy(this.app.camera.position);
+  }
+
+  /**
+   * Bord du monde : on ne quitte pas la pièce.
+   *
+   * Les murs suffisent quand il y en a — mais un parvis, un jardin, une
+   * allée n'en ont pas, et rien n'empêchait alors de marcher au-delà du sol
+   * et de continuer dans le vide. La position est ramenée dans l'emprise du
+   * sol, en coordonnées LOCALES de la pièce : ainsi la limite tourne avec
+   * elle quand un mur devient le sol (Escher).
+   */
+  _keepInside() {
+    const app = this.app;
+    if (this.locked || this.suspended || this.dragging) return;
+    if (app.editor?.enabled) return;          // en édition, on survole tout
+    if (app.rooms?._transitioning) return;
+    const room = app.rooms?.current;
+    const half = app.rooms?.boundsLocal?.(room);
+    if (!half || !room) return;
+
+    const cam = app.camera.position;
+    _local.copy(cam);
+    room.group.worldToLocal(_local);
+    const x = THREE.MathUtils.clamp(_local.x, -half, half);
+    const z = THREE.MathUtils.clamp(_local.z, -half, half);
+    if (x === _local.x && z === _local.z) return;
+    _local.x = x;
+    _local.z = z;
+    room.group.localToWorld(_local);
+    _delta.copy(_local).sub(cam);
+    cam.add(_delta);
+    this.orbit.target.add(_delta);           // la cible suit, sinon le regard bascule
   }
 
   /**
@@ -303,11 +338,14 @@ export class Controls {
     if (this.locked || this.suspended || this.dragging) return;
     if (app.editor?.enabled) return;          // en édition, on vole
     if (app.rooms?._transitioning) return;    // une bascule pilote la caméra
-    const targets = this._targets(this._groundRay.far);
+    const targets = this._targets(GROUND_REACH);
     if (!targets.length) return;
     const cam = app.camera.position;
     _rayOrigin.set(cam.x, cam.y + 0.6, cam.z);
     this._groundRay.set(_rayOrigin, DOWN);
+    this._groundRay.far = GROUND_REACH;   // reposé à chaque frame : un rayon
+                                          // partagé est un rayon qu'on retrouve
+                                          // réglé par quelqu'un d'autre
     const hit = this._groundRay.intersectObjects(targets, true)[0];
     if (!hit) return; // hors de tout : on garde l'altitude
     this._groundY = hit.point.y;               // référence de la collision

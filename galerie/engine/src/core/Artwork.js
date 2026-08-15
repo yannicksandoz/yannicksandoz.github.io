@@ -3,6 +3,7 @@ import { registry } from './ModuleRegistry.js';
 import { buildPrimitive, isPrimitive } from './primitives.js';
 import { loadModel, fitModel, modelKind } from './modelLoaders.js';
 import { buildVoxelMesh, buildVoxelCollider } from './voxel.js';
+import { isWalkable } from './utils.js';
 
 // crossOrigin « anonymous » : indispensable pour les médias distants, dont
 // les pixels doivent être lisibles par WebGL (l'hôte doit autoriser le CORS).
@@ -432,7 +433,7 @@ export class Artwork {
     // en pavés : la même forme, mais quelques dizaines de boîtes au lieu de
     // milliers de cellules — c'est lui que les rayons de marche interrogent.
     this.collider = null;
-    if (this.config.walkable && this.config.model?.type === 'voxel') {
+    if (isWalkable(this.config) && this.config.model?.type === 'voxel') {
       const c = buildVoxelCollider(this.config.model);
       if (c) {
         mesh.add(c);           // enfant du mesh : il en hérite la transformation
