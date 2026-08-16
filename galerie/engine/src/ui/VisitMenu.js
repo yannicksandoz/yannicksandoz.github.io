@@ -17,6 +17,7 @@
  * pas (garde dans main.js).
  */
 import { t, lang, setLang, onLangChange } from '../core/i18n.js';
+import { fpsMeterEnabled, setFpsMeter } from './FpsMeter.js';
 
 export class VisitMenu {
   constructor(app) {
@@ -58,6 +59,16 @@ export class VisitMenu {
               <p>${t('menu.keys.focus')}</p>
             </div>
           </li>
+          <li>
+            <button id="vm-settings" aria-expanded="false" aria-controls="vm-settings-panel">${t('menu.settings')}</button>
+            <div id="vm-settings-panel" hidden>
+              <p class="vm-subhead">${t('menu.settings.dev')}</p>
+              <label class="vm-check">
+                <input type="checkbox" id="vm-fps" ${fpsMeterEnabled() ? 'checked' : ''}>
+                ${t('menu.settings.fps')}
+              </label>
+            </div>
+          </li>
         </ul>
         <div class="vm-lang" role="group" aria-label="${t('menu.lang')}">
           <span id="vm-lang-label">${t('menu.lang')}</span>
@@ -76,11 +87,18 @@ export class VisitMenu {
       b.addEventListener('click', () => setLang(b.dataset.lang));
     }
     el.querySelector('#vm-audio').addEventListener('click', () => this._toAudioTour());
-    el.querySelector('#vm-keys').addEventListener('click', (e) => {
-      const help = el.querySelector('#vm-keys-help');
-      const expanded = e.currentTarget.getAttribute('aria-expanded') === 'true';
-      e.currentTarget.setAttribute('aria-expanded', String(!expanded));
-      help.hidden = expanded;
+    // même pli accordéon pour le clavier et les réglages
+    for (const [btn, panel] of [['#vm-keys', '#vm-keys-help'],
+      ['#vm-settings', '#vm-settings-panel']]) {
+      el.querySelector(btn).addEventListener('click', (e) => {
+        const help = el.querySelector(panel);
+        const expanded = e.currentTarget.getAttribute('aria-expanded') === 'true';
+        e.currentTarget.setAttribute('aria-expanded', String(!expanded));
+        help.hidden = expanded;
+      });
+    }
+    el.querySelector('#vm-fps').addEventListener('change', (e) => {
+      setFpsMeter(this.app, e.currentTarget.checked);
     });
 
     // Échap referme — et ne remonte pas jusqu'au déclencheur global de
@@ -94,7 +112,8 @@ export class VisitMenu {
     // Tab bouclé aux extrémités (le reste du document est inerte).
     el.addEventListener('keydown', (e) => {
       if (e.key !== 'Tab') return;
-      const focusables = [...el.querySelectorAll('button')];
+      const focusables = [...el.querySelectorAll('button, input')]
+        .filter((f) => f.offsetParent !== null); // pas les panneaux repliés
       const first = focusables[0];
       const last = focusables[focusables.length - 1];
       if (e.shiftKey && document.activeElement === first) {

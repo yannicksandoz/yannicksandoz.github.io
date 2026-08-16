@@ -401,9 +401,14 @@ export class App {
     artwork.dispose();
   }
 
-  /** Enregistre un callback appelé à chaque frame : fn(dt, ctx). */
+  /** Enregistre un callback appelé à chaque frame : fn(dt, ctx).
+   *  Renvoie la fonction de désabonnement. */
   onUpdate(fn) {
     this._updatables.push(fn);
+    return () => {
+      const i = this._updatables.indexOf(fn);
+      if (i >= 0) this._updatables.splice(i, 1);
+    };
   }
 
   /** Prévient les abonnés qu'une œuvre vient de charger son visuel. */

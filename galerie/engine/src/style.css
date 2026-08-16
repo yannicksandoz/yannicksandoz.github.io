@@ -351,6 +351,36 @@ html, body {
 .vm-panel li button:hover, #vm-close:hover { background: rgba(159, 140, 255, 0.15); }
 .vm-panel button:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
 #vm-keys-help { margin: 0.5rem 0 0.3rem 1rem; color: var(--dim); font-size: 0.92rem; }
+#vm-settings-panel { margin: 0.5rem 0 0.3rem 1rem; font-size: 0.92rem; }
+.vm-subhead {
+  color: var(--dim); font-size: 0.8rem; letter-spacing: 0.12em;
+  text-transform: uppercase; margin-bottom: 0.3rem;
+}
+.vm-check {
+  display: flex; align-items: center; gap: 0.55rem;
+  padding: 0.35rem 0; cursor: pointer; color: var(--fg);
+}
+.vm-check input {
+  width: 1.05rem; height: 1.05rem; accent-color: var(--accent); cursor: pointer;
+}
+.vm-check input:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+
+/* Compteur d'images (réglage de développement) — discret, coin bas-gauche
+   (le bas-droit appartient aux boutons d'info et de crédits), au-dessus de
+   la scène mais sous les dialogues (visite audio, menu). */
+#fps-meter {
+  position: fixed;
+  left: calc(0.8rem + env(safe-area-inset-left, 0px));
+  bottom: calc(0.8rem + env(safe-area-inset-bottom, 0px));
+  z-index: 22;
+  padding: 0.25rem 0.6rem; border-radius: 0.4rem;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.78rem; letter-spacing: 0.04em;
+  color: var(--dim); background: rgba(8, 8, 16, 0.55);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  pointer-events: none; user-select: none;
+}
+#fps-meter.fps-low { color: #ffb36b; border-color: rgba(255, 179, 107, 0.35); }
 .vm-lang {
   display: flex; align-items: center; gap: 0.5rem;
   margin-top: 1.2rem; font-size: 0.92rem; color: var(--dim);

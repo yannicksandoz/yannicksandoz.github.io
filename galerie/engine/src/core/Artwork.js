@@ -2,7 +2,8 @@ import * as THREE from 'three';
 import { registry } from './ModuleRegistry.js';
 import { buildPrimitive, isPrimitive } from './primitives.js';
 import { loadModel, fitModel, modelKind } from './modelLoaders.js';
-import { buildVoxelMesh, buildVoxelCollider } from './voxel.js';
+import { buildVoxelMesh, buildVoxelMeshMerged, buildVoxelCollider } from './voxel.js';
+import { EDITOR_AVAILABLE } from '../editorLoader.js';
 import { isWalkable } from './utils.js';
 
 // crossOrigin « anonymous » : indispensable pour les médias distants, dont
@@ -126,19 +127,48 @@ export class Artwork {
 
     this._buildPlaceholder();
 
-    // Lumière d'appoint propre à l'œuvre (pilotable par AudioReactive)
-    const lightColor = config.lightColor ?? '#7a6cff';
-    this.light = new THREE.PointLight(
-      new THREE.Color(lightColor), config.lightIntensity ?? 4, 14, 1.8);
-    this.light.position.set(0, 0.4, 1.6);
-    this.group.add(this.light);
-    this.lightBaseIntensity = this.light.intensity;
+    // Lumière d'appoint propre à l'œuvre (pilotable par AudioReactive) —
+    // créée SEULEMENT si elle éclaire. Chaque PointLight de la scène se
+    // paie sur chaque pixel de chaque surface : les onze masses du
+    // belvédère, éteintes (intensité 0), coûtaient quand même onze
+    // lumières au shader.
+    this.light = null;
+    this.lightBaseIntensity = config.lightIntensity ?? 4;
+    if (this.lightBaseIntensity > 0) this._buildLight();
 
     // instanciation des modules déclarés dans la config
     this.modules = (config.modules ?? [])
       .map((m) => registry.create(m.type, this, m.params, app))
       .filter(Boolean);
     for (const m of this.modules) m.init();
+  }
+
+  _buildLight() {
+    this.light = new THREE.PointLight(
+      new THREE.Color(this.config.lightColor ?? '#7a6cff'),
+      this.lightBaseIntensity, 14, 1.8);
+    this.light.position.set(0, 0.4, 1.6);
+    this.group.add(this.light);
+  }
+
+  /**
+   * Relit couleur et intensité depuis la config — le chemin vif de
+   * l'éditeur. La lumière naît ici si l'auteur allume une œuvre éteinte ;
+   * repassée à zéro, elle disparaît vraiment (une PointLight à intensité
+   * nulle coûte encore son poste dans le shader).
+   */
+  applyLight() {
+    this.lightBaseIntensity = this.config.lightIntensity ?? 4;
+    if (this.lightBaseIntensity > 0 && !this.light) this._buildLight();
+    if (!this.light) return;
+    if (this.lightBaseIntensity <= 0) {
+      this.group.remove(this.light);
+      this.light.dispose();
+      this.light = null;
+      return;
+    }
+    this.light.color.set(this.config.lightColor ?? '#7a6cff');
+    this.light.intensity = this.lightBaseIntensity;
   }
 
   /** Chemin de config → URL réelle (les imports de l'éditeur sont des blobs). */
@@ -194,7 +224,15 @@ export class Artwork {
       } else if (cfg.model?.type === 'voxel') {
         // Grille vide : on garde le placeholder, sinon l'objet deviendrait
         // invisible ET impossible à sélectionner — donc impossible à remplir.
-        const mesh = buildVoxelMesh(cfg.model);
+        // Build visiteur : la grille est figée, pavés fusionnés (~1 % des
+        // instances, deux passes de rendu économisées). Build auteur :
+        // version cellule-par-cellule, la seule qui se pique au rayon —
+        // même si l'éditeur n'est pas encore OUVERT, car il peut l'être
+        // à tout moment et les œuvres déjà chargées doivent rester
+        // éditables. Le drapeau vient du chargeur substitué par Vite.
+        const mesh = EDITOR_AVAILABLE
+          ? buildVoxelMesh(cfg.model)
+          : buildVoxelMeshMerged(cfg.model);
         if (mesh) this._setMesh(mesh);
       } else if (cfg.model?.url) {
         this._setMesh(await this._loadModelMesh(cfg.model));

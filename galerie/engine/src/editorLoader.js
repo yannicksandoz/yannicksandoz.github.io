@@ -45,3 +45,11 @@ export function setupEditorLoader(app) {
   // Mode auteur direct : …/galerie/?edit
   if (new URLSearchParams(location.search).has('edit')) toggle();
 }
+
+/**
+ * Vrai chargeur : l'éditeur EST dans ce build, même s'il n'est pas encore
+ * ouvert. Le moteur garde alors les représentations éditables (voxels
+ * cellule-par-cellule) — c'est le build de la machine d'auteur, la
+ * performance de visite s'y mesure moins qu'un cube qui se pique au rayon.
+ */
+export const EDITOR_AVAILABLE = true;

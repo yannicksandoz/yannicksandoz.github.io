@@ -58,6 +58,11 @@ async function boot() {
   app.ui = new UI();
   app.ui.bindLoading(app.loading);
   app.ui.mountRoomBadge(app);
+  // compteur FPS (menu → Réglages → Développement) : s'il était actif à la
+  // dernière session, il revient seul — on recharge beaucoup quand on mesure
+  import('./ui/FpsMeter.js').then(({ fpsMeterEnabled, mountFpsMeter }) => {
+    if (fpsMeterEnabled()) mountFpsMeter(app);
+  });
   app.controls = new Controls(app);
   app.rooms = new RoomManager(app);
 

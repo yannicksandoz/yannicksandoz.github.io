@@ -127,6 +127,88 @@ export function buildVoxelMesh(model, grid = gridOf(model)) {
 }
 
 /**
+ * Maillage de rendu FUSIONNÉ : la même forme, en pavés au lieu de cellules.
+ *
+ * L'InstancedMesh cellule-par-cellule est parfait pour l'édition (chaque
+ * cube se pique au rayon), mais en visite la grille est figée — et un
+ * escalier plein du belvédère, c'est 1 500 instances dessinées DEUX fois
+ * par frame (passe d'ombre puis passe principale). Onze masses comme ça et
+ * le M1 le plus large s'essouffle.
+ *
+ * On fusionne donc comme pour la collision, mais PAR COULEUR : deux
+ * cellules ne s'agrègent que si elles portent la même entrée de palette,
+ * si bien que le rendu est rigoureusement identique — mêmes faces, mêmes
+ * teintes, même matériau émissif — pour ~1 % des instances. Les faces
+ * intérieures des pavés voisins existent mais sont invisibles (elles se
+ * recouvrent exactement, aucune n'est jamais devant l'autre).
+ *
+ * Pas de `userData.voxelCells` : ce maillage ne s'édite pas. L'éditeur
+ * garde buildVoxelMesh ; la visite prend celui-ci.
+ */
+export function buildVoxelMeshMerged(model, grid = gridOf(model)) {
+  const dims = model.dims ?? DEFAULT_DIMS;
+  const cell = model.cell ?? DEFAULT_CELL;
+  const palette = (model.palette ?? DEFAULT_PALETTE).map((c) => new THREE.Color(c));
+  const pris = new Uint8Array(grid.length);
+  const pavés = [];
+
+  const meme = (x, y, z, v) =>
+    grid[cellIndex(dims, x, y, z)] === v && !pris[cellIndex(dims, x, y, z)];
+
+  for (let z = 0; z < dims[2]; z++) {
+    for (let y = 0; y < dims[1]; y++) {
+      for (let x = 0; x < dims[0]; x++) {
+        const v = grid[cellIndex(dims, x, y, z)];
+        if (!v || pris[cellIndex(dims, x, y, z)]) continue;
+        let sx = 1;
+        while (x + sx < dims[0] && meme(x + sx, y, z, v)) sx++;
+        let sy = 1;
+        grandirY: while (y + sy < dims[1]) {
+          for (let i = 0; i < sx; i++) if (!meme(x + i, y + sy, z, v)) break grandirY;
+          sy++;
+        }
+        let sz = 1;
+        grandirZ: while (z + sz < dims[2]) {
+          for (let j = 0; j < sy; j++) {
+            for (let i = 0; i < sx; i++) {
+              if (!meme(x + i, y + j, z + sz, v)) break grandirZ;
+            }
+          }
+          sz++;
+        }
+        for (let k = 0; k < sz; k++) {
+          for (let j = 0; j < sy; j++) {
+            for (let i = 0; i < sx; i++) pris[cellIndex(dims, x + i, y + j, z + k)] = 1;
+          }
+        }
+        pavés.push([x, y, z, sx, sy, sz, v]);
+      }
+    }
+  }
+  if (!pavés.length) return null;
+
+  const geometry = new THREE.BoxGeometry(1, 1, 1);
+  const mesh = new THREE.InstancedMesh(geometry, buildVoxelMaterial(), pavés.length);
+  const m = new THREE.Matrix4();
+  const white = new THREE.Color('#ffffff');
+  for (let i = 0; i < pavés.length; i++) {
+    const [x, y, z, sx, sy, sz, v] = pavés[i];
+    const c0 = cellCenter(dims, cell, x, y, z);
+    m.makeScale(sx * cell, sy * cell, sz * cell);
+    m.setPosition(
+      c0[0] + (sx - 1) * cell / 2,
+      c0[1] + (sy - 1) * cell / 2,
+      c0[2] + (sz - 1) * cell / 2
+    );
+    mesh.setMatrixAt(i, m);
+    mesh.setColorAt(i, palette[v - 1] ?? white);
+  }
+  mesh.instanceMatrix.needsUpdate = true;
+  if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
+  return mesh;
+}
+
+/**
  * Maillage de COLLISION d'une grille : la même forme, en beaucoup moins de
  * pièces.
  *

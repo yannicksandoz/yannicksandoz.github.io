@@ -16,3 +16,7 @@
 export function setupEditorLoader() {
   // volontairement vide
 }
+
+/** Ici, jamais : ce build ne CONTIENT pas l'éditeur. Le moteur peut donc
+ *  choisir ses représentations de visite (voxels fusionnés, etc.). */
+export const EDITOR_AVAILABLE = false;
