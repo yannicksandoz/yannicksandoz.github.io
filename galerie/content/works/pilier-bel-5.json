@@ -1,0 +1,31 @@
+{
+  "id": "pilier-bel-5",
+  "title": "Pilier",
+  "description": "",
+  "position": [
+    -8.0,
+    66.0,
+    34.0
+  ],
+  "rotation": [
+    -90.0,
+    0.0,
+    0.0
+  ],
+  "scale": [
+    1.2,
+    8.0,
+    1.2
+  ],
+  "modules": [],
+  "role": "decor",
+  "model": {
+    "shape": "box",
+    "color": "#2b2440",
+    "roughness": 0.9,
+    "metalness": 0.05,
+    "emissive": 0.04
+  },
+  "lightIntensity": 0,
+  "loadDistance": 240
+}

@@ -1,0 +1,41 @@
+{
+  "id": "palier-r18",
+  "title": "Palier",
+  "description": "",
+  "position": [
+    27.5,
+    52.0,
+    31.94
+  ],
+  "rotation": [
+    -90.0,
+    0.0,
+    0.0
+  ],
+  "scale": [
+    1,
+    1,
+    1
+  ],
+  "modules": [],
+  "role": "decor",
+  "walkable": true,
+  "loadDistance": 240,
+  "model": {
+    "type": "voxel",
+    "dims": [
+      14,
+      2,
+      14
+    ],
+    "cell": 0.5,
+    "palette": [
+      "#344e44"
+    ],
+    "cells": [
+      392,
+      1
+    ]
+  },
+  "lightIntensity": 0
+}

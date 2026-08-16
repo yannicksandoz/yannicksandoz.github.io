@@ -36,5 +36,12 @@
   ],
   "floor": {
     "texture": "dalles"
-  }
+  },
+  "keyLight": {
+    "color": "#9f8cd8",
+    "intensity": 2.0,
+    "azimuth": 240,
+    "elevation": 48
+  },
+  "envIntensity": 1.1
 }

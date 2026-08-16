@@ -1,0 +1,41 @@
+{
+  "id": "passerelle-r18",
+  "title": "Palier",
+  "description": "",
+  "position": [
+    35.25,
+    52.0,
+    31.94
+  ],
+  "rotation": [
+    -90.0,
+    0.0,
+    0.0
+  ],
+  "scale": [
+    1,
+    1,
+    1
+  ],
+  "modules": [],
+  "role": "decor",
+  "walkable": true,
+  "loadDistance": 240,
+  "model": {
+    "type": "voxel",
+    "dims": [
+      17,
+      2,
+      6
+    ],
+    "cell": 0.5,
+    "palette": [
+      "#2c443c"
+    ],
+    "cells": [
+      204,
+      1
+    ]
+  },
+  "lightIntensity": 0
+}

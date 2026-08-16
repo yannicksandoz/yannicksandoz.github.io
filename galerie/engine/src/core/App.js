@@ -511,8 +511,9 @@ export class App {
       if (this.audioTour?.active) return;
 
       if (!this.quality.reducedMotion) this.dust.rotation.y += dt * 0.004;
-      // l'eau ondule : UNE horloge partagée par tous les bassins de la scène
-      if (!this.quality.reducedMotion) WATER_TIME.value = t;
+      // l'eau ondule : UNE horloge partagée par tous les bassins de la
+      // scène, bornée pour que sin(t) reste précis sur tous les GPU
+      if (!this.quality.reducedMotion) WATER_TIME.value = t % 3600;
       this.grainPass.uniforms.uTime.value = t;
       if (this.warpPass.enabled) this.warpPass.uniforms.uTime.value = t;
       this.quality.tick(dt, this);

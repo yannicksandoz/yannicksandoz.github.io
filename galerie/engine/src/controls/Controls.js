@@ -40,13 +40,14 @@ export class Controls {
     this.orbit = new OrbitControls(app.camera, app.renderer.domElement);
     this.orbit.enableDamping = true;
     this.orbit.dampingFactor = 0.06;
-    // Le regard doit monter au ciel comme il descend aux pieds : l'ancien
-    // plafond (0,52π — 3,6° au-dessus de l'horizon !) empêchait d'admirer
-    // quoi que ce soit en l'air. La caméra ne passe pas sous le sol pour
-    // autant : sa hauteur est tenue par le suivi de sol, qui déplace la
-    // cible d'autant — l'assiette du regard est préservée, pas écrasée.
-    this.orbit.minPolarAngle = Math.PI * 0.05; // pas de vrille au zénith
-    this.orbit.maxPolarAngle = Math.PI * 0.95; // ni au nadir
+    // Le regard doit monter au zénith comme il descend aux pieds : dans le
+    // belvédère, l'intéressant est DROIT au-dessus de la tête (le plafond
+    // et ses escaliers), une butée à 9° du zénith le cachait. On garde un
+    // epsilon : à 0 pile, l'azimut d'OrbitControls vrille. La caméra ne
+    // passe pas sous le sol pour autant : sa hauteur est tenue par le suivi
+    // de sol, qui déplace la cible d'autant — l'assiette est préservée.
+    this.orbit.minPolarAngle = 0.015; // ~0,9° du zénith
+    this.orbit.maxPolarAngle = Math.PI - 0.015; // et du nadir
     this.orbit.minDistance = 0.5;
     this.orbit.maxDistance = 30;
     this.orbit.target.set(0, 1.8, 8);

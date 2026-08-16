@@ -60,8 +60,13 @@ function buildWaterMaterial(model) {
       varying vec3 vWorld;
       varying vec3 vNormalW;
 
+      // hash SANS sin(x·43758) : sur les GPU Apple (Metal), sin perd toute
+      // précision au-delà de ~10^4 et le motif dégénère — celui-ci n'emploie
+      // que fract et dot, il est stable partout.
       float hash(vec2 p) {
-        return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453);
+        vec3 q = fract(vec3(p.xyx) * 0.1031);
+        q += dot(q, q.yzx + 33.33);
+        return fract((q.x + q.y) * q.z);
       }
       float noise(vec2 p) {
         vec2 i = floor(p), f = fract(p);
@@ -83,12 +88,17 @@ function buildWaterMaterial(model) {
         vec3 n = normalize(vNormalW + vec3(hx, 0.0, hz) * 0.045 * uRipple);
 
         vec3 view = normalize(cameraPosition - vWorld);
-        // fresnel : l'eau vue de haut est profonde, rasante elle prend le ciel
-        float fres = pow(1.0 - max(dot(view, n), 0.0), 3.0);
+        // fresnel : l'eau vue de haut est profonde, rasante elle prend le
+        // ciel. Cubique EXPLICITE, pas pow() : dot(view, n) dépasse 1.0
+        // d'un chouia en flottant quand on regarde l'eau à l'aplomb, la
+        // base devient négative et pow() est indéfini en GLSL — NaN, donc
+        // noir, sur Metal (le bassin vu du dessus devenait un bloc noir).
+        float fc = clamp(1.0 - dot(view, n), 0.0, 1.0);
+        float fres = fc * fc * fc;
         vec3 col = mix(uDeep, uSkyTint, 0.15 + fres * 0.7);
-        // le soleil glisse sur les rides
+        // le soleil glisse sur les rides (base clampée dans [0,1] : sûre)
         vec3 refl = reflect(-view, n);
-        float sun = pow(max(dot(refl, uSunDir), 0.0), 140.0);
+        float sun = pow(clamp(dot(refl, uSunDir), 0.0, 1.0), 140.0);
         col += vec3(1.0, 0.95, 0.85) * sun * 0.9;
         // profondeur qui respire à peine avec la houle
         col *= 1.0 + h * 0.03;

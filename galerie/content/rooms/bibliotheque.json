@@ -42,7 +42,7 @@
     "azimuth": 205,
     "elevation": 50
   },
-  "envIntensity": 0.95,
+  "envIntensity": 1.1,
   "works": [
     "rayonnage-1",
     "rayonnage-2",

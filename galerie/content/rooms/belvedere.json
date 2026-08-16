@@ -29,11 +29,11 @@
   },
   "keyLight": {
     "color": "#e0c4ff",
-    "intensity": 2.6,
+    "intensity": 2.8,
     "azimuth": 315,
     "elevation": 58
   },
-  "envIntensity": 1.35,
+  "envIntensity": 1.5,
   "works": [
     "escalier-r1",
     "palier-r1",
@@ -47,14 +47,35 @@
     "palier-r8",
     "escalier-r9",
     "palier-r9",
+    "escalier-r10",
+    "palier-r10",
+    "escalier-r11",
+    "palier-r11",
+    "escalier-r12",
+    "palier-r12",
+    "escalier-r13",
+    "palier-r13",
+    "escalier-r14",
+    "palier-r14",
+    "escalier-r15",
+    "palier-r15",
     "escalier-r4",
     "escalier-r5",
     "escalier-r6",
+    "escalier-r16",
+    "escalier-r17",
+    "escalier-r18",
     "palier-r4",
     "palier-r5",
+    "palier-r16",
+    "palier-r17",
+    "palier-r18",
     "passerelle-r4",
     "passerelle-r5",
     "passerelle-r6",
+    "passerelle-r16",
+    "passerelle-r17",
+    "passerelle-r18",
     "lanterne-bel-sol-1",
     "lanterne-bel-sol-2",
     "lanterne-bel-sol-3",
@@ -62,9 +83,15 @@
     "lanterne-bel-est-2",
     "lanterne-bel-nord-1",
     "lanterne-bel-nord-2",
+    "lanterne-bel-ouest-1",
+    "lanterne-bel-sud-1",
+    "lanterne-bel-plafond-1",
+    "lanterne-bel-plafond-2",
     "pilier-bel-1",
     "pilier-bel-2",
     "pilier-bel-3",
+    "pilier-bel-4",
+    "pilier-bel-5",
     "banc-belvedere",
     "gravite"
   ],
@@ -308,6 +335,246 @@
         10.0
       ],
       "label": "Retour au mur ouest"
+    },
+    {
+      "position": [
+        29.0,
+        20.0,
+        38.3
+      ],
+      "rotation": [
+        -0.0,
+        0.0,
+        90.0
+      ],
+      "radius": 2.2,
+      "plane": "sud",
+      "arrival": [
+        26.5,
+        3.9,
+        20.0
+      ],
+      "label": "Mur sud"
+    },
+    {
+      "position": [
+        26.5,
+        20.0,
+        39.75
+      ],
+      "rotation": [
+        -90.0,
+        0.0,
+        0.0
+      ],
+      "radius": 2.2,
+      "plane": "est",
+      "arrival": [
+        20.0,
+        13.2,
+        38.3
+      ],
+      "label": "Retour au mur est"
+    },
+    {
+      "position": [
+        -38.3,
+        20.0,
+        -29.0
+      ],
+      "rotation": [
+        90.0,
+        0.0,
+        0.0
+      ],
+      "radius": 2.2,
+      "plane": "ouest",
+      "arrival": [
+        -20.0,
+        3.9,
+        -26.5
+      ],
+      "label": "Mur ouest"
+    },
+    {
+      "position": [
+        -39.75,
+        20.0,
+        -26.5
+      ],
+      "rotation": [
+        -0.0,
+        0.0,
+        -90.0
+      ],
+      "radius": 2.2,
+      "plane": "nord",
+      "arrival": [
+        -38.3,
+        13.2,
+        -20.0
+      ],
+      "label": "Retour au mur nord"
+    },
+    {
+      "position": [
+        8.0,
+        78.3,
+        29.0
+      ],
+      "rotation": [
+        -90.0,
+        0.0,
+        0.0
+      ],
+      "radius": 2.2,
+      "plane": "plafond",
+      "arrival": [
+        8.0,
+        3.9,
+        -26.5
+      ],
+      "label": "Plafond"
+    },
+    {
+      "position": [
+        8.0,
+        79.75,
+        26.5
+      ],
+      "rotation": [
+        -180.0,
+        0.0,
+        0.0
+      ],
+      "radius": 2.2,
+      "plane": "sud",
+      "arrival": [
+        8.0,
+        13.2,
+        78.3
+      ],
+      "label": "Retour au mur sud"
+    },
+    {
+      "position": [
+        -8.0,
+        78.3,
+        -29.0
+      ],
+      "rotation": [
+        90.0,
+        0.0,
+        0.0
+      ],
+      "radius": 2.2,
+      "plane": "plafond",
+      "arrival": [
+        -8.0,
+        3.9,
+        26.5
+      ],
+      "label": "Plafond"
+    },
+    {
+      "position": [
+        -8.0,
+        79.75,
+        -26.5
+      ],
+      "rotation": [
+        -180.0,
+        0.0,
+        0.0
+      ],
+      "radius": 2.2,
+      "plane": "nord",
+      "arrival": [
+        -8.0,
+        13.2,
+        -78.3
+      ],
+      "label": "Retour au mur nord"
+    },
+    {
+      "position": [
+        -38.3,
+        30.0,
+        29.0
+      ],
+      "rotation": [
+        -90.0,
+        0.0,
+        0.0
+      ],
+      "radius": 2.2,
+      "plane": "ouest",
+      "arrival": [
+        -30.0,
+        3.9,
+        26.5
+      ],
+      "label": "Mur ouest"
+    },
+    {
+      "position": [
+        -39.75,
+        30.0,
+        26.5
+      ],
+      "rotation": [
+        -0.0,
+        0.0,
+        -90.0
+      ],
+      "radius": 2.2,
+      "plane": "sud",
+      "arrival": [
+        -38.3,
+        13.2,
+        30.0
+      ],
+      "label": "Retour au mur sud"
+    },
+    {
+      "position": [
+        29.0,
+        78.3,
+        -24.0
+      ],
+      "rotation": [
+        -0.0,
+        0.0,
+        90.0
+      ],
+      "radius": 2.2,
+      "plane": "plafond",
+      "arrival": [
+        26.5,
+        3.9,
+        24.0
+      ],
+      "label": "Plafond"
+    },
+    {
+      "position": [
+        26.5,
+        79.75,
+        -24.0
+      ],
+      "rotation": [
+        -180.0,
+        0.0,
+        0.0
+      ],
+      "radius": 2.2,
+      "plane": "est",
+      "arrival": [
+        78.3,
+        13.2,
+        -24.0
+      ],
+      "label": "Retour au mur est"
     }
   ],
   "portals": [
@@ -377,6 +644,63 @@
         0,
         2.2,
         6
+      ]
+    },
+    {
+      "to": "jardin",
+      "position": [
+        -40.0,
+        26.0,
+        26.0
+      ],
+      "rotation": [
+        180.0,
+        0.0,
+        -90.0
+      ],
+      "label": "Jardin",
+      "arrival": [
+        0,
+        2.2,
+        10
+      ]
+    },
+    {
+      "to": "bibliotheque",
+      "position": [
+        24.0,
+        60.0,
+        40.0
+      ],
+      "rotation": [
+        -90.0,
+        -90.0,
+        0.0
+      ],
+      "label": "Bibliothèque",
+      "arrival": [
+        0,
+        2.2,
+        6
+      ]
+    },
+    {
+      "to": "allee",
+      "position": [
+        -18.0,
+        80.0,
+        18.0
+      ],
+      "rotation": [
+        -180.0,
+        0.0,
+        0.0
+      ],
+      "label": "Allée",
+      "arrival": [
+        0,
+        2.2,
+        9
       ]
     }
   ]

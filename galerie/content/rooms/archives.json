@@ -42,7 +42,7 @@
     "azimuth": 210,
     "elevation": 55
   },
-  "envIntensity": 1,
+  "envIntensity": 1.15,
   "works": [
     "stele-archives-1",
     "stele-archives-2",
