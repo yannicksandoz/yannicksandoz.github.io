@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { assetUrl, isWalkable } from './utils.js';
+import { buildSky, disposeSky, updateSkyUniforms } from './Sky.js';
 
 const PORTAL_COLOR = 0x9f8cff;
 /** Densité de brouillard par défaut — celle d'une salle d'exposition. */
@@ -55,6 +56,8 @@ export class RoomManager {
     if (room.keyLight) room.group.add(room.keyLight);
     room.basculeMeshes = buildBascules(config);
     for (const m of room.basculeMeshes) room.group.add(m);
+    room.sky = buildSky(config);
+    if (room.sky) room.group.add(room.sky);
     this.app.vistas?.build(room);
     this.app.scene.add(room.group);
     this.rooms.set(config.id, room);
@@ -79,6 +82,9 @@ export class RoomManager {
       return;
     }
     if (room.keyLight) orientKeyLight(room.keyLight, cfg);
+    // le soleil du dôme est un uniform : il suit la lumière clé sans
+    // reconstruction — le ciel et les ombres racontent la même heure
+    if (room.sky) updateSkyUniforms(room.sky, cfg);
     if (room.isCurrent) this.applyEnvIntensity(room);
   }
 
@@ -277,6 +283,32 @@ export class RoomManager {
     if (room.floor) room.group.add(room.floor);
   }
 
+  /**
+   * Chemin VIF du ciel : les couleurs, la couverture, la brume et le soleil
+   * sont des uniforms — mis à jour en place, sans recréer le matériau (donc
+   * sans recompiler le shader à chaque tick de curseur). Reconstruction
+   * seulement quand le dôme apparaît ou disparaît.
+   */
+  applySky(room) {
+    const wanted = Boolean(room.config.sky);
+    if (wanted !== Boolean(room.sky)) {
+      this.rebuildSky(room);
+      return;
+    }
+    if (room.sky) updateSkyUniforms(room.sky, room.config);
+  }
+
+  /** Reconstruit le ciel d'une pièce (présence, dimensions de la pièce). */
+  rebuildSky(room) {
+    if (room.sky) {
+      room.group.remove(room.sky);
+      disposeSky(room.sky);
+      room.sky = null;
+    }
+    room.sky = buildSky(room.config);
+    if (room.sky) room.group.add(room.sky);
+  }
+
   /** Reconstruit la coque (murs) d'une pièce après édition. */
   rebuildShell(room) {
     if (room.shell) {
@@ -297,6 +329,7 @@ export class RoomManager {
   refreshRoomLook(room) {
     this.rebuildFloor(room);
     this.rebuildShell(room);
+    this.rebuildSky(room);
     this.app.vistas?.dispose(room);
     this.app.vistas?.build(room);
     if (room.keyLight) {
@@ -348,6 +381,10 @@ export class RoomManager {
         m.material.dispose();
       }
       this.app.vistas?.dispose(room);
+      if (room.sky) {
+        disposeSky(room.sky);
+        room.sky = null;
+      }
       room.group.removeFromParent();
     }
     this.rooms.clear();
@@ -599,6 +636,17 @@ export class RoomManager {
   }
 
   update(dt, ctx) {
+    // Dérive des nuages : un temps ACCUMULÉ, borné, poussé avant les
+    // temps morts. Trois raisons : un temps absolu claquait tout le motif
+    // d'un coup à la (ré)entrée dans la pièce (uTime périmé pendant les
+    // early-returns) ; l'accumulation ne compte que le temps passé sous ce
+    // ciel ; la borne garde petit l'argument du hash sin() du shader, qui
+    // perd sa précision aux grandes valeurs.
+    const sky = this.current?.sky;
+    if (sky && !this.app.quality.reducedMotion && !this._transitioning) {
+      sky.material.uniforms.uTime.value
+        = (sky.material.uniforms.uTime.value + dt) % 3600;
+    }
     if (this._tickBascule(dt)) return; // une bascule en cours pilote tout
     if (this._cooldown > 0) this._cooldown -= dt;
     if (!this.current || this._transitioning) return;

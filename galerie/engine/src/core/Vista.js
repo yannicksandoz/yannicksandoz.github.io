@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { SHELL_DEFAULTS } from './RoomManager.js';
+import { SHELL_DEFAULTS, FOG_DENSITY } from './RoomManager.js';
 
 /**
  * Apparitions — une pièce d'ailleurs, vivante, sur un plan de la pièce
@@ -262,11 +262,17 @@ export class VistaManager {
     const renderer = this.app.renderer;
     this._fog.copy(scene.fog.color);
     this._bg.copy(scene.background);
+    const fogDensity = scene.fog.density;
     const targetFog = target.config.fogColor;
     if (targetFog) {
       scene.fog.color.set(targetFog);
       scene.background.set(targetFog);
     }
+    // la DENSITÉ aussi : un jardin clair (0,009) rendu au brouillard d'une
+    // petite salle (0,026) baignait dans un lait bleu — la fenêtre doit
+    // montrer la pièce telle qu'on la trouve en y entrant
+    const td = Number(target.config.fogDensity);
+    scene.fog.density = Number.isFinite(td) && td >= 0 ? td : FOG_DENSITY;
     current.group.visible = false;
     target.group.visible = true;
 
@@ -278,5 +284,6 @@ export class VistaManager {
     current.group.visible = true;
     scene.fog.color.copy(this._fog);
     scene.background.copy(this._bg);
+    scene.fog.density = fogDensity;
   }
 }

@@ -6,19 +6,19 @@
     2.2,
     12
   ],
-  "fogColor": "#161209",
+  "fogColor": "#a6c4e6",
   "floor": {
     "size": 90,
-    "color": "#2e2a1e",
+    "color": "#39412a",
     "grid": false
   },
   "keyLight": {
-    "color": "#ffe2b8",
-    "intensity": 2.6,
+    "color": "#fff3da",
+    "intensity": 3,
     "azimuth": 130,
-    "elevation": 45
+    "elevation": 52
   },
-  "envIntensity": 1.6,
+  "envIntensity": 2,
   "works": [
     "pierre-jardin-1",
     "pierre-jardin-2",
@@ -102,5 +102,13 @@
         "rotationY": 0
       }
     }
-  ]
+  ],
+  "sky": {
+    "zenith": "#1e4da6",
+    "horizon": "#92b8e2",
+    "cloudColor": "#aebfd2",
+    "clouds": 0.38,
+    "haze": 0.55
+  },
+  "fogDensity": 0.009
 }

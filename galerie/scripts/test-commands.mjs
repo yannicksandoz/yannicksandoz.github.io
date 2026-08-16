@@ -93,6 +93,15 @@ console.log('\npatch — portée audio (le son se règle sans se couper)');
     { structural: true });
   check('titre de pièce → uiOnly (rien à reconstruire)',
     patch(doc, ['rooms', 0, 'title'], 'x').scope, { uiOnly: true });
+  check('ciel de pièce → roomSkyOnly (uniforms en place, pas de rebuild)',
+    patch(doc, ['rooms', 0, 'sky'], { clouds: 0.5 }).scope,
+    { roomSkyOnly: true, rooms: ['hall'] });
+  check('réglage du ciel → roomSkyOnly aussi',
+    patch(doc, ['rooms', 0, 'sky', 'haze'], 0.3).scope,
+    { roomSkyOnly: true, rooms: ['hall'] });
+  check('coque de pièce → roomShellOnly, inchangé',
+    patch(doc, ['rooms', 0, 'shell'], { width: 10 }).scope,
+    { roomShellOnly: true, rooms: ['hall'] });
   check('couleur de primitive → primitiveStyleOnly',
     patch(doc, ['works', 0, 'model', 'color'], '#38e0c8').scope,
     { primitiveStyleOnly: true, works: ['a'] });
