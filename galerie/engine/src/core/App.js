@@ -10,6 +10,7 @@ import { FOG_DENSITY } from './RoomManager.js';
 import { AudioEngine } from './AudioEngine.js';
 import { QualityManager } from './Quality.js';
 import { LoadingTracker, assetUrl } from './utils.js';
+import { WATER_TIME } from './primitives.js';
 
 const FOG_COLOR = 0x05050a;
 
@@ -510,6 +511,8 @@ export class App {
       if (this.audioTour?.active) return;
 
       if (!this.quality.reducedMotion) this.dust.rotation.y += dt * 0.004;
+      // l'eau ondule : UNE horloge partagée par tous les bassins de la scène
+      if (!this.quality.reducedMotion) WATER_TIME.value = t;
       this.grainPass.uniforms.uTime.value = t;
       if (this.warpPass.enabled) this.warpPass.uniforms.uTime.value = t;
       this.quality.tick(dt, this);

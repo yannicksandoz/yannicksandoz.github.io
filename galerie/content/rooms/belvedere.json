@@ -9,15 +9,14 @@
   "fogColor": "#0b0614",
   "fogDensity": 0.0075,
   "floor": {
-    "size": 80,
+    "size": 80.0,
     "color": "#171226",
-    "grid": false,
-    "texture": "dalles"
+    "grid": false
   },
   "shell": {
-    "width": 80,
-    "depth": 80,
-    "height": 80,
+    "width": 80.0,
+    "depth": 80.0,
+    "height": 80.0,
     "color": "#241c34",
     "ceiling": true,
     "wallColors": {
@@ -26,8 +25,7 @@
       "est": "#35704c",
       "ouest": "#7a6330",
       "plafond": "#453163"
-    },
-    "texture": "pierre"
+    }
   },
   "keyLight": {
     "color": "#e0c4ff",
@@ -43,11 +41,20 @@
     "palier-r2",
     "escalier-r3",
     "palier-r3",
+    "escalier-r7",
+    "palier-r7",
+    "escalier-r8",
+    "palier-r8",
+    "escalier-r9",
+    "palier-r9",
     "escalier-r4",
     "escalier-r5",
     "escalier-r6",
     "palier-r4",
     "palier-r5",
+    "passerelle-r4",
+    "passerelle-r5",
+    "passerelle-r6",
     "lanterne-bel-sol-1",
     "lanterne-bel-sol-2",
     "lanterne-bel-sol-3",
@@ -65,20 +72,20 @@
     {
       "position": [
         38.3,
-        11,
-        10
+        11.0,
+        10.0
       ],
       "rotation": [
-        0,
-        0,
-        0
+        0.0,
+        0.0,
+        0.0
       ],
       "radius": 2.2,
       "plane": "est",
       "arrival": [
         13.5,
         3.9,
-        10
+        10.0
       ],
       "label": "Mur est"
     },
@@ -86,32 +93,32 @@
       "position": [
         39.75,
         13.5,
-        10
+        10.0
       ],
       "rotation": [
-        0,
-        0,
-        90
+        -0.0,
+        0.0,
+        90.0
       ],
       "radius": 2.2,
       "plane": "sol",
       "arrival": [
         38.3,
         13.2,
-        10
+        10.0
       ],
       "label": "Retour au sol"
     },
     {
       "position": [
-        28,
+        28.0,
         13.5,
         -38.6
       ],
       "rotation": [
-        0,
-        0,
-        90
+        -0.0,
+        0.0,
+        90.0
       ],
       "radius": 2.2,
       "plane": "nord",
@@ -129,9 +136,9 @@
         -39.75
       ],
       "rotation": [
-        90,
-        0,
-        0
+        90.0,
+        0.0,
+        0.0
       ],
       "radius": 2.2,
       "plane": "est",
@@ -149,9 +156,9 @@
         -34.5
       ],
       "rotation": [
-        90,
-        0,
-        0
+        90.0,
+        0.0,
+        0.0
       ],
       "radius": 2.2,
       "plane": "sol",
@@ -169,9 +176,9 @@
         -31.5
       ],
       "rotation": [
-        0,
-        0,
-        0
+        0.0,
+        0.0,
+        0.0
       ],
       "radius": 2.2,
       "plane": "nord",
@@ -181,6 +188,126 @@
         -1.7
       ],
       "label": "Retour au mur nord"
+    },
+    {
+      "position": [
+        -38.3,
+        11.0,
+        -2.0
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "radius": 2.2,
+      "plane": "ouest",
+      "arrival": [
+        -13.5,
+        3.9,
+        -2.0
+      ],
+      "label": "Mur ouest"
+    },
+    {
+      "position": [
+        -39.75,
+        13.5,
+        -2.0
+      ],
+      "rotation": [
+        -0.0,
+        0.0,
+        -90.0
+      ],
+      "radius": 2.2,
+      "plane": "sol",
+      "arrival": [
+        -38.3,
+        13.2,
+        -2.0
+      ],
+      "label": "Retour au sol (ouest)"
+    },
+    {
+      "position": [
+        -20.0,
+        11.0,
+        38.3
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "radius": 2.2,
+      "plane": "sud",
+      "arrival": [
+        -20.0,
+        3.9,
+        13.5
+      ],
+      "label": "Mur sud"
+    },
+    {
+      "position": [
+        -20.0,
+        13.5,
+        39.75
+      ],
+      "rotation": [
+        -90.0,
+        0.0,
+        0.0
+      ],
+      "radius": 2.2,
+      "plane": "sol",
+      "arrival": [
+        -20.0,
+        13.2,
+        38.3
+      ],
+      "label": "Retour au sol (sud)"
+    },
+    {
+      "position": [
+        -29.0,
+        78.3,
+        10.0
+      ],
+      "rotation": [
+        -0.0,
+        0.0,
+        -90.0
+      ],
+      "radius": 2.2,
+      "plane": "plafond",
+      "arrival": [
+        -26.5,
+        3.9,
+        -10.0
+      ],
+      "label": "Plafond"
+    },
+    {
+      "position": [
+        -26.5,
+        79.75,
+        10.0
+      ],
+      "rotation": [
+        -180.0,
+        0.0,
+        0.0
+      ],
+      "radius": 2.2,
+      "plane": "ouest",
+      "arrival": [
+        -78.3,
+        13.2,
+        10.0
+      ],
+      "label": "Retour au mur ouest"
     }
   ],
   "portals": [
@@ -197,6 +324,59 @@
         0,
         2.2,
         -6
+      ]
+    },
+    {
+      "to": "entree",
+      "position": [
+        -34,
+        0,
+        20
+      ],
+      "rotationY": 90,
+      "label": "Entrée",
+      "arrival": [
+        0,
+        2.2,
+        12
+      ]
+    },
+    {
+      "to": "labo",
+      "position": [
+        40.0,
+        24.0,
+        -22.0
+      ],
+      "rotation": [
+        -0.0,
+        0.0,
+        90.0
+      ],
+      "label": "Labo",
+      "arrival": [
+        0,
+        2.2,
+        16
+      ]
+    },
+    {
+      "to": "archives",
+      "position": [
+        -24.0,
+        20.0,
+        -40.0
+      ],
+      "rotation": [
+        90.0,
+        90.0,
+        0.0
+      ],
+      "label": "Archives",
+      "arrival": [
+        0,
+        2.2,
+        6
       ]
     }
   ]

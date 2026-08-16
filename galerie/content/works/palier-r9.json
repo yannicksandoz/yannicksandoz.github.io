@@ -1,16 +1,16 @@
 {
-  "id": "palier-r5",
+  "id": "palier-r9",
   "title": "Palier",
   "description": "",
   "position": [
-    31.94,
-    30.0,
-    29.5
+    -40.94,
+    54.5,
+    10.0
   ],
   "rotation": [
     -0.0,
     0.0,
-    90.0
+    -90.0
   ],
   "scale": [
     1,
@@ -24,16 +24,16 @@
   "model": {
     "type": "voxel",
     "dims": [
-      14,
+      12,
       2,
-      14
+      12
     ],
     "cell": 0.5,
     "palette": [
-      "#33474e"
+      "#3e3e56"
     ],
     "cells": [
-      392,
+      288,
       1
     ]
   },

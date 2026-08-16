@@ -1,11 +1,11 @@
 {
-  "id": "palier-r5",
+  "id": "passerelle-r5",
   "title": "Palier",
   "description": "",
   "position": [
     31.94,
     30.0,
-    29.5
+    36.25
   ],
   "rotation": [
     -0.0,
@@ -24,16 +24,16 @@
   "model": {
     "type": "voxel",
     "dims": [
-      14,
+      6,
       2,
-      14
+      13
     ],
     "cell": 0.5,
     "palette": [
-      "#33474e"
+      "#2e4046"
     ],
     "cells": [
-      392,
+      156,
       1
     ]
   },

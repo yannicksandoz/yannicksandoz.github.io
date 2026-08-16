@@ -21,10 +21,12 @@
   "role": "decor",
   "model": {
     "shape": "box",
-    "color": "#4a4436",
-    "roughness": 1.0,
-    "metalness": 0.0,
-    "emissive": 0.05
+    "color": "#7d745c",
+    "roughness": 1,
+    "metalness": 0,
+    "emissive": 0.08,
+    "texture": "ratisse",
+    "textureRepeat": 7
   },
   "lightIntensity": 0
 }

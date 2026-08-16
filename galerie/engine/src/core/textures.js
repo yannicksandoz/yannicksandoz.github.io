@@ -154,13 +154,34 @@ function peindreSable(rand) {
   return px;
 }
 
+function peindreRatisse(rand) {
+  // Karesansui : les sillons du râteau — des lignes parallèles fines,
+  // légèrement ondulantes, l'arête éclairée d'un côté et l'ombre de
+  // l'autre, sur un fond de gravier finement moucheté.
+  const px = new Array(SIZE * SIZE).fill(0.92);
+  const PAS = 4; // un sillon tous les 4 texels
+  for (let y = 0; y < SIZE; y++) {
+    for (let x = 0; x < SIZE; x++) {
+      // l'ondulation est périodique sur la tuile : pas de couture
+      const onde = Math.sin(x / SIZE * Math.PI * 2) * 0.9;
+      const ligne = ((y + onde + PAS * 100) % PAS + PAS) % PAS;
+      let v = 0.92 + (rand() - 0.5) * 0.05;            // gravier
+      if (ligne < 1) v = 0.72;                          // creux du sillon
+      else if (ligne < 2) v = 1.02;                     // arête éclairée
+      px[y * SIZE + x] = v;
+    }
+  }
+  return px;
+}
+
 const PEINTRES = {
   pierre: [peindrePierre, 101],
   brique: [peindreBrique, 211],
   planches: [peindrePlanches, 307],
   dalles: [peindreDalles, 401],
   herbe: [peindreHerbe, 503],
-  sable: [peindreSable, 601]
+  sable: [peindreSable, 601],
+  ratisse: [peindreRatisse, 701]
 };
 
 /** Styles offerts par l'éditeur (l'ordre est celui du menu). */

@@ -8,14 +8,14 @@
   ],
   "fogColor": "#05060c",
   "floor": {
-    "size": 38,
+    "size": 42,
     "color": "#12121c",
     "grid": false,
     "texture": "dalles"
   },
   "shell": {
-    "width": 6,
-    "depth": 34,
+    "width": 8,
+    "depth": 38,
     "height": 5.5,
     "color": "#171722",
     "windows": [
@@ -52,8 +52,7 @@
   "envIntensity": 0.85,
   "works": [
     "lanterne-couloir-1",
-    "lanterne-couloir-2",
-    "escalier-couloir"
+    "lanterne-couloir-2"
   ],
   "portals": [
     {
