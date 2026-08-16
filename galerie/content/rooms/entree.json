@@ -11,7 +11,8 @@
     "size": 140,
     "color": "#191d2e",
     "grid": true,
-    "gridColor": "#3c4266"
+    "gridColor": "#3c4266",
+    "texture": "dalles"
   },
   "keyLight": {
     "color": "#c8d4ff",
@@ -82,7 +83,8 @@
     "color": "#232840",
     "walls": [
       "nord"
-    ]
+    ],
+    "texture": "pierre"
   },
   "vistas": [
     {

@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { assetUrl, isWalkable } from './utils.js';
 import { buildSky, disposeSky, updateSkyUniforms } from './Sky.js';
+import { styleTexture, scaleBoxUV, scalePlaneUV } from './textures.js';
 
 const PORTAL_COLOR = 0x9f8cff;
 /** Densité de brouillard par défaut — celle d'une salle d'exposition. */
@@ -761,10 +762,17 @@ export function buildFloor(config) {
 
   const group = new THREE.Group();
   group.name = 'sol';
+  // texture pixel-art optionnelle (« texture »: pierre, herbe, dalles…) —
+  // en niveaux de gris, teintée par la couleur du sol : la palette de la
+  // pièce reste maîtresse, la texture n'apporte que la matière
+  const map = styleTexture(opt.texture);
+  const geometry = new THREE.PlaneGeometry(size, size);
+  if (map) scalePlaneUV(geometry, size, size);
   const plane = new THREE.Mesh(
-    new THREE.PlaneGeometry(size, size),
+    geometry,
     new THREE.MeshStandardMaterial({
       color: new THREE.Color(opt.color ?? FLOOR_DEFAULTS.color),
+      map,
       roughness: 0.95,
       metalness: 0.05
     })
@@ -898,11 +906,16 @@ export function buildShell(config) {
   const group = new THREE.Group();
   group.name = 'coque';
   const materials = new Map(); // une couleur = un matériau, partagé
+  // texture pixel-art des murs (« texture »: pierre, brique…) — les UV de
+  // chaque segment sont à l'échelle du monde (scaleBoxUV), si bien qu'un
+  // seul matériau par couleur habille tous les segments sans étirement
+  const wallMap = styleTexture(opt.texture);
   const matFor = (face) => {
     const color = opt.wallColors?.[face] ?? opt.color ?? SHELL_DEFAULTS.color;
     if (!materials.has(color)) {
       materials.set(color, new THREE.MeshStandardMaterial({
-        color: new THREE.Color(color), roughness: 0.88, metalness: 0.04
+        color: new THREE.Color(color), map: wallMap,
+        roughness: 0.88, metalness: 0.04
       }));
     }
     return materials.get(color);
@@ -915,7 +928,9 @@ export function buildShell(config) {
   });
 
   const box = (gw, gh, gd, x, y, z, mat) => {
-    const m = new THREE.Mesh(new THREE.BoxGeometry(gw, gh, gd), mat);
+    const g = new THREE.BoxGeometry(gw, gh, gd);
+    if (mat.map) scaleBoxUV(g, gw, gh, gd);
+    const m = new THREE.Mesh(g, mat);
     m.position.set(x, y, z);
     m.receiveShadow = true;
     m.userData.ignoreRaycast = true; // décor : jamais une cible de sélection

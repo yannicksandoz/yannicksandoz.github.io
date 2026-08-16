@@ -10,7 +10,8 @@
   "floor": {
     "size": 64,
     "color": "#1a241a",
-    "grid": false
+    "grid": false,
+    "texture": "herbe"
   },
   "keyLight": {
     "color": "#d8ffd8",

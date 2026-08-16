@@ -9,14 +9,15 @@
   "fogColor": "#0b0614",
   "fogDensity": 0.0075,
   "floor": {
-    "size": 80.0,
+    "size": 80,
     "color": "#171226",
-    "grid": false
+    "grid": false,
+    "texture": "dalles"
   },
   "shell": {
-    "width": 80.0,
-    "depth": 80.0,
-    "height": 80.0,
+    "width": 80,
+    "depth": 80,
+    "height": 80,
     "color": "#241c34",
     "ceiling": true,
     "wallColors": {
@@ -25,7 +26,8 @@
       "est": "#35704c",
       "ouest": "#7a6330",
       "plafond": "#453163"
-    }
+    },
+    "texture": "pierre"
   },
   "keyLight": {
     "color": "#e0c4ff",
@@ -63,20 +65,20 @@
     {
       "position": [
         38.3,
-        11.0,
-        10.0
+        11,
+        10
       ],
       "rotation": [
-        0.0,
-        0.0,
-        0.0
+        0,
+        0,
+        0
       ],
       "radius": 2.2,
       "plane": "est",
       "arrival": [
         13.5,
         3.9,
-        10.0
+        10
       ],
       "label": "Mur est"
     },
@@ -84,32 +86,32 @@
       "position": [
         39.75,
         13.5,
-        10.0
+        10
       ],
       "rotation": [
-        -0.0,
-        0.0,
-        90.0
+        0,
+        0,
+        90
       ],
       "radius": 2.2,
       "plane": "sol",
       "arrival": [
         38.3,
         13.2,
-        10.0
+        10
       ],
       "label": "Retour au sol"
     },
     {
       "position": [
-        28.0,
+        28,
         13.5,
         -38.6
       ],
       "rotation": [
-        -0.0,
-        0.0,
-        90.0
+        0,
+        0,
+        90
       ],
       "radius": 2.2,
       "plane": "nord",
@@ -127,9 +129,9 @@
         -39.75
       ],
       "rotation": [
-        90.0,
-        0.0,
-        0.0
+        90,
+        0,
+        0
       ],
       "radius": 2.2,
       "plane": "est",
@@ -147,9 +149,9 @@
         -34.5
       ],
       "rotation": [
-        90.0,
-        0.0,
-        0.0
+        90,
+        0,
+        0
       ],
       "radius": 2.2,
       "plane": "sol",
@@ -167,9 +169,9 @@
         -31.5
       ],
       "rotation": [
-        0.0,
-        0.0,
-        0.0
+        0,
+        0,
+        0
       ],
       "radius": 2.2,
       "plane": "nord",

@@ -10,7 +10,8 @@
   "floor": {
     "size": 32,
     "color": "#191410",
-    "grid": false
+    "grid": false,
+    "texture": "planches"
   },
   "shell": {
     "width": 28,
@@ -32,7 +33,8 @@
         "height": 2,
         "sill": 1.3
       }
-    ]
+    ],
+    "texture": "planches"
   },
   "keyLight": {
     "color": "#ffcf9e",

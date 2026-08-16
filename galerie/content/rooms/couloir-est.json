@@ -10,7 +10,8 @@
   "floor": {
     "size": 38,
     "color": "#12121c",
-    "grid": false
+    "grid": false,
+    "texture": "dalles"
   },
   "shell": {
     "width": 6,
@@ -39,7 +40,8 @@
         "height": 1.7,
         "sill": 1.1
       }
-    ]
+    ],
+    "texture": "brique"
   },
   "keyLight": {
     "color": "#aab4e8",

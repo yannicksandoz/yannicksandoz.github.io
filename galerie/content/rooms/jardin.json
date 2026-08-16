@@ -10,7 +10,8 @@
   "floor": {
     "size": 90,
     "color": "#39412a",
-    "grid": false
+    "grid": false,
+    "texture": "herbe"
   },
   "keyLight": {
     "color": "#fff3da",
@@ -83,7 +84,8 @@
     "walls": [
       "nord",
       "ouest"
-    ]
+    ],
+    "texture": "pierre"
   },
   "vistas": [
     {

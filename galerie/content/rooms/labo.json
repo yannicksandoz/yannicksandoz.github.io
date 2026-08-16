@@ -52,13 +52,15 @@
     "size": 48,
     "color": "#13131f",
     "grid": true,
-    "gridColor": "#39395c"
+    "gridColor": "#39395c",
+    "texture": "dalles"
   },
   "shell": {
     "width": 36,
     "depth": 44,
     "height": 8,
-    "color": "#1c1c2b"
+    "color": "#1c1c2b",
+    "texture": "pierre"
   },
   "keyLight": {
     "color": "#c4b8ff",
