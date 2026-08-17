@@ -49,17 +49,23 @@ Tout ce qui suit est dans le build Visiteur, sans backend ni service tiers.
 
 **Ne jamais perdre le visiteur.** À l'arrivée dans une pièce, la caméra cadre
 déjà une œuvre. Les œuvres non encore découvertes portent une petite lueur
-flottante ; quand la plus proche sort du champ, une **flèche discrète** glisse
-au bord de l'écran et pointe vers elle (puis vers un portail quand la pièce
-est épuisée). Le **son sert de boussole** : les rayons d'audibilité sont
-larges — une œuvre lointaine reste faiblement perceptible et attire.
+flottante, et un **pointeur** montre toujours la prochaine : hors du champ,
+une flèche glisse au bord de l'écran ; dès qu'elle est en vue, le pointeur
+se pose **au-dessus d'elle** — il ne disparaît pas au moment de confirmer.
+Ce qu'il désigne se décide sur le PLAN de la galerie et non sur la seule
+pièce : l'œuvre à découvrir la plus proche est cherchée de proche en proche
+à travers les portails (parcours en largeur), et le pointeur vise la porte
+qui mène vers elle — deux pièces sans œuvre ne se renvoient plus l'une à
+l'autre. Le **son sert de boussole** : les rayons d'audibilité sont larges —
+une œuvre lointaine reste faiblement perceptible et attire.
 
 **Le catalogue se gagne.** Une œuvre n'est nommée qu'une fois rencontrée :
 le compteur « ◆ 2 / 7 » (haut-droite) se déplie d'un clic et montre la
 liste — les trouvées portent leur titre et leur salle, et **s'y rejoignent
 d'un clic** ; les autres tiennent leur rang sous un « ??? », avec le rappel
 de suivre le pointeur. Une œuvre est découverte après quelques secondes à
-portée, ou dès qu'on l'approche ; l'état persiste en `localStorage`.
+portée, ou dès qu'on l'approche. Le catalogue se gagne **à chaque visite** :
+on ouvre la galerie sur une liste de « ??? », comme le premier jour.
 
 **« Laisse-toi porter »** (barre `◂ ▸` en bas de l'écran, ou le menu) : la
 visite guidée **rejoue les œuvres découvertes**, dans l'ordre des salles —

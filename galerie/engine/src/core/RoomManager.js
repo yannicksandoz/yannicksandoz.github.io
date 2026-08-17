@@ -206,15 +206,34 @@ export class RoomManager {
     }
     const shell = cfg.shell && cfg.shell !== true ? cfg.shell : (cfg.shell ? {} : null);
     let yMax = Infinity;
+    let halfX = null, halfZ = null;
     if (shell) {
       const w = Number(shell.width) > 0 ? shell.width : SHELL_DEFAULTS.width;
       const d = Number(shell.depth) > 0 ? shell.depth : SHELL_DEFAULTS.depth;
       const h = Number(shell.height) > 0 ? shell.height : SHELL_DEFAULTS.height;
       half = Math.max(half, w / 2, d / 2);
       yMax = h + 6;
+      // Coque CLOSE (ses quatre murs) : c'est ELLE la limite, par axe, et
+      // non le sol — un couloir de 8 m posé sur un sol de 42 laissait
+      // dériver le visiteur bien au-delà de ses murs dès qu'il passait une
+      // ouverture. Filet de sécurité : même si un rayon manque une vitre,
+      // on est ramené dans la pièce au lieu d'errer dehors.
+      const murs = shell.walls;
+      const close = !Array.isArray(murs)
+        || ['nord', 'sud', 'est', 'ouest'].every((m) => murs.includes(m));
+      if (close) {
+        halfX = Math.max(1.2, w / 2 - 0.6);
+        halfZ = Math.max(1.2, d / 2 - 0.6);
+      }
     }
     if (!half) return null;
-    return { half: Math.max(2, half - 1.5), yMin: -1.5, yMax };
+    const carre = Math.max(2, half - 1.5);
+    return {
+      half: carre,
+      halfX: halfX ?? carre,
+      halfZ: halfZ ?? carre,
+      yMin: -1.5, yMax
+    };
   }
 
   /**
@@ -1003,6 +1022,11 @@ export function buildShell(config) {
    * apparitions) mais les rayons de collision le rencontrent — three ne
    * consulte pas la visibilité au lancer de rayon. Une vitre, exactement :
    * on voit à travers, on ne passe pas au travers.
+   *
+   * Elle couvre TOUTE la hauteur du mur, et déborde en largeur : bornée à
+   * la baie, un rayon rasant l'appui ou le linteau passait juste à côté
+   * d'elle — et le visiteur se retrouvait coincé derrière la fenêtre. Rien
+   * ne coûte à l'élargir : elle n'est jamais rendue.
    */
   const verre = (gw, gh, x, y, z, rotY) => {
     const m = new THREE.Mesh(new THREE.PlaneGeometry(gw, gh), invisibleMat);
@@ -1056,7 +1080,7 @@ export function buildShell(config) {
       box(r.wl + 2 * FT, app.h, FD, r.c, app.y, zPos, frameMat);
       box(mg.len, wh, FD, mg.c, mid, zPos, frameMat);
       box(md.len, wh, FD, md.c, mid, zPos, frameMat);
-      verre(r.wl, r.top - r.sill, r.c, mid, zPos, 0);
+      verre(r.wl + 2 * FT, h, r.c, h / 2, zPos, 0);
     }
   }
   // gauche (-x) et droite (+x) : segments le long de z
@@ -1074,7 +1098,7 @@ export function buildShell(config) {
       box(FD, app.h, r.wl + 2 * FT, xPos, app.y, r.c, frameMat);
       box(FD, wh, mg.len, xPos, mid, mg.c, frameMat);
       box(FD, wh, md.len, xPos, mid, md.c, frameMat);
-      verre(r.wl, r.top - r.sill, xPos, mid, r.c, Math.PI / 2);
+      verre(r.wl + 2 * FT, h, xPos, h / 2, r.c, Math.PI / 2);
     }
   }
 

@@ -222,8 +222,10 @@ export class Controls {
     const cam = app.camera.position;
     _local.copy(cam);
     room.group.worldToLocal(_local);
-    const x = THREE.MathUtils.clamp(_local.x, -b.half, b.half);
-    const z = THREE.MathUtils.clamp(_local.z, -b.half, b.half);
+    // bornes PAR AXE : une coque close a la forme qu'elle a (un couloir
+    // n'est pas un carré), le sol nu retombe sur une borne carrée
+    const x = THREE.MathUtils.clamp(_local.x, -(b.halfX ?? b.half), b.halfX ?? b.half);
+    const z = THREE.MathUtils.clamp(_local.z, -(b.halfZ ?? b.half), b.halfZ ?? b.half);
     // l'axe local Y aussi : sur un plan basculé, c'est une direction de
     // marche, et rien d'autre ne la retient
     const y = THREE.MathUtils.clamp(_local.y, b.yMin, b.yMax);

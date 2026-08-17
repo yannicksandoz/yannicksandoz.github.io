@@ -11,9 +11,10 @@ import { t, onLangChange } from './i18n.js';
  * matières de ce qu'on a trouvé — chaque titre y ramène.
  *
  * Une œuvre est découverte après quelques secondes à portée, ou dès qu'on
- * l'approche (FocusCamera). L'état persiste (localStorage) : on ne
- * redécouvre pas ce qu'on connaît. Les œuvres composées (`partOf`) comptent
- * pour une : n'importe lequel de leurs membres les révèle.
+ * l'approche (FocusCamera). Le catalogue se gagne à CHAQUE visite : on
+ * ouvre la galerie sur une liste de « ??? », comme le premier jour. Les
+ * œuvres composées (`partOf`) comptent pour une : n'importe lequel de
+ * leurs membres les révèle.
  */
 
 const CLE = 'galerie-decouvertes';
@@ -23,10 +24,13 @@ const PALIER = 3;   // secondes à portée avant de compter la découverte
 export class Progression {
   constructor(app) {
     this.app = app;
-    this.decouvertes = new Set(this._lire());
-    // Découvertes faites DANS CETTE SESSION : le chapeau de fin s'y adosse.
-    // Sans cela, un visiteur qui revient (tout est déjà dans son stockage)
-    // recevait l'écran « soutenir l'artiste » au premier pas.
+    // Le catalogue se gagne À CHAQUE VISITE : on ouvre la galerie sur six
+    // « ??? », comme le premier jour. Mémoriser les découvertes d'une
+    // session à l'autre vidait le pari de sa substance — on revenait sur
+    // une liste déjà écrite, sans plus rien à trouver. L'ancienne clé de
+    // stockage est effacée : elle ne servirait qu'à traîner.
+    this.decouvertes = new Set();
+    try { localStorage.removeItem(CLE); } catch { /* stockage refusé */ }
     this.nouvelles = 0;
     this._dwell = new Map(); // artwork → secondes cumulées à portée
     this._abonnes = new Set();
@@ -87,7 +91,6 @@ export class Progression {
     if (this.decouvertes.has(id)) return;
     this.decouvertes.add(id);
     this.nouvelles++;
-    this._ecrire();
     this._notifier();
   }
 
@@ -122,14 +125,6 @@ export class Progression {
       this._dwell.set(a, Math.max(0, acc));
       if (acc >= PALIER) this.marquer(a);
     }
-  }
-
-  _lire() {
-    try { return JSON.parse(localStorage.getItem(CLE) || '[]'); } catch { return []; }
-  }
-
-  _ecrire() {
-    try { localStorage.setItem(CLE, JSON.stringify([...this.decouvertes])); } catch { /* stockage refusé */ }
   }
 
   /* ------------------------------------------------------- catalogue --- */
