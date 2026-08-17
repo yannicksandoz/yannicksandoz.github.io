@@ -21,12 +21,14 @@
   "role": "decor",
   "model": {
     "shape": "cylinder",
-    "color": "#e8dcff",
+    "color": "#4a4266",
+    "emissiveColor": "#cbb4ff",
     "roughness": 0.55,
     "metalness": 0.0,
-    "emissive": 0.25
+    "emissive": 0.6
   },
-  "lightIntensity": 2.6,
+  "lightIntensity": 2.4,
   "loadDistance": 240,
-  "lightColor": "#cbb4ff"
+  "lightColor": "#cbb4ff",
+  "selfLit": true
 }

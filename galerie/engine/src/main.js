@@ -9,7 +9,7 @@ import { Controls } from './controls/Controls.js';
 import { setupEditorLoader } from './editorLoader.js';
 import { UI } from './ui/UI.js';
 import { t, initLang } from './core/i18n.js';
-import { mountProgression } from './core/Progression.js';
+import { mountProgression, pointDeVue } from './core/Progression.js';
 import { mountBoussole } from './ui/Boussole.js';
 import { mountDerive } from './core/Derive.js';
 
@@ -192,18 +192,14 @@ function appliquerLienProfond(app) {
 
   app.rooms.setCurrent(cible, { instant: true });
   if (art) {
-    // se poser face à l'œuvre, à distance de contemplation
+    // se poser face à l'œuvre, au point de vue qu'elle déclare — le même
+    // que le catalogue et la visite guidée (une seule façon d'arriver)
     const room = app.rooms.current;
     room.group.updateMatrixWorld(true);
-    const wp = art.group.getWorldPosition(new THREE.Vector3());
     const spawn = room.config.spawn ?? [0, 2.2, 10];
-    const dir = new THREE.Vector3(spawn[0], 0, spawn[2]).sub(
-      new THREE.Vector3(wp.x, 0, wp.z));
-    if (dir.lengthSq() < 0.04) dir.set(0, 0, 1);
-    dir.normalize();
-    app.camera.position.copy(wp).addScaledVector(dir, 5);
-    app.camera.position.y = wp.y + 0.9;
-    app.controls.orbit.target.copy(wp);
+    const vue = pointDeVue(app, art, new THREE.Vector3(spawn[0], spawn[1], spawn[2]));
+    app.camera.position.copy(vue.pos);
+    app.controls.orbit.target.copy(vue.cible);
     app.controls.resyncCollision?.();
   }
   return true;

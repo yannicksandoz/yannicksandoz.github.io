@@ -10,6 +10,7 @@ import { FOG_DENSITY } from './RoomManager.js';
 import { AudioEngine } from './AudioEngine.js';
 import { QualityManager } from './Quality.js';
 import { LoadingTracker, assetUrl } from './utils.js';
+import { COUCHE_AUTO_ECLAIREE } from './Artwork.js';
 import { WATER_TIME } from './primitives.js';
 
 const FOG_COLOR = 0x05050a;
@@ -131,6 +132,9 @@ export class App {
       60, window.innerWidth / window.innerHeight, 0.1, 220
     );
     this.camera.position.set(0, 2.2, 14);
+    // les objets « selfLit » (lanternes) vivent sur leur propre couche,
+    // qu'aucune lumière ne touche mais que la caméra rend — voir Artwork
+    this.camera.layers.enable(COUCHE_AUTO_ECLAIREE);
 
     if (headless) {
       // ni rendu, ni décor : la boucle mettra à jour œuvres et auditeur

@@ -71,6 +71,14 @@ export class Controls {
     this._frame = 0;        // les surfaces foulables se relisent une fois/frame
     this._targetsFrame = -1;
     this._targetsCache = [];
+    this._murFrame = -1;
+    this._murCache = [];
+    this._murSpheres = [];
+    // Position de la CIBLE d'orbite à la frame précédente. Elle ne bouge
+    // qu'à la translation (marche, joystick, pan) et jamais à la rotation :
+    // c'est donc elle qui dit si le visiteur AVANCE ou s'il regarde autour.
+    this._lastTarget = this.orbit.target.clone();
+    this.walking = false;
 
     window.addEventListener('keydown', (e) => {
       if (e.target.matches('input, textarea, select')) return;
@@ -184,6 +192,13 @@ export class Controls {
     this._keepInside();
     this._followGround(dt);
     this._lastPos.copy(this.app.camera.position);
+    // Marche-t-on vraiment ? La cible d'orbite ne se déplace qu'à la
+    // translation. Tourner la caméra fait pourtant VOYAGER la caméra (elle
+    // orbite autour de la cible) : sans ce départage, un simple coup d'œil
+    // en arrivant dans une pièce poussait la tête dans le portail d'à côté
+    // et l'on repartait aussitôt. Les zones ne s'ouvrent qu'à qui avance.
+    this.walking = this.orbit.target.distanceToSquared(this._lastTarget) > 1e-6;
+    this._lastTarget.copy(this.orbit.target);
   }
 
   /**
@@ -236,12 +251,18 @@ export class Controls {
    * tourner le groupe de la pièce, et l'éditeur reconstruit les voxels — un
    * cache serait périmé sans prévenir.
    */
-  _targets(reach = 0) {
-    if (this._targetsFrame !== this._frame) {
-      this._targetsFrame = this._frame;
-      const list = this.app.rooms?.walkables?.() ?? [];
-      this._targetsCache = list;
-      this._spheres = list.map((o) => {
+  _targets(reach = 0, genre = 'sol') {
+    // deux listes, deux usages : `sol` (rayon vertical : ce qu'on foule) et
+    // `mur` (rayon horizontal : ce qui arrête, panneaux et vitres compris)
+    const cache = genre === 'mur' ? '_murCache' : '_targetsCache';
+    const spheres = genre === 'mur' ? '_murSpheres' : '_spheres';
+    const frame = genre === 'mur' ? '_murFrame' : '_targetsFrame';
+    if (this[frame] !== this._frame) {
+      this[frame] = this._frame;
+      const rooms = this.app.rooms;
+      const list = (genre === 'mur' ? rooms?.blockers?.() : rooms?.walkables?.()) ?? [];
+      this[cache] = list;
+      this[spheres] = list.map((o) => {
         const g = o.geometry;
         if (!g) return null;
         if (o.isInstancedMesh) {
@@ -254,10 +275,10 @@ export class Controls {
         return g.boundingSphere.clone().applyMatrix4(o.matrixWorld);
       });
     }
-    if (reach <= 0) return this._targetsCache;
+    if (reach <= 0) return this[cache];
     const from = this.app.camera.position;
-    return this._targetsCache.filter((o, i) => {
-      const s = this._spheres[i];
+    return this[cache].filter((o, i) => {
+      const s = this[spheres][i];
       if (!s) return true;                  // sphère inconnue : on n'écarte pas
       const d = s.radius + reach;
       return s.center.distanceToSquared(from) <= d * d;
@@ -273,6 +294,8 @@ export class Controls {
    */
   resyncCollision() {
     this._lastPos.copy(this.app.camera.position);
+    this._lastTarget.copy(this.orbit.target);
+    this.walking = false;
     this._groundY = null;
   }
 
@@ -294,7 +317,7 @@ export class Controls {
     _delta.y = 0;
     const len = _delta.length();
     if (len < 1e-4) return;              // immobile : rien à corriger
-    const targets = this._targets(len + 0.6);
+    const targets = this._targets(len + 0.6, 'mur');
     if (!targets.length) return;
 
     // Hauteur du rayon : mesurée depuis le SOL RÉEL sous les pieds, jamais

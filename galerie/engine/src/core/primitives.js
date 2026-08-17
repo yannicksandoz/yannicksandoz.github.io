@@ -144,7 +144,10 @@ function finishPrimitive(def, size, model, map) {
     map: map ?? null,
     roughness: model.roughness ?? 0.5,
     metalness: model.metalness ?? 0.15,
-    emissive: new THREE.Color(model.color ?? '#8a7cff'),
+    // L'émission peut différer de la couleur du corps : une lanterne a une
+    // paroi sombre et une lueur claire — les confondre donnait un objet
+    // uniformément blanc, qui fleurissait dans le bloom.
+    emissive: new THREE.Color(model.emissiveColor ?? model.color ?? '#8a7cff'),
     emissiveIntensity: model.emissive ?? 0.18,
     side: model.shape === 'plane' ? THREE.DoubleSide : THREE.FrontSide
   });

@@ -54,19 +54,26 @@ au bord de l'écran et pointe vers elle (puis vers un portail quand la pièce
 est épuisée). Le **son sert de boussole** : les rayons d'audibilité sont
 larges — une œuvre lointaine reste faiblement perceptible et attire.
 
-**« Laisse-toi porter »** (bouton en bas de l'écran, ou dans le menu) : la
-caméra dérive seule d'œuvre en œuvre, s'attarde devant chacune, franchit les
-portails, et continue tant qu'on la laisse faire — idéal au téléphone à une
-main, ou pour capturer la visite en vidéo. **Le moindre geste** (touche,
-clic, molette, doigt) **rend la main** ; le bouton relance. Avec
-`prefers-reduced-motion`, les longs travellings deviennent des déplacements
-quasi instantanés.
+**Le catalogue se gagne.** Une œuvre n'est nommée qu'une fois rencontrée :
+le compteur « ◆ 2 / 7 » (haut-droite) se déplie d'un clic et montre la
+liste — les trouvées portent leur titre et leur salle, et **s'y rejoignent
+d'un clic** ; les autres tiennent leur rang sous un « ??? », avec le rappel
+de suivre le pointeur. Une œuvre est découverte après quelques secondes à
+portée, ou dès qu'on l'approche ; l'état persiste en `localStorage`.
 
-**Progression.** Un badge discret (« ◆ 3 / 6 ») compte les œuvres
-découvertes — une œuvre l'est après quelques secondes à portée, ou dès qu'on
-l'approche. L'état persiste en `localStorage`. Le chapeau (TipJar) s'appuie
-dessus : voir « Le chapeau » plus bas — ses trois portes sont toutes
-atteignables.
+**« Laisse-toi porter »** (barre `◂ ▸` en bas de l'écran, ou le menu) : la
+visite guidée **rejoue les œuvres découvertes**, dans l'ordre des salles —
+la caméra vole de l'une à l'autre et se pose devant chacune. Pendant la
+pause, `◂` / `▸` (boutons, ou flèches gauche/droite du clavier) vont à la
+précédente ou à la suivante ; **tout autre geste rend la main**. Tant que
+rien n'a été trouvé, le bouton le dit et reste inerte : l'exploration se
+fait à pied, en suivant le pointeur. Avec `prefers-reduced-motion`, les
+travellings deviennent des déplacements quasi instantanés.
+
+**Le chapeau (TipJar)** s'appuie sur cette progression : voir « Le chapeau »
+plus bas — ses trois portes sont toutes atteignables, et celle du « tout
+découvert » ne compte que les découvertes **de la visite en cours** (sans
+quoi un visiteur qui revient recevrait l'écran de fin au premier pas).
 
 **Fiches d'œuvre.** La fiche affiche le cartel (`year` · `technique`), la
 description, un lien externe optionnel (`link`) et, pour les œuvres qui ont
@@ -284,6 +291,15 @@ au code du moteur** :
   "loadDistance": 50,              // distance de chargement paresseux (optionnel)
   "lightColor": "#7a6cff",         // lumière d'appoint de l'œuvre (optionnel)
   "lightIntensity": 4,             // idem — 1.5 environ pour du mobilier
+  "selfLit": true,                 // l'objet ÉCLAIRE sans être éclairé : sa
+                                   // propre lampe le lavait à bout portant
+                                   // (une lanterne virait au blanc pur et
+                                   // fleurissait dans le bloom). Il ne lui
+                                   // reste que son émission ; la lampe, elle,
+                                   // continue d'éclairer la pièce.
+  "solid": true,                   // s'oppose à la marche (défaut : les
+                                   // panneaux image/vidéo le sont déjà ;
+                                   // false pour laisser passer)
   "credit": {                      // cité dans l'écran de crédits (optionnel)
     "author": "…", "license": "CC-BY 4.0", "sourceUrl": "https://…"
   },
@@ -307,6 +323,10 @@ au code du moteur** :
   "model": { "type": "gltf", "url": "models/piece.glb", "scale": 1 },
   // ou la primitive shader intégrée :
   "model": { "shape": "monolith", "height": 4.5, "color": "#66f0d8" },
+  // les primitives acceptent une émission DISSOCIÉE de la couleur du corps
+  // (une lanterne : paroi sombre, lueur claire) :
+  "model": { "shape": "cylinder", "color": "#4a4266",
+             "emissiveColor": "#cbb4ff", "emissive": 0.6 },
   // ou une construction voxel (mode Voxel de l'éditeur) :
   "model": {
     "type": "voxel",

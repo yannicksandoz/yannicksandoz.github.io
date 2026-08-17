@@ -1,14 +1,19 @@
+import * as THREE from 'three';
 import { t, onLangChange } from './i18n.js';
 
 /**
- * Progression de la visite : quelles ŒUVRES (role ≠ decor) le visiteur a
- * découvertes. Une œuvre est découverte après quelques secondes passées à
- * portée, ou dès qu'on l'approche (FocusCamera). L'état persiste d'une
- * session à l'autre (localStorage) : on ne redécouvre pas ce qu'on connaît.
+ * Progression de la visite — et INDEX des œuvres.
  *
- * C'est la source de vérité commune : le badge « 3 / 6 », les balises
- * lumineuses des œuvres non visitées, la boussole d'écran et le chapeau
- * de fin (TipJar) s'y abonnent tous — aucun ne recompte de son côté.
+ * Le pari : une œuvre n'entre au catalogue qu'une fois rencontrée. Tant
+ * qu'elle ne l'est pas, elle existe (on sait qu'il y en a une de plus, on
+ * la voit signalée dans l'espace) mais elle n'est pas nommée : « ??? ».
+ * Le compteur « 2 / 7 » se déplie d'un clic et devient la table des
+ * matières de ce qu'on a trouvé — chaque titre y ramène.
+ *
+ * Une œuvre est découverte après quelques secondes à portée, ou dès qu'on
+ * l'approche (FocusCamera). L'état persiste (localStorage) : on ne
+ * redécouvre pas ce qu'on connaît. Les œuvres composées (`partOf`) comptent
+ * pour une : n'importe lequel de leurs membres les révèle.
  */
 
 const CLE = 'galerie-decouvertes';
@@ -19,19 +24,39 @@ export class Progression {
   constructor(app) {
     this.app = app;
     this.decouvertes = new Set(this._lire());
+    // Découvertes faites DANS CETTE SESSION : le chapeau de fin s'y adosse.
+    // Sans cela, un visiteur qui revient (tout est déjà dans son stockage)
+    // recevait l'écran « soutenir l'artiste » au premier pas.
+    this.nouvelles = 0;
     this._dwell = new Map(); // artwork → secondes cumulées à portée
     this._abonnes = new Set();
     this._debut = performance.now();
 
     this._badge = null;
+    this._panneau = null;
     app.onUpdate((dt) => this._tick(dt));
   }
 
-  /** Toutes les œuvres au sens fort — ni le décor, ni les MEMBRES d'un
-   *  ensemble (`partOf`) : un groupe d'objets compte pour UNE œuvre. */
+  /** Toutes les œuvres au sens fort — ni décor, ni membre d'un ensemble. */
   get oeuvres() {
     return this.app.artworks.filter(
       (a) => a.config.role !== 'decor' && !a.config.partOf);
+  }
+
+  /** Les œuvres dans l'ordre de la galerie (pièce par pièce). */
+  get parcours() {
+    const ordre = [...(this.app.rooms?.rooms?.values() ?? [])];
+    const rang = new Map(ordre.map((r, i) => [r.config.id, i]));
+    return this.oeuvres.slice().sort((a, b) => {
+      const ra = rang.get(a.room?.config.id) ?? 99;
+      const rb = rang.get(b.room?.config.id) ?? 99;
+      return ra - rb || a.config.id.localeCompare(b.config.id);
+    });
+  }
+
+  /** Celles que le visiteur a rencontrées — la visite guidée les rejoue. */
+  get indexees() {
+    return this.parcours.filter((a) => this.estDecouverte(a));
   }
 
   get total() {
@@ -39,12 +64,7 @@ export class Progression {
   }
 
   get compte() {
-    // ne compter que ce qui existe encore (une œuvre retirée du JSON ne
-    // doit pas gonfler le score d'une vieille session)
-    const ids = new Set(this.oeuvres.map((a) => a.config.id));
-    let n = 0;
-    for (const id of this.decouvertes) if (ids.has(id)) n++;
-    return n;
+    return this.indexees.length;
   }
 
   get complet() {
@@ -63,8 +83,10 @@ export class Progression {
   /** Découverte immédiate (approche d'une œuvre au clic/Espace). */
   marquer(artwork) {
     if (!artwork || artwork.config.role === 'decor') return;
-    if (this.decouvertes.has(artwork.config.id)) return;
-    this.decouvertes.add(artwork.config.id);
+    const id = artwork.config.partOf ?? artwork.config.id;
+    if (this.decouvertes.has(id)) return;
+    this.decouvertes.add(id);
+    this.nouvelles++;
     this._ecrire();
     this._notifier();
   }
@@ -76,7 +98,7 @@ export class Progression {
 
   _notifier() {
     for (const fn of this._abonnes) fn(this);
-    this._peindreBadge();
+    this._peindre();
   }
 
   _tick(dt) {
@@ -110,30 +132,140 @@ export class Progression {
     try { localStorage.setItem(CLE, JSON.stringify([...this.decouvertes])); } catch { /* stockage refusé */ }
   }
 
-  /* ------------------------------------------------------------ badge --- */
+  /* ------------------------------------------------------- catalogue --- */
 
   /**
-   * Badge discret « 3 / 6 » (haut-droite). role="status" : un lecteur
-   * d'écran annonce chaque découverte, sans que le badge vole le focus.
+   * Compteur « ◆ 2 / 7 » (haut-droite) : un BOUTON qui déplie le catalogue.
+   * Les œuvres trouvées y portent leur titre et s'y rejoignent d'un clic ;
+   * les autres tiennent leur rang sous un « ??? ».
    */
   montrerBadge() {
     if (this._badge || this.total === 0) return;
-    const el = document.createElement('div');
-    el.id = 'progress-badge';
-    el.setAttribute('role', 'status');
-    document.body.appendChild(el);
-    this._badge = el;
-    this._peindreBadge();
-    onLangChange(() => this._peindreBadge());
+
+    const badge = document.createElement('button');
+    badge.id = 'progress-badge';
+    badge.type = 'button';
+    badge.setAttribute('aria-expanded', 'false');
+    badge.setAttribute('aria-controls', 'progress-list');
+
+    const panneau = document.createElement('div');
+    panneau.id = 'progress-list';
+    panneau.hidden = true;
+
+    badge.addEventListener('click', () => this.basculerPanneau());
+    // Échap referme le catalogue sans remonter au menu de la visite
+    panneau.addEventListener('keydown', (e) => {
+      if (e.key !== 'Escape') return;
+      e.stopPropagation();
+      this.basculerPanneau(false);
+      badge.focus();
+    });
+
+    document.body.append(badge, panneau);
+    this._badge = badge;
+    this._panneau = panneau;
+    this._peindre();
+    onLangChange(() => this._peindre());
   }
 
-  _peindreBadge() {
+  basculerPanneau(ouvrir = null) {
+    if (!this._panneau) return;
+    const veut = ouvrir ?? this._panneau.hidden;
+    this._panneau.hidden = !veut;
+    this._badge.setAttribute('aria-expanded', String(veut));
+    if (veut) {
+      this._peindre();
+      this._panneau.querySelector('button:not([disabled])')?.focus();
+    }
+  }
+
+  _peindre() {
     if (!this._badge) return;
     const texte = t('progress.label', { n: this.compte, total: this.total });
     this._badge.textContent = `◆ ${this.compte} / ${this.total}`;
     this._badge.title = texte;
     this._badge.setAttribute('aria-label', texte);
+    if (this._panneau.hidden) return;
+
+    const reste = this.total - this.compte;
+    const lignes = this.parcours.map((a, i) => {
+      const vue = this.estDecouverte(a);
+      const titre = vue ? (a.config.title ?? a.config.id) : '???';
+      const salle = vue ? (a.room?.config.title ?? '') : '';
+      return `<li><button type="button" data-work="${esc(a.config.id)}"
+        ${vue ? '' : 'disabled aria-disabled="true"'}
+        class="${vue ? 'vue' : 'inconnue'}">
+        <span class="pl-n">${i + 1}</span>
+        <span class="pl-t">${esc(titre)}</span>
+        <span class="pl-s">${esc(salle)}</span></button></li>`;
+    }).join('');
+
+    this._panneau.innerHTML = `
+      <h2>${esc(t('progress.title'))}</h2>
+      <ul role="list">${lignes}</ul>
+      ${reste > 0 ? `<p class="pl-astuce">${esc(t('progress.hint', { n: reste }))}</p>` : ''}`;
+
+    for (const b of this._panneau.querySelectorAll('[data-work]')) {
+      b.addEventListener('click', () => {
+        const art = this.app.artworks.find((a) => a.config.id === b.dataset.work);
+        if (!art) return;
+        this.basculerPanneau(false);
+        this.app.derive?.arreter?.();
+        allerVersOeuvre(this.app, art);
+      });
+    }
   }
+}
+
+function esc(s) {
+  return String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;');
+}
+
+/**
+ * Pose le visiteur devant une œuvre — sa pièce d'abord, puis le point de
+ * vue que sa fiche déclare. Partagé par le catalogue, les liens profonds
+ * et la visite guidée : une seule façon d'arriver devant une œuvre.
+ */
+export async function allerVersOeuvre(app, art, { instant = false } = {}) {
+  const salle = art.room?.config.id;
+  if (salle && app.rooms.current?.config.id !== salle) {
+    await app.rooms.setCurrent(salle, { instant });
+  }
+  art.room?.group.updateMatrixWorld(true);
+  const vue = pointDeVue(app, art);
+  app.camera.position.copy(vue.pos);
+  app.controls.orbit.target.copy(vue.cible);
+  app.controls.resyncCollision?.();
+}
+
+/**
+ * Point de vue de contemplation d'une œuvre : la distance déclarée par son
+ * module FocusCamera, le centre VU de l'objet (jamais son origine, qui est
+ * au sol pour une construction voxel), et un regard à hauteur d'homme.
+ */
+export function pointDeVue(app, art, depuis = null) {
+  const centre = art.group.getWorldPosition(new THREE.Vector3());
+  if (art.mesh) {
+    const boite = new THREE.Box3().setFromObject(art.mesh);
+    if (!boite.isEmpty()) boite.getCenter(centre);
+  }
+  const dist = Math.min(18, Math.max(4.5,
+    art.config.modules?.find((m) => m.type === 'FocusCamera')
+      ?.params?.distance ?? 6));
+  // on aborde l'œuvre depuis là où l'on est ; à défaut, par sa face avant
+  const de = depuis ?? app.camera.position;
+  const dir = de.clone().sub(centre).setY(0);
+  if (dir.lengthSq() < 0.04) {
+    dir.set(0, 0, 1).applyQuaternion(art.group.quaternion).setY(0);
+  }
+  if (dir.lengthSq() < 0.04) dir.set(0, 0, 1);
+  dir.normalize();
+  const pos = centre.clone().addScaledVector(dir, dist);
+  const solY = (art.room?.group.position.y ?? 0) + 1.7;
+  pos.y = Math.max(centre.y + 0.6, solY);
+  const cible = centre.clone();
+  cible.y = centre.y + 0.25;   // le regard porte à niveau, pas vers le sol
+  return { pos, cible };
 }
 
 /** Point d'entrée : construit et attache la progression à l'app. */

@@ -52,9 +52,15 @@ const FR = {
   'menu.liste': 'Vue liste (2D)',
   'menu.finish': 'Terminer la visite',
 
-  'progress.label': '{n} œuvre{s} découverte{s} sur {total}',
+  'progress.label': '{n} œuvre{s} découverte{s} sur {total} — voir le catalogue',
+  'progress.title': 'Œuvres',
+  'progress.hint': 'Encore {n} à trouver — suivez le pointeur ▲',
   'derive.start': 'Laisse-toi porter',
   'derive.stop': 'Reprendre la main',
+  'derive.title': 'Visite guidée des {n} œuvres découvertes',
+  'derive.empty': "Découvrez d'abord une œuvre — suivez le pointeur",
+  'derive.prev': 'Œuvre précédente',
+  'derive.next': 'Œuvre suivante',
 
   'tour.title': 'Visite audio',
   'tour.label': 'Visite audio de la galerie',
@@ -123,9 +129,15 @@ const EN = {
   'menu.liste': 'List view (2D)',
   'menu.finish': 'End the visit',
 
-  'progress.label': '{n} of {total} works discovered',
+  'progress.label': '{n} of {total} works discovered — open the catalogue',
+  'progress.title': 'Works',
+  'progress.hint': '{n} still to find — follow the pointer ▲',
   'derive.start': 'Let yourself drift',
   'derive.stop': 'Take back control',
+  'derive.title': 'Guided tour of the {n} works you found',
+  'derive.empty': 'Find a work first — follow the pointer',
+  'derive.prev': 'Previous work',
+  'derive.next': 'Next work',
 
   'tour.title': 'Audio tour',
   'tour.label': 'Audio tour of the gallery',

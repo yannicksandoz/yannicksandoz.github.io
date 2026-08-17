@@ -26,10 +26,11 @@
     "source": "polypizza"
   },
   "lightColor": "#cfd0e0",
-  "lightIntensity": 12,
+  "lightIntensity": 6,
   "credit": {
     "author": "Poly by Google",
     "license": "CC-BY 3.0",
     "sourceUrl": "https://poly.pizza/m/9OPocAqXM0u"
-  }
+  },
+  "selfLit": true
 }

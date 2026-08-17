@@ -75,7 +75,12 @@ export class TipJar extends Module {
       return;
     }
     const prog = this.app.progression;
-    const parDecouverte = prog ? prog.complet : this._toutApproche();
+    // « Tout découvert » veut dire tout découvert PAR CETTE VISITE. Le
+    // catalogue est mémorisé d'une session à l'autre : sans cette nuance,
+    // un visiteur qui revient recevait l'écran de fin dès son premier pas.
+    const parDecouverte = prog
+      ? (prog.complet && prog.nouvelles > 0)
+      : this._toutApproche();
     // la porte « durée » n'interrompt pas la visite guidée : elle attend
     // que le visiteur reprenne la main (celle du « tout découvert » reste —
     // c'est la fin, où qu'on soit)

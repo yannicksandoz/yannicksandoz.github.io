@@ -152,6 +152,32 @@ export class RoomManager {
   }
 
   /**
+   * Ce qui ARRÊTE la marche : tout ce que l'on foule, plus les œuvres
+   * PLEINES. Un tableau se contourne — on traversait les panneaux et l'on
+   * ressortait derrière le mur qui les porte, dans un espace que personne
+   * n'a meublé. Les vitres invisibles des baies sont déjà dans la coque.
+   *
+   * Liste distincte des `walkables` : celle-ci sert au rayon HORIZONTAL,
+   * l'autre au rayon vertical. Un panneau n'est pas un plancher — le mêler
+   * aux sols ferait marcher sur les tableaux.
+   */
+  blockers() {
+    const room = this.current;
+    if (!room) return [];
+    const list = this.walkables();
+    for (const a of room.artworks) {
+      if (!a.mesh || isWalkable(a.config)) continue;   // déjà foulable
+      if (a.config.solid === false) continue;          // passe-muraille assumé
+      // les œuvres à PANNEAU (image, vidéo) et celles qu'on déclare pleines
+      const plein = a.config.solid === true
+        || typeof a.config.image === 'string'
+        || typeof a.config.video === 'string';
+      if (plein) list.push(a.mesh);
+    }
+    return list;
+  }
+
+  /**
    * Boîte foulable de la pièce courante, en coordonnées LOCALES.
    *
    * Une pièce à ciel ouvert n'a pas de murs pour retenir le visiteur : sans
@@ -708,6 +734,9 @@ export class RoomManager {
       // pendant la dérive guidée, la caméra VOLE : les zones ne se
       // déclenchent pas sous elle — la dérive franchit ses portes elle-même
       if (this.app.derive?.active) continue;
+      // et l'on ne franchit un portail qu'en MARCHANT : tourner la caméra
+      // la promène autour de la cible, ce qui suffisait à la faire entrer
+      if (this.app.controls && !this.app.controls.walking) continue;
       if (d2 < 2.6 && Math.abs(dy) < 1.25) {
         this.traverse(mesh.userData.portal);
         return;
@@ -731,6 +760,7 @@ export class RoomManager {
         continue;
       }
       if (this.app.derive?.active) continue; // la dérive ne bascule pas
+      if (this.app.controls && !this.app.controls.walking) continue; // ni le regard
       if (d2 < r * r && dy > 0 && dy < 3.2) {
         this.basculer(this.current, cfg);
         return;
@@ -951,6 +981,8 @@ export function buildShell(config) {
     emissive: new THREE.Color(opt.frameColor ?? '#4a4668'),
     emissiveIntensity: 0.3
   });
+  // matériau des vitres invisibles : partagé, jamais rendu
+  const invisibleMat = new THREE.MeshBasicMaterial({ visible: false });
 
   const box = (gw, gh, gd, x, y, z, mat) => {
     const g = new THREE.BoxGeometry(gw, gh, gd);
@@ -959,6 +991,26 @@ export function buildShell(config) {
     m.position.set(x, y, z);
     m.receiveShadow = true;
     m.userData.ignoreRaycast = true; // décor : jamais une cible de sélection
+    group.add(m);
+  };
+
+  /**
+   * Vitre INVISIBLE d'une baie.
+   *
+   * Une fenêtre est un trou dans le mur : rien n'empêchait d'y entrer et de
+   * se retrouver dehors, dans un espace que personne n'a meublé. Ce panneau
+   * ne se voit pas (`visible = false`, donc jamais rendu, ni dans les
+   * apparitions) mais les rayons de collision le rencontrent — three ne
+   * consulte pas la visibilité au lancer de rayon. Une vitre, exactement :
+   * on voit à travers, on ne passe pas au travers.
+   */
+  const verre = (gw, gh, x, y, z, rotY) => {
+    const m = new THREE.Mesh(new THREE.PlaneGeometry(gw, gh), invisibleMat);
+    m.position.set(x, y, z);
+    m.rotation.y = rotY;
+    m.visible = false;
+    m.userData.ignoreRaycast = true;
+    m.userData.verre = true;
     group.add(m);
   };
 
@@ -1004,6 +1056,7 @@ export function buildShell(config) {
       box(r.wl + 2 * FT, app.h, FD, r.c, app.y, zPos, frameMat);
       box(mg.len, wh, FD, mg.c, mid, zPos, frameMat);
       box(md.len, wh, FD, md.c, mid, zPos, frameMat);
+      verre(r.wl, r.top - r.sill, r.c, mid, zPos, 0);
     }
   }
   // gauche (-x) et droite (+x) : segments le long de z
@@ -1021,6 +1074,7 @@ export function buildShell(config) {
       box(FD, app.h, r.wl + 2 * FT, xPos, app.y, r.c, frameMat);
       box(FD, wh, mg.len, xPos, mid, mg.c, frameMat);
       box(FD, wh, md.len, xPos, mid, md.c, frameMat);
+      verre(r.wl, r.top - r.sill, xPos, mid, r.c, Math.PI / 2);
     }
   }
 

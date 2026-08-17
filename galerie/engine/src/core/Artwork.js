@@ -24,6 +24,14 @@ export function applyTransform(object3d, config) {
 const textureLoader = new THREE.TextureLoader();
 textureLoader.setCrossOrigin('anonymous');
 
+/**
+ * Couche des objets « selfLit » : une lumière n'éclaire un objet que si
+ * leurs couches se croisent. Celle-ci n'appartient à aucune lumière — la
+ * caméra, elle, la rend (voir App). C'est ainsi qu'une lanterne s'éclaire
+ * toute seule sans se brûler.
+ */
+export const COUCHE_AUTO_ECLAIREE = 3;
+
 /** Libère géométries, matériaux et textures d'une sous-arborescence. */
 function disposeObject3D(root) {
   root.traverse((o) => {
@@ -511,6 +519,20 @@ export class Artwork {
     mesh.traverse?.((o) => {
       if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; }
     });
+    // « selfLit » : l'objet ÉCLAIRE, il n'est pas éclairé. Une lanterne
+    // porte sa lampe à quelques décimètres de sa propre paroi : avec une
+    // décroissance en 1/d^1.8, elle se recevait plusieurs fois la pleine
+    // intensité, virait au blanc pur et fleurissait dans le bloom — une
+    // tache aveuglante là où l'on voulait une veilleuse. On l'écarte donc
+    // de TOUTES les lumières (couche dédiée, que la caméra rend) : il ne
+    // lui reste que son émission et le rebond d'image. La lampe, elle,
+    // continue d'éclairer la pièce.
+    if (this.config.selfLit) {
+      mesh.traverse?.((o) => {
+        o.layers.set(COUCHE_AUTO_ECLAIREE);
+        if (o.isMesh) o.castShadow = false;
+      });
+    }
     this.group.add(mesh);
   }
 

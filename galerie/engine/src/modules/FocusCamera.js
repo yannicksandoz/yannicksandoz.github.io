@@ -40,12 +40,24 @@ export class FocusCamera extends Module {
     const controls = this.app.controls;
     const art = this.artwork.group;
 
+    // On vise le CENTRE VU de l'œuvre, pas son origine : une construction
+    // voxel a la sienne posée au sol (voxel.js), et s'en servir mettait la
+    // caméra à hauteur zéro — le regard passait sous la carte. La boîte
+    // englobante donne le vrai centre, quel que soit le type de modèle.
+    const centre = art.position.clone();
+    if (this.artwork.mesh) {
+      const boite = new THREE.Box3().setFromObject(this.artwork.mesh);
+      if (!boite.isEmpty()) boite.getCenter(centre);
+    }
     // point de vue : face à l'œuvre, dans l'axe de sa normale (rotation Y)
     const dist = this.params.distance ?? 6;
     const dir = new THREE.Vector3(0, 0, 1).applyQuaternion(art.quaternion);
-    this._to.pos.copy(art.position).addScaledVector(dir, dist);
-    this._to.pos.y = art.position.y + (this.params.height ?? 0);
-    this._to.target.copy(art.position);
+    this._to.pos.copy(centre).addScaledVector(dir, dist);
+    this._to.pos.y = centre.y + (this.params.height ?? 0);
+    // et jamais sous les pieds du visiteur : on contemple debout
+    const solY = (this.artwork.room?.group.position.y ?? 0) + 1.6;
+    if (this._to.pos.y < solY) this._to.pos.y = solY;
+    this._to.target.copy(centre);
 
     this._from.pos.copy(this.app.camera.position);
     this._from.target.copy(controls.orbit.target);
