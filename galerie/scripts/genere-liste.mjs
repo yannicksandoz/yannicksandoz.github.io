@@ -60,7 +60,7 @@ const carte = (w) => {
 const sections = rooms.map((r) => {
   const oeuvres = (r.works ?? [])
     .map((id) => works.get(id))
-    .filter((w) => w && w.role !== 'decor');
+    .filter((w) => w && w.role !== 'decor' && !w.partOf);
   if (!oeuvres.length) return '';
   return `    <section aria-labelledby="salle-${esc(r.id)}">
       <h2 id="salle-${esc(r.id)}">${esc(r.title ?? r.id)}

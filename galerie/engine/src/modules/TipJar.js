@@ -76,7 +76,11 @@ export class TipJar extends Module {
     }
     const prog = this.app.progression;
     const parDecouverte = prog ? prog.complet : this._toutApproche();
-    const parDuree = prog && prog.minutes >= (this.params.minutes ?? 12);
+    // la porte « durée » n'interrompt pas la visite guidée : elle attend
+    // que le visiteur reprenne la main (celle du « tout découvert » reste —
+    // c'est la fin, où qu'on soit)
+    const parDuree = prog && prog.minutes >= (this.params.minutes ?? 12)
+      && !this.app.derive?.active;
     if (parDecouverte || parDuree) {
       this.shownOnce = true;
       this._countdown = this.params.delay ?? 2;

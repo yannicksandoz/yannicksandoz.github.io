@@ -82,10 +82,16 @@ async function boot() {
       return true;
     }
     if (hit?.type === 'artwork') {
-      if (app.activeFocus && app.activeFocus.artwork !== hit.artwork) {
+      // un membre d'ensemble représente son œuvre maîtresse : cliquer la
+      // margelle, c'est ouvrir le bassin
+      let art = hit.artwork;
+      if (art.config.partOf) {
+        art = app.artworks.find((a) => a.config.id === art.config.partOf) ?? art;
+      }
+      if (app.activeFocus && app.activeFocus.artwork !== art) {
         app.activeFocus.release();
       }
-      return hit.artwork.handleClick();
+      return art.handleClick();
     }
     if (app.activeFocus) {
       app.activeFocus.release();
@@ -112,23 +118,42 @@ async function boot() {
 
   // Lien profond (?room=x&work=y) : on arrive LÀ où le lien a été partagé,
   // pas à l'entrée — la pièce est posée avant même l'écran d'accueil.
-  appliquerLienProfond(app);
+  const lienDirect = appliquerLienProfond(app);
 
   // L'éditeur n'est téléchargé qu'au premier déclenchement (², ✎, ?edit).
   setupEditorLoader(app);
 
-  const { audioTour } = await app.ui.waitForEnter();
-  app.audio.unlock(); // depuis le geste utilisateur : requis par les navigateurs
-  app.rooms.onAudioUnlocked();
-  if (audioTour) {
-    await startAudioTour(app);
-  } else {
+  if (lienDirect) {
+    // Venu par un lien : l'écran d'accueil serait un péage — on entre
+    // directement devant l'œuvre. Seul l'audio attend le premier geste
+    // (clic, touche, doigt) : c'est la règle des navigateurs, pas la nôtre.
+    app.ui.skipEnter();
+    const geste = () => {
+      window.removeEventListener('pointerdown', geste);
+      window.removeEventListener('keydown', geste);
+      app.audio.unlock();
+      app.rooms.onAudioUnlocked();
+    };
+    window.addEventListener('pointerdown', geste);
+    window.addEventListener('keydown', geste);
     app.ui.maybeShowTouchHint(app.quality.isMobile);
-    // Les compagnons de la visite 3D : la progression (badge « 3 / 6 »,
-    // découvertes persistées), la boussole d'écran, la dérive guidée.
     mountProgression(app).montrerBadge();
     mountBoussole(app);
     mountDerive(app);
+  } else {
+    const { audioTour } = await app.ui.waitForEnter();
+    app.audio.unlock(); // depuis le geste utilisateur : requis par les navigateurs
+    app.rooms.onAudioUnlocked();
+    if (audioTour) {
+      await startAudioTour(app);
+    } else {
+      app.ui.maybeShowTouchHint(app.quality.isMobile);
+      // Les compagnons de la visite 3D : la progression (badge « 3 / 6 »,
+      // découvertes persistées), la boussole d'écran, la dérive guidée.
+      mountProgression(app).montrerBadge();
+      mountBoussole(app);
+      mountDerive(app);
+    }
   }
 
   // Échap remonte, partout : en 3D sans œuvre approchée, il ouvre le MENU
@@ -154,7 +179,7 @@ function appliquerLienProfond(app) {
   const q = new URLSearchParams(window.location.search);
   const workId = q.get('work');
   const roomId = q.get('room');
-  if (!workId && !roomId) return;
+  if (!workId && !roomId) return false;
 
   let art = null;
   if (workId) {
@@ -163,7 +188,7 @@ function appliquerLienProfond(app) {
   }
   const cible = art?.room?.config.id
     ?? (roomId && app.rooms.rooms.has(roomId) ? roomId : null);
-  if (!cible) return;
+  if (!cible) return false;
 
   app.rooms.setCurrent(cible, { instant: true });
   if (art) {
@@ -181,6 +206,7 @@ function appliquerLienProfond(app) {
     app.controls.orbit.target.copy(wp);
     app.controls.resyncCollision?.();
   }
+  return true;
 }
 
 /**

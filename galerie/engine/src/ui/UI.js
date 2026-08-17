@@ -190,6 +190,19 @@ export class UI {
     });
   }
 
+  /**
+   * Entrée DIRECTE (lien profond depuis la liste 2D ou un partage) : pas
+   * d'écran d'accueil — on arrive devant l'œuvre. L'AudioContext, lui,
+   * exige toujours un geste : l'appelant le débloque au premier.
+   */
+  skipEnter() {
+    if (!this.enterScreen) return;
+    this._releaseWelcome();
+    this.enterScreen.classList.add('leaving');
+    setTimeout(() => { this.enterScreen.remove(); }, 1300);
+    this.hint.hidden = false;
+  }
+
   /** Aide tactile éphémère, montrée une seule fois par appareil. */
   maybeShowTouchHint(isMobile) {
     if (!isMobile || !this.touchHint) return;

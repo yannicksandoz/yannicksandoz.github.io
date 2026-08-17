@@ -20,8 +20,8 @@ import { easeInOutCubic } from './utils.js';
  * instantanés, et les pauses font le rythme.
  */
 
-const VUE_DIST = 5;      // recul du point de vue face à l'œuvre
-const PAUSE = 9;         // secondes devant chaque œuvre
+const VUE_DIST = 5;      // recul par défaut (l'œuvre peut dire le sien)
+const PAUSE = 7;         // secondes devant chaque œuvre
 const VITESSE = 4.5;     // m/s de croisière
 
 export class Derive {
@@ -132,12 +132,22 @@ export class Derive {
       const dir = cam.clone().sub(wp).setY(0);
       if (dir.lengthSq() < 0.04) dir.set(0, 0, 1).applyQuaternion(a.group.quaternion);
       dir.normalize();
-      const pos = wp.clone().addScaledVector(dir, VUE_DIST);
-      pos.y = wp.y + 0.9;
+      // Le recul est CELUI DE L'ŒUVRE : son module FocusCamera déclare déjà
+      // la distance de contemplation (le tore du belvédère en demande 14 m,
+      // un panneau 6) — la dérive cadre comme un clic aurait cadré.
+      const dist = Math.min(18, Math.max(4.5,
+        a.config.modules?.find((m) => m.type === 'FocusCamera')
+          ?.params?.distance ?? VUE_DIST));
+      const pos = wp.clone().addScaledVector(dir, dist);
+      pos.y = wp.y + 1.1;
+      // viser un rien au-dessus du centre : le regard arrive à l'horizontale
+      // sur l'œuvre, pas piqué vers le sol
+      const target = wp.clone();
+      target.y = wp.y + 0.35;
       this._derniere = a;
       // dernière œuvre de la pièce : marquer la salle comme faite après elle
       if (restantes.length === 1) this._sallesVues.add(room.config.id + '·faite');
-      return { pos, target: wp, pause: PAUSE };
+      return { pos, target, pause: PAUSE };
     }
 
     // 2. plus rien ici : gagner le portail le plus prometteur
@@ -159,8 +169,11 @@ export class Derive {
     const dir = cam.clone().sub(wp).setY(0).normalize();
     const pos = wp.clone().addScaledVector(dir, 1.6);
     pos.y = wp.y + 2.0;
+    // regarder la PORTE (à hauteur d'yeux), pas son seuil
+    const target = wp.clone();
+    target.y = wp.y + 1.8;
     this._derniere = null;
-    return { pos, target: wp, pause: 0, puis: () => this._franchir(p) };
+    return { pos, target, pause: 0, puis: () => this._franchir(p) };
   }
 
   async _franchir(portal) {
@@ -190,7 +203,7 @@ export class Derive {
       const dist = this._de.pos.distanceTo(this._vers.pos);
       this._duree = this.app.quality.reducedMotion
         ? 0.4
-        : Math.min(8, Math.max(1.4, dist / VITESSE));
+        : Math.min(6, Math.max(1.4, dist / VITESSE));
       this._t = 0;
       this._attente = etape.pause;
       this._puis = etape.puis;

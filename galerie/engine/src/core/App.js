@@ -258,7 +258,9 @@ export class App {
     const editing = this.editor?.enabled;
     const meshes = this.artworks
       .filter((a) => !a.room || a.room.state === 'current')
-      .filter((a) => editing || a.config.role !== 'decor')
+      // un membre d'ensemble (partOf) reste cliquable : son clic ouvre
+      // l'œuvre maîtresse (voir le routage dans main.js)
+      .filter((a) => editing || a.config.role !== 'decor' || a.config.partOf)
       .map((a) => a.hitMesh)
       .filter(Boolean);
     if (this.rooms?.current) meshes.push(...this.rooms.current.portalMeshes);

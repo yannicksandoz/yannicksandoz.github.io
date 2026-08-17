@@ -10,7 +10,6 @@ import * as THREE from 'three';
  * s'efface dès que la cible entre dans le champ — un guide, pas un HUD.
  */
 const MARGE = 44;        // distance au bord, en px
-const PERIODE = 0.15;    // secondes entre deux évaluations
 
 export class Boussole {
   constructor(app) {
@@ -23,7 +22,6 @@ export class Boussole {
     this.el.style.opacity = '0';
     document.body.appendChild(this.el);
 
-    this._acc = 0;
     this._v = new THREE.Vector3();
     this._off = app.onUpdate((dt) => this._tick(dt));
   }
@@ -48,11 +46,10 @@ export class Boussole {
     return mesh;
   }
 
-  _tick(dt) {
-    this._acc += dt;
-    if (this._acc < PERIODE) return;
-    this._acc = 0;
-
+  // À CHAQUE frame : une projection et deux écritures de style ne coûtent
+  // rien, et une flèche qui saute par à-coups (throttle) se lit comme un
+  // défaut, pas comme un guide.
+  _tick(_dt) {
     const cache = () => { this.el.style.opacity = '0'; };
     if (this.app.audioTour?.active || this.app.editor?.enabled
       || this.app.activeFocus || this.app.derive?.active

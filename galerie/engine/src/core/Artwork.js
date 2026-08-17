@@ -145,8 +145,12 @@ export class Artwork {
     // Balise de découverte : une petite lueur au-dessus des ŒUVRES que le
     // visiteur n'a pas encore rencontrées — un repère, pas une enseigne.
     // Elle s'éteint d'elle-même à la découverte (état lu chaque frame).
+    // Les membres d'un ensemble (partOf) n'en portent pas : une lueur par
+    // œuvre, pas une par objet.
     this._beacon = null;
-    if (!app.headless && config.role !== 'decor') this._buildBeacon();
+    if (!app.headless && config.role !== 'decor' && !config.partOf) {
+      this._buildBeacon();
+    }
   }
 
   _buildBeacon() {

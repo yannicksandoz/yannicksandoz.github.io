@@ -27,9 +27,11 @@ export class Progression {
     app.onUpdate((dt) => this._tick(dt));
   }
 
-  /** Toutes les œuvres au sens fort — le décor ne compte pas. */
+  /** Toutes les œuvres au sens fort — ni le décor, ni les MEMBRES d'un
+   *  ensemble (`partOf`) : un groupe d'objets compte pour UNE œuvre. */
   get oeuvres() {
-    return this.app.artworks.filter((a) => a.config.role !== 'decor');
+    return this.app.artworks.filter(
+      (a) => a.config.role !== 'decor' && !a.config.partOf);
   }
 
   get total() {
@@ -78,11 +80,22 @@ export class Progression {
   }
 
   _tick(dt) {
+    // un ensemble s'étend : être près de N'IMPORTE QUEL membre (partOf),
+    // c'est être près de l'œuvre — on retient la distance minimale
+    let minMembres = null;
+    for (const a of this.app.artworks) {
+      const pid = a.config.partOf;
+      if (!pid) continue;
+      minMembres ??= new Map();
+      const d = minMembres.get(pid);
+      if (d === undefined || a.distance < d) minMembres.set(pid, a.distance);
+    }
     // le temps passé À PORTÉE s'accumule ; loin, il s'évapore doucement —
     // traverser en courant ne compte pas, s'attarder compte
     for (const a of this.oeuvres) {
       if (this.decouvertes.has(a.config.id)) continue;
-      const proche = a.distance < RAYON;
+      const d = Math.min(a.distance, minMembres?.get(a.config.id) ?? Infinity);
+      const proche = d < RAYON;
       const acc = (this._dwell.get(a) ?? 0) + (proche ? dt : -dt * 0.5);
       this._dwell.set(a, Math.max(0, acc));
       if (acc >= PALIER) this.marquer(a);

@@ -75,8 +75,14 @@ une image, une **vue détail** plein écran.
 **Menu de la visite** (Échap ou ☰) : liste des **pièces** pour sauter
 directement dans l'une d'elles, visite audio, **partage** (Web Share sur
 mobile, copie du lien sinon) avec **lien profond** `?room=pièce` /
-`?work=œuvre` — celui qui l'ouvre arrive au même endroit —, **plein écran**,
-vue liste, raccourcis, langue, « Terminer la visite ».
+`?work=œuvre` — celui qui l'ouvre arrive au même endroit, **sans écran
+d'accueil** (l'audio se débloque au premier geste, règle des navigateurs) —,
+**plein écran**, vue liste, raccourcis, langue, « Terminer la visite ».
+
+**Œuvres composées.** Plusieurs objets peuvent former UNE œuvre indexée :
+les membres déclarent `partOf` (voir « Décrire une œuvre ») — un clic sur
+n'importe quel membre ouvre la fiche commune, la proximité de n'importe
+lequel compte pour la découverte, et la liste 2D n'affiche qu'une entrée.
 
 **Vue liste 2D** (`liste.html`, générée au build depuis les mêmes JSON) :
 toutes les œuvres avec texte, image et lecteur audio natif — la voie
@@ -281,6 +287,14 @@ au code du moteur** :
   "credit": {                      // cité dans l'écran de crédits (optionnel)
     "author": "…", "license": "CC-BY 4.0", "sourceUrl": "https://…"
   },
+  "year": "2026",                  // cartel de la fiche (optionnels)
+  "technique": "Synthèse granulaire, 4 haut-parleurs virtuels",
+  "link": "https://…",             // « En savoir plus » de la fiche
+  // Ensemble : plusieurs objets, UNE œuvre indexée. Les membres portent
+  // `partOf` (et restent `role: "decor"`) : cliquer l'un d'eux ouvre la
+  // fiche de l'œuvre maîtresse, s'approcher de n'importe lequel compte
+  // pour sa découverte, et un seul repère/une seule entrée de liste existe.
+  "partOf": "id-de-l-oeuvre-maitresse",
 
   // — visuel : au choix —
   // (toute source média accepte un chemin relatif OU une URL absolue)
