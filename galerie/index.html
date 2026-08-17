@@ -2,9 +2,29 @@
 <html lang="fr">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <!-- Le zoom RESTE possible (accessibilité) : les gestes de la scène 3D
+       sont déjà capturés par le canvas (touch-action), le pincement sur
+       l'interface, lui, appartient à l'utilisateur. -->
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <meta name="theme-color" content="#05050a" />
   <title>Galerie — espace sonore</title>
+  <meta name="description" content="Une galerie d'art sonore en 3D : vos déplacements composent le mixage. Neuf pièces, des œuvres spatialisées, un labyrinthe à six gravités — casque recommandé." />
+
+  <!-- Aperçu de partage (Open Graph + Twitter Card) : URL absolues,
+       exigées par les robots de prévisualisation. -->
+  <meta property="og:type" content="website" />
+  <meta property="og:site_name" content="Galerie — espace sonore" />
+  <meta property="og:title" content="Galerie — espace sonore" />
+  <meta property="og:description" content="Une galerie d'art sonore en 3D : vos déplacements composent le mixage. Casque recommandé." />
+  <meta property="og:url" content="https://yannicksandoz.github.io/galerie/" />
+  <meta property="og:image" content="https://yannicksandoz.github.io/galerie/apercu.jpg" />
+  <meta property="og:image:width" content="1200" />
+  <meta property="og:image:height" content="630" />
+  <meta property="og:locale" content="fr_FR" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="Galerie — espace sonore" />
+  <meta name="twitter:description" content="Une galerie d'art sonore en 3D : vos déplacements composent le mixage. Casque recommandé." />
+  <meta name="twitter:image" content="https://yannicksandoz.github.io/galerie/apercu.jpg" />
 </head>
 <body>
   <div id="app"></div>
@@ -16,8 +36,17 @@
       <p class="sub">Votre navigateur ne prend pas en charge WebGL2, nécessaire à cette
       expérience. Essayez un navigateur récent (Chrome, Firefox, Safari 16+) ou
       vérifiez que l'accélération matérielle est activée.</p>
+      <p class="tip"><a href="liste.html" class="liste-lien" data-i18n="enter.liste">Parcourir les œuvres en liste (2D)</a></p>
     </div>
   </div>
+
+  <!-- Sans JavaScript, la visite 3D n'existe pas — la liste 2D, si. -->
+  <noscript>
+    <div class="enter-inner" style="padding:2rem;text-align:center">
+      <h1>Galerie</h1>
+      <p><a href="liste.html" style="color:#cbb4ff">Parcourir les œuvres en liste (2D)</a></p>
+    </div>
+  </noscript>
 
   <!-- Écran d'accueil : chargement + déblocage de l'AudioContext -->
   <div id="enter-screen">
@@ -35,6 +64,7 @@
            déplacement 3D) — bruit inutile pour un lecteur d'écran, dont le
            chemin est la visite audio, qui porte sa propre explication. -->
       <p class="tip" aria-hidden="true">ZQSD / WASD ou flèches pour se déplacer · <span data-keylabel="pivot">A/E ou Q/E</span> pour pivoter · souris pour orbiter · clic sur une œuvre pour l'approcher</p>
+      <p class="tip"><a href="liste.html" class="liste-lien" data-i18n="enter.liste">Parcourir les œuvres en liste (2D)</a></p>
     </div>
   </div>
 
@@ -49,8 +79,19 @@
   <div id="focus-overlay" hidden>
     <button id="focus-close" data-i18n-attr="aria-label:focus.close" aria-label="Fermer">×</button>
     <h2 id="focus-title"></h2>
+    <p id="focus-meta" hidden></p>
     <p id="focus-desc"></p>
+    <div id="focus-actions" hidden>
+      <button id="focus-image" hidden type="button"></button>
+      <a id="focus-link" hidden target="_blank" rel="noopener noreferrer"></a>
+    </div>
     <p class="tip" data-i18n="focus.tip">Échap ou × pour reculer</p>
+  </div>
+
+  <!-- Vue détail : l'image de l'œuvre en plein écran (depuis la fiche) -->
+  <div id="image-viewer" hidden role="dialog" aria-modal="true">
+    <button id="viewer-close" data-i18n-attr="aria-label:viewer.close" aria-label="Fermer l'image">×</button>
+    <img id="viewer-img" alt="">
   </div>
 
   <!-- Chapeau (module TipJar) : redirection vers une page de paiement externe -->

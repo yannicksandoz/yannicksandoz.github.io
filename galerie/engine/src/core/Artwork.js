@@ -141,6 +141,29 @@ export class Artwork {
       .map((m) => registry.create(m.type, this, m.params, app))
       .filter(Boolean);
     for (const m of this.modules) m.init();
+
+    // Balise de découverte : une petite lueur au-dessus des ŒUVRES que le
+    // visiteur n'a pas encore rencontrées — un repère, pas une enseigne.
+    // Elle s'éteint d'elle-même à la découverte (état lu chaque frame).
+    this._beacon = null;
+    if (!app.headless && config.role !== 'decor') this._buildBeacon();
+  }
+
+  _buildBeacon() {
+    const s = new THREE.Sprite(new THREE.SpriteMaterial({
+      map: beaconTexture(),
+      color: 0xcbb4ff,
+      transparent: true,
+      opacity: 0.5,
+      blending: THREE.AdditiveBlending,
+      depthWrite: false
+    }));
+    s.scale.setScalar(0.85);
+    s.position.set(0, 2.3, 0);
+    s.visible = false;
+    s.raycast = () => {}; // jamais une cible de clic
+    this.group.add(s);
+    this._beacon = s;
   }
 
   _buildLight() {
@@ -577,14 +600,14 @@ export class Artwork {
     for (const s of this.config.stems ?? []) r = Math.max(r, s.radius ?? 12);
     for (const m of this.config.modules ?? []) {
       if (m.type === 'SpatialCrossfade') r = Math.max(r, m.params?.radius ?? 15);
-      if (m.type === 'HRTFPanner') r = Math.max(r, m.params?.maxDistance ?? 40);
+      if (m.type === 'HRTFPanner') r = Math.max(r, m.params?.maxDistance ?? 60);
     }
     // Les modules injectés à l'exécution (visite audio) ne figurent pas dans
     // la config : sans ce second parcours, le budget de stems couperait des
     // œuvres que leur panner injecté devait garder audibles.
     for (const m of this.modules ?? []) {
       if (m.moduleType === 'SpatialCrossfade') r = Math.max(r, m.params?.radius ?? 15);
-      if (m.moduleType === 'HRTFPanner') r = Math.max(r, m.params?.maxDistance ?? 40);
+      if (m.moduleType === 'HRTFPanner') r = Math.max(r, m.params?.maxDistance ?? 60);
     }
     return r || 15;
   }
@@ -618,7 +641,18 @@ export class Artwork {
       if (this.audioReady) this._unloadAudio();
     }
 
-    if (roomState !== 'current') return; // pièce adjacente : préchargée, inactive
+    if (roomState !== 'current') {
+      if (this._beacon) this._beacon.visible = false;
+      return; // pièce adjacente : préchargée, inactive
+    }
+
+    if (this._beacon) {
+      const prog = this.app.progression;
+      this._beacon.visible = Boolean(prog) && !prog.estDecouverte(this);
+      if (this._beacon.visible && !this.app.quality.reducedMotion) {
+        this._beacon.position.y = 2.3 + Math.sin(ctx.time * 1.6) * 0.15;
+      }
+    }
 
     if (this._reactiveMaterial?.uniforms?.uTime) {
       this._reactiveMaterial.uniforms.uTime.value = ctx.time;
@@ -674,4 +708,26 @@ export class Artwork {
     });
     this.group.removeFromParent();
   }
+}
+
+/**
+ * Halo de balise, dessiné UNE fois et partagé par toutes les œuvres : un
+ * point doux qui s'éteint vers les bords — la texture ne pèse rien et le
+ * même objet GPU sert partout.
+ */
+let _beaconTex = null;
+function beaconTexture() {
+  if (_beaconTex) return _beaconTex;
+  const S = 64;
+  const canvas = document.createElement('canvas');
+  canvas.width = canvas.height = S;
+  const ctx = canvas.getContext('2d');
+  const g = ctx.createRadialGradient(S / 2, S / 2, 2, S / 2, S / 2, S / 2);
+  g.addColorStop(0, 'rgba(255,255,255,1)');
+  g.addColorStop(0.25, 'rgba(230,220,255,0.65)');
+  g.addColorStop(1, 'rgba(200,180,255,0)');
+  ctx.fillStyle = g;
+  ctx.fillRect(0, 0, S, S);
+  _beaconTex = new THREE.CanvasTexture(canvas);
+  return _beaconTex;
 }

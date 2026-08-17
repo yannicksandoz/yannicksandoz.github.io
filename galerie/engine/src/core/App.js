@@ -378,6 +378,8 @@ export class App {
   /** Module FocusCamera actuellement en avant-plan (ou null). */
   setActiveFocus(module) {
     this.activeFocus = module;
+    // approcher une œuvre, c'est la découvrir — sans attendre le palier
+    if (module?.artwork) this.progression?.marquer(module.artwork);
   }
 
   /** Ajoute une œuvre, dans une pièce si le système de rooms est actif. */

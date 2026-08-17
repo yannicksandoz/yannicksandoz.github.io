@@ -395,3 +395,99 @@ html, body {
 }
 #vm-close { margin-top: 1.4rem; color: var(--dim); }
 #vm-close:hover, #vm-close:focus-visible { color: var(--fg); }
+
+/* ——— Compagnons de la visite : progression, boussole, dérive ——— */
+
+/* Badge « ◆ 3 / 6 » — haut-droite, discret, jamais interactif. */
+#progress-badge {
+  position: fixed;
+  top: calc(0.9rem + env(safe-area-inset-top, 0px));
+  right: calc(1rem + env(safe-area-inset-right, 0px));
+  z-index: 14;
+  padding: 0.3rem 0.75rem; border-radius: 2rem;
+  font-size: 0.78rem; letter-spacing: 0.08em;
+  color: var(--dim); background: rgba(8, 8, 16, 0.55);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  pointer-events: none; user-select: none;
+}
+
+/* Boussole d'écran : une flèche qui glisse le long des bords. */
+#boussole {
+  position: fixed; left: 0; top: 0; z-index: 12;
+  color: var(--accent);
+  pointer-events: none; user-select: none;
+  transition: opacity 0.5s ease;
+  filter: drop-shadow(0 0 6px rgba(159, 140, 255, 0.5));
+}
+
+/* « Laisse-toi porter » — bas-centre, hors du chemin des coins. */
+#derive-btn {
+  position: fixed;
+  bottom: calc(2.9rem + env(safe-area-inset-bottom, 0px));
+  left: 50%; transform: translateX(-50%);
+  z-index: 15;
+  padding: 0.45rem 1.1rem; border-radius: 2rem; cursor: pointer;
+  font-size: 0.82rem; letter-spacing: 0.06em;
+  color: var(--dim); background: rgba(8, 8, 16, 0.6);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  transition: color 0.25s ease, border-color 0.25s ease;
+}
+#derive-btn:hover, #derive-btn:focus-visible { color: var(--fg); border-color: var(--accent); }
+#derive-btn[aria-pressed="true"] {
+  color: var(--fg); border-color: var(--accent); background: rgba(159, 140, 255, 0.16);
+}
+
+/* ——— Fiche d'œuvre : cartel et actions ——— */
+#focus-meta {
+  margin-top: 0.25rem !important;
+  font-size: 0.78rem !important; letter-spacing: 0.1em;
+  text-transform: uppercase; color: var(--accent) !important;
+}
+#focus-actions { margin-top: 0.8rem; display: flex; gap: 0.7rem; flex-wrap: wrap; }
+#focus-actions button, #focus-actions a {
+  padding: 0.35rem 0.9rem; border-radius: 2rem; cursor: pointer;
+  font-size: 0.8rem; text-decoration: none;
+  color: var(--fg); background: rgba(159, 140, 255, 0.12);
+  border: 1px solid rgba(159, 140, 255, 0.4);
+}
+#focus-actions button:hover, #focus-actions a:hover,
+#focus-actions button:focus-visible, #focus-actions a:focus-visible {
+  background: rgba(159, 140, 255, 0.24);
+}
+#focus-actions [hidden] { display: none; }
+
+/* Vue détail : l'image seule, plein écran. */
+#image-viewer {
+  position: fixed; inset: 0; z-index: 44;
+  display: flex; align-items: center; justify-content: center;
+  background: rgba(3, 3, 8, 0.94);
+}
+#image-viewer[hidden] { display: none; }
+#image-viewer img {
+  max-width: 94vw; max-height: 92vh; object-fit: contain;
+  box-shadow: 0 0 60px rgba(0, 0, 0, 0.8);
+}
+#viewer-close {
+  position: absolute; top: 0.8rem; right: 1rem;
+  font-size: 1.6rem; color: var(--dim); cursor: pointer;
+  background: none; border: none; padding: 0.4rem 0.7rem;
+}
+#viewer-close:hover, #viewer-close:focus-visible { color: var(--fg); }
+
+/* ——— Menu : liste des pièces, lien liste ——— */
+.vm-rooms { margin: 0.3rem 0 0.2rem 0.8rem; }
+.vm-rooms button { font-size: 0.9rem; color: var(--dim); }
+.vm-rooms button:hover, .vm-rooms button:focus-visible { color: var(--fg); }
+.vm-rooms button[aria-current="true"] { color: var(--accent); }
+#vm-liste {
+  display: inline-block; padding: 0.45rem 0;
+  color: inherit; text-decoration: none; font-size: 1rem;
+}
+#vm-liste:hover, #vm-liste:focus-visible { color: var(--fg); }
+.liste-lien { color: var(--accent); }
+.liste-lien:hover, .liste-lien:focus-visible { color: var(--fg); }
+
+/* Ces compagnons sont décoratifs : immobiles si le système le demande. */
+@media (prefers-reduced-motion: reduce) {
+  #boussole { transition: none; }
+}

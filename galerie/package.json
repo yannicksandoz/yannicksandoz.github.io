@@ -9,8 +9,8 @@
   "scripts": {
     "dev": "GALERIE_EDITOR=1 vite",
     "dev:visiteur": "vite",
-    "build": "vite build",
-    "build:auteur": "GALERIE_EDITOR=1 vite build --outDir dist-auteur",
+    "build": "vite build && node scripts/genere-liste.mjs dist",
+    "build:auteur": "GALERIE_EDITOR=1 vite build --outDir dist-auteur && node scripts/genere-liste.mjs dist-auteur",
     "preview": "vite preview",
     "preview:auteur": "vite preview --outDir dist-auteur",
     "check": "node scripts/check-visitor-build.mjs",

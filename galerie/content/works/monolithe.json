@@ -2,17 +2,50 @@
   "id": "monolithe",
   "title": "Monolithe 55 Hz",
   "description": "Stèle de verre sombre traversée d'ondes. Sa pulsation sub-grave est spatialisée en binaural (HRTF) : au casque, le son tourne autour de vous quand vous la contournez. Le shader se déforme et s'embrase à chaque battement. Démo : HRTFPanner + AudioReactive (uniforms de shader) + FocusCamera.",
-  "position": [12, 2.4, -9],
+  "position": [
+    12,
+    2.4,
+    -9
+  ],
   "rotationY": -20,
-  "model": { "shape": "monolith", "height": 4.6, "color": "#66f0d8" },
+  "model": {
+    "shape": "monolith",
+    "height": 4.6,
+    "color": "#66f0d8"
+  },
   "lightColor": "#3ae0c0",
   "stems": [
-    { "file": "audio/monolithe-pulse.wav", "radius": 30, "gain": 1.0 }
+    {
+      "file": "audio/monolithe-pulse.wav",
+      "radius": 30,
+      "gain": 1.0
+    }
   ],
   "modules": [
-    { "type": "HRTFPanner", "params": { "refDistance": 3, "maxDistance": 32, "rolloff": 1.5 } },
-    { "type": "AudioReactive", "params": { "band": "low", "pulseScale": 0.07, "lightBoost": 4, "smoothing": 12 } },
-    { "type": "FocusCamera", "params": { "distance": 8, "height": 0.4 } },
+    {
+      "type": "HRTFPanner",
+      "params": {
+        "refDistance": 3,
+        "maxDistance": 60,
+        "rolloff": 1.0
+      }
+    },
+    {
+      "type": "AudioReactive",
+      "params": {
+        "band": "low",
+        "pulseScale": 0.07,
+        "lightBoost": 4,
+        "smoothing": 12
+      }
+    },
+    {
+      "type": "FocusCamera",
+      "params": {
+        "distance": 8,
+        "height": 0.4
+      }
+    },
     {
       "type": "TipJar",
       "params": {

@@ -11,14 +11,17 @@
  */
 
 const FR = {
-  'enter.sub': 'Un espace sonore immersif — casque recommandé',
+  'enter.sub': 'Une galerie d’art sonore : vos déplacements composent le mixage — casque recommandé.',
   'enter.loading': 'Chargement…',
   'enter.enter': 'Entrer',
   'enter.audio': 'Visite audio',
   'enter.tip': "ZQSD / WASD ou flèches pour se déplacer · {pivot} pour pivoter · souris pour orbiter · clic sur une œuvre pour l'approcher",
+  'enter.tip.touch': "1 doigt pour regarder autour · 2 doigts pour se déplacer et zoomer · joystick pour marcher · toucher une œuvre pour l'approcher",
+  'enter.liste': 'Parcourir les œuvres en liste (2D)',
   'enter.error': 'Impossible de charger la configuration des œuvres (voir console).',
 
   'hint.line': '{move} · {pivot} : pivoter · clic ou Espace : découvrir',
+  'hint.touch': '1 doigt : regarder · 2 doigts : se déplacer · joystick : marcher · toucher : découvrir',
 
   'nogl.sub': "Votre navigateur ne prend pas en charge WebGL2, nécessaire à l'affichage 3D. La galerie reste entièrement visitable à l'oreille : navigation au clavier, sons spatialisés — casque recommandé.",
   'nogl.start': 'Visite audio',
@@ -40,6 +43,18 @@ const FR = {
   'menu.open': 'Ouvrir le menu de la visite',
   'menu.resume': 'Reprendre la visite',
   'menu.label': 'Menu de la visite',
+  'menu.rooms': 'Pièces',
+  'menu.derive': 'Laisse-toi porter (visite guidée)',
+  'menu.share': 'Partager',
+  'menu.share.copied': 'Lien copié !',
+  'menu.fullscreen': 'Plein écran',
+  'menu.fullscreen.exit': 'Quitter le plein écran',
+  'menu.liste': 'Vue liste (2D)',
+  'menu.finish': 'Terminer la visite',
+
+  'progress.label': '{n} œuvre{s} découverte{s} sur {total}',
+  'derive.start': 'Laisse-toi porter',
+  'derive.stop': 'Reprendre la main',
 
   'tour.title': 'Visite audio',
   'tour.label': 'Visite audio de la galerie',
@@ -54,6 +69,9 @@ const FR = {
 
   'focus.tip': 'Échap ou × pour reculer',
   'focus.close': 'Fermer',
+  'focus.image': "Voir l'image",
+  'focus.link': 'En savoir plus',
+  'viewer.close': "Fermer l'image",
   'credits.title': 'Crédits',
   'credits.close': 'Fermer',
   'credits.label': 'Crédits',
@@ -64,14 +82,17 @@ const FR = {
 };
 
 const EN = {
-  'enter.sub': 'An immersive sound space — headphones recommended',
+  'enter.sub': 'A sound-art gallery: your movements compose the mix — headphones recommended.',
   'enter.loading': 'Loading…',
   'enter.enter': 'Enter',
   'enter.audio': 'Audio tour',
   'enter.tip': 'WASD or arrow keys to move · {pivot} to turn · mouse to orbit · click a work to approach it',
+  'enter.tip.touch': '1 finger to look around · 2 fingers to move and zoom · joystick to walk · tap a work to approach it',
+  'enter.liste': 'Browse the works as a list (2D)',
   'enter.error': 'Could not load the artwork configuration (see console).',
 
   'hint.line': '{move} · {pivot}: turn · click or Space: discover',
+  'hint.touch': '1 finger: look · 2 fingers: move · joystick: walk · tap: discover',
 
   'nogl.sub': 'Your browser does not support WebGL2, which the 3D display requires. The gallery remains fully visitable by ear: keyboard navigation, spatialised sound — headphones recommended.',
   'nogl.start': 'Audio tour',
@@ -93,6 +114,18 @@ const EN = {
   'menu.open': 'Open the visit menu',
   'menu.resume': 'Resume the visit',
   'menu.label': 'Visit menu',
+  'menu.rooms': 'Rooms',
+  'menu.derive': 'Let yourself drift (guided visit)',
+  'menu.share': 'Share',
+  'menu.share.copied': 'Link copied!',
+  'menu.fullscreen': 'Fullscreen',
+  'menu.fullscreen.exit': 'Exit fullscreen',
+  'menu.liste': 'List view (2D)',
+  'menu.finish': 'End the visit',
+
+  'progress.label': '{n} of {total} works discovered',
+  'derive.start': 'Let yourself drift',
+  'derive.stop': 'Take back control',
 
   'tour.title': 'Audio tour',
   'tour.label': 'Audio tour of the gallery',
@@ -107,6 +140,9 @@ const EN = {
 
   'focus.tip': 'Escape or × to step back',
   'focus.close': 'Close',
+  'focus.image': 'View the image',
+  'focus.link': 'Learn more',
+  'viewer.close': 'Close the image',
   'credits.title': 'Credits',
   'credits.close': 'Close',
   'credits.label': 'Credits',

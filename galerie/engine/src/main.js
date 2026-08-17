@@ -9,6 +9,9 @@ import { Controls } from './controls/Controls.js';
 import { setupEditorLoader } from './editorLoader.js';
 import { UI } from './ui/UI.js';
 import { t, initLang } from './core/i18n.js';
+import { mountProgression } from './core/Progression.js';
+import { mountBoussole } from './ui/Boussole.js';
+import { mountDerive } from './core/Derive.js';
 
 // --- enregistrement des modules disponibles -------------------------------
 // Pour ajouter un comportement : créer une classe dans engine/src/modules/
@@ -107,6 +110,10 @@ async function boot() {
   app.start(); // la scène tourne déjà derrière l'écran d'accueil
   window.__galerie = app; // point d'entrée debug/console
 
+  // Lien profond (?room=x&work=y) : on arrive LÀ où le lien a été partagé,
+  // pas à l'entrée — la pièce est posée avant même l'écran d'accueil.
+  appliquerLienProfond(app);
+
   // L'éditeur n'est téléchargé qu'au premier déclenchement (², ✎, ?edit).
   setupEditorLoader(app);
 
@@ -117,6 +124,11 @@ async function boot() {
     await startAudioTour(app);
   } else {
     app.ui.maybeShowTouchHint(app.quality.isMobile);
+    // Les compagnons de la visite 3D : la progression (badge « 3 / 6 »,
+    // découvertes persistées), la boussole d'écran, la dérive guidée.
+    mountProgression(app).montrerBadge();
+    mountBoussole(app);
+    mountDerive(app);
   }
 
   // Échap remonte, partout : en 3D sans œuvre approchée, il ouvre le MENU
@@ -131,6 +143,44 @@ async function boot() {
     const { mountVisitMenu } = await import('./ui/VisitMenu.js');
     mountVisitMenu(app);
   });
+}
+
+/**
+ * Lien profond : `?room=jardin` ouvre la galerie dans le jardin,
+ * `?work=nebuleuse` devant la nébuleuse (la pièce se déduit de l'œuvre).
+ * Silencieux si l'identifiant n'existe pas — un vieux lien ne casse rien.
+ */
+function appliquerLienProfond(app) {
+  const q = new URLSearchParams(window.location.search);
+  const workId = q.get('work');
+  const roomId = q.get('room');
+  if (!workId && !roomId) return;
+
+  let art = null;
+  if (workId) {
+    art = app.artworks.find(
+      (a) => a.config.id === workId && a.config.role !== 'decor') ?? null;
+  }
+  const cible = art?.room?.config.id
+    ?? (roomId && app.rooms.rooms.has(roomId) ? roomId : null);
+  if (!cible) return;
+
+  app.rooms.setCurrent(cible, { instant: true });
+  if (art) {
+    // se poser face à l'œuvre, à distance de contemplation
+    const room = app.rooms.current;
+    room.group.updateMatrixWorld(true);
+    const wp = art.group.getWorldPosition(new THREE.Vector3());
+    const spawn = room.config.spawn ?? [0, 2.2, 10];
+    const dir = new THREE.Vector3(spawn[0], 0, spawn[2]).sub(
+      new THREE.Vector3(wp.x, 0, wp.z));
+    if (dir.lengthSq() < 0.04) dir.set(0, 0, 1);
+    dir.normalize();
+    app.camera.position.copy(wp).addScaledVector(dir, 5);
+    app.camera.position.y = wp.y + 0.9;
+    app.controls.orbit.target.copy(wp);
+    app.controls.resyncCollision?.();
+  }
 }
 
 /**

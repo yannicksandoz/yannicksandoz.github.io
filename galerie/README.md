@@ -43,6 +43,49 @@ racine menant à l'éditeur, donc Rollup ne l'émet pas), le **CSS**
 Conséquence assumée : dans une galerie publiée, la touche **²**, le bouton
 **✎** et `?edit` ne font rien.
 
+## L'expérience visiteur
+
+Tout ce qui suit est dans le build Visiteur, sans backend ni service tiers.
+
+**Ne jamais perdre le visiteur.** À l'arrivée dans une pièce, la caméra cadre
+déjà une œuvre. Les œuvres non encore découvertes portent une petite lueur
+flottante ; quand la plus proche sort du champ, une **flèche discrète** glisse
+au bord de l'écran et pointe vers elle (puis vers un portail quand la pièce
+est épuisée). Le **son sert de boussole** : les rayons d'audibilité sont
+larges — une œuvre lointaine reste faiblement perceptible et attire.
+
+**« Laisse-toi porter »** (bouton en bas de l'écran, ou dans le menu) : la
+caméra dérive seule d'œuvre en œuvre, s'attarde devant chacune, franchit les
+portails, et continue tant qu'on la laisse faire — idéal au téléphone à une
+main, ou pour capturer la visite en vidéo. **Le moindre geste** (touche,
+clic, molette, doigt) **rend la main** ; le bouton relance. Avec
+`prefers-reduced-motion`, les longs travellings deviennent des déplacements
+quasi instantanés.
+
+**Progression.** Un badge discret (« ◆ 3 / 6 ») compte les œuvres
+découvertes — une œuvre l'est après quelques secondes à portée, ou dès qu'on
+l'approche. L'état persiste en `localStorage`. Le chapeau (TipJar) s'appuie
+dessus : voir « Le chapeau » plus bas — ses trois portes sont toutes
+atteignables.
+
+**Fiches d'œuvre.** La fiche affiche le cartel (`year` · `technique`), la
+description, un lien externe optionnel (`link`) et, pour les œuvres qui ont
+une image, une **vue détail** plein écran.
+
+**Menu de la visite** (Échap ou ☰) : liste des **pièces** pour sauter
+directement dans l'une d'elles, visite audio, **partage** (Web Share sur
+mobile, copie du lien sinon) avec **lien profond** `?room=pièce` /
+`?work=œuvre` — celui qui l'ouvre arrive au même endroit —, **plein écran**,
+vue liste, raccourcis, langue, « Terminer la visite ».
+
+**Vue liste 2D** (`liste.html`, générée au build depuis les mêmes JSON) :
+toutes les œuvres avec texte, image et lecteur audio natif — la voie
+accessible sans 3D, le repli quand WebGL2 manque, et la face indexable du
+site. L'aide aux contrôles s'adapte à l'appareil (gestes tactiles sur écran
+tactile, clavier/souris sinon), le zoom de la page n'est plus bloqué, et le
+partage d'un lien affiche une carte d'aperçu (Open Graph / Twitter Card,
+image `content/apercu.jpg`).
+
 ## Démarrage
 
 ```bash
@@ -226,6 +269,9 @@ au code du moteur** :
   "id": "mon-oeuvre",              // identifiant unique (nom d'export)
   "title": "Titre affiché",
   "description": "Texte de la fiche (module FocusCamera).",
+  "year": "2026",                  // cartel de la fiche (optionnel)
+  "technique": "Synthèse granulaire, 4 voix",  // idem (optionnel)
+  "link": "https://exemple.org/a-propos",      // « En savoir plus » (optionnel)
   "schemaVersion": 2,              // porté par le premier objet du fichier
   "position": [x, y, z],
   "rotation": [0, 0, 0],           // degrés, trois axes
@@ -600,8 +646,8 @@ survivent pas au rechargement (re-glissez les fichiers ou déployez-les).
 | `StemMixer` | Mixe chaque stem selon **son propre** rayon — les couches se révèlent en approchant | `innerRatio` |
 | `HRTFPanner` | Spatialisation binaurale (PannerNode HRTF), son localisé au casque | `refDistance`, `maxDistance`, `rolloff`, `distanceModel` |
 | `AudioReactive` | AnalyserNode → pulsation, émission, uniform `uAudio`, lumière | `band`, `pulseScale`, `emissiveBoost`, `lightBoost`, `smoothing`, `gate` |
-| `FocusCamera` | Travelling doux vers l'œuvre au clic + fiche titre/description | `distance`, `height`, `duration` |
-| `TipJar` | Chapeau de fin d'expérience (voir ci-dessous) | `enabled`, `message`, `buttonLabel`, `url`, `visitRadius`, `delay` |
+| `FocusCamera` | Travelling doux vers l'œuvre au clic + fiche (titre, cartel année/technique, description, lien, vue détail de l'image) | `distance`, `height`, `duration` |
+| `TipJar` | Chapeau de fin d'expérience (voir ci-dessous) | `enabled`, `message`, `buttonLabel`, `url`, `minutes`, `delay` |
 
 Les trois œuvres de démo illustrent trois recettes : *Nébuleuse*
 (`SpatialCrossfade` + `AudioReactive`), *Triptyque des marées* (`StemMixer`,
@@ -609,11 +655,14 @@ rayons 26/14/7), *Monolithe 55 Hz* (`HRTFPanner` + shader réactif + `TipJar`).
 
 ### Le chapeau (TipJar)
 
-Quand le visiteur a approché toutes les œuvres, un écran discret propose de
-soutenir l'artiste ; un petit ♥ en coin d'écran le garde accessible. Le
-bouton **redirige vers une page de paiement hébergée** (Ko-fi, Stripe Payment
-Link, PayPal.me, Liberapay…) dans un nouvel onglet : **aucune donnée bancaire
-ne transite par le site**, qui reste entièrement statique.
+Un écran discret propose de soutenir l'artiste ; un petit ♥ en coin d'écran
+le garde accessible. Il apparaît par la **première** de trois portes, toutes
+atteignables : toutes les **œuvres** découvertes (le décor ne compte pas),
+`minutes` de visite écoulées (défaut 12), ou le bouton **« Terminer la
+visite »** du menu — disponible à tout moment. Le bouton **redirige vers une
+page de paiement hébergée** (Ko-fi, Stripe Payment Link, PayPal.me,
+Liberapay…) dans un nouvel onglet : **aucune donnée bancaire ne transite par
+le site**, qui reste entièrement statique.
 
 Activez-le sur **une seule** œuvre (n'importe laquelle) :
 

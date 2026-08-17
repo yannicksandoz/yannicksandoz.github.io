@@ -2,17 +2,46 @@
   "id": "nebuleuse",
   "title": "Nébuleuse",
   "description": "Peinture lumineuse d'un nuage stellaire. Un drone harmonique en La s'éveille à l'approche : l'image respire au rythme des basses fréquences. Démo : SpatialCrossfade + AudioReactive + FocusCamera.",
-  "position": [-13, 3.2, -5],
+  "position": [
+    -13,
+    3.2,
+    -5
+  ],
   "rotationY": 38,
   "image": "textures/nebuleuse.png",
-  "size": [6, 6],
+  "size": [
+    6,
+    6
+  ],
   "lightColor": "#8a6cff",
   "stems": [
-    { "file": "audio/nebuleuse-drone.wav", "radius": 18, "gain": 0.9 }
+    {
+      "file": "audio/nebuleuse-drone.wav",
+      "radius": 18,
+      "gain": 0.9
+    }
   ],
   "modules": [
-    { "type": "SpatialCrossfade", "params": { "radius": 18, "inner": 4.5 } },
-    { "type": "AudioReactive", "params": { "band": "low", "pulseScale": 0.04, "emissiveBoost": 1.6 } },
-    { "type": "FocusCamera", "params": { "distance": 7.5 } }
+    {
+      "type": "SpatialCrossfade",
+      "params": {
+        "radius": 30,
+        "inner": 4.5
+      }
+    },
+    {
+      "type": "AudioReactive",
+      "params": {
+        "band": "low",
+        "pulseScale": 0.04,
+        "emissiveBoost": 1.6
+      }
+    },
+    {
+      "type": "FocusCamera",
+      "params": {
+        "distance": 7.5
+      }
+    }
   ]
 }

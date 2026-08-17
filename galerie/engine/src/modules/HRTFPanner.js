@@ -7,9 +7,13 @@ import { Module } from './Module.js';
  *
  * params :
  *  - refDistance (défaut 2)    : distance de référence (plein volume)
- *  - maxDistance (défaut 40)   : distance au-delà de laquelle l'atténuation plafonne
- *  - rolloff     (défaut 1.2)  : vitesse d'atténuation
+ *  - maxDistance (défaut 60)   : distance au-delà de laquelle l'atténuation plafonne
+ *  - rolloff     (défaut 1.0)  : vitesse d'atténuation
  *  - distanceModel (défaut 'inverse')
+ *
+ * Les défauts sont larges à dessein : le son sert de BOUSSOLE — une œuvre
+ * lointaine doit rester faiblement perceptible et attirer le visiteur,
+ * plutôt que d'apparaître brutalement à dix mètres.
  */
 export class HRTFPanner extends Module {
   onAudioReady() {
@@ -18,8 +22,8 @@ export class HRTFPanner extends Module {
     p.panningModel = 'HRTF';
     p.distanceModel = this.params.distanceModel ?? 'inverse';
     p.refDistance = this.params.refDistance ?? 2;
-    p.maxDistance = this.params.maxDistance ?? 40;
-    p.rolloffFactor = this.params.rolloff ?? 1.2;
+    p.maxDistance = this.params.maxDistance ?? 60;
+    p.rolloffFactor = this.params.rolloff ?? 1.0;
     this.panner = p;
 
     // re-routage : bus → panner → master

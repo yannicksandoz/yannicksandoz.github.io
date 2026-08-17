@@ -49,8 +49,18 @@ export class TipJar extends Module {
     this.corner.addEventListener('click', this._onCorner);
     this.corner.title = btn.textContent;
     this.corner.hidden = false;
+
+    // le menu (« Terminer la visite ») ouvre l'écran par cette poignée
+    this.app.tipjar = this;
   }
 
+  /**
+   * Trois portes, TOUTES atteignables — l'ancienne exigeait d'approcher
+   * chacun des cent vingt objets, décor compris : personne ne l'a jamais vue.
+   *  1. toutes les ŒUVRES découvertes (Progression : role ≠ decor) ;
+   *  2. `minutes` de visite écoulées (défaut 12) — flâner compte aussi ;
+   *  3. le bouton « Terminer la visite » du menu (show(), à tout moment).
+   */
   update(dt, _ctx) {
     if (!this.active) return;
     if (this.shownOnce) {
@@ -64,17 +74,33 @@ export class TipJar extends Module {
       }
       return;
     }
+    const prog = this.app.progression;
+    const parDecouverte = prog ? prog.complet : this._toutApproche();
+    const parDuree = prog && prog.minutes >= (this.params.minutes ?? 12);
+    if (parDecouverte || parDuree) {
+      this.shownOnce = true;
+      this._countdown = this.params.delay ?? 2;
+    }
+  }
+
+  /** Repli sans Progression (visite audio en repli) : les œuvres seulement. */
+  _toutApproche() {
     const radius = this.params.visitRadius ?? 9;
-    for (const a of this.app.artworks) {
+    const oeuvres = this.app.artworks.filter((a) => a.config.role !== 'decor');
+    for (const a of oeuvres) {
       if (!this.visited.has(a) && a.distance < radius) {
         this.visited.add(a);
         this.visitedCount++;
       }
     }
-    if (this.visitedCount >= this.app.artworks.length && this.app.artworks.length > 0) {
-      this.shownOnce = true;
-      this._countdown = this.params.delay ?? 2;
-    }
+    return oeuvres.length > 0 && this.visitedCount >= oeuvres.length;
+  }
+
+  /** Ouverture volontaire (bouton du menu) : pas de décompte, pas d'attente. */
+  show() {
+    this.shownOnce = true;
+    this._countdown = null;
+    this._show();
   }
 
   _show() {

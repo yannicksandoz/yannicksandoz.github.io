@@ -2,19 +2,55 @@
   "id": "marees",
   "title": "Triptyque des marées",
   "description": "Trois strates sonores aux rayons concentriques : la nappe grave s'entend de loin, l'arpège apparaît à mi-distance, les scintillements ne se révèlent qu'au plus près. Démo : StemMixer (un rayon par stem) + FocusCamera.",
-  "position": [0, 2.6, -16],
+  "position": [
+    0,
+    2.6,
+    -16
+  ],
   "rotationY": 0,
   "image": "textures/marees.png",
-  "size": [9, 4.5],
+  "size": [
+    9,
+    4.5
+  ],
   "lightColor": "#38c8b8",
   "stems": [
-    { "file": "audio/marees-basse.wav", "radius": 26, "gain": 0.9 },
-    { "file": "audio/marees-medium.wav", "radius": 14, "gain": 0.8 },
-    { "file": "audio/marees-aigu.wav", "radius": 7, "gain": 0.7 }
+    {
+      "file": "audio/marees-basse.wav",
+      "radius": 34,
+      "gain": 0.9
+    },
+    {
+      "file": "audio/marees-medium.wav",
+      "radius": 14,
+      "gain": 0.8
+    },
+    {
+      "file": "audio/marees-aigu.wav",
+      "radius": 7,
+      "gain": 0.7
+    }
   ],
   "modules": [
-    { "type": "StemMixer", "params": { "innerRatio": 0.22 } },
-    { "type": "AudioReactive", "params": { "band": "mid", "pulseScale": 0.02, "emissiveBoost": 1.1 } },
-    { "type": "FocusCamera", "params": { "distance": 9 } }
+    {
+      "type": "StemMixer",
+      "params": {
+        "innerRatio": 0.22
+      }
+    },
+    {
+      "type": "AudioReactive",
+      "params": {
+        "band": "mid",
+        "pulseScale": 0.02,
+        "emissiveBoost": 1.1
+      }
+    },
+    {
+      "type": "FocusCamera",
+      "params": {
+        "distance": 9
+      }
+    }
   ]
 }

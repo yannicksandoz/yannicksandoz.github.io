@@ -506,13 +506,34 @@ export class RoomManager {
     cam.position.set(pos[0], pos[1], pos[2]);
     // téléportation : la collision doit repartir d'ici, pas d'il y a une frame
     this.app.controls?.resyncCollision?.();
-    // regarde vers le centre de la pièce
-    const dir = new THREE.Vector3(-pos[0], 0, -pos[2]);
+    // Premier regard : une ŒUVRE dans le cadre plutôt que le vide — le
+    // visiteur qui apparaît sait immédiatement vers quoi marcher. À défaut
+    // (pièce sans œuvre), le centre de la pièce reste le cap.
+    const oeuvre = this._oeuvreLaPlusProche(pos);
+    const dir = oeuvre
+      ? oeuvre.clone().sub(cam.position).setY(0)
+      : new THREE.Vector3(-pos[0], 0, -pos[2]);
     if (dir.lengthSq() < 0.01) dir.set(0, 0, -1);
     dir.normalize();
     this.app.controls?.orbit.target
       .set(pos[0], pos[1] - 0.2, pos[2])
       .addScaledVector(dir, 4);
+  }
+
+  /** Position monde de l'œuvre (role ≠ decor) la plus proche de `pos`. */
+  _oeuvreLaPlusProche(pos) {
+    const room = this.current;
+    if (!room) return null;
+    room.group.updateMatrixWorld(true);
+    const p = new THREE.Vector3(pos[0], pos[1], pos[2]);
+    const v = new THREE.Vector3();
+    let best = null, bestD = Infinity;
+    for (const a of room.artworks ?? []) {
+      if (a.config.role === 'decor') continue;
+      const d = a.group.getWorldPosition(v).distanceTo(p);
+      if (d < bestD) { bestD = d; best = v.clone(); }
+    }
+    return best;
   }
 
   /**
@@ -684,6 +705,9 @@ export class RoomManager {
         if (d2 > REARM_DIST2) mesh.userData.disarmed = false;
         continue;
       }
+      // pendant la dérive guidée, la caméra VOLE : les zones ne se
+      // déclenchent pas sous elle — la dérive franchit ses portes elle-même
+      if (this.app.derive?.active) continue;
       if (d2 < 2.6 && Math.abs(dy) < 1.25) {
         this.traverse(mesh.userData.portal);
         return;
@@ -706,6 +730,7 @@ export class RoomManager {
         if (d2 > (r * 1.6) ** 2) mesh.userData.disarmed = false;
         continue;
       }
+      if (this.app.derive?.active) continue; // la dérive ne bascule pas
       if (d2 < r * r && dy > 0 && dy < 3.2) {
         this.basculer(this.current, cfg);
         return;

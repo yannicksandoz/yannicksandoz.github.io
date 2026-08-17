@@ -2,16 +2,45 @@
   "id": "echo",
   "title": "Écho",
   "description": "Réplique spectrale du monolithe, isolée dans l'annexe. Le drone de la nébuleuse résonne ici, teinté par l'ambiance sourde de la pièce. Démo : œuvre placée dans une pièce connectée par portail, avec ambiance de pièce.",
-  "position": [0, 2.4, -4],
+  "position": [
+    0,
+    2.4,
+    -4
+  ],
   "rotationY": 0,
-  "model": { "shape": "monolith", "height": 3.6, "color": "#c06bff" },
+  "model": {
+    "shape": "monolith",
+    "height": 3.6,
+    "color": "#c06bff"
+  },
   "lightColor": "#b07aff",
   "stems": [
-    { "file": "audio/nebuleuse-drone.wav", "radius": 16, "gain": 0.8 }
+    {
+      "file": "audio/nebuleuse-drone.wav",
+      "radius": 16,
+      "gain": 0.8
+    }
   ],
   "modules": [
-    { "type": "SpatialCrossfade", "params": { "radius": 16, "inner": 4 } },
-    { "type": "AudioReactive", "params": { "band": "low", "pulseScale": 0.05 } },
-    { "type": "FocusCamera", "params": { "distance": 6 } }
+    {
+      "type": "SpatialCrossfade",
+      "params": {
+        "radius": 28,
+        "inner": 4
+      }
+    },
+    {
+      "type": "AudioReactive",
+      "params": {
+        "band": "low",
+        "pulseScale": 0.05
+      }
+    },
+    {
+      "type": "FocusCamera",
+      "params": {
+        "distance": 6
+      }
+    }
   ]
 }

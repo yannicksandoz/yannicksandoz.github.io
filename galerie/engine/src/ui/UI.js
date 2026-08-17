@@ -15,10 +15,15 @@ export class UI {
     this.focusOverlay = document.getElementById('focus-overlay');
     this.focusTitle = document.getElementById('focus-title');
     this.focusDesc = document.getElementById('focus-desc');
+    this.focusMeta = document.getElementById('focus-meta');
+    this.focusActions = document.getElementById('focus-actions');
     this.focusClose = document.getElementById('focus-close');
     this.hint = document.getElementById('hint');
     this.touchHint = document.getElementById('touch-hint');
     this._onCloseFocus = null;
+    // L'aide s'adresse à l'appareil RÉEL : un écran tactile n'a ni ZQSD ni
+    // souris — lui parler de touches, c'est parler à quelqu'un d'autre.
+    this.tactile = window.matchMedia?.('(pointer: coarse)').matches ?? false;
 
     this.focusClose.addEventListener('click', () => this._onCloseFocus?.());
     this._applyLang();
@@ -47,14 +52,20 @@ export class UI {
   _renderKeyTexts() {
     const pivot = '<span data-keylabel="pivot">A/E ou Q/E</span>';
     const tip = this.enterScreen?.querySelector('.tip');
-    if (tip) tip.innerHTML = t('enter.tip', { pivot });
+    if (tip) {
+      tip.innerHTML = this.tactile ? t('enter.tip.touch') : t('enter.tip', { pivot });
+    }
     if (this.hint) {
-      // Le fragment « édition » n'existe que dans le build Auteur (le HTML
-      // du build Visiteur ne le contient pas) : on le préserve tel quel.
-      const edit = this.hint.querySelector('[data-keylabel="edit"]');
-      const suffixe = edit ? ` · <b data-keylabel="edit">${edit.textContent}</b> : édition` : '';
-      const move = lang() === 'en' ? 'WASD' : 'ZQSD / WASD';
-      this.hint.innerHTML = t('hint.line', { move, pivot }) + suffixe;
+      if (this.tactile) {
+        this.hint.textContent = t('hint.touch');
+      } else {
+        // Le fragment « édition » n'existe que dans le build Auteur (le HTML
+        // du build Visiteur ne le contient pas) : on le préserve tel quel.
+        const edit = this.hint.querySelector('[data-keylabel="edit"]');
+        const suffixe = edit ? ` · <b data-keylabel="edit">${edit.textContent}</b> : édition` : '';
+        const move = lang() === 'en' ? 'WASD' : 'ZQSD / WASD';
+        this.hint.innerHTML = t('hint.line', { move, pivot }) + suffixe;
+      }
     }
   }
 
@@ -195,14 +206,76 @@ export class UI {
 
   showFocus(artwork, onClose) {
     this._onCloseFocus = onClose;
-    this.focusTitle.textContent = artwork.config.title ?? artwork.config.id;
-    this.focusDesc.textContent = artwork.config.description ?? '';
+    const cfg = artwork.config;
+    this.focusTitle.textContent = cfg.title ?? cfg.id;
+    this.focusDesc.textContent = cfg.description ?? '';
+
+    // Cartel : année · technique — les champs sont optionnels dans le JSON,
+    // la ligne n'existe que si l'un d'eux est renseigné.
+    if (this.focusMeta) {
+      const meta = [cfg.year, cfg.technique].filter(Boolean).join(' · ');
+      this.focusMeta.textContent = meta;
+      this.focusMeta.hidden = !meta;
+    }
+
+    // Actions : voir l'image en grand (si l'œuvre en a une), lien externe.
+    if (this.focusActions) {
+      const imgBtn = this.focusActions.querySelector('#focus-image');
+      const lien = this.focusActions.querySelector('#focus-link');
+      const aImage = typeof cfg.image === 'string' && cfg.image.length > 0;
+      imgBtn.hidden = !aImage;
+      imgBtn.textContent = t('focus.image');
+      if (aImage) {
+        imgBtn.onclick = () => this.showImageViewer(
+          artwork.app.resolveAsset(cfg.image), cfg.title ?? cfg.id);
+      }
+      const aLien = typeof cfg.link === 'string' && /^https?:\/\//.test(cfg.link);
+      lien.hidden = !aLien;
+      if (aLien) {
+        lien.href = cfg.link;
+        lien.textContent = t('focus.link');
+      }
+      this.focusActions.hidden = !aImage && !aLien;
+    }
     this.focusOverlay.hidden = false;
   }
 
   hideFocus() {
     this.focusOverlay.hidden = true;
     this._onCloseFocus = null;
+  }
+
+  /**
+   * Vue détail : l'image de l'œuvre, seule, en plein écran. Échap ou un
+   * clic n'importe où referme — et l'Échap est intercepté en amont
+   * (capture) pour ne pas faire reculer la caméra en même temps.
+   */
+  showImageViewer(url, alt = '') {
+    const overlay = document.getElementById('image-viewer');
+    const img = document.getElementById('viewer-img');
+    if (!overlay || !img) return;
+    img.src = url;
+    img.alt = alt;
+    overlay.hidden = false;
+    const close = overlay.querySelector('#viewer-close');
+    const rendu = document.activeElement;
+    close?.focus();
+    const fermer = () => {
+      overlay.hidden = true;
+      img.src = '';
+      window.removeEventListener('keydown', surTouche, true);
+      overlay.removeEventListener('click', surClic);
+      if (rendu instanceof HTMLElement) rendu.focus?.();
+    };
+    const surTouche = (e) => {
+      if (e.key !== 'Escape' && e.key !== 'Tab') return;
+      if (e.key === 'Tab') { e.preventDefault(); close?.focus(); return; }
+      e.stopPropagation();
+      fermer();
+    };
+    const surClic = () => fermer();
+    window.addEventListener('keydown', surTouche, true);
+    overlay.addEventListener('click', surClic);
   }
 
   /**
