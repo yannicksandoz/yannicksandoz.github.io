@@ -41,6 +41,7 @@ export class Derive {
     this._barre = this._construireBarre();
     this._off = app.onUpdate((dt) => this._tick(dt));
     app.progression?.onChange(() => this._peindre());
+    app.jetons?.onChange(() => this._peindre());
 
     // La main revient au moindre geste — sauf les flèches, qui NAVIGUENT,
     // et les clics sur les boutons, qui pilotent.
@@ -109,34 +110,80 @@ export class Derive {
     return this.app.progression?.indexees ?? [];
   }
 
+  /** Les œuvres qui restent à débloquer (non découvertes). */
+  get inconnues() {
+    const prog = this.app.progression;
+    return prog ? prog.parcours.filter((a) => !prog.estDecouverte(a)) : [];
+  }
+
   _peindre() {
     const n = this.parcours.length;
+    const jetons = this.app.jetons?.compte ?? 0;
+    const resteInconnues = this.inconnues.length > 0;
     this._lecture.textContent = this.active
       ? `❚❚ ${t('derive.stop')}` : `▸ ${t('derive.start')}`;
     this._lecture.setAttribute('aria-pressed', String(this.active));
-    // Rien de découvert : rien à rejouer. Le bouton le dit plutôt que de
-    // lancer une visite vide — et le pointeur, lui, montre où chercher.
-    this._lecture.disabled = n === 0;
-    this._lecture.title = n === 0 ? t('derive.empty') : t('derive.title', { n });
-    for (const b of [this._prec, this._suiv]) {
-      b.hidden = !this.active || n < 2;
-    }
+    // Rien à rejouer NI à débloquer : le bouton le dit plutôt que de
+    // lancer une visite vide — le pointeur, lui, montre où chercher.
+    const vide = n === 0 && (jetons === 0 || !resteInconnues);
+    this._lecture.disabled = vide;
+    this._lecture.title = vide ? t('derive.empty') : t('derive.title', { n });
+    // les flèches paraissent DÈS que la visite est active : ▸ est aussi la
+    // porte vers une œuvre non découverte (contre un jeton ◈)
+    for (const b of [this._prec, this._suiv]) b.hidden = !this.active;
     this._prec.setAttribute('aria-label', t('derive.prev'));
-    this._suiv.setAttribute('aria-label', t('derive.next'));
+    // ▸ affiche son PRIX quand le prochain pas est un déblocage : pas de
+    // boîte de dialogue — on voit ce qu'on dépense avant de cliquer
+    const prochainEstInconnue = this.active && resteInconnues
+      && (n === 0 || this._i >= n - 1);
+    if (prochainEstInconnue) {
+      this._suiv.textContent = '▸ ◈';
+      this._suiv.disabled = jetons === 0;
+      this._suiv.title = jetons === 0
+        ? t('derive.needToken') : t('derive.unlock', { n: jetons });
+      this._suiv.setAttribute('aria-label', this._suiv.title);
+    } else {
+      this._suiv.textContent = '▸';
+      this._suiv.disabled = false;
+      this._suiv.title = '';
+      this._suiv.setAttribute('aria-label', t('derive.next'));
+    }
     this._barre.classList.toggle('en-cours', this.active);
   }
 
   /* ---------------------------------------------------------- marche --- */
 
   demarrer() {
-    if (this.active || this.parcours.length === 0) return;
+    if (this.active) return;
+    const n = this.parcours.length;
+    if (n === 0 && !((this.app.jetons?.compte ?? 0) > 0 && this.inconnues.length)) return;
     this.active = true;
     this.app.activeFocus?.release?.();
     this.app.controls.locked = true;      // la caméra appartient à la dérive
     // reprendre à l'œuvre la plus proche : la visite commence là où l'on est
     this._i = this._plusProche();
     this._phase = 'idle';
+    // rien de découvert mais un jeton en poche : la visite S'OUVRE sur un
+    // déblocage — c'est tout l'intérêt du jeton
+    if (n === 0) this._versInconnue();
     this._peindre();
+  }
+
+  /**
+   * Dépense un jeton ◈ et vole vers l'œuvre non découverte la plus proche.
+   * Elle est marquée découverte à l'arrivée (elle a été payée) : elle prend
+   * son nom au catalogue et son rang dans le parcours.
+   */
+  _versInconnue() {
+    const cibles = this.inconnues;
+    if (!cibles.length || !this.app.jetons?.depenser(1)) return false;
+    const cam = this.app.camera.position;
+    const cible = cibles.reduce((m, a) =>
+      a.group.getWorldPosition(new THREE.Vector3()).distanceTo(cam)
+      < m.group.getWorldPosition(new THREE.Vector3()).distanceTo(cam) ? a : m);
+    this._deblocage = cible;
+    this._phase = 'idle';
+    return true;
   }
 
   arreter() {
@@ -157,10 +204,16 @@ export class Derive {
   }
 
   _aller(pas) {
-    const n = this.parcours.length;
-    if (n === 0) return;
     if (!this.active) { this.demarrer(); return; }
+    const n = this.parcours.length;
+    // au bout du connu, ▸ propose l'inconnu — contre un jeton
+    if (pas > 0 && (n === 0 || this._i >= n - 1) && this.inconnues.length) {
+      if (this._versInconnue()) { this._peindre(); return; }
+      if (n === 0) return;   // pas de jeton, rien de découvert : sur place
+    }
+    if (n === 0) return;
     this._i = ((this._i + pas) % n + n) % n;
+    this._deblocage = null;
     this._phase = 'idle';   // la prochaine frame prépare le vol
   }
 
@@ -184,9 +237,9 @@ export class Derive {
     if (this.app.visitMenu?.open || this._phase === 'saut') return;
 
     const liste = this.parcours;
-    if (!liste.length) return this.arreter();
-    if (this._i >= liste.length) this._i = 0;
-    const cible = liste[this._i];
+    // une œuvre payée d'un jeton prime sur le fil du parcours
+    const cible = this._deblocage ?? liste[Math.min(this._i, liste.length - 1)];
+    if (!cible) return this.arreter();
 
     if (this._phase === 'idle') {
       // pièce différente : on y passe par un fondu, puis on vole sur place
@@ -218,7 +271,17 @@ export class Derive {
       const k = easeInOutCubic(this._t);
       this.app.camera.position.lerpVectors(this._de.pos, this._vers.pos, k);
       this.app.controls.orbit.target.lerpVectors(this._de.target, this._vers.target, k);
-      if (this._t >= 1) this._phase = 'pause';
+      if (this._t >= 1) {
+        this._phase = 'pause';
+        // l'œuvre débloquée est DÉCOUVERTE à l'arrivée (elle a été payée) :
+        // elle prend son nom, et le fil du parcours se cale sur elle
+        if (this._deblocage) {
+          this.app.progression?.marquer(this._deblocage);
+          this._i = Math.max(0, this.parcours.indexOf(this._deblocage));
+          this._deblocage = null;
+          this._peindre();
+        }
+      }
       return;
     }
 

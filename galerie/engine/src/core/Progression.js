@@ -119,6 +119,15 @@ export class Progression {
     // traverser en courant ne compte pas, s'attarder compte
     for (const a of this.oeuvres) {
       if (this.decouvertes.has(a.config.id)) continue;
+      // On ne découvre que ce qui est DANS LA PIÈCE où l'on se tient : les
+      // pièces adjacentes, préchargées, sont superposées à l'origine
+      // (invisibles) — leurs distances sont géométriquement vraies mais
+      // physiquement fausses, et l'écho de l'annexe se « découvrait » à
+      // travers le mur en marchant dans le labo.
+      if (a.room && a.room.state !== 'current') {
+        this._dwell.set(a, 0);
+        continue;
+      }
       const d = Math.min(a.distance, minMembres?.get(a.config.id) ?? Infinity);
       const proche = d < RAYON;
       const acc = (this._dwell.get(a) ?? 0) + (proche ? dt : -dt * 0.5);
@@ -176,8 +185,11 @@ export class Progression {
 
   _peindre() {
     if (!this._badge) return;
-    const texte = t('progress.label', { n: this.compte, total: this.total });
-    this._badge.textContent = `◆ ${this.compte} / ${this.total}`;
+    const jetons = this.app.jetons?.compte ?? 0;
+    const texte = t('progress.label', { n: this.compte, total: this.total })
+      + (jetons > 0 ? ` · ${t('progress.jetons', { n: jetons })}` : '');
+    this._badge.textContent = `◆ ${this.compte} / ${this.total}`
+      + (jetons > 0 ? `  ·  ◈ ${jetons}` : '');
     this._badge.title = texte;
     this._badge.setAttribute('aria-label', texte);
     if (this._panneau.hidden) return;
@@ -195,10 +207,13 @@ export class Progression {
         <span class="pl-s">${esc(salle)}</span></button></li>`;
     }).join('');
 
+    const jetonsAstuce = reste > 0 && this.app.jetons?.total > 0
+      ? `<p class="pl-astuce">${esc(t('progress.jetons.hint'))}</p>` : '';
     this._panneau.innerHTML = `
       <h2>${esc(t('progress.title'))}</h2>
       <ul role="list">${lignes}</ul>
-      ${reste > 0 ? `<p class="pl-astuce">${esc(t('progress.hint', { n: reste }))}</p>` : ''}`;
+      ${reste > 0 ? `<p class="pl-astuce">${esc(t('progress.hint', { n: reste }))}</p>` : ''}
+      ${jetonsAstuce}`;
 
     for (const b of this._panneau.querySelectorAll('[data-work]')) {
       b.addEventListener('click', () => {

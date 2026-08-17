@@ -71,10 +71,20 @@ on ouvre la galerie sur une liste de « ??? », comme le premier jour.
 visite guidée **rejoue les œuvres découvertes**, dans l'ordre des salles —
 la caméra vole de l'une à l'autre et se pose devant chacune. Pendant la
 pause, `◂` / `▸` (boutons, ou flèches gauche/droite du clavier) vont à la
-précédente ou à la suivante ; **tout autre geste rend la main**. Tant que
-rien n'a été trouvé, le bouton le dit et reste inerte : l'exploration se
-fait à pied, en suivant le pointeur. Avec `prefers-reduced-motion`, les
-travellings deviennent des déplacements quasi instantanés.
+précédente ou à la suivante ; **tout autre geste rend la main**. Avec
+`prefers-reduced-motion`, les travellings deviennent des déplacements
+quasi instantanés.
+
+**Les jetons ◈.** De petits octaèdres dorés sont **cachés dans les
+pièces** ; on les ramasse en marchant dessus (compteur sur le badge).
+Au bout du parcours connu, `▸` devient `▸ ◈` : **un jeton débloque une
+œuvre non découverte** — la dérive y vole, l'œuvre prend son nom au
+catalogue. Pas de boîte de dialogue : le prix s'affiche sur le bouton.
+Sans jeton ni découverte, la visite guidée reste inerte et dit pourquoi ;
+un seul jeton suffit à l'armer. Les positions (et donc le NOMBRE, à
+régler selon celui des œuvres) sont déclarées par pièce :
+`"jetons": [[x, y, z], …]` dans `rooms/*.json`. Tout se rejoue à chaque
+visite, comme le catalogue.
 
 **Le chapeau (TipJar)** s'appuie sur cette progression : voir « Le chapeau »
 plus bas — ses trois portes sont toutes atteignables, et celle du « tout

@@ -222,6 +222,14 @@ export class Artwork {
       emissive: this.mediaError ? 0x4a1020 : 0x1a1a2e,
       emissiveIntensity: this.mediaError ? 0.6 : 0.4
     });
+    // Un modèle PROCÉDURAL (primitive, monolithe, voxel) se construit en
+    // une frame : montrer un panneau sombre en attendant, c'est un carré
+    // noir qui clignote à chaque (re)chargement — le monolithe glitchait
+    // ainsi. Le placeholder reste (cible de clic), mais invisible ; seuls
+    // les médias RÉSEAU (image, vidéo, GLTF) gardent leur silhouette
+    // d'attente, qui dit « ça charge ».
+    const m0 = this.config.model;
+    if (m0 && (m0.shape || m0.type === 'voxel')) mat.visible = false;
     const size = this.config.size ?? [4, 4];
     const m = this.config.model;
     let geo;

@@ -12,6 +12,7 @@ import { t, initLang } from './core/i18n.js';
 import { mountProgression, pointDeVue } from './core/Progression.js';
 import { mountBoussole } from './ui/Boussole.js';
 import { mountDerive } from './core/Derive.js';
+import { mountJetons } from './core/Jetons.js';
 
 // --- enregistrement des modules disponibles -------------------------------
 // Pour ajouter un comportement : créer une classe dans engine/src/modules/
@@ -138,6 +139,7 @@ async function boot() {
     window.addEventListener('keydown', geste);
     app.ui.maybeShowTouchHint(app.quality.isMobile);
     mountProgression(app).montrerBadge();
+    mountJetons(app);     // avant la dérive : elle lit le porte-monnaie
     mountBoussole(app);
     mountDerive(app);
   } else {
@@ -148,9 +150,10 @@ async function boot() {
       await startAudioTour(app);
     } else {
       app.ui.maybeShowTouchHint(app.quality.isMobile);
-      // Les compagnons de la visite 3D : la progression (badge « 3 / 6 »,
-      // découvertes persistées), la boussole d'écran, la dérive guidée.
+      // Les compagnons de la visite 3D : la progression (badge-catalogue),
+      // les jetons ◈, la boussole d'écran, la dérive guidée.
       mountProgression(app).montrerBadge();
+      mountJetons(app);   // avant la dérive : elle lit le porte-monnaie
       mountBoussole(app);
       mountDerive(app);
     }

@@ -116,5 +116,12 @@
     "clouds": 0.38,
     "haze": 0.55
   },
-  "fogDensity": 0.009
+  "fogDensity": 0.009,
+  "jetons": [
+    [
+      16,
+      1.0,
+      -12
+    ]
+  ]
 }
