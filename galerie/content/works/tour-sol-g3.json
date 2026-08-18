@@ -1,14 +1,14 @@
 {
-  "id": "passerelle-r17",
+  "id": "tour-sol-g3",
   "title": "Palier",
   "description": "",
   "position": [
-    23.0,
-    43.94,
-    -10.0
+    -15.0,
+    16.06,
+    3.25
   ],
   "rotation": [
-    -180.0,
+    0.0,
     0.0,
     0.0
   ],
@@ -30,7 +30,7 @@
     ],
     "cell": 0.5,
     "palette": [
-      "#3b3050"
+      "#565070"
     ],
     "cells": [
       72,

@@ -1,11 +1,11 @@
 {
-  "id": "passerelle-r17",
+  "id": "tour-plafond-g3",
   "title": "Palier",
   "description": "",
   "position": [
-    23.0,
-    43.94,
-    -10.0
+    -15.0,
+    33.94,
+    -3.25
   ],
   "rotation": [
     -180.0,
@@ -30,7 +30,7 @@
     ],
     "cell": 0.5,
     "palette": [
-      "#3b3050"
+      "#485668"
     ],
     "cells": [
       72,

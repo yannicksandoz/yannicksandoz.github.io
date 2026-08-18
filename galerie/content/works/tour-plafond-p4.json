@@ -1,0 +1,31 @@
+{
+  "id": "tour-plafond-p4",
+  "title": "Pilier",
+  "description": "",
+  "position": [
+    -15.0,
+    41.8,
+    -3.5
+  ],
+  "rotation": [
+    -180.0,
+    0.0,
+    0.0
+  ],
+  "scale": [
+    1.2,
+    10.933333333333332,
+    1.2
+  ],
+  "modules": [],
+  "role": "decor",
+  "model": {
+    "shape": "box",
+    "color": "#2b2440",
+    "roughness": 0.9,
+    "metalness": 0.05,
+    "emissive": 0.04
+  },
+  "lightIntensity": 0,
+  "loadDistance": 240
+}

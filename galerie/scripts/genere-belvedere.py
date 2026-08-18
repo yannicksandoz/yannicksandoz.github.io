@@ -391,25 +391,120 @@ slab('palier-r15', 'est', [PIED_HAUT - 3, 0.0, S15_LANE], (6.0, 6.0), '#38525c')
 #    un mystère) ─────────────────────────────────────────────────────────
 # À 50 m : volées de 7 m (14 m de course), crête vers ±14,5 — le palier la
 # touche (centre à crête ± 3,5), la passerelle court du palier au mur.
-stair('escalier-r4', 'sol', -0.5, 7.0, -10.0, 'x-', '#4a4468')
+stair('escalier-r4', 'sol', 0.5, 7.0, 16.0, 'x+', '#4a4468')
 stair('escalier-r5', 'est', 0.5, 7.0, 19.0, 'z+', '#3a5058')
 stair('escalier-r6', 'nord', -2.0, 6.0, -4.0, 'x-', '#584464')
 # les paliers TOUCHENT la crête de leur volée : un interstice de 30 cm
 # est un piège à visiteur, pas un détail
 stair('escalier-r16', 'ouest', 0.5, 7.0, -12.0, 'z+', '#564639')
-stair('escalier-r17', 'plafond', 0.5, 7.0, -6.0, 'x+', '#514266')
+stair('escalier-r17', 'plafond', 0.5, 7.0, 10.0, 'x+', '#514266')
 stair('escalier-r18', 'sud', 0.5, 7.0, 28.0, 'x+', '#3d5a50')
-slab('palier-r4', 'sol', [-18.0, 7.0, -10.0], (7.0, 7.0), '#443e5c')
+slab('palier-r4', 'sol', [18.0, 7.0, 16.0], (7.0, 7.0), '#443e5c')
 slab('palier-r5', 'est', [19.0, 7.0, 18.0], (7.0, 7.0), '#33474e')
 slab('palier-r16', 'ouest', [-12.0, 7.0, 18.0], (7.0, 7.0), '#4a3c30')
-slab('palier-r17', 'plafond', [18.0, 7.0, -6.0], (7.0, 7.0), '#453858')
+slab('palier-r17', 'plafond', [18.0, 7.0, 10.0], (7.0, 7.0), '#453858')
 slab('palier-r18', 'sud', [18.0, 7.0, 28.0], (7.0, 7.0), '#344e44')
-walkway('passerelle-r4', 'sol', (-21.5, -10.0), (-24.5, -10.0), 3.0, 7.0, '#3e3852')
+walkway('passerelle-r4', 'sol', (21.5, 16.0), (24.5, 16.0), 3.0, 7.0, '#3e3852')
 walkway('passerelle-r5', 'est', (19.0, 21.5), (19.0, 24.5), 3.0, 7.0, '#2e4046')
 walkway('passerelle-r6', 'nord', (-14.0, -4.0), (-24.5, -4.0), 3.0, 6.0, '#4e3c58')
 walkway('passerelle-r16', 'ouest', (-12.0, 21.5), (-12.0, 24.5), 3.0, 7.0, '#40342a')
-walkway('passerelle-r17', 'plafond', (21.5, -6.0), (24.5, -6.0), 3.0, 7.0, '#3b3050')
+walkway('passerelle-r17', 'plafond', (21.5, 10.0), (24.5, 10.0), 3.0, 7.0, '#3b3050')
 walkway('passerelle-r18', 'sud', (21.5, 28.0), (24.5, 28.0), 3.0, 7.0, '#2c443c')
+
+# ── LA TOUR JUMELLE : deux gravités INVERSES qui se font face ────────────
+# La gravure de « Relativity » : un même espace sert deux mondes
+# tête-bêche. Deux tours identiques — trois galeries à colonnades (6 m,
+# 11,5 m, 17 m) reliées par des volées à DOUBLE face — se construisent aux
+# mêmes coordonnées de leur plan, l'une sur le sol, l'autre sur le
+# plafond : dans la pièce, la seconde pend au-dessus de la première,
+# marches renversées vers le bas. Au sommet de chacune, un anneau bascule
+# sur le sommet de l'AUTRE : on échange les gravités inverses en marchant.
+
+def stair_double(id_, plane, start, end_h, lane, heading, color, base=0.0):
+    """Volée-LAME : une épaisseur constante d'un mètre suit la pente — le
+    dessous est donc lui aussi un escalier, renversé. C'est ce qui rend la
+    tour jumelle lisible : vue d'en bas, la volée du plafond montre ses
+    marches. Pied de marche à base + 1, crête à base + end_h + 0,5."""
+    rise = int(round(end_h / CELL))
+    THICK = 2
+    run_cells = rise * 2
+    dims = [WIDE, rise + THICK, run_cells]
+    grid = [0] * (WIDE * (rise + THICK) * run_cells)
+    for z in range(run_cells):
+        s = min(rise - 1, z // 2)
+        for y in range(s, s + THICK):
+            for x in range(WIDE):
+                grid[x + WIDE * (y + (rise + THICK) * z)] = 1
+    cells, run, val = [], 1, grid[0]
+    for v in grid[1:]:
+        if v == val:
+            run += 1
+        else:
+            cells += [run, val]
+            run, val = 1, v
+    cells += [run, val]
+    run_len = run_cells * CELL
+    HEAD = {'z+': 0, 'z-': 180, 'x+': 90, 'x-': -90}
+    sign = 1 if heading[1] == '+' else -1
+    if heading[0] == 'x':
+        centre = [start + sign * run_len / 2, base, lane]
+    else:
+        centre = [lane, base, start + sign * run_len / 2]
+    add({
+        'id': id_, 'title': 'Escalier', 'description': '',
+        'position': [round(v, 3) for v in to_local(plane, centre)],
+        'rotation': local_rot(plane, ry(math.radians(HEAD[heading]))),
+        'scale': [1, 1, 1], 'modules': [], 'role': 'decor',
+        'walkable': True, 'loadDistance': 240,
+        'model': {'type': 'voxel', 'dims': dims, 'cell': CELL,
+                  'palette': [color], 'cells': cells},
+        'lightIntensity': 0
+    })
+
+def anneau(plane_from, pos_world, to_plane, arr_world, label):
+    """Anneau à ARRIVÉE EXPLICITE (repère du plan cible) — l'échange des
+    tours : le point d'arrivée n'est pas le point de départ vu de l'autre
+    plan (il serait à 30 m au-dessus du sol jumeau) mais le sommet de
+    l'autre tour."""
+    bascules.append({
+        'position': [round(v, 2) for v in to_local(plane_from, pos_world)],
+        'rotation': local_rot(plane_from, I3),
+        'radius': 2.2,
+        'plane': to_plane,
+        'arrival': [round(arr_world[0], 2), round(arr_world[1] + 2.2, 2),
+                    round(arr_world[2], 2)],
+        'label': label,
+        '_pose': plane_from
+    })
+
+def tour(plane, teintes):
+    t1, t2 = teintes
+    # F1 : du sol du plan à la première galerie (volée classique, posée)
+    stair(f'tour-{plane}-f1', plane, 2.0, 6.0, 8.0, 'z-', t1)
+    # G1 : galerie basse (h 6), le long de z = -11,5
+    walkway(f'tour-{plane}-g1', plane, (-1.25, -11.25), (9.75, -11.25), 3.0, 6.0, t2)
+    # F2 : G1 → G2, volée-lame (double face)
+    stair_double(f'tour-{plane}-f2', plane, -1.0, 6.0, -11.5, 'x-', t1, base=5.0)
+    # G2 : galerie médiane (h 11,5)
+    walkway(f'tour-{plane}-g2', plane, (-12.75, -11.25), (-16.75, -11.25), 3.0, 11.5, t2)
+    # F3 : G2 → G3, volée-lame
+    stair_double(f'tour-{plane}-f3', plane, -10.0, 6.0, -15.0, 'z+', t1, base=10.5)
+    # G3 : galerie haute (h 17) — le belvédère de la tour
+    walkway(f'tour-{plane}-g3', plane, (-15.0, 1.75), (-15.0, 4.75), 3.0, 17.0, t2)
+    # colonnade : la galerie porte sur ses piliers
+    pillar(f'tour-{plane}-p1', plane, [0.0, 0, -11.25], 5.4)
+    pillar(f'tour-{plane}-p2', plane, [6.0, 0, -11.25], 5.4)
+    pillar(f'tour-{plane}-p3', plane, [-14.75, 0, -11.25], 10.9)
+    pillar(f'tour-{plane}-p4', plane, [-15.0, 0, 3.5], 16.4)
+
+tour('sol', ('#6c6288', '#565070'))
+tour('plafond', ('#5a6a80', '#485668'))
+# l'échange : du sommet d'une tour au sommet de l'autre — les deux anneaux
+# se répondent, chaque monde renversé rend ce qu'il a pris
+anneau('sol', [-15.0, 17.0, 4.2], 'plafond', [-15.0, 17.0, 3.5],
+       'Tour inverse (plafond)')
+anneau('plafond', [-15.0, 17.0, 4.2], 'sol', [-15.0, 17.0, 3.5],
+       'Tour inverse (sol)')
 
 # ── mobilier : lanternes sur chaque plan, piliers d'angle ────────────────
 # Budget de lumières : quatre lanternes éclairent « pour rien » (plafond
@@ -484,7 +579,7 @@ ambiance('lucioles-bel-2',
 # --------------------------------------------------------------- pièce ----
 room = {
     'id': 'belvedere', 'title': 'Belvédère',
-    'spawn': [0, 2.2, 19],
+    'spawn': [0, 2.2, 14],
     # brume « Hokusai » : bleu ardoise, calibrée pour qu'à 50 m les faces
     # lointaines bleuissent autant qu'à 80 m avec l'ancienne densité
     'fogColor': '#1d2748',
@@ -562,7 +657,7 @@ near(top15[0], SIZE - 0.5, 1.5, 'S15 atteint le plafond (repère du plan est)')
 # chaque arrivée tombe-t-elle juste au-dessus du nouveau sol (y ≈ 2,2 + marge) ?
 for b in bascules:
     y = b['arrival'][1] - 2.2
-    assert -0.2 <= y <= 12.5, (
+    assert -0.2 <= y <= 18.0, (
         f"{b['label']} : arrivée à {y:.2f} m du sol (hors plage)")
 
 # Tout objet doit tenir DANS le cube — le piège classique : sur le plan
@@ -669,7 +764,7 @@ for f in os.listdir(f'{ROOT}/works'):
     # couloir des fenêtres et ne doit surtout pas être emporté
     if f.startswith(('escalier-r', 'palier-r', 'passerelle-r', 'lanterne-bel',
                      'pilier-bel', 'stele-belvedere', 'lanterne-belvedere',
-                     'banc-belvedere', 'faisceau-bel', 'lucioles-bel')):
+                     'banc-belvedere', 'faisceau-bel', 'lucioles-bel', 'tour-')):
         os.remove(f'{ROOT}/works/{f}')
 
 for w in works:
@@ -688,7 +783,7 @@ idx = [n for n in json.load(open(f'{ROOT}/works/index.json'))
        if not n.startswith(('escalier-r', 'palier-r', 'passerelle-r',
                             'lanterne-bel', 'pilier-bel',
                             'stele-belvedere', 'lanterne-belvedere',
-                            'banc-belvedere', 'faisceau-bel', 'lucioles-bel'))]
+                            'banc-belvedere', 'faisceau-bel', 'lucioles-bel', 'tour-'))]
 for w in works:
     n = f"{w['id']}.json"
     if n not in idx:

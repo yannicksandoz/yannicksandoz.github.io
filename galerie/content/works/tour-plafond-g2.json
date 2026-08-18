@@ -1,11 +1,11 @@
 {
-  "id": "passerelle-r17",
+  "id": "tour-plafond-g2",
   "title": "Palier",
   "description": "",
   "position": [
-    23.0,
-    43.94,
-    -10.0
+    -14.75,
+    39.44,
+    11.25
   ],
   "rotation": [
     -180.0,
@@ -24,16 +24,16 @@
   "model": {
     "type": "voxel",
     "dims": [
-      6,
+      8,
       2,
       6
     ],
     "cell": 0.5,
     "palette": [
-      "#3b3050"
+      "#485668"
     ],
     "cells": [
-      72,
+      96,
       1
     ]
   },

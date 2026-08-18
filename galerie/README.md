@@ -110,6 +110,16 @@ mobile, copie du lien sinon) avec **lien profond** `?room=pièce` /
 d'accueil** (l'audio se débloque au premier geste, règle des navigateurs) —,
 **plein écran**, vue liste, raccourcis, langue, « Terminer la visite ».
 
+**La tour jumelle** (belvédère) : deux tours identiques — trois galeries à
+colonnades (6 m, 11,5 m, 17 m) reliées par des **volées-lames à double
+face**, dont le dessous est lui aussi un escalier — se dressent l'une sur
+le sol, l'autre sur le plafond, aux mêmes coordonnées de leur plan : dans
+la pièce, la seconde pend au-dessus de la première, marches renversées
+vers le bas, comme dans la gravure. Au sommet de chacune, un **anneau
+bascule sur le sommet de l'autre** : on échange les gravités inverses en
+marchant (l'anneau jumeau, désarmé à l'arrivée, se réarme en s'éloignant
+de quelques mètres — pas de va-et-vient involontaire).
+
 **On ne tombe pas d'un escalier — on en descend.** Le vide aussi est un
 mur : à chaque pas, une sonde descend au point où il nous mènerait ; sans
 sol à moins de **1,6 m** sous les pieds, le pas est refusé et l'on glisse

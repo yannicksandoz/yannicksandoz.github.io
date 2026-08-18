@@ -4,7 +4,7 @@
   "spawn": [
     0,
     2.2,
-    19
+    14
   ],
   "fogColor": "#1d2748",
   "fogDensity": 0.014,
@@ -77,6 +77,26 @@
     "passerelle-r16",
     "passerelle-r17",
     "passerelle-r18",
+    "tour-sol-f1",
+    "tour-sol-g1",
+    "tour-sol-f2",
+    "tour-sol-g2",
+    "tour-sol-f3",
+    "tour-sol-g3",
+    "tour-sol-p1",
+    "tour-sol-p2",
+    "tour-sol-p3",
+    "tour-sol-p4",
+    "tour-plafond-f1",
+    "tour-plafond-g1",
+    "tour-plafond-f2",
+    "tour-plafond-g2",
+    "tour-plafond-f3",
+    "tour-plafond-g3",
+    "tour-plafond-p1",
+    "tour-plafond-p2",
+    "tour-plafond-p3",
+    "tour-plafond-p4",
     "lanterne-bel-sol-1",
     "lanterne-bel-sol-2",
     "lanterne-bel-sol-3",
@@ -581,6 +601,46 @@
         -15.0
       ],
       "label": "Retour au mur est"
+    },
+    {
+      "position": [
+        -15.0,
+        17.0,
+        4.2
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "radius": 2.2,
+      "plane": "plafond",
+      "arrival": [
+        -15.0,
+        19.2,
+        3.5
+      ],
+      "label": "Tour inverse (plafond)"
+    },
+    {
+      "position": [
+        -15.0,
+        33.0,
+        -4.2
+      ],
+      "rotation": [
+        -180.0,
+        0.0,
+        0.0
+      ],
+      "radius": 2.2,
+      "plane": "sol",
+      "arrival": [
+        -15.0,
+        19.2,
+        3.5
+      ],
+      "label": "Tour inverse (sol)"
     }
   ],
   "jetons": [
