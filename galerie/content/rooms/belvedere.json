@@ -6,8 +6,8 @@
     2.2,
     30
   ],
-  "fogColor": "#0b0614",
-  "fogDensity": 0.0075,
+  "fogColor": "#1d2748",
+  "fogDensity": 0.0095,
   "floor": {
     "size": 80.0,
     "color": "#171226",
@@ -25,7 +25,8 @@
       "est": "#35704c",
       "ouest": "#7a6330",
       "plafond": "#453163"
-    }
+    },
+    "texture": "pierre"
   },
   "keyLight": {
     "color": "#e0c4ff",
@@ -93,7 +94,12 @@
     "pilier-bel-4",
     "pilier-bel-5",
     "banc-belvedere",
-    "gravite"
+    "gravite",
+    "faisceau-bel-1",
+    "faisceau-bel-2",
+    "faisceau-bel-3",
+    "lucioles-bel-1",
+    "lucioles-bel-2"
   ],
   "bascules": [
     {

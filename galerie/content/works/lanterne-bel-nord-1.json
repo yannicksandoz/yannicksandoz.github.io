@@ -27,7 +27,7 @@
     "metalness": 0.0,
     "emissive": 0.6
   },
-  "lightIntensity": 2.4,
+  "lightIntensity": 3.2,
   "loadDistance": 240,
   "lightColor": "#cbb4ff",
   "selfLit": true

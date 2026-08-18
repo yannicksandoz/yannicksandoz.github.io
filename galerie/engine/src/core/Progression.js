@@ -31,6 +31,11 @@ export class Progression {
     // stockage est effacée : elle ne servirait qu'à traîner.
     this.decouvertes = new Set();
     try { localStorage.removeItem(CLE); } catch { /* stockage refusé */ }
+    // Révélées par un jeton ◈ : le NOM et la pièce sont dévoilés dans la
+    // liste, mais la découverte (compteur, visite guidée) reste à faire
+    // sur place — le jeton est un indice, pas un raccourci. Per-visite,
+    // comme tout le catalogue.
+    this.revelees = new Set();
     this.nouvelles = 0;
     this._dwell = new Map(); // artwork → secondes cumulées à portée
     this._abonnes = new Set();
@@ -82,6 +87,19 @@ export class Progression {
 
   estDecouverte(artwork) {
     return this.decouvertes.has(artwork.config.id);
+  }
+
+  estRevelee(artwork) {
+    return this.revelees.has(artwork.config.id);
+  }
+
+  /** Dévoile une « ??? » contre un jeton ◈. Renvoie false faute de jeton. */
+  reveler(artwork) {
+    if (!artwork || this.estDecouverte(artwork) || this.estRevelee(artwork)) return false;
+    if (!this.app.jetons?.depenser(1)) return false;
+    this.revelees.add(artwork.config.id);
+    this._notifier();
+    return true;
   }
 
   /** Découverte immédiate (approche d'une œuvre au clic/Espace). */
@@ -197,13 +215,21 @@ export class Progression {
     const reste = this.total - this.compte;
     const lignes = this.parcours.map((a, i) => {
       const vue = this.estDecouverte(a);
-      const titre = vue ? (a.config.title ?? a.config.id) : '???';
-      const salle = vue ? (a.room?.config.title ?? '') : '';
-      return `<li><button type="button" data-work="${esc(a.config.id)}"
-        ${vue ? '' : 'disabled aria-disabled="true"'}
-        class="${vue ? 'vue' : 'inconnue'}">
+      const revelee = !vue && this.estRevelee(a);
+      // une ??? se DÉVOILE contre un jeton : la ligne devient cliquable
+      const devoilable = !vue && !revelee && jetons > 0;
+      const titre = (vue || revelee) ? (a.config.title ?? a.config.id) : '???';
+      const salle = (vue || revelee) ? (a.room?.config.title ?? '') : '';
+      const attrs = vue
+        ? `data-work="${esc(a.config.id)}" class="vue"`
+        : devoilable
+          ? `data-reveal="${esc(a.config.id)}" class="a-reveler"
+             title="${esc(t('progress.reveler'))}" aria-label="${esc(t('progress.reveler'))}"`
+          : `disabled aria-disabled="true" class="${revelee ? 'revelee' : 'inconnue'}"
+             ${revelee ? `title="${esc(t('progress.revelee'))}"` : ''}`;
+      return `<li><button type="button" ${attrs}>
         <span class="pl-n">${i + 1}</span>
-        <span class="pl-t">${esc(titre)}</span>
+        <span class="pl-t">${esc(titre)}${revelee ? ' ◈' : ''}${devoilable ? ' <span class="pl-j">◈</span>' : ''}</span>
         <span class="pl-s">${esc(salle)}</span></button></li>`;
     }).join('');
 
@@ -222,6 +248,18 @@ export class Progression {
         this.basculerPanneau(false);
         this.app.derive?.arreter?.();
         allerVersOeuvre(this.app, art);
+      });
+    }
+    // dévoiler une ??? : le panneau reste ouvert, la ligne se repeint avec
+    // son nom — et le focus reste où l'on vient de cliquer
+    for (const b of this._panneau.querySelectorAll('[data-reveal]')) {
+      b.addEventListener('click', () => {
+        const art = this.app.artworks.find((a) => a.config.id === b.dataset.reveal);
+        if (!art || !this.reveler(art)) return;
+        const n = b.querySelector('.pl-n')?.textContent;
+        this._panneau.querySelectorAll('.pl-n').forEach((el) => {
+          if (el.textContent === n) el.closest('button')?.focus();
+        });
       });
     }
   }

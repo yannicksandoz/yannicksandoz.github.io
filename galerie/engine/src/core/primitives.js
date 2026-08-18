@@ -18,7 +18,11 @@ export const PRIMITIVES = {
   cylinder: { label: 'Cylindre', build: (s) => new THREE.CylinderGeometry(s * 0.5, s * 0.5, s * 1.6, 28) },
   cone:     { label: 'Cône',     build: (s) => new THREE.ConeGeometry(s * 0.6, s * 1.6, 28) },
   torus:    { label: 'Tore',     build: (s) => new THREE.TorusGeometry(s * 0.6, s * 0.22, 18, 40) },
-  eau:      { label: 'Eau',      build: (s) => new THREE.PlaneGeometry(s * 1.6, s, 48, 32) }
+  eau:      { label: 'Eau',      build: (s) => new THREE.PlaneGeometry(s * 1.6, s, 48, 32) },
+  // fût ouvert, plus large au pied : un puits de lumière qui tombe
+  faisceau: { label: 'Faisceau', build: (s) => new THREE.CylinderGeometry(s * 0.25, s * 0.85, s * 6, 24, 1, true) },
+  // la géométrie réelle (essaim de points) se construit dans buildPrimitive
+  lucioles: { label: 'Lucioles', build: (s) => new THREE.BoxGeometry(s, s, s) }
 };
 
 /**
@@ -122,6 +126,8 @@ export function buildPrimitive(model) {
     mesh.rotation.x = -Math.PI / 2; // une étendue d'eau est horizontale
     return mesh;
   }
+  if (model.shape === 'faisceau') return buildFaisceau(def, size, model);
+  if (model.shape === 'lucioles') return buildLucioles(size, model);
 
   // texture pixel-art optionnelle (« texture »: ratisse, planches…) — en
   // niveaux de gris, teintée par la couleur de la primitive. `textureRepeat`
@@ -136,6 +142,127 @@ export function buildPrimitive(model) {
     return finishPrimitive(def, size, model, clone);
   }
   return finishPrimitive(def, size, model, map);
+}
+
+/**
+ * Faisceau de lumière volumétrique — un puits de lumière suggéré, pas
+ * calculé : un fût conique additif dont l'intensité est pleine quand le
+ * regard TRAVERSE le volume (fresnel inversé) et s'évanouit sur la
+ * tranche, avec un fondu vers le pied et une lente respiration. Aucune
+ * vraie volumétrie, aucun coût : deux passes de triangles transparents.
+ * `emissive` règle la force, `color` la teinte.
+ */
+function buildFaisceau(def, size, model) {
+  const mat = new THREE.ShaderMaterial({
+    uniforms: {
+      uTime: WATER_TIME,
+      uColor: { value: new THREE.Color(model.color ?? '#cbb4ff') },
+      uForce: { value: model.emissive ?? 0.4 },
+      uHauteur: { value: size * 6 }
+    },
+    transparent: true,
+    depthWrite: false,
+    blending: THREE.AdditiveBlending,
+    side: THREE.DoubleSide,
+    vertexShader: /* glsl */ `
+      uniform float uHauteur;
+      varying float vHaut;   // 0 au pied, 1 au sommet
+      varying vec3 vN, vVue;
+      void main() {
+        vHaut = clamp(position.y / uHauteur + 0.5, 0.0, 1.0);
+        vN = normalize(normalMatrix * normal);
+        vec4 mv = modelViewMatrix * vec4(position, 1.0);
+        vVue = normalize(-mv.xyz);
+        gl_Position = projectionMatrix * mv;
+      }`,
+    fragmentShader: /* glsl */ `
+      uniform vec3 uColor;
+      uniform float uForce, uTime;
+      varying float vHaut;
+      varying vec3 vN, vVue;
+      void main() {
+        // plein au cœur du fût, évanoui sur la tranche
+        float coeur = pow(abs(dot(normalize(vN), normalize(vVue))), 1.6);
+        // le pied se dissout, le sommet reste franc
+        float fondu = smoothstep(0.0, 0.45, vHaut);
+        float vie = 1.0 + 0.08 * sin(uTime * 0.55 + vHaut * 5.0);
+        gl_FragColor = vec4(uColor, coeur * fondu * uForce * vie);
+      }`
+  });
+  const mesh = new THREE.Mesh(def.build(size), mat);
+  mesh.raycast = () => {};          // de la lumière : jamais une cible
+  mesh.userData.sansOmbre = true;   // …et jamais un cône d'ombre
+  return mesh;
+}
+
+/**
+ * Lucioles — un essaim de points dorés à dérive lente. Tout le mouvement
+ * vit dans le shader (trois sinus déphasés par luciole) : zéro CPU, et
+ * l'horloge partagée s'arrête d'elle-même en mouvement réduit. La graine
+ * est déterministe : le même essaim à chaque visite.
+ * `count`, `seed`, `color`, `emissive` (éclat) se règlent au modèle ;
+ * `size` donne le côté du volume de vol.
+ */
+function buildLucioles(size, model) {
+  const n = Math.max(1, Math.round(model.count ?? 36));
+  let graine = ((model.seed ?? 7) >>> 0) || 7;
+  const rand = () => {
+    graine = (graine * 1664525 + 1013904223) >>> 0;
+    return graine / 4294967296;
+  };
+  const pos = new Float32Array(n * 3);
+  const phase = new Float32Array(n);
+  const vitesse = new Float32Array(n);
+  for (let i = 0; i < n; i++) {
+    pos[3 * i] = (rand() - 0.5) * size;
+    pos[3 * i + 1] = (rand() - 0.5) * size;
+    pos[3 * i + 2] = (rand() - 0.5) * size;
+    phase[i] = rand() * Math.PI * 2;
+    vitesse[i] = 0.35 + rand() * 0.75;
+  }
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+  geo.setAttribute('aPhase', new THREE.BufferAttribute(phase, 1));
+  geo.setAttribute('aVitesse', new THREE.BufferAttribute(vitesse, 1));
+  // l'essaim déborde de ses positions de repos : la boîte de culling suit
+  geo.boundingSphere = new THREE.Sphere(new THREE.Vector3(), size * 0.9 + 1.6);
+
+  const mat = new THREE.ShaderMaterial({
+    uniforms: {
+      uTime: WATER_TIME,
+      uColor: { value: new THREE.Color(model.color ?? '#ffd97a') },
+      uEclat: { value: model.emissive ?? 0.8 },
+      uTaille: { value: model.dotSize ?? 0.14 }
+    },
+    transparent: true,
+    depthWrite: false,
+    blending: THREE.AdditiveBlending,
+    vertexShader: /* glsl */ `
+      uniform float uTime, uTaille;
+      attribute float aPhase, aVitesse;
+      varying float vVie;
+      void main() {
+        float t = uTime * aVitesse + aPhase;
+        vec3 p = position
+          + vec3(sin(t * 0.90), sin(t * 0.63 + 1.7), sin(t * 0.77 + 3.4)) * 0.9;
+        vec4 mv = modelViewMatrix * vec4(p, 1.0);
+        vVie = 0.45 + 0.55 * (0.5 + 0.5 * sin(t * 1.9)); // clignotement doux
+        gl_PointSize = uTaille * 420.0 / max(1.0, -mv.z);
+        gl_Position = projectionMatrix * mv;
+      }`,
+    fragmentShader: /* glsl */ `
+      uniform vec3 uColor;
+      uniform float uEclat;
+      varying float vVie;
+      void main() {
+        vec2 c = gl_PointCoord - 0.5;
+        float lum = smoothstep(1.0, 0.0, length(c) * 2.0);
+        gl_FragColor = vec4(uColor, lum * lum * vVie * uEclat);
+      }`
+  });
+  const points = new THREE.Points(geo, mat);
+  points.raycast = () => {};
+  return points;
 }
 
 function finishPrimitive(def, size, model, map) {

@@ -525,7 +525,7 @@ export class Artwork {
     // Chaque œuvre se pose au sol par son ombre (lumière clé de la pièce).
     // Recevoir aussi : un modèle s'ombre lui-même, un socle reçoit l'œuvre.
     mesh.traverse?.((o) => {
-      if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; }
+      if (o.isMesh && !o.userData.sansOmbre) { o.castShadow = true; o.receiveShadow = true; }
     });
     // « selfLit » : l'objet ÉCLAIRE, il n'est pas éclairé. Une lanterne
     // porte sa lampe à quelques décimètres de sa propre paroi : avec une

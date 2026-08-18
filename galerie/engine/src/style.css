@@ -450,6 +450,13 @@ html, body {
 #progress-list .pl-n { color: var(--dim); font-size: 0.72rem; min-width: 1.1rem; }
 #progress-list .pl-t { flex: 1; }
 #progress-list .inconnue .pl-t { letter-spacing: 0.2em; }
+/* ??? dévoilable contre un jeton : la ligne reste mystère mais s'offre */
+#progress-list .a-reveler .pl-t { letter-spacing: 0.2em; }
+#progress-list .a-reveler .pl-j {
+  letter-spacing: 0; color: #ffd97a; opacity: 0.9; margin-left: 0.3rem;
+}
+/* dévoilée : nommée mais pas encore rencontrée — en retrait, marquée ◈ */
+#progress-list .revelee .pl-t { font-style: italic; }
 #progress-list .pl-s { color: var(--dim); font-size: 0.7rem; }
 #progress-list .pl-astuce {
   margin-top: 0.7rem; padding-top: 0.6rem; font-size: 0.75rem; color: var(--dim);

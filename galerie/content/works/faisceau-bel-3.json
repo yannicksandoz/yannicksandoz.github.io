@@ -1,0 +1,30 @@
+{
+  "id": "faisceau-bel-3",
+  "title": "Décor",
+  "description": "",
+  "position": [
+    -16.0,
+    30.0,
+    14.0
+  ],
+  "rotation": [
+    0.3,
+    0.0,
+    0.3
+  ],
+  "scale": [
+    1,
+    1,
+    1
+  ],
+  "modules": [],
+  "role": "decor",
+  "model": {
+    "shape": "faisceau",
+    "size": 6.5,
+    "color": "#e0c4ff",
+    "emissive": 0.42
+  },
+  "loadDistance": 240,
+  "lightIntensity": 0.0
+}

@@ -85,11 +85,14 @@ pièces** ; on les ramasse en marchant dessus (compteur sur le badge).
 Au bout du parcours connu, `▸` devient `▸ ◈` : **un jeton débloque une
 œuvre non découverte** — la dérive y vole, l'œuvre prend son nom au
 catalogue. Pas de boîte de dialogue : le prix s'affiche sur le bouton.
-Sans jeton ni découverte, la visite guidée reste inerte et dit pourquoi ;
-un seul jeton suffit à l'armer. Les positions (et donc le NOMBRE, à
-régler selon celui des œuvres) sont déclarées par pièce :
-`"jetons": [[x, y, z], …]` dans `rooms/*.json`. Tout se rejoue à chaque
-visite, comme le catalogue.
+Un jeton se dépense aussi **depuis le catalogue** : quand on en porte un,
+les lignes « ??? » deviennent cliquables (marquées ◈) et un clic **dévoile
+le nom et la pièce** de l'œuvre — sans la compter découverte : le jeton est
+un indice, la rencontre reste à faire sur place. Sans jeton ni découverte,
+la visite guidée reste inerte et dit pourquoi ; un seul jeton suffit à
+l'armer. Les positions (et donc le NOMBRE, à régler selon celui des
+œuvres) sont déclarées par pièce : `"jetons": [[x, y, z], …]` dans
+`rooms/*.json`. Tout se rejoue à chaque visite, comme le catalogue.
 
 **Le chapeau (TipJar)** s'appuie sur cette progression : voir « Le chapeau »
 plus bas — ses trois portes sont toutes atteignables, et celle du « tout
@@ -356,6 +359,14 @@ au code du moteur** :
   // (une lanterne : paroi sombre, lueur claire) :
   "model": { "shape": "cylinder", "color": "#4a4266",
              "emissiveColor": "#cbb4ff", "emissive": 0.6 },
+  // deux primitives d'AMBIANCE (décor, additives, jamais des cibles) :
+  // un puits de lumière volumétrique suggéré (fresnel + fondu du pied)…
+  "model": { "shape": "faisceau", "size": 9, "color": "#cbb4ff",
+             "emissive": 0.5 },
+  // …et un essaim de lucioles dérivant dans le shader (zéro CPU ;
+  // `size` = côté du volume de vol, graine déterministe)
+  "model": { "shape": "lucioles", "size": 26, "count": 48, "seed": 11,
+             "color": "#ffd97a", "emissive": 1.1, "dotSize": 0.24 },
   // ou une construction voxel (mode Voxel de l'éditeur) :
   "model": {
     "type": "voxel",
@@ -821,6 +832,17 @@ lancement puis l'ajuste en continu :
   35 fps se sentent lourds bien avant le seuil de survie. Sous **27 fps**,
   le reste y passe (pixelRatio → grain → apparitions → ombres → bloom), sans
   jamais remonter (pas d'oscillation) ;
+- **cache d'ombres** : la carte d'ombre ne se re-rend qu'à **30 Hz**
+  (`shadowMap.autoUpdate = false`, `needsUpdate` cadencé dans la boucle) —
+  la galerie est presque statique, une pénombre qui suit à 33 ms reste
+  imperceptible, et à 120 Hz ce sont trois rendus de scène sur quatre
+  d'économisés ;
+- **budget de lumières** : chaque PointLight se paie sur chaque pixel de
+  la pièce. Une œuvre-décor peut porter `lightIntensity: 0` pour garder sa
+  lueur (selfLit, émission, bloom) sans coûter un poste au shader — au
+  belvédère, quatre lanternes sur onze éclairent ainsi « pour rien »
+  (plafond à 40 m de tout, secondes lanternes d'une même face) : 12 → 8
+  lumières réelles ;
 - **mémoire** : textures et buffers audio chargés à l'approche
   (`loadDistance`, 50 par défaut) et **libérés** au-delà de 1,6 × cette
   distance (dispose des textures, arrêt des sources, buffers oubliés) ;

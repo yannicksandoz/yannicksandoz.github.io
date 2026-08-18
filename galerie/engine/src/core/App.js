@@ -194,7 +194,11 @@ class PasseGTAO extends GTAOPass {
     const cache = this._visibilityCache;
     this.scene.traverse((o) => {
       cache.set(o, o.visible);
-      if (o.isPoints || o.isLine || o.isSprite) o.visible = false;
+      // Ni lutins ni traits — et rien de TRANSPARENT : un faisceau de
+      // lumière ou un disque de portail rendu opaque dans la profondeur
+      // deviendrait un faux occulteur, et l'AO assombrirait derrière lui.
+      if (o.isPoints || o.isLine || o.isSprite
+        || (o.isMesh && o.material?.transparent)) o.visible = false;
     });
   }
 }
@@ -284,6 +288,13 @@ export class App {
     // lumière clé, voir RoomManager) : le coût reste borné et prévisible.
     this.renderer.shadowMap.enabled = this.quality.profile.shadows;
     this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    // La carte d'ombre ne se re-rend qu'à 30 Hz (voir la boucle) : la
+    // galerie est presque statique, une pénombre qui suit à 33 ms reste
+    // imperceptible — et à 120 Hz, ce sont trois rendus de scène sur
+    // quatre d'économisés.
+    this.renderer.shadowMap.autoUpdate = false;
+    this.renderer.shadowMap.needsUpdate = true;
+    this._ombreAcc = 0;
 
     // --- post-processing : scène (MSAA) + AO + bloom + grain -----------
     //
@@ -396,6 +407,7 @@ export class App {
   setShadowsEnabled(on) {
     if (!this.renderer || this.renderer.shadowMap.enabled === on) return;
     this.renderer.shadowMap.enabled = on;
+    if (on) this.renderer.shadowMap.needsUpdate = true;
     this.scene.traverse((o) => { if (o.material) o.material.needsUpdate = true; });
   }
 
@@ -672,6 +684,13 @@ export class App {
       this.grainPass.uniforms.uTime.value = t;
       if (this.warpPass.enabled) this.warpPass.uniforms.uTime.value = t;
       this.quality.tick(dt, this);
+
+      // cadence des ombres : 30 Hz suffisent à une galerie quasi statique
+      this._ombreAcc += dt;
+      if (this.renderer.shadowMap.enabled && this._ombreAcc >= 1 / 30) {
+        this._ombreAcc = 0;
+        this.renderer.shadowMap.needsUpdate = true;
+      }
 
       this.vistas?.update(dt); // la pièce apparue se rend avant la vraie
       this.composer.render();

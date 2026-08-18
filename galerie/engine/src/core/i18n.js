@@ -65,7 +65,9 @@ const FR = {
   'derive.unlock': 'Vers une œuvre non découverte — coûte 1 jeton ◈ (vous en avez {n})',
   'derive.needToken': 'Il faut un jeton ◈ — il y en a de cachés dans la galerie',
   'progress.jetons': '{n} jeton{s} ◈',
-  'progress.jetons.hint': 'Des jetons ◈ sont cachés dans la galerie : chacun débloque une œuvre dans la visite guidée (▸ ◈).',
+  'progress.jetons.hint': 'Des jetons ◈ sont cachés dans la galerie : chacun débloque une œuvre dans la visite guidée (▸ ◈), ou dévoile une ligne « ??? » du catalogue.',
+  'progress.reveler': 'Dévoiler cette œuvre — coûte 1 jeton ◈',
+  'progress.revelee': 'Dévoilée par un jeton — à découvrir sur place',
 
   'tour.title': 'Visite audio',
   'tour.label': 'Visite audio de la galerie',
@@ -147,7 +149,9 @@ const EN = {
   'derive.unlock': 'To an undiscovered work — costs 1 ◈ token (you have {n})',
   'derive.needToken': 'You need a ◈ token — some are hidden around the gallery',
   'progress.jetons': '{n} ◈ token{s}',
-  'progress.jetons.hint': '◈ tokens are hidden around the gallery: each one unlocks an undiscovered work in the guided tour (▸ ◈).',
+  'progress.jetons.hint': '◈ tokens are hidden around the gallery: each one unlocks an undiscovered work in the guided tour (▸ ◈), or unveils a “???” line in the catalogue.',
+  'progress.reveler': 'Unveil this work — costs 1 ◈ token',
+  'progress.revelee': 'Unveiled by a token — still to be discovered in person',
 
   'tour.title': 'Audio tour',
   'tour.label': 'Audio tour of the gallery',
