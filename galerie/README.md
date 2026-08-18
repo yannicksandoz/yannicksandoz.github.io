@@ -68,8 +68,11 @@ portée, ou dès qu'on l'approche. Le catalogue se gagne **à chaque visite** :
 on ouvre la galerie sur une liste de « ??? », comme le premier jour.
 
 **« Laisse-toi porter »** (barre `◂ ▸` en bas de l'écran, ou le menu) : la
-visite guidée **rejoue les œuvres découvertes**, dans l'ordre des salles —
-la caméra vole de l'une à l'autre et se pose devant chacune. Pendant la
+visite guidée **rejoue les œuvres découvertes**, dans l'ordre du catalogue,
+du n° 1 au dernier — la caméra vole de l'une à l'autre et se pose devant
+chacune. Certaines se contemplent en vol (le tore flotte au centre du cube
+de 80 m) : reprendre la main là-haut **repose d'abord le visiteur au sol**,
+en une descente douce, plutôt que de le laisser marcher dans le vide. Pendant la
 pause, `◂` / `▸` (boutons, ou flèches gauche/droite du clavier) vont à la
 précédente ou à la suivante ; **tout autre geste rend la main**. Avec
 `prefers-reduced-motion`, les travellings deviennent des déplacements
@@ -101,6 +104,14 @@ mobile, copie du lien sinon) avec **lien profond** `?room=pièce` /
 `?work=œuvre` — celui qui l'ouvre arrive au même endroit, **sans écran
 d'accueil** (l'audio se débloque au premier geste, règle des navigateurs) —,
 **plein écran**, vue liste, raccourcis, langue, « Terminer la visite ».
+
+**On ne franchit un portail qu'en y allant.** Trois conditions, toutes
+nécessaires : marcher (tourner la caméra la fait orbiter autour de sa
+cible, ce qui suffisait à la pousser dans une porte voisine), **voir** le
+portail (test de champ de vision sur son volume — un point aurait déclaré
+« invisible » l'instant du franchissement, où la porte remplit l'écran mais
+où son centre passe sous le bas du cadre), et **avancer** vers lui : reculer
+dedans ou le longer ne le déclenche pas.
 
 **Œuvres composées.** Plusieurs objets peuvent former UNE œuvre indexée :
 les membres déclarent `partOf` (voir « Décrire une œuvre ») — un clic sur

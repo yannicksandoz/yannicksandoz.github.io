@@ -9,6 +9,12 @@ export const FOG_DENSITY = 0.026;
 const REARM_DIST2 = 7; // (m²) zone à quitter pour réarmer un portail d'arrivée
 const _worldPos = new THREE.Vector3(); // tampons du test de proximité
 const _worldUp = new THREE.Vector3();
+const _proj = new THREE.Vector3();     // direction caméra → portail
+const _vers = new THREE.Vector3();     // direction vers le portail
+const _avant = new THREE.Vector3();    // où regarde la caméra
+const _frustum = new THREE.Frustum();  // champ de vision
+const _matFrustum = new THREE.Matrix4();
+const _sphere = new THREE.Sphere();
 
 /**
  * Système de pièces connectées.
@@ -32,6 +38,10 @@ export class RoomManager {
     this.current = null;
     this._transitioning = false;
     this._cooldown = 0;
+    // position de la caméra à la frame précédente : c'est elle qui dit si
+    // l'on VA VERS un portail ou si l'on s'en écarte (voir _vaVers)
+    this._camPrec = new THREE.Vector3();
+    this._dep = new THREE.Vector3();
     this.fadeEl = document.getElementById('room-fade');
   }
 
@@ -549,6 +559,10 @@ export class RoomManager {
   _placeCamera(pos) {
     const cam = this.app.camera;
     cam.position.set(pos[0], pos[1], pos[2]);
+    // une téléportation n'est pas un pas : sans cela, le saut d'arrivée se
+    // lirait comme une enjambée de vingt mètres vers le portail d'en face
+    this._camPrec.set(pos[0], pos[1], pos[2]);
+    this._dep.set(0, 0, 0);
     // téléportation : la collision doit repartir d'ici, pas d'il y a une frame
     this.app.controls?.resyncCollision?.();
     // Premier regard : une ŒUVRE dans le cadre plutôt que le vide — le
@@ -682,6 +696,51 @@ export class RoomManager {
   /* ------------------------------------------------------------- cycle --- */
 
   /**
+   * Le portail est-il DANS LE CHAMP ? Un portail hors champ n'est pas une
+   * porte, c'est un mur — on ne le franchit pas par surprise.
+   *
+   * Le test porte sur un VOLUME, pas sur un point : à un mètre du seuil,
+   * le centre du portail (1,35 m) passe sous le bas de l'écran — l'œil est
+   * 85 cm plus haut — alors que la porte remplit la vue. Un point aurait
+   * donc déclaré « invisible » l'instant précis du franchissement. Une
+   * sphère qui coiffe le portail dit la vérité de bout en bout.
+   *
+   * Second garde-fou : le portail doit être DEVANT. Debout dans l'emprise
+   * de la sphère, on la voit forcément — même dos tourné ; le produit
+   * scalaire, lui, ne se laisse pas prendre.
+   */
+  _estVisible(centre) {
+    const cam = this.app.camera;
+    _matFrustum.multiplyMatrices(cam.projectionMatrix, cam.matrixWorldInverse);
+    _frustum.setFromProjectionMatrix(_matFrustum);
+    _sphere.center.copy(centre);
+    _sphere.radius = 1.6;                    // la porte, pas son centre
+    if (!_frustum.intersectsSphere(_sphere)) return false;
+    cam.getWorldDirection(_avant);
+    return _avant.dot(_proj.copy(centre).sub(cam.position)) > 0;
+  }
+
+  /**
+   * Le pas de cette frame va-t-il VERS ce point ? Reculer dans un portail,
+   * ou le longer, ne doit pas le déclencher : seul compte le mouvement qui
+   * s'en rapproche. Le déplacement se mesure d'une frame à l'autre, à plat
+   * (la hauteur suit le sol, elle ne dit rien de l'intention).
+   */
+  _vaVers(point, ctx) {
+    if (this._dep.lengthSq() < 1e-8) return false; // immobile : rien à franchir
+    // On franchit une porte EN AVANÇANT. Reculer dedans passait encore : à
+    // l'instant où l'on dépasse le seuil, le portail repasse devant les
+    // yeux — vu, et « approché » d'une fraction de frame. Le pas doit donc
+    // aller dans le sens du regard, pas seulement vers la porte ; un pas
+    // de côté ou en arrière ne franchit rien.
+    this.app.camera.getWorldDirection(_avant);
+    _avant.setY(0);
+    if (this._dep.dot(_avant) <= 0) return false;
+    const vers = _vers.copy(point).sub(ctx.cameraPos).setY(0);
+    return this._dep.dot(vers) > 0;
+  }
+
+  /**
    * Réarme les zones (portails, bascules) que le visiteur a quittées, sans
    * rien déclencher. Le même critère d'hystérésis que la détection : c'est
    * la seule tenue de registre qui doive tourner pendant le temps mort.
@@ -714,6 +773,11 @@ export class RoomManager {
       sky.material.uniforms.uTime.value
         = (sky.material.uniforms.uTime.value + dt) % 3600;
     }
+    // Déplacement de la frame, relevé AVANT tout retour anticipé : c'est le
+    // sens du pas (voir _vaVers), et il doit rester juste même les frames
+    // où l'on ne déclenche rien.
+    this._dep.copy(ctx.cameraPos).sub(this._camPrec).setY(0);
+    this._camPrec.copy(ctx.cameraPos);
     if (this._tickBascule(dt)) return; // une bascule en cours pilote tout
     if (this._cooldown > 0) this._cooldown -= dt;
     if (!this.current || this._transitioning) return;
@@ -757,6 +821,13 @@ export class RoomManager {
       // la promène autour de la cible, ce qui suffisait à la faire entrer
       if (this.app.controls && !this.app.controls.walking) continue;
       if (d2 < 2.6 && Math.abs(dy) < 1.25) {
+        // ON NE FRANCHIT QUE CE QUE L'ON VOIT, ET EN Y ALLANT.
+        // Deux portes dérobées restaient ouvertes : pivoter dos au portail
+        // (la caméra orbite, elle entre dans la zone par le côté) et RECULER
+        // dedans. Le seuil demande donc que le portail soit à l'écran — et
+        // que le pas se fasse vers lui, pas en s'en éloignant.
+        if (!this._estVisible(p)) continue;
+        if (!this._vaVers(p, ctx)) continue;
         this.traverse(mesh.userData.portal);
         return;
       }

@@ -25,6 +25,12 @@ import { pointDeVue } from './Progression.js';
 
 const PAUSE = 8;         // secondes devant chaque œuvre
 const VITESSE = 4.5;     // m/s de croisière
+const EYE = 2.2;         // hauteur des yeux (même valeur que Controls)
+
+// rayon de sol, réutilisé : on ne crée pas un objet par atterrissage
+const _rayon = new THREE.Raycaster();
+const _origine = new THREE.Vector3();
+const _bas = new THREE.Vector3(0, -1, 0);
 
 export class Derive {
   constructor(app) {
@@ -158,10 +164,14 @@ export class Derive {
     const n = this.parcours.length;
     if (n === 0 && !((this.app.jetons?.compte ?? 0) > 0 && this.inconnues.length)) return;
     this.active = true;
+    this._chute = null;                   // une descente en cours s'annule
     this.app.activeFocus?.release?.();
     this.app.controls.locked = true;      // la caméra appartient à la dérive
-    // reprendre à l'œuvre la plus proche : la visite commence là où l'on est
-    this._i = this._plusProche();
+    // La visite suit l'ORDRE du catalogue, du premier au dernier. Partir de
+    // l'œuvre la plus proche semblait malin, mais on tombait au milieu du
+    // fil (« pourquoi la n° 4 d'abord ? ») : une visite guidée commence au
+    // commencement, et les flèches servent à sauter.
+    this._i = 0;
     this._phase = 'idle';
     // rien de découvert mais un jeton en poche : la visite S'OUVRE sur un
     // déblocage — c'est tout l'intérêt du jeton
@@ -190,9 +200,49 @@ export class Derive {
     if (!this.active) return;
     this.active = false;
     this._phase = 'idle';
-    this.app.controls.locked = false;
-    this.app.controls.resyncCollision?.();
     this._peindre();
+    // On ne rend pas la main EN L'AIR. Certaines œuvres se contemplent en
+    // vol — le tore flotte au centre du cube de 80 m — et le visiteur qui
+    // reprenait la main là-haut restait suspendu, marchant dans le vide :
+    // la visite se terminait par un bug. On le repose d'abord au sol.
+    if (!this._poser()) {
+      this.app.controls.locked = false;
+      this.app.controls.resyncCollision?.();
+    }
+  }
+
+  /**
+   * Descente douce jusqu'au sol sous les pieds. Renvoie false s'il n'y a
+   * rien à descendre (on était déjà posé) — l'appelant rend alors la main
+   * tout de suite. La caméra reste verrouillée le temps du vol plané.
+   */
+  _poser() {
+    const app = this.app;
+    const sol = this._solSous(app.camera.position);
+    if (sol === null) return false;
+    const cible = sol + EYE;
+    const chute = app.camera.position.y - cible;
+    if (chute < 0.6) return false;          // déjà à hauteur d'homme
+    this._chute = {
+      de: app.camera.position.clone(),
+      cible,
+      // la cible du regard descend d'autant : l'assiette est préservée,
+      // on se pose sans piquer du nez
+      cibleRegard: app.controls.orbit.target.clone(),
+      t: 0,
+      duree: app.quality.reducedMotion ? 0.25 : Math.min(2.2, 0.5 + chute / 30)
+    };
+    return true;
+  }
+
+  /** Hauteur du sol foulable sous un point, ou null s'il n'y en a pas. */
+  _solSous(point) {
+    const cibles = this.app.rooms?.walkables?.() ?? [];
+    if (!cibles.length) return null;
+    _rayon.set(_origine.copy(point).setY(point.y + 0.2), _bas);
+    _rayon.far = 400;                       // un cube de 80 m se traverse
+    const touche = _rayon.intersectObjects(cibles, true);
+    return touche.length ? touche[0].point.y : null;
   }
 
   suivante() {
@@ -231,6 +281,24 @@ export class Derive {
   /* ------------------------------------------------------------ tick --- */
 
   _tick(dt) {
+    // La descente survit à l'arrêt de la visite : c'est elle qui repose le
+    // visiteur avant de lui rendre les commandes.
+    if (this._chute) {
+      const c = this._chute;
+      c.t = Math.min(1, c.t + dt / c.duree);
+      const k = easeInOutCubic(c.t);
+      const cam = this.app.camera;
+      const y = c.de.y + (c.cible - c.de.y) * k;
+      const dy = y - cam.position.y;
+      cam.position.y = y;
+      this.app.controls.orbit.target.y += dy; // l'assiette du regard suit
+      if (c.t >= 1) {
+        this._chute = null;
+        this.app.controls.locked = false;
+        this.app.controls.resyncCollision?.();
+      }
+      return;
+    }
     if (!this.active) return;
     // la visite audio et l'éditeur priment ; le menu met en pause
     if (this.app.audioTour?.active || this.app.editor?.enabled) return this.arreter();
