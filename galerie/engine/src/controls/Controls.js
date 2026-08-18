@@ -25,6 +25,8 @@ const GROUND_REACH = 40; // portée du rayon de sol (une chute de haut se suit)
 const CHEST = 1.15;    // hauteur du rayon de collision au-dessus des pieds :
                        // au-dessus de deux contremarches (2 × 0,5 m), un
                        // escalier se gravit ; un mur ou une masse bloquent
+const CHUTE_MAX = 1.6; // au-delà, un pas vers le vide est un pas contre un
+                       // mur : on ne tombe pas d'un escalier, on en descend
 const _rayOrigin = new THREE.Vector3();
 const _prevPos = new THREE.Vector3();
 const _delta = new THREE.Vector3();
@@ -63,6 +65,7 @@ export class Controls {
     this._groundRay = new THREE.Raycaster();
     this._groundRay.far = 40;
     this._wallRay = new THREE.Raycaster();
+    this._voidRay = new THREE.Raycaster();   // anti-chute (voir _collide)
     // position en fin de frame précédente : la référence de la collision —
     // tout ce qui a bougé la caméra depuis (clavier, orbite, pan tactile)
     // est corrigé d'un seul geste
@@ -336,14 +339,34 @@ export class Controls {
       return this._wallRay.intersectObjects(targets, true).length > 0;
     };
 
-    if (!blocked(_delta.x, _delta.z, len)) return;
+    // ANTI-CHUTE : le VIDE aussi est un mur. Une sonde descend au point où
+    // le pas nous mènerait (un demi-pas devant) ; si elle ne trouve aucun
+    // sol à moins de CHUTE_MAX sous les pieds, le pas est refusé et l'on
+    // GLISSE le long du bord, exactement comme contre une paroi. On peut
+    // donc se tenir sur l'arête d'une volée, plus la passer. Les marches
+    // et les petites descentes restent libres (la sonde porte CHEST +
+    // CHUTE_MAX), et les bascules restent prenables : leur anneau pend à
+    // 1,2 m de la crête et se déclenche à 1,7 m — avant le bord.
+    const sols = this._targets(GROUND_REACH);
+    const tombe = (dx, dz, dist) => {
+      if (this._groundY === null || !sols.length) return false;
+      _tryDir.set(dx, 0, dz).normalize();
+      _rayOrigin.set(_prevPos.x + _tryDir.x * (dist + 0.35), feetY,
+        _prevPos.z + _tryDir.z * (dist + 0.35));
+      this._voidRay.set(_rayOrigin, DOWN);
+      this._voidRay.far = CHEST + CHUTE_MAX;
+      return this._voidRay.intersectObjects(sols, true).length === 0;
+    };
+    const gene = (dx, dz, dist) => blocked(dx, dz, dist) || tombe(dx, dz, dist);
+
+    if (!gene(_delta.x, _delta.z, len)) return;
     // glissement : on garde la composante qui passe
-    if (Math.abs(_delta.x) > 1e-4 && !blocked(_delta.x, 0, Math.abs(_delta.x))) {
+    if (Math.abs(_delta.x) > 1e-4 && !gene(_delta.x, 0, Math.abs(_delta.x))) {
       cam.z = _prevPos.z;
       this.orbit.target.z -= _delta.z;
       return;
     }
-    if (Math.abs(_delta.z) > 1e-4 && !blocked(0, _delta.z, Math.abs(_delta.z))) {
+    if (Math.abs(_delta.z) > 1e-4 && !gene(0, _delta.z, Math.abs(_delta.z))) {
       cam.x = _prevPos.x;
       this.orbit.target.x -= _delta.x;
       return;

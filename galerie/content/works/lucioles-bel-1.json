@@ -4,7 +4,7 @@
   "description": "",
   "position": [
     0.0,
-    12.0,
+    8.0,
     0.0
   ],
   "rotation": [
@@ -21,13 +21,13 @@
   "role": "decor",
   "model": {
     "shape": "lucioles",
-    "size": 26.0,
-    "count": 48,
+    "size": 16.0,
+    "count": 40,
     "seed": 11,
     "color": "#ffd97a",
     "emissive": 1.1,
     "dotSize": 0.24
   },
-  "loadDistance": 240,
-  "lightIntensity": 0.0
+  "lightIntensity": 0.0,
+  "loadDistance": 240
 }

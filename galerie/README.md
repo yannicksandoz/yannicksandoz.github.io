@@ -73,7 +73,7 @@ on ouvre la galerie sur une liste de « ??? », comme le premier jour.
 visite guidée **rejoue les œuvres découvertes**, dans l'ordre du catalogue,
 du n° 1 au dernier — la caméra vole de l'une à l'autre et se pose devant
 chacune. Certaines se contemplent en vol (le tore flotte au centre du cube
-de 80 m) : reprendre la main là-haut **repose d'abord le visiteur au sol**,
+du belvédère) : reprendre la main là-haut **repose d'abord le visiteur au sol**,
 en une descente douce, plutôt que de le laisser marcher dans le vide. Pendant la
 pause, `◂` / `▸` (boutons, ou flèches gauche/droite du clavier) vont à la
 précédente ou à la suivante ; **tout autre geste rend la main**. Avec
@@ -109,6 +109,14 @@ mobile, copie du lien sinon) avec **lien profond** `?room=pièce` /
 `?work=œuvre` — celui qui l'ouvre arrive au même endroit, **sans écran
 d'accueil** (l'audio se débloque au premier geste, règle des navigateurs) —,
 **plein écran**, vue liste, raccourcis, langue, « Terminer la visite ».
+
+**On ne tombe pas d'un escalier — on en descend.** Le vide aussi est un
+mur : à chaque pas, une sonde descend au point où il nous mènerait ; sans
+sol à moins de **1,6 m** sous les pieds, le pas est refusé et l'on glisse
+le long du bord, exactement comme contre une paroi. On peut se tenir sur
+l'arête d'une volée, plus la passer — de face comme à reculons. Les marches
+et petites descentes restent libres, et les bascules restent prenables :
+leur anneau pend à 1,2 m de la crête et se déclenche à 1,7 m, avant le bord.
 
 **On ne franchit un portail qu'en y allant.** Trois conditions, toutes
 nécessaires : marcher (tourner la caméra la fait orbiter autour de sa
@@ -417,8 +425,8 @@ toujours du v2.
       { "wall": "nord", "offset": 0, "width": 4, "height": 1.8, "sill": 1.1 }
     ]
   },
-  "fogDensity": 0.0075,            // densité du brouillard (0,026 par défaut :
-                                   // une salle de 80 m a besoin de bien moins,
+  "fogDensity": 0.014,             // densité du brouillard (0,026 par défaut :
+                                   // une grande salle a besoin de bien moins,
                                    // sinon son fond disparaît)
   "bascules": [                    // hauts d'escaliers : atteindre l'anneau
     {                              // fait PIVOTER la pièce (rotation continue,
