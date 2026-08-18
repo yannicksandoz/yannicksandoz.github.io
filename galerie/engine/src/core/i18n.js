@@ -18,7 +18,8 @@ const FR = {
   'enter.tip': "ZQSD / WASD ou flèches pour se déplacer · {pivot} pour pivoter · souris pour orbiter · clic sur une œuvre pour l'approcher",
   'enter.tip.touch': "1 doigt pour regarder autour · 2 doigts pour se déplacer et zoomer · joystick pour marcher · toucher une œuvre pour l'approcher",
   'enter.liste': 'Parcourir les œuvres en liste (2D)',
-  'enter.error': 'Impossible de charger la configuration des œuvres (voir console).',
+  'enter.error': "La configuration des œuvres n'a pas pu être chargée — l'incident est presque toujours passager.",
+  'enter.retry': 'Réessayer',
 
   'hint.line': '{move} · {pivot} : pivoter · clic ou Espace : découvrir',
   'hint.touch': '1 doigt : regarder · 2 doigts : se déplacer · joystick : marcher · toucher : découvrir',
@@ -99,7 +100,8 @@ const EN = {
   'enter.tip': 'WASD or arrow keys to move · {pivot} to turn · mouse to orbit · click a work to approach it',
   'enter.tip.touch': '1 finger to look around · 2 fingers to move and zoom · joystick to walk · tap a work to approach it',
   'enter.liste': 'Browse the works as a list (2D)',
-  'enter.error': 'Could not load the artwork configuration (see console).',
+  'enter.error': 'The artwork configuration could not be loaded — this is almost always temporary.',
+  'enter.retry': 'Try again',
 
   'hint.line': '{move} · {pivot}: turn · click or Space: discover',
   'hint.touch': '1 finger: look · 2 fingers: move · joystick: walk · tap: discover',

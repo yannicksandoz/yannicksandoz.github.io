@@ -139,12 +139,27 @@ export class UI {
     document.getElementById('enter-audio')?.removeAttribute('aria-disabled');
   }
 
+  /**
+   * Échec de chargement : on le dit, ET on offre la porte de sortie.
+   * L'incident est presque toujours passager (un fichier de configuration
+   * mal servi sur une connexion froide) — le visiteur ne devrait pas avoir
+   * à deviner qu'un rechargement suffit.
+   */
   showLoadError(message) {
-    const sub = this.enterScreen.querySelector('.sub');
+    const sub = this.enterScreen?.querySelector('.sub');
     if (sub) {
       sub.textContent = message ?? t('enter.error');
       delete sub.dataset.i18n; // message d'erreur : ne pas le retraduire
     }
+    if (this._retryBtn || !this.enterBtn) return;
+    const btn = document.createElement('button');
+    btn.id = 'enter-retry';
+    btn.type = 'button';
+    btn.textContent = t('enter.retry');
+    btn.addEventListener('click', () => window.location.reload());
+    this.enterBtn.replaceWith(btn);   // il prend la place d'« Entrer », inutile
+    this._retryBtn = btn;
+    btn.focus();
   }
 
   /**

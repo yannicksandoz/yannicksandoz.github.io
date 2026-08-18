@@ -52,11 +52,13 @@ déjà une œuvre. Les œuvres non encore découvertes portent une petite lueur
 flottante, et un **pointeur** montre toujours la prochaine : hors du champ,
 une flèche glisse au bord de l'écran ; dès qu'elle est en vue, le pointeur
 se pose **au-dessus d'elle** — il ne disparaît pas au moment de confirmer.
-Ce qu'il désigne se décide sur le PLAN de la galerie et non sur la seule
-pièce : l'œuvre à découvrir la plus proche est cherchée de proche en proche
-à travers les portails (parcours en largeur), et le pointeur vise la porte
-qui mène vers elle — deux pièces sans œuvre ne se renvoient plus l'une à
-l'autre. Le **son sert de boussole** : les rayons d'audibilité sont larges —
+Ce qu'il désigne suit l'ORDRE du catalogue : la **prochaine** œuvre à
+découvrir (la n° 1 tant qu'elle manque, puis la n° 2…), et non la plus
+proche — sans quoi l'on tombait sur la n° 6 sans rien connaître des cinq
+premières, et les numéros du catalogue ne voulaient plus rien dire. Quand
+elle est dans une autre pièce, le pointeur vise la porte qui y mène (chemin
+le plus court dans le graphe des pièces). Le jeton ◈ suit la même règle :
+il débloque la prochaine du catalogue. Le **son sert de boussole** : les rayons d'audibilité sont larges —
 une œuvre lointaine reste faiblement perceptible et attire.
 
 **Le catalogue se gagne.** Une œuvre n'est nommée qu'une fois rencontrée :

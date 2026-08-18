@@ -46,18 +46,11 @@ export class Boussole {
       .filter(Boolean);
   }
 
-  _aDecouvrir(room) {
-    const prog = this.app.progression;
-    if (!prog) return false;
-    return (room.artworks ?? []).some(
-      (a) => a.config.role !== 'decor' && !a.config.partOf && !prog.estDecouverte(a));
-  }
-
   /**
-   * L'objet à viser : l'œuvre à découvrir de cette pièce si elle en a une,
-   * sinon le PORTAIL qui mène vers la pièce non épuisée la plus proche.
-   * Le chemin est recalculé rarement (le graphe ne bouge pas d'une frame
-   * à l'autre) mais toujours après une découverte.
+   * L'objet à viser : la PROCHAINE œuvre du catalogue si elle est ici,
+   * sinon le PORTAIL qui engage le chemin vers sa pièce. Le trajet est
+   * recalculé rarement (le graphe ne bouge pas d'une frame à l'autre)
+   * mais toujours quand la cible change.
    */
   _cible() {
     const rooms = this.app.rooms;
@@ -65,29 +58,29 @@ export class Boussole {
     if (!rooms?.current || !prog) return null;
     const room = rooms.current;
 
-    // 1. ici même : l'œuvre à découvrir la plus proche
-    let best = null, bestD = Infinity;
-    for (const a of room.artworks ?? []) {
-      if (a.config.role === 'decor' || a.config.partOf) continue;
-      if (prog.estDecouverte(a)) continue;
-      if (a.distance < bestD) { bestD = a.distance; best = a.group; }
-    }
-    if (best) return best;
+    // La galerie a un ORDRE, et le catalogue l'affiche : n° 1, 2, 3… Le
+    // pointeur suit ce fil — il montre la PROCHAINE à découvrir, pas la
+    // plus proche. Sans quoi l'on tombait sur la n° 6 en n'ayant rien vu
+    // du reste, et les numéros du catalogue ne voulaient plus rien dire.
+    const prochaine = prog.parcours.find((a) => !prog.estDecouverte(a));
+    if (!prochaine) return null;                  // galerie épuisée
+    // ici même : on la montre ; ailleurs : on montre la porte qui y mène
+    if (prochaine.room === room) return prochaine.group;
 
-    // 2. ailleurs : par où sortir ? (parcours en largeur du graphe des pièces)
-    const cle = `${room.config.id}|${prog.compte}`;
+    const cle = `${room.config.id}|${prochaine.config.id}`;
     if (this._route.cle !== cle) {
-      this._route = { cle, cible: this._porteVers(room) };
+      this._route = { cle, cible: this._porteVers(room, prochaine) };
     }
     return this._route.cible;
   }
 
   /**
-   * Portail de `room` qui rapproche le plus d'une pièce contenant encore
-   * une œuvre à découvrir. Renvoie null si la galerie est épuisée — le
-   * pointeur se tait alors, et c'est bien : il n'y a plus rien à montrer.
+   * Portail de `room` qui engage le chemin le plus court vers la pièce de
+   * `cible` (parcours en largeur du graphe des pièces). Renvoie null si
+   * elle est injoignable — le pointeur se tait alors plutôt que de
+   * désigner une porte au hasard.
    */
-  _porteVers(room) {
+  _porteVers(room, cible) {
     const rooms = this.app.rooms;
     const vues = new Set([room.config.id]);
     // file : [pièce, premier portail emprunté depuis la pièce courante]
@@ -98,9 +91,10 @@ export class Boussole {
       vues.add(suivante.config.id);
       file.push([suivante, p.to]);
     }
+    const salleCible = cible?.room?.config.id;
     while (file.length) {
       const [salle, premier] = file.shift();
-      if (this._aDecouvrir(salle)) {
+      if (salle.config.id === salleCible) {
         // la porte de CETTE pièce qui engage ce chemin
         const mesh = (room.portalMeshes ?? []).find(
           (m) => (m.userData.portal?.cfg?.to ?? m.userData.portal?.to) === premier);

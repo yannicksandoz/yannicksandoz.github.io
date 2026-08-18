@@ -16,9 +16,15 @@ export async function loadWorks() {
   if (Array.isArray(combined)) return restoreCredits(combined.map(migrateWork));
 
   const index = await fetchJson(assetUrl('works/index.json'));
-  const works = await Promise.all(
-    index.map((file) => fetchJson(assetUrl(`works/${file}`)))
-  );
+  // `optional` sur chaque œuvre : après trois tentatives, une œuvre qui
+  // manque est signalée et laissée de côté — une galerie amputée d'un objet
+  // vaut mieux qu'un écran d'erreur, et l'index, lui, reste impératif.
+  const works = await parVagues(index,
+    (file) => fetchJson(assetUrl(`works/${file}`), true));
+  const perdus = index.filter((_, i) => !works[i]);
+  if (perdus.length) {
+    console.warn('[galerie] Œuvres illisibles, ignorées :', perdus);
+  }
   return restoreCredits(works.filter(Boolean).map(migrateWork));
 }
 
@@ -41,7 +47,7 @@ async function restoreCredits(works) {
   const importes = works.filter((w) => w.model?.source && w.model?.url);
   if (!importes.length) return works;
 
-  await Promise.all(importes.map(async (work) => {
+  await parVagues(importes, async (work) => {
     const complet = CHAMPS_REQUIS.every((c) => String(work.credit?.[c] ?? '').trim());
     if (complet) return;
     const compagnon = await fetchJson(assetUrl(attributionPath(work.model.url)), true);
@@ -53,7 +59,7 @@ async function restoreCredits(works) {
       }
     }
     if (!String(work.title ?? '').trim() && compagnon.name) work.title = compagnon.name;
-  }));
+  });
   return works;
 }
 
@@ -73,23 +79,62 @@ export async function loadRooms() {
   const index = await fetchJson(assetUrl('rooms/index.json'), true);
   if (!Array.isArray(index)) return null;
 
-  const rooms = await Promise.all(
-    index.map((file) => fetchJson(assetUrl(`rooms/${file}`)))
-  );
+  const rooms = await parVagues(index,
+    (file) => fetchJson(assetUrl(`rooms/${file}`), true));
+  const perdues = index.filter((_, i) => !rooms[i]);
+  if (perdues.length) console.warn('[galerie] Pièces illisibles :', perdues);
   return rooms.filter(Boolean).map(migrateRoom);
 }
 
-async function fetchJson(url, optional = false) {
-  try {
-    const r = await fetch(url, { cache: 'no-cache' });
-    if (!r.ok) {
-      if (optional) return null;
-      throw new Error(`${url} → HTTP ${r.status}`);
+/**
+ * Un GET JSON qui ne renonce pas au premier accroc.
+ *
+ * La galerie ouvre cent trente fichiers de configuration ; sur une
+ * connexion froide, derrière un CDN qui vient de recevoir un déploiement,
+ * il suffisait qu'UN seul réponde mal pour que l'écran d'accueil affiche
+ * « impossible de charger » — et un simple rechargement suffisait à tout
+ * réparer, preuve que l'échec était passager. On réessaie donc, deux fois,
+ * en laissant respirer entre chaque tentative.
+ */
+async function fetchJson(url, optional = false, essais = 3) {
+  let dernier = null;
+  for (let n = 0; n < essais; n++) {
+    if (n > 0) await pause(180 * n * n);   // 0, 180, 720 ms
+    try {
+      const r = await fetch(url, { cache: 'no-cache' });
+      if (r.ok) return await r.json();
+      // 404 sur un fichier facultatif : inutile d'insister
+      if (optional && r.status === 404) return null;
+      dernier = new Error(`${url} → HTTP ${r.status}`);
+      if (r.status === 404) break;         // il n'existe pas : il n'existera pas
+    } catch (err) {
+      dernier = err;                       // réseau : ça peut passer au suivant
     }
-    return await r.json();
-  } catch (err) {
-    if (optional) return null;
-    console.error('[galerie] Configuration illisible :', err);
-    throw err;
   }
+  if (optional) return null;
+  console.error('[galerie] Configuration illisible :', dernier);
+  throw dernier;
+}
+
+const pause = (ms) => new Promise((r) => setTimeout(r, ms));
+
+/**
+ * Applique `fn` à tous les éléments, quelques-uns à la fois.
+ *
+ * Cent trente requêtes lâchées d'un coup, c'est la rafale que les serveurs
+ * et les proxys aiment le moins — et le premier refus emportait toute la
+ * galerie. Par vagues de huit, le chargement est aussi rapide et bien plus
+ * sûr.
+ */
+async function parVagues(items, fn, largeur = 8) {
+  const out = new Array(items.length);
+  let i = 0;
+  const ouvriers = Array.from({ length: Math.min(largeur, items.length) }, async () => {
+    while (i < items.length) {
+      const k = i++;
+      out[k] = await fn(items[k], k);
+    }
+  });
+  await Promise.all(ouvriers);
+  return out;
 }

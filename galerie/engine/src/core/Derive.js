@@ -180,18 +180,18 @@ export class Derive {
   }
 
   /**
-   * Dépense un jeton ◈ et vole vers l'œuvre non découverte la plus proche.
-   * Elle est marquée découverte à l'arrivée (elle a été payée) : elle prend
-   * son nom au catalogue et son rang dans le parcours.
+   * Dépense un jeton ◈ et vole vers la PROCHAINE œuvre non découverte du
+   * catalogue. Elle est marquée découverte à l'arrivée (elle a été payée) :
+   * elle prend son nom au catalogue et son rang dans le parcours.
    */
   _versInconnue() {
     const cibles = this.inconnues;
     if (!cibles.length || !this.app.jetons?.depenser(1)) return false;
-    const cam = this.app.camera.position;
-    const cible = cibles.reduce((m, a) =>
-      a.group.getWorldPosition(new THREE.Vector3()).distanceTo(cam)
-      < m.group.getWorldPosition(new THREE.Vector3()).distanceTo(cam) ? a : m);
-    this._deblocage = cible;
+    // La PROCHAINE du catalogue, pas la plus proche : la galerie a un
+    // ordre, le catalogue l'affiche (n° 1, 2, 3…) et le jeton le suit —
+    // sans quoi l'on débloquait la n° 6 sans rien connaître des cinq
+    // premières, et les numéros ne voulaient plus rien dire.
+    this._deblocage = cibles[0];
     this._phase = 'idle';
     return true;
   }
