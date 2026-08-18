@@ -27,6 +27,16 @@ import * as THREE from 'three';
 /** Côté d'une tuile, en mètres — l'échelle du « bloc ». */
 export const TILE = 2;
 
+/**
+ * Filtrage anisotrope des textures à venir — réglé par l'App une fois le
+ * renderer créé (profil de qualité, borné par le matériel) : c'est lui qui
+ * garde le parquet et le sable ratissé nets aux angles rasants. Les
+ * textures déjà en cache gardent leur valeur — l'App appelle AVANT que la
+ * première pièce ne se construise.
+ */
+let _anisotropy = 4;
+export function setDefaultAnisotropy(n) { _anisotropy = n; }
+
 const SIZE = 32;
 
 /** PRNG déterministe (mulberry32) : les textures ne changent pas d'un build à l'autre. */
@@ -219,7 +229,7 @@ export function styleTexture(style) {
   tex.magFilter = THREE.NearestFilter;              // les texels restent carrés
   tex.minFilter = THREE.LinearMipmapLinearFilter;   // le lointain ne grésille pas
   tex.generateMipmaps = true;
-  tex.anisotropy = 4;
+  tex.anisotropy = _anisotropy;
   tex.colorSpace = THREE.NoColorSpace; // niveaux de gris : pas une couleur
   _cache.set(style, tex);
   return tex;

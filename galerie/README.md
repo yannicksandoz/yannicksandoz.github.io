@@ -795,16 +795,32 @@ lancement puis l'ajuste en continu :
   max sur mobile** (24 sur desktop) avec *voice stealing* par distance : les
   œuvres les plus proches gardent leurs pistes, les plus lointaines sont
   suspendues ;
-- **anticrénelage** : le rendu passe par un `EffectComposer` (bloom, grain),
-  donc **hors écran** — et l'`antialias` du renderer, qui ne vaut que pour le
-  canevas, n'agissait alors sur rien : les arêtes vives (lattes d'un banc,
-  cadres, marches) restaient en escalier. C'est la CIBLE du composer qui doit
-  être multi-échantillonnée : MSAA ×4 sur desktop, ×2 sur mobile, 0 sur GPU
-  modeste ;
-- **gouverneur FPS** : sous 27 fps pendant 3 s, la qualité descend d'un cran
-  (MSAA → pixelRatio → grain → apparitions → ombres → bloom), sans jamais
-  remonter (pas d'oscillation) — l'anticrénelage part le premier : une image
-  nette mais crénelée se lit mieux qu'une image lissée et molle ;
+- **anticrénelage** : le rendu passe par un `EffectComposer` (AO, bloom,
+  grain), donc **hors écran** — et l'`antialias` du renderer, qui ne vaut que
+  pour le canevas, n'agit sur rien. Le MSAA vit dans une **passe de scène
+  dédiée** (`PasseSceneMSAA`) : la scène se rend multi-échantillonnée (×4
+  desktop, ×2 mobile, 0 GPU modeste), est résolue **une** fois, et toute la
+  chaîne de post reste simple échantillon. Donner la cible MSAA au composer
+  lui-même serait ruineux : il la clone pour ses deux tampons ping-pong et
+  chaque passe plein écran paierait le rendu ×4 plus une résolution complète
+  — c'est ce qui faisait tomber un M1 Max à 35 fps ;
+- **occlusion ambiante** (GTAO, desktop) : calculée à **demi-résolution**
+  (l'occlusion est un signal basse fréquence), mélangée plein cadre — elle
+  ancre bancs, pierres et marches au sol par une ombre de contact douce.
+  Les lutins (balises) sont écartés de la pré-passe normales/profondeur ;
+- **courbe de rendu** : Neutral (Khronos PBR) plutôt qu'ACES — comparées
+  A/B pièce par pièce, ACES tirait les néons violets vers le gris ; Neutral
+  compresse les hautes lumières sans désaturer ;
+- **anisotropie** ×16 sur desktop (4 mobile/GPU modeste) : parquet et sable
+  ratissé restent nets aux angles rasants ;
+- **aberration chromatique** : une pointe (nulle au centre, en carré de
+  l'excentricité) dans la passe grain/vignette — un bord d'objectif, pas un
+  filtre ;
+- **gouverneur FPS** : deux étages. Sous **50 fps** pendant 3 s, la finition
+  se replie cran par cran (MSAA ×4→×2→0, puis GTAO) — sur un écran ProMotion,
+  35 fps se sentent lourds bien avant le seuil de survie. Sous **27 fps**,
+  le reste y passe (pixelRatio → grain → apparitions → ombres → bloom), sans
+  jamais remonter (pas d'oscillation) ;
 - **mémoire** : textures et buffers audio chargés à l'approche
   (`loadDistance`, 50 par défaut) et **libérés** au-delà de 1,6 × cette
   distance (dispose des textures, arrêt des sources, buffers oubliés) ;

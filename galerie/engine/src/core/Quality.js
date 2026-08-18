@@ -2,12 +2,13 @@
  * Détection des capacités de l'appareil et profil de qualité adaptatif.
  *
  * Trois niveaux de décision :
- *  1. avant création du renderer : mobile vs desktop (antialias, densité) ;
+ *  1. avant création du renderer : mobile vs desktop (échantillons, densité) ;
  *  2. après création : lecture du GPU (WEBGL_debug_renderer_info) pour
  *     rétrograder les GPU faibles ;
  *  3. en continu : gouverneur de framerate — si les FPS chutent durablement,
- *     la qualité descend d'un cran (pixelRatio → grain → bloom), jamais
- *     l'inverse (pas d'oscillation).
+ *     la qualité descend d'un cran (MSAA → occlusion ambiante → pixelRatio →
+ *     grain → apparitions → ombres → bloom), jamais l'inverse
+ *     (pas d'oscillation).
  */
 export class QualityManager {
   constructor() {
@@ -18,10 +19,11 @@ export class QualityManager {
     this.profile = this.isMobile
       ? {
           tier: 'mobile',
-          antialias: false,
-          // MSAA de la cible du composer (c'est LUI qui lisse, voir App) :
+          // MSAA de la passe de scène (c'est ELLE qui lisse, voir App) :
           // deux échantillons sur mobile — la bande passante y est le mur.
           msaa: 2,
+          gtao: false,          // l'occlusion ambiante coûte un G-buffer
+          anisotropy: 4,
           pixelRatio: Math.min(window.devicePixelRatio || 1, 1.5),
           bloomResScale: 0.25,  // bloom calculé au quart de la résolution
           bloomStrength: 0.8,
@@ -35,8 +37,9 @@ export class QualityManager {
         }
       : {
           tier: 'desktop',
-          antialias: true,
           msaa: 4,     // arêtes franches sur un écran de bureau
+          gtao: true,  // occlusion ambiante (GTAO), à demi-résolution
+          anisotropy: 16,  // sols nets aux angles rasants (parquet, sable)
           pixelRatio: Math.min(window.devicePixelRatio || 1, 2),
           bloomResScale: 0.5,
           bloomStrength: 0.9,
@@ -71,6 +74,8 @@ export class QualityManager {
         tier: 'desktop-low',
         pixelRatio: Math.min(window.devicePixelRatio || 1, 1.25),
         msaa: 0,     // GPU modeste : la netteté ne vaut pas la chute d'images
+        gtao: false,
+        anisotropy: 4,
         bloomResScale: 0.25,
         maxStems: 8,
         dustCount: 200,
@@ -82,28 +87,60 @@ export class QualityManager {
   }
 
   /**
-   * Gouverneur : appelé chaque frame par l'App. Moyenne glissante des FPS ;
-   * sous 27 fps pendant une fenêtre de 3 s, on rétrograde d'un cran.
+   * Gouverneur : appelé chaque frame par l'App. Moyenne glissante des FPS,
+   * décision toutes les 3 s, DEUX étages :
+   *   — sous 50 fps, seule la FINITION est sacrifiée (anticrénelage, puis
+   *     occlusion ambiante). Un écran fluide (ProMotion, 120 Hz) rend 35 fps
+   *     pénibles bien avant le seuil de survie — attendre 27 fps, c'est
+   *     laisser le visiteur dans la mélasse en trouvant que « ça va » ;
+   *   — sous 27 fps, la survie : densité, grain, apparitions, ombres, bloom.
+   * Jamais l'inverse (pas d'oscillation).
    */
   tick(dt, app) {
     if (dt > 0) this._fps += ((1 / dt) - this._fps) * 0.05;
     this._acc += dt;
     if (this._acc < 3) return;
     this._acc = 0;
+    if (this._fps >= 50) return;
+    if (this._finition(app)) {
+      this._fps = 55; // laisse la mesure se re-stabiliser avant le cran suivant
+      return;
+    }
     if (this._fps >= 27) return;
     this._downgrade(app);
   }
 
-  _downgrade(app) {
+  /** Étage 1 — la finition, cran par cran. Rend true si un cran a été pris. */
+  _finition(app) {
     const p = this.profile;
-    // L'anticrénelage part EN PREMIER : il coûte de la bande passante à
-    // chaque pixel, et une image nette mais crénelée reste plus lisible
-    // qu'une image lissée et molle (baisser la densité, elle, floute tout).
+    // L'anticrénelage d'abord : il coûte de la bande passante à chaque
+    // pixel, et une image nette mais crénelée reste plus lisible qu'une
+    // image lissée et molle (baisser la densité, elle, floute tout).
+    if (p.msaa > 2) {
+      p.msaa = 2;
+      app.setMsaa?.(2);
+      console.info(`[galerie] FPS bas (${this._fps.toFixed(0)}) → anticrénelage ×2`);
+      return true;
+    }
     if (p.msaa > 0) {
       p.msaa = 0;
       app.setMsaa?.(0);
       console.info(`[galerie] FPS bas (${this._fps.toFixed(0)}) → anticrénelage désactivé`);
-    } else if (p.pixelRatio > 1) {
+      return true;
+    }
+    if (app.gtao?.enabled) {
+      app.gtao.enabled = false;
+      p.gtao = false;
+      console.info(`[galerie] FPS bas (${this._fps.toFixed(0)}) → occlusion ambiante désactivée`);
+      return true;
+    }
+    return false;
+  }
+
+  /** Étage 2 — la survie. */
+  _downgrade(app) {
+    const p = this.profile;
+    if (p.pixelRatio > 1) {
       p.pixelRatio = Math.max(1, p.pixelRatio - 0.25);
       app.renderer.setPixelRatio(p.pixelRatio);
       app.composer.setPixelRatio(p.pixelRatio);

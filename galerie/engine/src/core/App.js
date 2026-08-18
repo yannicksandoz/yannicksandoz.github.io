@@ -1,27 +1,36 @@
 import * as THREE from 'three';
 import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
-import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
+import { Pass, FullScreenQuad } from 'three/addons/postprocessing/Pass.js';
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
+import { GTAOPass } from 'three/addons/postprocessing/GTAOPass.js';
 import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
+import { CopyShader } from 'three/addons/shaders/CopyShader.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { VistaManager } from './Vista.js';
 import { FOG_DENSITY } from './RoomManager.js';
 import { AudioEngine } from './AudioEngine.js';
 import { QualityManager } from './Quality.js';
 import { LoadingTracker, assetUrl } from './utils.js';
+import { setDefaultAnisotropy } from './textures.js';
 import { COUCHE_AUTO_ECLAIREE } from './Artwork.js';
 import { WATER_TIME } from './primitives.js';
 
 const FOG_COLOR = 0x05050a;
 
-/** Grain animé + vignettage, appliqué après le tone mapping. */
+/**
+ * Grain animé + vignettage + une pointe d'aberration chromatique, appliqués
+ * après le tone mapping. L'aberration est nulle au centre et croît au carré
+ * de l'excentricité : les canaux rouge et bleu s'écartent radialement de
+ * deux ou trois pixels dans les angles — un bord d'objectif, pas un filtre.
+ */
 const GrainVignetteShader = {
   uniforms: {
     tDiffuse: { value: null },
     uTime: { value: 0 },
     uGrain: { value: 0.055 },
-    uVignette: { value: 0.4 }
+    uVignette: { value: 0.4 },
+    uAberration: { value: 0.006 }
   },
   vertexShader: /* glsl */ `
     varying vec2 vUv;
@@ -31,18 +40,24 @@ const GrainVignetteShader = {
     }`,
   fragmentShader: /* glsl */ `
     uniform sampler2D tDiffuse;
-    uniform float uTime, uGrain, uVignette;
+    uniform float uTime, uGrain, uVignette, uAberration;
     varying vec2 vUv;
     float rand(vec2 co) {
       return fract(sin(dot(co, vec2(12.9898, 78.233))) * 43758.5453);
     }
     void main() {
-      vec4 col = texture2D(tDiffuse, vUv);
+      vec2 vers = vUv - 0.5;
+      float d = length(vers);
+      vec2 dec = vers * d * d * uAberration;
+      vec3 col = vec3(
+        texture2D(tDiffuse, vUv - dec).r,
+        texture2D(tDiffuse, vUv).g,
+        texture2D(tDiffuse, vUv + dec).b
+      );
       float g = (rand(vUv + fract(uTime * 61.7)) - 0.5) * uGrain;
-      col.rgb += g;
-      float d = distance(vUv, vec2(0.5));
-      col.rgb *= 1.0 - smoothstep(0.35, 0.85, d) * uVignette;
-      gl_FragColor = col;
+      col += g;
+      col *= 1.0 - smoothstep(0.35, 0.85, d) * uVignette;
+      gl_FragColor = vec4(col, 1.0);
     }`
 };
 
@@ -91,6 +106,98 @@ const WarpShader = {
       gl_FragColor = vec4(col, 1.0);
     }`
 };
+
+/**
+ * Rendu de la scène dans une cible multi-échantillonnée (MSAA), résolue en
+ * UNE fois vers la chaîne de post-traitement.
+ *
+ * Donner la cible MSAA au composer lui-même était une erreur coûteuse : il
+ * la CLONE pour ses deux tampons ping-pong, et chaque passe plein écran
+ * (bloom, warp, sortie, grain) rendait alors en multi-échantillonné et
+ * payait une résolution complète du tampon à chaque lecture — d'où la
+ * chute à ~35 fps sur un écran Retina. Or seule la SCÈNE a des silhouettes
+ * à lisser ; un quad plein écran n'a pas d'arêtes. Ici : une passe MSAA,
+ * une résolution (déclenchée par la lecture de la texture), et la chaîne
+ * reste simple échantillon.
+ */
+class PasseSceneMSAA extends Pass {
+  constructor(scene, camera, samples) {
+    super();
+    this.scene = scene;
+    this.camera = camera;
+    // HalfFloat : le bloom travaille sur des valeurs > 1 (l'émissif des
+    // lanternes), qu'un tampon 8 bits écrêterait avant même de flouter.
+    this.cible = new THREE.WebGLRenderTarget(1, 1, {
+      type: THREE.HalfFloatType,
+      samples
+    });
+    this._quad = new FullScreenQuad(new THREE.ShaderMaterial({
+      uniforms: {
+        tDiffuse: { value: this.cible.texture },
+        opacity: { value: 1 }
+      },
+      vertexShader: CopyShader.vertexShader,
+      fragmentShader: CopyShader.fragmentShader,
+      depthTest: false,
+      depthWrite: false
+    }));
+  }
+
+  setSize(w, h) {
+    this.cible.setSize(w, h);
+  }
+
+  render(renderer, writeBuffer) {
+    renderer.setRenderTarget(this.cible);
+    renderer.render(this.scene, this.camera);
+    // recopier vers la chaîne : c'est la LECTURE de la texture qui
+    // déclenche la résolution MSAA (un seul blit par image)
+    renderer.setRenderTarget(this.renderToScreen ? null : writeBuffer);
+    this._quad.render(renderer);
+  }
+
+  dispose() {
+    this.cible.dispose();
+    this._quad.dispose();
+  }
+}
+
+/**
+ * Occlusion ambiante (GTAO) à DEMI-résolution : l'occlusion est un signal
+ * basse fréquence, la calculer pour chaque pixel Retina serait du gâchis —
+ * seules les cibles internes (normales + profondeur, AO, débruitage)
+ * travaillent à moitié, le mélange final se fait plein cadre. Deux
+ * aménagements pour cette scène :
+ *   — les lutins (balises, étiquettes) sont écartés de la pré-passe : le
+ *     matériau « normales » qui remplace tout ne sait pas les dessiner, et
+ *     leurs quads auraient écrit de faux occulteurs dans la profondeur ;
+ *   — normales en DoubleSide : les plans (tableaux, panneaux) doivent
+ *     exister dans le G-buffer même vus de dos.
+ */
+class PasseGTAO extends GTAOPass {
+  constructor(scene, camera, w, h) {
+    super(scene, camera, Math.max(1, Math.ceil(w / 2)), Math.max(1, Math.ceil(h / 2)));
+    this.normalMaterial.side = THREE.DoubleSide;
+    // Rayon en mètres, à l'échelle des pièces : assez court pour ancrer
+    // les objets au sol (bancs, pierres, marches) sans noircir les angles
+    // de murs à distance. L'intensité reste douce — la galerie est sombre,
+    // l'AO souligne, elle n'éteint pas.
+    this.updateGtaoMaterial({ radius: 0.55, thickness: 1, scale: 1.1 });
+    this.blendIntensity = 0.9;
+  }
+
+  setSize(w, h) {
+    super.setSize(Math.max(1, Math.ceil(w / 2)), Math.max(1, Math.ceil(h / 2)));
+  }
+
+  overrideVisibility() {
+    const cache = this._visibilityCache;
+    this.scene.traverse((o) => {
+      cache.set(o, o.visible);
+      if (o.isPoints || o.isLine || o.isSprite) o.visible = false;
+    });
+  }
+}
 
 /**
  * Cœur minimal : scène, caméra, rendu, post-processing, boucle d'animation.
@@ -143,13 +250,21 @@ export class App {
     }
 
     // --- rendu ---------------------------------------------------------
+    // `antialias` du canevas : inutile — l'image arrive par le composer,
+    // déjà lissée par la passe de scène ; multi-échantillonner en plus le
+    // tampon d'affichage ne ferait que payer deux fois.
     this.renderer = new THREE.WebGLRenderer({
-      antialias: profile.antialias,
+      antialias: false,
       powerPreference: 'high-performance'
     });
     this.renderer.setPixelRatio(profile.pixelRatio);
     this.renderer.setSize(window.innerWidth, window.innerHeight);
-    this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    // Neutral (Khronos PBR) plutôt qu'ACES : comparés A/B pièce par pièce,
+    // ACES tirait les néons violets vers le gris — un comble ici, où la
+    // couleur EST le sujet. Neutral compresse les hautes lumières sans
+    // désaturer : les huisseries gardent leur chroma, le ciel son bleu,
+    // et les lanternes (calibrées contre l'éblouissement) ne rallument pas.
+    this.renderer.toneMapping = THREE.NeutralToneMapping;
     // Étalonné pour un écran à grande plage dynamique (Retina/XDR, OLED).
     // Sur une dalle standard (SDR — LCD d'entrée de gamme), les noirs
     // profonds de la galerie s'écrasent : on relève l'exposition. La
@@ -159,32 +274,34 @@ export class App {
     this.renderer.toneMappingExposure = hdr ? 1.1 : 1.45;
     container.appendChild(this.renderer.domElement);
     this.quality.refineWithRenderer(this.renderer);
+    // Anisotropie effective : le vœu du profil, borné par le matériel.
+    this.quality.profile.anisotropy = Math.min(
+      this.quality.profile.anisotropy ?? 4,
+      this.renderer.capabilities.getMaxAnisotropy() || 1
+    );
+    setDefaultAnisotropy(this.quality.profile.anisotropy);
     // Ombres douces (PCF) — une seule source par pièce en projette (la
     // lumière clé, voir RoomManager) : le coût reste borné et prévisible.
     this.renderer.shadowMap.enabled = this.quality.profile.shadows;
     this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 
-    // --- post-processing : bloom + grain -------------------------------
+    // --- post-processing : scène (MSAA) + AO + bloom + grain -----------
     //
-    // Le composer rend HORS ÉCRAN, dans sa propre cible — et `antialias`
-    // du renderer, lui, ne vaut que pour le canevas. Autrement dit : tant
-    // que tout passe par le post-traitement (c'est notre cas depuis le
-    // bloom), l'anticrénelage demandé plus haut n'agissait sur RIEN, et
-    // les arêtes vives — les lattes du banc, les cadres, les marches —
-    // restaient en escalier. La cible doit donc être multi-échantillonnée
-    // elle-même (MSAA, WebGL2) : c'est le seul endroit où le matériel peut
-    // encore lisser une silhouette.
-    //
-    // HalfFloat : le bloom travaille sur des valeurs > 1 (l'émissif des
-    // lanternes), qu'un tampon 8 bits écrêterait avant même de flouter.
-    const taille = this.renderer.getDrawingBufferSize(new THREE.Vector2());
-    const cible = new THREE.WebGLRenderTarget(taille.width, taille.height, {
-      type: THREE.HalfFloatType,
-      samples: profile.msaa ?? 0
-    });
-    this.composer = new EffectComposer(this.renderer, cible);
+    // Tout le rendu passe par le composer, donc hors écran — c'est la
+    // passe de scène qui porte l'anticrénelage (voir PasseSceneMSAA) ;
+    // les tampons du composer, eux, restent simple échantillon.
+    this.composer = new EffectComposer(this.renderer);
     this.composer.setPixelRatio(this.quality.profile.pixelRatio);
-    this.composer.addPass(new RenderPass(this.scene, this.camera));
+    this.scenePass = new PasseSceneMSAA(this.scene, this.camera,
+      this.quality.profile.msaa ?? 0);
+    this.composer.addPass(this.scenePass);
+    // Occlusion ambiante — profil desktop seulement ; le gouverneur la
+    // coupe juste après l'anticrénelage si les images se font attendre.
+    if (this.quality.profile.gtao) {
+      const taille = this.renderer.getDrawingBufferSize(new THREE.Vector2());
+      this.gtao = new PasseGTAO(this.scene, this.camera, taille.width, taille.height);
+      this.composer.addPass(this.gtao);
+    }
     this.bloom = new UnrealBloomPass(
       new THREE.Vector2(
         Math.max(1, Math.round(window.innerWidth * this.quality.profile.bloomResScale)),
@@ -259,18 +376,16 @@ export class App {
   }
 
   /**
-   * Change le nombre d'échantillons (MSAA) des cibles du composer, à chaud.
+   * Change le nombre d'échantillons (MSAA) de la passe de scène, à chaud.
    * `dispose()` est indispensable : le nombre d'échantillons se fixe à la
    * création du tampon côté GPU — sans lui, la nouvelle valeur resterait
-   * une intention. Les cibles se reconstruisent d'elles-mêmes au rendu
-   * suivant.
+   * une intention. La cible se reconstruit d'elle-même au rendu suivant.
    */
   setMsaa(samples) {
-    for (const rt of [this.composer?.renderTarget1, this.composer?.renderTarget2]) {
-      if (!rt || rt.samples === samples) continue;
-      rt.samples = samples;
-      rt.dispose();
-    }
+    const rt = this.scenePass?.cible;
+    if (!rt || rt.samples === samples) return;
+    rt.samples = samples;
+    rt.dispose();
   }
 
   /**

@@ -260,7 +260,7 @@ export class Artwork {
         );
         capTextureSize(tex, this.app.quality.profile.maxTextureSize);
         tex.colorSpace = THREE.SRGBColorSpace;
-        tex.anisotropy = 4;
+        tex.anisotropy = this.app.quality.profile.anisotropy ?? 4;
         this._setMesh(this._buildPanelMesh(tex));
       } else if (cfg.video) {
         this._setMesh(this._buildVideoMesh());
