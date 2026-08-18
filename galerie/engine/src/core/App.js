@@ -165,7 +165,24 @@ export class App {
     this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 
     // --- post-processing : bloom + grain -------------------------------
-    this.composer = new EffectComposer(this.renderer);
+    //
+    // Le composer rend HORS ÉCRAN, dans sa propre cible — et `antialias`
+    // du renderer, lui, ne vaut que pour le canevas. Autrement dit : tant
+    // que tout passe par le post-traitement (c'est notre cas depuis le
+    // bloom), l'anticrénelage demandé plus haut n'agissait sur RIEN, et
+    // les arêtes vives — les lattes du banc, les cadres, les marches —
+    // restaient en escalier. La cible doit donc être multi-échantillonnée
+    // elle-même (MSAA, WebGL2) : c'est le seul endroit où le matériel peut
+    // encore lisser une silhouette.
+    //
+    // HalfFloat : le bloom travaille sur des valeurs > 1 (l'émissif des
+    // lanternes), qu'un tampon 8 bits écrêterait avant même de flouter.
+    const taille = this.renderer.getDrawingBufferSize(new THREE.Vector2());
+    const cible = new THREE.WebGLRenderTarget(taille.width, taille.height, {
+      type: THREE.HalfFloatType,
+      samples: profile.msaa ?? 0
+    });
+    this.composer = new EffectComposer(this.renderer, cible);
     this.composer.setPixelRatio(this.quality.profile.pixelRatio);
     this.composer.addPass(new RenderPass(this.scene, this.camera));
     this.bloom = new UnrealBloomPass(
@@ -239,6 +256,21 @@ export class App {
       depthWrite: false, sizeAttenuation: true
     }));
     this.scene.add(this.dust);
+  }
+
+  /**
+   * Change le nombre d'échantillons (MSAA) des cibles du composer, à chaud.
+   * `dispose()` est indispensable : le nombre d'échantillons se fixe à la
+   * création du tampon côté GPU — sans lui, la nouvelle valeur resterait
+   * une intention. Les cibles se reconstruisent d'elles-mêmes au rendu
+   * suivant.
+   */
+  setMsaa(samples) {
+    for (const rt of [this.composer?.renderTarget1, this.composer?.renderTarget2]) {
+      if (!rt || rt.samples === samples) continue;
+      rt.samples = samples;
+      rt.dispose();
+    }
   }
 
   /**

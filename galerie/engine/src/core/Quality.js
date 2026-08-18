@@ -19,6 +19,9 @@ export class QualityManager {
       ? {
           tier: 'mobile',
           antialias: false,
+          // MSAA de la cible du composer (c'est LUI qui lisse, voir App) :
+          // deux échantillons sur mobile — la bande passante y est le mur.
+          msaa: 2,
           pixelRatio: Math.min(window.devicePixelRatio || 1, 1.5),
           bloomResScale: 0.25,  // bloom calculé au quart de la résolution
           bloomStrength: 0.8,
@@ -33,6 +36,7 @@ export class QualityManager {
       : {
           tier: 'desktop',
           antialias: true,
+          msaa: 4,     // arêtes franches sur un écran de bureau
           pixelRatio: Math.min(window.devicePixelRatio || 1, 2),
           bloomResScale: 0.5,
           bloomStrength: 0.9,
@@ -66,6 +70,7 @@ export class QualityManager {
       Object.assign(this.profile, {
         tier: 'desktop-low',
         pixelRatio: Math.min(window.devicePixelRatio || 1, 1.25),
+        msaa: 0,     // GPU modeste : la netteté ne vaut pas la chute d'images
         bloomResScale: 0.25,
         maxStems: 8,
         dustCount: 200,
@@ -91,7 +96,14 @@ export class QualityManager {
 
   _downgrade(app) {
     const p = this.profile;
-    if (p.pixelRatio > 1) {
+    // L'anticrénelage part EN PREMIER : il coûte de la bande passante à
+    // chaque pixel, et une image nette mais crénelée reste plus lisible
+    // qu'une image lissée et molle (baisser la densité, elle, floute tout).
+    if (p.msaa > 0) {
+      p.msaa = 0;
+      app.setMsaa?.(0);
+      console.info(`[galerie] FPS bas (${this._fps.toFixed(0)}) → anticrénelage désactivé`);
+    } else if (p.pixelRatio > 1) {
       p.pixelRatio = Math.max(1, p.pixelRatio - 0.25);
       app.renderer.setPixelRatio(p.pixelRatio);
       app.composer.setPixelRatio(p.pixelRatio);

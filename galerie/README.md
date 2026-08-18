@@ -795,8 +795,16 @@ lancement puis l'ajuste en continu :
   max sur mobile** (24 sur desktop) avec *voice stealing* par distance : les
   œuvres les plus proches gardent leurs pistes, les plus lointaines sont
   suspendues ;
+- **anticrénelage** : le rendu passe par un `EffectComposer` (bloom, grain),
+  donc **hors écran** — et l'`antialias` du renderer, qui ne vaut que pour le
+  canevas, n'agissait alors sur rien : les arêtes vives (lattes d'un banc,
+  cadres, marches) restaient en escalier. C'est la CIBLE du composer qui doit
+  être multi-échantillonnée : MSAA ×4 sur desktop, ×2 sur mobile, 0 sur GPU
+  modeste ;
 - **gouverneur FPS** : sous 27 fps pendant 3 s, la qualité descend d'un cran
-  (pixelRatio → grain → bloom), sans jamais remonter (pas d'oscillation) ;
+  (MSAA → pixelRatio → grain → apparitions → ombres → bloom), sans jamais
+  remonter (pas d'oscillation) — l'anticrénelage part le premier : une image
+  nette mais crénelée se lit mieux qu'une image lissée et molle ;
 - **mémoire** : textures et buffers audio chargés à l'approche
   (`loadDistance`, 50 par défaut) et **libérés** au-delà de 1,6 × cette
   distance (dispose des textures, arrêt des sources, buffers oubliés) ;
