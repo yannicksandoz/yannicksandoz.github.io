@@ -636,6 +636,85 @@ room = {
     ]
 }
 
+# ------------------------------------------------ les six chambres Face --
+# Une porte par face intérieure du cube, chacune ouvrant sur une chambre
+# cubique de 25 m à la COULEUR de sa face — six antichambres, prêtes à
+# recevoir des œuvres. Le portail de retour rend le visiteur sur le plan
+# d'où il est parti (champ `plane` du portail).
+
+def teinte(hexa, f):
+    """Assombrit (f < 1) ou éclaircit (f > 1) une couleur hex."""
+    r, g, b = (int(hexa[i:i + 2], 16) for i in (1, 3, 5))
+    borne = lambda v: max(0, min(255, round(v * f)))
+    return f'#{borne(r):02x}{borne(g):02x}{borne(b):02x}'
+
+FACES = [
+    # (id, titre, plan, couleur de la face, position du portail
+    #  dans le monde du plan, centre du monde du plan)
+    ('face-1', 'Face 1', 'sol',     '#241c34', (14.0, -18.0), (0.0, 0.0)),
+    ('face-2', 'Face 2', 'est',     '#35704c', (6.0, 14.0),   (25.0, 0.0)),
+    ('face-3', 'Face 3', 'nord',    '#3a4a86', (12.0, -6.0),  (0.0, -25.0)),
+    ('face-4', 'Face 4', 'ouest',   '#7a6330', (-8.0, -14.0), (-25.0, 0.0)),
+    ('face-5', 'Face 5', 'sud',     '#7a3f34', (16.0, 8.0),   (0.0, 25.0)),
+    ('face-6', 'Face 6', 'plafond', '#453163', (8.0, -16.0),  (0.0, 0.0))
+]
+
+oeuvres_faces = []
+chambres = []
+for fid, titre, plane, couleur, (px, pz), (cx, cz) in FACES:
+    # le portail du belvédère, posé sur la face, tourné vers le centre
+    dx, dz = cx - px, cz - pz
+    n = math.hypot(dx, dz) or 1.0
+    cap = math.degrees(math.atan2(dx, dz))
+    porte = {
+        'to': fid,
+        'label': titre,
+        'arrival': [0, 2.2, 8]
+    }
+    if plane == 'sol':
+        porte['position'] = [round(px, 2), 0, round(pz, 2)]
+        porte['rotationY'] = round(cap, 1)
+    else:
+        porte['position'] = [round(v, 3) for v in to_local(plane, [px, 0.0, pz])]
+        porte['rotation'] = local_rot(plane, ry(math.radians(cap)))
+    room['portals'].append(porte)
+
+    # la lanterne de la chambre, lueur à la couleur de la face
+    lueur = teinte(couleur, 2.2)
+    oeuvres_faces.append({
+        'id': f'lanterne-{fid}', 'title': 'Lanterne', 'description': '',
+        'position': [6.0, 1.1, -6.0], 'rotation': [0, 0, 0],
+        'scale': [0.5, 1.2, 0.5], 'modules': [], 'role': 'decor',
+        'model': {'shape': 'cylinder', 'color': teinte(couleur, 0.6),
+                  'emissiveColor': lueur, 'roughness': 0.55,
+                  'metalness': 0.0, 'emissive': 0.6},
+        'lightColor': lueur, 'lightIntensity': 2.4,
+        'selfLit': True, 'loadDistance': 240
+    })
+
+    # retour : trois mètres en retrait de la porte, face au centre du plan
+    retour = [round(px + dx / n * 3, 2), 2.2, round(pz + dz / n * 3, 2)]
+    chambre = {
+        'id': fid, 'title': titre,
+        'spawn': [0, 2.2, 8],
+        'fogColor': teinte(couleur, 0.55),
+        'fogDensity': 0.02,
+        'floor': {'size': 25.0, 'color': teinte(couleur, 0.45), 'grid': False},
+        'shell': {'width': 25.0, 'depth': 25.0, 'height': 25.0,
+                  'color': couleur, 'ceiling': True, 'texture': 'pierre'},
+        'keyLight': {'color': lueur, 'intensity': 2.4,
+                     'azimuth': 315, 'elevation': 55},
+        'envIntensity': 1.2,
+        'works': [f'lanterne-{fid}'],
+        'portals': [{
+            'to': 'belvedere', 'position': [0, 0, 10.5], 'rotationY': 180,
+            'label': 'Belvédère', 'plane': plane, 'arrival': retour
+        }]
+    }
+    if fid == 'face-6':   # la plus haute perchée cache un jeton
+        chambre['jetons'] = [[-6.0, 1.0, 6.0]]
+    chambres.append(chambre)
+
 # ------------------------------------------------------------- contrôles --
 def near(a, b, tol, what):
     assert abs(a - b) <= tol, f'{what} : {a:.2f} ≠ {b:.2f} (±{tol})'
@@ -764,10 +843,11 @@ for f in os.listdir(f'{ROOT}/works'):
     # couloir des fenêtres et ne doit surtout pas être emporté
     if f.startswith(('escalier-r', 'palier-r', 'passerelle-r', 'lanterne-bel',
                      'pilier-bel', 'stele-belvedere', 'lanterne-belvedere',
-                     'banc-belvedere', 'faisceau-bel', 'lucioles-bel', 'tour-')):
+                     'banc-belvedere', 'faisceau-bel', 'lucioles-bel', 'tour-',
+                     'lanterne-face')):
         os.remove(f'{ROOT}/works/{f}')
 
-for w in works:
+for w in works + oeuvres_faces:
     with open(f"{ROOT}/works/{w['id']}.json", 'w') as f:
         json.dump(w, f, ensure_ascii=False, indent=2)
         f.write('\n')
@@ -783,15 +863,30 @@ idx = [n for n in json.load(open(f'{ROOT}/works/index.json'))
        if not n.startswith(('escalier-r', 'palier-r', 'passerelle-r',
                             'lanterne-bel', 'pilier-bel',
                             'stele-belvedere', 'lanterne-belvedere',
-                            'banc-belvedere', 'faisceau-bel', 'lucioles-bel', 'tour-'))]
-for w in works:
+                            'banc-belvedere', 'faisceau-bel', 'lucioles-bel', 'tour-',
+                            'lanterne-face'))]
+for w in works + oeuvres_faces:
     n = f"{w['id']}.json"
     if n not in idx:
         idx.append(n)
 json.dump(idx, open(f'{ROOT}/works/index.json', 'w'), ensure_ascii=False, indent=2)
 open(f'{ROOT}/works/index.json', 'a').write('\n')
 
-print(f'{len(works)} objets — cube {SIZE:.0f} m, 6 plans, {len(bascules)} bascules')
+# les six chambres Face + leur registre de pièces
+for c in chambres:
+    with open(f"{ROOT}/rooms/{c['id']}.json", 'w') as f:
+        json.dump(c, f, ensure_ascii=False, indent=2)
+        f.write('\n')
+ridx = json.load(open(f'{ROOT}/rooms/index.json'))
+for c in chambres:
+    n = f"{c['id']}.json"
+    if n not in ridx:
+        ridx.append(n)
+json.dump(ridx, open(f'{ROOT}/rooms/index.json', 'w'), ensure_ascii=False, indent=2)
+open(f'{ROOT}/rooms/index.json', 'a').write('\n')
+
+print(f'{len(works)} objets — cube {SIZE:.0f} m, 6 plans, {len(bascules)} bascules, '
+      f'{len(chambres)} chambres Face')
 for b in bascules:
     print(f"  {b['label']:18s} → plan {b['plane']:5s} anneau local {b['position']}"
           f" → arrivée {b['arrival']}")

@@ -1,0 +1,59 @@
+{
+  "id": "face-6",
+  "title": "Face 6",
+  "spawn": [
+    0,
+    2.2,
+    8
+  ],
+  "fogColor": "#261b36",
+  "fogDensity": 0.02,
+  "floor": {
+    "size": 25.0,
+    "color": "#1f162d",
+    "grid": false
+  },
+  "shell": {
+    "width": 25.0,
+    "depth": 25.0,
+    "height": 25.0,
+    "color": "#453163",
+    "ceiling": true,
+    "texture": "pierre"
+  },
+  "keyLight": {
+    "color": "#986cda",
+    "intensity": 2.4,
+    "azimuth": 315,
+    "elevation": 55
+  },
+  "envIntensity": 1.2,
+  "works": [
+    "lanterne-face-6"
+  ],
+  "portals": [
+    {
+      "to": "belvedere",
+      "position": [
+        0,
+        0,
+        10.5
+      ],
+      "rotationY": 180,
+      "label": "Belvédère",
+      "plane": "plafond",
+      "arrival": [
+        6.66,
+        2.2,
+        -13.32
+      ]
+    }
+  ],
+  "jetons": [
+    [
+      -6.0,
+      1.0,
+      6.0
+    ]
+  ]
+}

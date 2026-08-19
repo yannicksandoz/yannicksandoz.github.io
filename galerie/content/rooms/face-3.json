@@ -1,0 +1,52 @@
+{
+  "id": "face-3",
+  "title": "Face 3",
+  "spawn": [
+    0,
+    2.2,
+    8
+  ],
+  "fogColor": "#20294a",
+  "fogDensity": 0.02,
+  "floor": {
+    "size": 25.0,
+    "color": "#1a213c",
+    "grid": false
+  },
+  "shell": {
+    "width": 25.0,
+    "depth": 25.0,
+    "height": 25.0,
+    "color": "#3a4a86",
+    "ceiling": true,
+    "texture": "pierre"
+  },
+  "keyLight": {
+    "color": "#80a3ff",
+    "intensity": 2.4,
+    "azimuth": 315,
+    "elevation": 55
+  },
+  "envIntensity": 1.2,
+  "works": [
+    "lanterne-face-3"
+  ],
+  "portals": [
+    {
+      "to": "belvedere",
+      "position": [
+        0,
+        0,
+        10.5
+      ],
+      "rotationY": 180,
+      "label": "Belvédère",
+      "plane": "nord",
+      "arrival": [
+        10.4,
+        2.2,
+        -8.54
+      ]
+    }
+  ]
+}

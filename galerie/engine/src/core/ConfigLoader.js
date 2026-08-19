@@ -72,6 +72,17 @@ async function restoreCredits(works) {
  * fonctionne alors en mode « pièce unique » contenant toutes les œuvres
  * (compatibilité avec les scènes sans rooms).
  */
+/**
+ * Réglages GÉNÉRAUX de la galerie (`content/reglages.json`) — ce qui vaut
+ * pour toutes les pièces à la fois. Optionnel : absent, les valeurs par
+ * défaut du moteur s'appliquent.
+ *   { "cooldown": 5 }   // délai de réarmement des passages, en secondes
+ */
+export async function loadReglages() {
+  const r = await fetchJson(assetUrl('reglages.json'), true);
+  return (r && typeof r === 'object') ? r : {};
+}
+
 export async function loadRooms() {
   const combined = await fetchJson(assetUrl('rooms/rooms.json'), true);
   if (Array.isArray(combined)) return combined.map(migrateRoom);

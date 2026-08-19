@@ -110,6 +110,22 @@ mobile, copie du lien sinon) avec **lien profond** `?room=pièce` /
 d'accueil** (l'audio se débloque au premier geste, règle des navigateurs) —,
 **plein écran**, vue liste, raccourcis, langue, « Terminer la visite ».
 
+**Délai de réarmement des passages.** Un portail ou un anneau franchi se
+**ferme quelques secondes** : il devient rouge, affiche le signe du sens
+interdit et **décompte** ce qui reste — jamais une porte muette qui refuse
+sans dire pourquoi. Le délai se règle dans `content/reglages.json`
+(`{"cooldown": 5}`, en secondes ; 0 = aucun délai) et se surcharge passage
+par passage (champ `cooldown` sur un portail ou une bascule). Il se mesure
+en **temps réel**, pas en images : cinq secondes valent cinq secondes que
+la machine rende à 120 images par seconde ou à trois. Le panneau « Réglages
+généraux » de l'éditeur le règle à chaud et l'exporte.
+
+**Les six chambres Face** (belvédère) : une porte par face intérieure du
+cube ouvre sur une chambre cubique de 25 m **à la couleur de sa face** —
+Face 1 (sol) à Face 6 (plafond), murs, sol, brume et lanterne teintés de la
+même famille. Le portail de retour rend le visiteur **sur le plan d'où il
+est parti** (champ `plane`) : on ressort du mur est debout sur le mur est.
+
 **La tour jumelle** (belvédère) : deux tours identiques — trois galeries à
 colonnades (6 m, 11,5 m, 17 m) reliées par des **volées-lames à double
 face**, dont le dessous est lui aussi un escalier — se dressent l'une sur
@@ -443,9 +459,10 @@ toujours du v2.
       "position": [38, 20, 8],     // sans warp) — le plan choisi devient le
       "radius": 1.8,               // sol. Un escalier `walkable: true` se
       "plane": "est",              // gravit à la marche (la caméra suit, et
-      "arrival": [20, 3.7, 8]      // sa masse arrête : on ne la traverse pas) ;
-    }                              // un escalier qui ABOUTIT au mur cible
-  ],                               // donne une continuité parfaite.
+      "arrival": [20, 3.7, 8],     // sa masse arrête : on ne la traverse pas) ;
+      "cooldown": 8                // un escalier qui ABOUTIT au mur cible
+    }                              // donne une continuité parfaite.
+  ],                               // `cooldown` : délai propre à ce passage.
   "vistas": [                      // apparitions : une pièce d'ailleurs,
     {                              // vivante, sur un mur de celle-ci —
       "room": "jardin",            // la caméra suit le visiteur (parallaxe)

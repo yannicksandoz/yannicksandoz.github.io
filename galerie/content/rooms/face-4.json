@@ -1,0 +1,52 @@
+{
+  "id": "face-4",
+  "title": "Face 4",
+  "spawn": [
+    0,
+    2.2,
+    8
+  ],
+  "fogColor": "#43361a",
+  "fogDensity": 0.02,
+  "floor": {
+    "size": 25.0,
+    "color": "#372d16",
+    "grid": false
+  },
+  "shell": {
+    "width": 25.0,
+    "depth": 25.0,
+    "height": 25.0,
+    "color": "#7a6330",
+    "ceiling": true,
+    "texture": "pierre"
+  },
+  "keyLight": {
+    "color": "#ffda6a",
+    "intensity": 2.4,
+    "azimuth": 315,
+    "elevation": 55
+  },
+  "envIntensity": 1.2,
+  "works": [
+    "lanterne-face-4"
+  ],
+  "portals": [
+    {
+      "to": "belvedere",
+      "position": [
+        0,
+        0,
+        10.5
+      ],
+      "rotationY": 180,
+      "label": "Belvédère",
+      "plane": "ouest",
+      "arrival": [
+        -10.32,
+        2.2,
+        -12.09
+      ]
+    }
+  ]
+}

@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { assetUrl, isWalkable } from './utils.js';
 import { buildSky, disposeSky, updateSkyUniforms } from './Sky.js';
 import { styleTexture, scaleBoxUV, scalePlaneUV } from './textures.js';
+import { delaiDe, fermer, estFerme, tick as tickCooldown } from './Cooldown.js';
 
 const PORTAL_COLOR = 0x9f8cff;
 /** Densité de brouillard par défaut — celle d'une salle d'exposition. */
@@ -38,6 +39,9 @@ export class RoomManager {
     this.current = null;
     this._transitioning = false;
     this._cooldown = 0;
+    // passages en cours de réarmement (portails et anneaux, toutes pièces
+    // confondues) : ils se vident d'eux-mêmes à l'expiration
+    this._refroidis = new Set();
     // position de la caméra à la frame précédente : c'est elle qui dit si
     // l'on VA VERS un portail ou si l'on s'en écarte (voir _vaVers)
     this._camPrec = new THREE.Vector3();
@@ -257,6 +261,9 @@ export class RoomManager {
   basculer(room, cfg) {
     if (this._transitioning) return;
     this._transitioning = true;
+    // l'anneau se ferme derrière soi (rouge + décompte), comme un portail
+    const anneau = (room.basculeMeshes ?? []).find((m) => m.userData.bascule === cfg);
+    if (anneau && fermer(anneau, delaiDe(cfg, this.app))) this._refroidis.add(anneau);
     this.app.activeFocus?.cancel?.();
     if (this.app.controls) this.app.controls.locked = true;
 
@@ -444,6 +451,7 @@ export class RoomManager {
       room.group.removeFromParent();
     }
     this.rooms.clear();
+    this._refroidis.clear();
     this.current = null;
   }
 
@@ -778,6 +786,11 @@ export class RoomManager {
     // où l'on ne déclenche rien.
     this._dep.copy(ctx.cameraPos).sub(this._camPrec).setY(0);
     this._camPrec.copy(ctx.cameraPos);
+    // Délais de réarmement : ils courent même pendant une transition (sans
+    // quoi le décompte se figerait le temps du fondu) et même pour les
+    // passages de la pièce QUITTÉE — c'est justement celui qu'on vient de
+    // franchir qui doit se refermer derrière soi.
+    if (this._refroidis.size) tickCooldown(this._refroidis);
     if (this._tickBascule(dt)) return; // une bascule en cours pilote tout
     if (this._cooldown > 0) this._cooldown -= dt;
     if (!this.current || this._transitioning) return;
@@ -814,6 +827,7 @@ export class RoomManager {
         if (d2 > REARM_DIST2) mesh.userData.disarmed = false;
         continue;
       }
+      if (estFerme(mesh)) continue;   // délai de réarmement : la porte est rouge
       // pendant la dérive guidée, la caméra VOLE : les zones ne se
       // déclenchent pas sous elle — la dérive franchit ses portes elle-même
       if (this.app.derive?.active) continue;
@@ -849,9 +863,15 @@ export class RoomManager {
         if (d2 > (r * 1.6) ** 2) mesh.userData.disarmed = false;
         continue;
       }
+      if (estFerme(mesh)) continue;          // encore rouge : on patiente
       if (this.app.derive?.active) continue; // la dérive ne bascule pas
       if (this.app.controls && !this.app.controls.walking) continue; // ni le regard
       if (d2 < r * r && dy > 0 && dy < 3.2) {
+        // Mêmes gardes que les portails : ON NE BASCULE QUE CE QUE L'ON
+        // VOIT, ET EN Y ALLANT — pivoter dos à l'anneau ou reculer dedans
+        // ne retourne pas le monde par surprise.
+        if (!this._estVisible(c)) continue;
+        if (!this._vaVers(c, ctx)) continue;
         this.basculer(this.current, cfg);
         return;
       }
@@ -870,6 +890,10 @@ export class RoomManager {
     if (!target) {
       console.warn(`[galerie] Portail vers une pièce inconnue : ${portal.cfg.to}`);
       return;
+    }
+    // le passage se ferme derrière soi, le temps de regarder où l'on est
+    if (portal.mesh && fermer(portal.mesh, delaiDe(portal.cfg, this.app))) {
+      this._refroidis.add(portal.mesh);
     }
     const arrival = portal.cfg.arrival ?? target.config.spawn ?? [0, 2.2, 10];
     // `plane` : sur quel plan de la pièce cible on débarque (Escher).
@@ -1325,14 +1349,29 @@ function disposeKeyLight(group) {
  */
 export function buildBascules(config) {
   return (config?.bascules ?? []).map((cfg) => {
-    const r = cfg.radius ?? 1.7;
-    const mesh = new THREE.Mesh(
-      new THREE.TorusGeometry(r * 0.72, 0.07, 10, 44),
-      new THREE.MeshStandardMaterial({
-        color: 0x0c0c14, roughness: 0.35, metalness: 0.5,
-        emissive: PORTAL_COLOR, emissiveIntensity: 0.9
-      })
-    );
+    const mat = new THREE.MeshStandardMaterial({
+      color: 0x0c0c14, roughness: 0.35, metalness: 0.5,
+      emissive: PORTAL_COLOR, emissiveIntensity: 0.9
+    });
+    // L'anneau est DISCRET (le rayon de déclenchement, lui, ne change pas) :
+    // un cerceau serré autour du SIGNE de l'inversion — deux cônes pointe à
+    // pointe et un grain entre eux, le sablier de la gravité. C'est le signe
+    // qui annonce « ici, le sens du monde se retourne », pas la taille du
+    // cerceau.
+    const mesh = new THREE.Mesh(new THREE.TorusGeometry(0.78, 0.055, 10, 40), mat);
+    const cone = new THREE.ConeGeometry(0.16, 0.3, 14);
+    const haut = new THREE.Mesh(cone, mat);
+    haut.rotation.x = Math.PI / 2;        // pointe vers le grain (bas)
+    haut.position.set(0, 0, 0.88);
+    const grain = new THREE.Mesh(new THREE.SphereGeometry(0.075, 12, 10), mat);
+    grain.position.set(0, 0, 0.62);
+    const bas = new THREE.Mesh(cone, mat);
+    bas.rotation.x = -Math.PI / 2;        // pointe vers le grain (haut)
+    bas.position.set(0, 0, 0.36);
+    for (const o of [haut, grain, bas]) {
+      o.raycast = () => {};
+      mesh.add(o);
+    }
     const [rx, ry, rz] = cfg.rotation ?? [0, 0, 0];
     mesh.rotation.set(
       THREE.MathUtils.degToRad(rx),

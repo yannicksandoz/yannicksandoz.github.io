@@ -1,0 +1,52 @@
+{
+  "id": "face-2",
+  "title": "Face 2",
+  "spawn": [
+    0,
+    2.2,
+    8
+  ],
+  "fogColor": "#1d3e2a",
+  "fogDensity": 0.02,
+  "floor": {
+    "size": 25.0,
+    "color": "#183222",
+    "grid": false
+  },
+  "shell": {
+    "width": 25.0,
+    "depth": 25.0,
+    "height": 25.0,
+    "color": "#35704c",
+    "ceiling": true,
+    "texture": "pierre"
+  },
+  "keyLight": {
+    "color": "#75f6a7",
+    "intensity": 2.4,
+    "azimuth": 315,
+    "elevation": 55
+  },
+  "envIntensity": 1.2,
+  "works": [
+    "lanterne-face-2"
+  ],
+  "portals": [
+    {
+      "to": "belvedere",
+      "position": [
+        0,
+        0,
+        10.5
+      ],
+      "rotationY": 180,
+      "label": "Belvédère",
+      "plane": "est",
+      "arrival": [
+        8.42,
+        2.2,
+        12.22
+      ]
+    }
+  ]
+}

@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import './style.css';
 import { App } from './core/App.js';
-import { loadWorks, loadRooms } from './core/ConfigLoader.js';
+import { loadWorks, loadRooms, loadReglages } from './core/ConfigLoader.js';
 import { buildScene } from './core/SceneBuilder.js';
 import { RoomManager } from './core/RoomManager.js';
 import { registry } from './core/ModuleRegistry.js';
@@ -103,10 +103,12 @@ async function boot() {
 
   // Chargement des configurations (les assets, eux, sont paresseux).
   try {
-    const [works, rooms] = await Promise.all([
+    const [works, rooms, reglages] = await Promise.all([
       app.loading.track(loadWorks()),
-      loadRooms()
+      loadRooms(),
+      loadReglages()
     ]);
+    app.reglages = reglages;   // réglages généraux (délai des passages…)
     buildScene(app, works, rooms);
     app.ui.setCredits(works);
     app.ui.setReady();
@@ -241,7 +243,9 @@ function bootHeadless() {
       // échec ici laisse zéro boucle, zéro AudioContext débloqué derrière lui.
       const { mountAudioTour } = await import('./ui/AudioTour.js');
       if (!headlessApp) {
-        const [works, rooms] = await Promise.all([loadWorks(), loadRooms()]);
+        const [works, rooms, reglages] = await Promise.all([
+          loadWorks(), loadRooms(), loadReglages()]);
+        app.reglages = reglages;
         const app = new App(document.getElementById('app'), { headless: true });
         app.ui = new UI();
         // Contrôles factices : la visite audio n'utilise ni clavier de
