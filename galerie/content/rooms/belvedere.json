@@ -128,39 +128,30 @@
         8.0,
         6.0
       ],
-      "rotation": [
-        0.0,
-        0.0,
-        0.0
-      ],
       "radius": 2.2,
-      "plane": "est",
-      "arrival": [
-        10.5,
-        3.88,
-        6.0
+      "transferts": [
+        {
+          "depuis": "sol",
+          "vers": "est",
+          "label": "Mur est",
+          "arrival": [
+            10.5,
+            3.88,
+            6.0
+          ]
+        },
+        {
+          "depuis": "est",
+          "vers": "sol",
+          "label": "Retour au sol",
+          "arrival": [
+            23.32,
+            10.2,
+            6.0
+          ]
+        }
       ],
       "label": "Mur est"
-    },
-    {
-      "position": [
-        24.75,
-        10.5,
-        6.0
-      ],
-      "rotation": [
-        -0.0,
-        0.0,
-        90.0
-      ],
-      "radius": 2.2,
-      "plane": "sol",
-      "arrival": [
-        23.32,
-        10.2,
-        6.0
-      ],
-      "label": "Retour au sol"
     },
     {
       "position": [
@@ -168,39 +159,30 @@
         10.5,
         -23.32
       ],
-      "rotation": [
-        -0.0,
-        0.0,
-        90.0
-      ],
       "radius": 2.2,
-      "plane": "nord",
-      "arrival": [
-        13.5,
-        3.88,
-        -10.5
+      "transferts": [
+        {
+          "depuis": "est",
+          "vers": "nord",
+          "label": "Mur nord",
+          "arrival": [
+            13.5,
+            3.88,
+            -10.5
+          ]
+        },
+        {
+          "depuis": "nord",
+          "vers": "est",
+          "label": "Retour au mur est",
+          "arrival": [
+            10.5,
+            10.2,
+            -23.32
+          ]
+        }
       ],
       "label": "Mur nord"
-    },
-    {
-      "position": [
-        13.5,
-        10.5,
-        -24.75
-      ],
-      "rotation": [
-        90.0,
-        0.0,
-        0.0
-      ],
-      "radius": 2.2,
-      "plane": "est",
-      "arrival": [
-        10.5,
-        10.2,
-        -23.32
-      ],
-      "label": "Retour au mur est"
     },
     {
       "position": [
@@ -208,119 +190,92 @@
         1.7,
         -21.0
       ],
-      "rotation": [
-        90.0,
-        0.0,
-        0.0
-      ],
       "radius": 2.2,
-      "plane": "sol",
-      "arrival": [
-        7.5,
-        3.9,
-        -18.0
+      "transferts": [
+        {
+          "depuis": "nord",
+          "vers": "sol",
+          "label": "Sol",
+          "arrival": [
+            7.5,
+            3.9,
+            -18.0
+          ]
+        },
+        {
+          "depuis": "sol",
+          "vers": "nord",
+          "label": "Retour au mur nord",
+          "arrival": [
+            7.5,
+            6.2,
+            -1.7
+          ]
+        }
       ],
       "label": "Sol"
     },
     {
       "position": [
-        7.5,
-        0.25,
-        -18.0
-      ],
-      "rotation": [
-        0.0,
-        0.0,
-        0.0
-      ],
-      "radius": 2.2,
-      "plane": "nord",
-      "arrival": [
-        7.5,
-        6.2,
-        -1.7
-      ],
-      "label": "Retour au mur nord"
-    },
-    {
-      "position": [
         -23.32,
         8.0,
         -2.0
       ],
-      "rotation": [
-        0.0,
-        0.0,
-        0.0
-      ],
       "radius": 2.2,
-      "plane": "ouest",
-      "arrival": [
-        -10.5,
-        3.88,
-        -2.0
+      "transferts": [
+        {
+          "depuis": "sol",
+          "vers": "ouest",
+          "label": "Mur ouest",
+          "arrival": [
+            -10.5,
+            3.88,
+            -2.0
+          ]
+        },
+        {
+          "depuis": "ouest",
+          "vers": "sol",
+          "label": "Retour au sol (ouest)",
+          "arrival": [
+            -23.32,
+            10.2,
+            -2.0
+          ]
+        }
       ],
       "label": "Mur ouest"
     },
     {
       "position": [
-        -24.75,
-        10.5,
-        -2.0
-      ],
-      "rotation": [
-        -0.0,
-        0.0,
-        -90.0
-      ],
-      "radius": 2.2,
-      "plane": "sol",
-      "arrival": [
-        -23.32,
-        10.2,
-        -2.0
-      ],
-      "label": "Retour au sol (ouest)"
-    },
-    {
-      "position": [
         -12.0,
         8.0,
         23.32
       ],
-      "rotation": [
-        0.0,
-        0.0,
-        0.0
-      ],
       "radius": 2.2,
-      "plane": "sud",
-      "arrival": [
-        -12.0,
-        3.88,
-        10.5
+      "transferts": [
+        {
+          "depuis": "sol",
+          "vers": "sud",
+          "label": "Mur sud",
+          "arrival": [
+            -12.0,
+            3.88,
+            10.5
+          ]
+        },
+        {
+          "depuis": "sud",
+          "vers": "sol",
+          "label": "Retour au sol (sud)",
+          "arrival": [
+            -12.0,
+            10.2,
+            23.32
+          ]
+        }
       ],
       "label": "Mur sud"
-    },
-    {
-      "position": [
-        -12.0,
-        10.5,
-        24.75
-      ],
-      "rotation": [
-        -90.0,
-        0.0,
-        0.0
-      ],
-      "radius": 2.2,
-      "plane": "sol",
-      "arrival": [
-        -12.0,
-        10.2,
-        23.32
-      ],
-      "label": "Retour au sol (sud)"
     },
     {
       "position": [
@@ -328,39 +283,30 @@
         48.3,
         6.0
       ],
-      "rotation": [
-        -0.0,
-        0.0,
-        -90.0
-      ],
       "radius": 2.2,
-      "plane": "plafond",
-      "arrival": [
-        -14.5,
-        3.9,
-        -6.0
+      "transferts": [
+        {
+          "depuis": "ouest",
+          "vers": "plafond",
+          "label": "Plafond",
+          "arrival": [
+            -14.5,
+            3.9,
+            -6.0
+          ]
+        },
+        {
+          "depuis": "plafond",
+          "vers": "ouest",
+          "label": "Retour au mur ouest",
+          "arrival": [
+            -48.3,
+            10.2,
+            6.0
+          ]
+        }
       ],
       "label": "Plafond"
-    },
-    {
-      "position": [
-        -14.5,
-        49.75,
-        6.0
-      ],
-      "rotation": [
-        -180.0,
-        0.0,
-        0.0
-      ],
-      "radius": 2.2,
-      "plane": "ouest",
-      "arrival": [
-        -48.3,
-        10.2,
-        6.0
-      ],
-      "label": "Retour au mur ouest"
     },
     {
       "position": [
@@ -368,79 +314,61 @@
         12.0,
         23.32
       ],
-      "rotation": [
-        -0.0,
-        0.0,
-        90.0
-      ],
       "radius": 2.2,
-      "plane": "sud",
-      "arrival": [
-        14.5,
-        3.88,
-        12.0
+      "transferts": [
+        {
+          "depuis": "est",
+          "vers": "sud",
+          "label": "Mur sud",
+          "arrival": [
+            14.5,
+            3.88,
+            12.0
+          ]
+        },
+        {
+          "depuis": "sud",
+          "vers": "est",
+          "label": "Retour au mur est",
+          "arrival": [
+            12.0,
+            10.2,
+            23.32
+          ]
+        }
       ],
       "label": "Mur sud"
     },
     {
       "position": [
-        14.5,
-        12.0,
-        24.75
-      ],
-      "rotation": [
-        -90.0,
-        0.0,
-        0.0
-      ],
-      "radius": 2.2,
-      "plane": "est",
-      "arrival": [
-        12.0,
-        10.2,
-        23.32
-      ],
-      "label": "Retour au mur est"
-    },
-    {
-      "position": [
         -23.32,
         12.0,
         -17.0
       ],
-      "rotation": [
-        90.0,
-        0.0,
-        0.0
-      ],
       "radius": 2.2,
-      "plane": "ouest",
-      "arrival": [
-        -12.0,
-        3.88,
-        -14.5
+      "transferts": [
+        {
+          "depuis": "nord",
+          "vers": "ouest",
+          "label": "Mur ouest",
+          "arrival": [
+            -12.0,
+            3.88,
+            -14.5
+          ]
+        },
+        {
+          "depuis": "ouest",
+          "vers": "nord",
+          "label": "Retour au mur nord",
+          "arrival": [
+            -23.32,
+            10.2,
+            -12.0
+          ]
+        }
       ],
       "label": "Mur ouest"
-    },
-    {
-      "position": [
-        -24.75,
-        12.0,
-        -14.5
-      ],
-      "rotation": [
-        -0.0,
-        0.0,
-        -90.0
-      ],
-      "radius": 2.2,
-      "plane": "nord",
-      "arrival": [
-        -23.32,
-        10.2,
-        -12.0
-      ],
-      "label": "Retour au mur nord"
     },
     {
       "position": [
@@ -448,39 +376,30 @@
         48.3,
         17.0
       ],
-      "rotation": [
-        -90.0,
-        0.0,
-        0.0
-      ],
       "radius": 2.2,
-      "plane": "plafond",
-      "arrival": [
-        5.0,
-        3.9,
-        -14.5
+      "transferts": [
+        {
+          "depuis": "sud",
+          "vers": "plafond",
+          "label": "Plafond",
+          "arrival": [
+            5.0,
+            3.9,
+            -14.5
+          ]
+        },
+        {
+          "depuis": "plafond",
+          "vers": "sud",
+          "label": "Retour au mur sud",
+          "arrival": [
+            5.0,
+            10.2,
+            48.3
+          ]
+        }
       ],
       "label": "Plafond"
-    },
-    {
-      "position": [
-        5.0,
-        49.75,
-        14.5
-      ],
-      "rotation": [
-        -180.0,
-        0.0,
-        0.0
-      ],
-      "radius": 2.2,
-      "plane": "sud",
-      "arrival": [
-        5.0,
-        10.2,
-        48.3
-      ],
-      "label": "Retour au mur sud"
     },
     {
       "position": [
@@ -488,39 +407,30 @@
         48.3,
         -17.0
       ],
-      "rotation": [
-        90.0,
-        0.0,
-        0.0
-      ],
       "radius": 2.2,
-      "plane": "plafond",
-      "arrival": [
-        -5.0,
-        3.9,
-        14.5
+      "transferts": [
+        {
+          "depuis": "nord",
+          "vers": "plafond",
+          "label": "Plafond",
+          "arrival": [
+            -5.0,
+            3.9,
+            14.5
+          ]
+        },
+        {
+          "depuis": "plafond",
+          "vers": "nord",
+          "label": "Retour au mur nord",
+          "arrival": [
+            -5.0,
+            10.2,
+            -48.3
+          ]
+        }
       ],
       "label": "Plafond"
-    },
-    {
-      "position": [
-        -5.0,
-        49.75,
-        -14.5
-      ],
-      "rotation": [
-        -180.0,
-        0.0,
-        0.0
-      ],
-      "radius": 2.2,
-      "plane": "nord",
-      "arrival": [
-        -5.0,
-        10.2,
-        -48.3
-      ],
-      "label": "Retour au mur nord"
     },
     {
       "position": [
@@ -528,39 +438,30 @@
         19.0,
         17.0
       ],
-      "rotation": [
-        -90.0,
-        0.0,
-        0.0
-      ],
       "radius": 2.2,
-      "plane": "ouest",
-      "arrival": [
-        -19.0,
-        3.88,
-        14.5
+      "transferts": [
+        {
+          "depuis": "sud",
+          "vers": "ouest",
+          "label": "Mur ouest",
+          "arrival": [
+            -19.0,
+            3.88,
+            14.5
+          ]
+        },
+        {
+          "depuis": "ouest",
+          "vers": "sud",
+          "label": "Retour au mur sud",
+          "arrival": [
+            -23.32,
+            10.2,
+            19.0
+          ]
+        }
       ],
       "label": "Mur ouest"
-    },
-    {
-      "position": [
-        -24.75,
-        19.0,
-        14.5
-      ],
-      "rotation": [
-        -0.0,
-        0.0,
-        -90.0
-      ],
-      "radius": 2.2,
-      "plane": "sud",
-      "arrival": [
-        -23.32,
-        10.2,
-        19.0
-      ],
-      "label": "Retour au mur sud"
     },
     {
       "position": [
@@ -568,39 +469,30 @@
         48.3,
         -15.0
       ],
-      "rotation": [
-        -0.0,
-        0.0,
-        90.0
-      ],
       "radius": 2.2,
-      "plane": "plafond",
-      "arrival": [
-        14.5,
-        3.9,
-        15.0
+      "transferts": [
+        {
+          "depuis": "est",
+          "vers": "plafond",
+          "label": "Plafond",
+          "arrival": [
+            14.5,
+            3.9,
+            15.0
+          ]
+        },
+        {
+          "depuis": "plafond",
+          "vers": "est",
+          "label": "Retour au mur est",
+          "arrival": [
+            48.3,
+            10.2,
+            -15.0
+          ]
+        }
       ],
       "label": "Plafond"
-    },
-    {
-      "position": [
-        14.5,
-        49.75,
-        -15.0
-      ],
-      "rotation": [
-        -180.0,
-        0.0,
-        0.0
-      ],
-      "radius": 2.2,
-      "plane": "est",
-      "arrival": [
-        48.3,
-        10.2,
-        -15.0
-      ],
-      "label": "Retour au mur est"
     },
     {
       "position": [
@@ -608,17 +500,18 @@
         17.0,
         4.2
       ],
-      "rotation": [
-        0.0,
-        0.0,
-        0.0
-      ],
       "radius": 2.2,
-      "plane": "plafond",
-      "arrival": [
-        -15.0,
-        19.2,
-        3.5
+      "transferts": [
+        {
+          "depuis": "sol",
+          "vers": "plafond",
+          "label": "Tour inverse (plafond)",
+          "arrival": [
+            -15.0,
+            19.2,
+            3.5
+          ]
+        }
       ],
       "label": "Tour inverse (plafond)"
     },
@@ -628,17 +521,18 @@
         33.0,
         -4.2
       ],
-      "rotation": [
-        -180.0,
-        0.0,
-        0.0
-      ],
       "radius": 2.2,
-      "plane": "sol",
-      "arrival": [
-        -15.0,
-        19.2,
-        3.5
+      "transferts": [
+        {
+          "depuis": "plafond",
+          "vers": "sol",
+          "label": "Tour inverse (sol)",
+          "arrival": [
+            -15.0,
+            19.2,
+            3.5
+          ]
+        }
       ],
       "label": "Tour inverse (sol)"
     }

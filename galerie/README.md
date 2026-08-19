@@ -110,10 +110,28 @@ mobile, copie du lien sinon) avec **lien profond** `?room=pièce` /
 d'accueil** (l'audio se débloque au premier geste, règle des navigateurs) —,
 **plein écran**, vue liste, raccourcis, langue, « Terminer la visite ».
 
-**Délai de réarmement des passages.** Un portail ou un anneau franchi se
+**Sphères de transfert de gravité.** Un seul objet par passage : une
+sphère de verre où **flotte le sablier de la gravité** (deux cônes pointe
+à pointe et un grain). Elle sert **les deux sens** — le sens du saut est
+donné par le plan sur lequel on se tient, non par une face de l'objet
+(une sphère n'en a pas). Deux anneaux, l'un pour partir l'autre pour
+revenir, disaient la même chose en double ; la sphère flotte au sommet de
+la volée, et ce **même point de la pièce** se retrouve à hauteur d'homme
+une fois le monde pivoté. Elle se traverse en volume, avec les trois
+gardes des portails : marcher, la voir, aller vers elle. Format :
+`"bascules": [{ "position": […], "radius": 2.2, "transferts": [
+{ "depuis": "sol", "vers": "est", "arrival": […] }, … ] }]`.
+
+**Délai de réarmement des passages.** Un portail ou une sphère franchi se
 **ferme quelques secondes** : il devient rouge, affiche le signe du sens
 interdit et **décompte** ce qui reste — jamais une porte muette qui refuse
-sans dire pourquoi. Le délai se règle dans `content/reglages.json`
+sans dire pourquoi. Une porte et **sa jumelle** (la même ouverture vue de
+l'autre côté) se ferment **ensemble** : un passage ne peut pas être ouvert
+d'un bord et fermé de l'autre. Et l'on ne voit jamais le décompte du
+passage dans lequel on **se tient** : en débouchant d'une porte, on l'aurait
+en plein cadre à l'instant même où l'on découvre la pièce. Il compte en
+silence et ne se signale qu'une fois la porte quittée — quand on pourrait
+vouloir y revenir. Le délai se règle dans `content/reglages.json`
 (`{"cooldown": 5}`, en secondes ; 0 = aucun délai) et se surcharge passage
 par passage (champ `cooldown` sur un portail ou une bascule). Il se mesure
 en **temps réel**, pas en images : cinq secondes valent cinq secondes que

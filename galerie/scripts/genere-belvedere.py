@@ -242,27 +242,28 @@ def bascule(plane_from, top_world, to_plane, label, retour=None, decalage=(0, 0)
     # sommet d'une volée peut toucher le mur cible juste contre le flanc
     # d'une autre volée — on atterrirait le nez dans la masse.
     arr = [arr[0] + decalage[0], arr[1], arr[2] + decalage[1]]
+    # UNE SEULE SPHÈRE pour les deux sens. Deux anneaux — un pour partir, un
+    # pour revenir — obligeaient à poser deux objets à deux endroits ; une
+    # sphère flotte au sommet de la volée, et ce MÊME point de la pièce se
+    # retrouve à hauteur d'homme une fois le monde pivoté. Le sens du saut
+    # est donné par le plan sur lequel on se tient.
+    transferts = [{
+        'depuis': plane_from, 'vers': to_plane, 'label': label,
+        'arrival': [round(arr[0], 2), round(arr[1] + 2.2, 2), round(arr[2], 2)]
+    }]
+    if retour:
+        transferts.append({
+            'depuis': to_plane, 'vers': plane_from, 'label': retour,
+            'arrival': [round(top_world[0], 2), round(top_world[1] + 2.2, 2),
+                        round(top_world[2], 2)]
+        })
     bascules.append({
         'position': [round(v, 2) for v in local],
-        'rotation': local_rot(plane_from, I3),
         'radius': 2.2,
-        'plane': to_plane,
-        'arrival': [round(arr[0], 2), round(arr[1] + 2.2, 2), round(arr[2], 2)],
+        'transferts': transferts,
         'label': label,
         '_pose': plane_from
     })
-    if retour:
-        r_local = to_local(to_plane, [arr[0], RING_Y, arr[2]])
-        bascules.append({
-            'position': [round(v, 2) for v in r_local],
-            'rotation': local_rot(to_plane, I3),
-            'radius': 2.2,
-            'plane': plane_from,
-            'arrival': [round(top_world[0], 2), round(top_world[1] + 2.2, 2),
-                        round(top_world[2], 2)],
-            'label': retour,
-            '_pose': to_plane
-        })
     return local, arr
 
 # À 50 m, les volées principales font 8 m de haut (16 m de course) : le
@@ -462,17 +463,18 @@ def stair_double(id_, plane, start, end_h, lane, heading, color, base=0.0):
     })
 
 def anneau(plane_from, pos_world, to_plane, arr_world, label):
-    """Anneau à ARRIVÉE EXPLICITE (repère du plan cible) — l'échange des
-    tours : le point d'arrivée n'est pas le point de départ vu de l'autre
-    plan (il serait à 30 m au-dessus du sol jumeau) mais le sommet de
-    l'autre tour."""
+    """Sphère à ARRIVÉE EXPLICITE (repère du plan cible) — l'échange des
+    tours. Les deux sommets sont deux points DIFFÉRENTS de la pièce (les
+    tours partagent leurs coordonnées de plan, pas leur point de pièce) :
+    chacun porte donc sa sphère, à sens unique, et les deux se répondent."""
     bascules.append({
         'position': [round(v, 2) for v in to_local(plane_from, pos_world)],
-        'rotation': local_rot(plane_from, I3),
         'radius': 2.2,
-        'plane': to_plane,
-        'arrival': [round(arr_world[0], 2), round(arr_world[1] + 2.2, 2),
-                    round(arr_world[2], 2)],
+        'transferts': [{
+            'depuis': plane_from, 'vers': to_plane, 'label': label,
+            'arrival': [round(arr_world[0], 2), round(arr_world[1] + 2.2, 2),
+                        round(arr_world[2], 2)]
+        }],
         'label': label,
         '_pose': plane_from
     })
@@ -735,9 +737,10 @@ near(top15[0], SIZE - 0.5, 1.5, 'S15 atteint le plafond (repère du plan est)')
 
 # chaque arrivée tombe-t-elle juste au-dessus du nouveau sol (y ≈ 2,2 + marge) ?
 for b in bascules:
-    y = b['arrival'][1] - 2.2
-    assert -0.2 <= y <= 18.0, (
-        f"{b['label']} : arrivée à {y:.2f} m du sol (hors plage)")
+    for t in b['transferts']:
+        y = t['arrival'][1] - 2.2
+        assert -0.2 <= y <= 18.0, (
+            f"{t['label']} : arrivée à {y:.2f} m du sol (hors plage)")
 
 # Tout objet doit tenir DANS le cube — le piège classique : sur le plan
 # « est », l'abscisse du monde du plan est la hauteur d'origine (donc [0, 80]),
@@ -823,14 +826,16 @@ def enseveli(plane, monde):
     return None
 
 for b in bascules:
-    pieds = [b['arrival'][0], b['arrival'][1] - 2.2, b['arrival'][2]]
-    dedans = enseveli(b['plane'], pieds)
-    assert not dedans, f"arrivée « {b['label']} » ensevelie dans {dedans}"
-    # l'anneau se juge depuis le plan d'où on le prend : celui sur lequel
-    # il est posé à plat — c'est le plan de DÉPART, pas celui de la cible
+    for t in b['transferts']:
+        pieds = [t['arrival'][0], t['arrival'][1] - 2.2, t['arrival'][2]]
+        dedans = enseveli(t['vers'], pieds)
+        assert not dedans, f"arrivée « {t['label']} » ensevelie dans {dedans}"
+    # La sphère flotte : elle n'a pas à être « posée » quelque part, mais
+    # elle ne doit pas être noyée dans une masse — on la juge depuis le plan
+    # d'où on la prend en premier.
     plan_pose = b.get('_pose', 'sol')
     dedans = enseveli(plan_pose, to_world(plan_pose, b['position']))
-    assert not dedans, f"anneau « {b['label']} » enseveli dans {dedans}"
+    assert not dedans, f"sphère « {b['label']} » ensevelie dans {dedans}"
 
 # identifiants uniques
 ids = [w['id'] for w in works]
@@ -888,6 +893,6 @@ open(f'{ROOT}/rooms/index.json', 'a').write('\n')
 print(f'{len(works)} objets — cube {SIZE:.0f} m, 6 plans, {len(bascules)} bascules, '
       f'{len(chambres)} chambres Face')
 for b in bascules:
-    print(f"  {b['label']:18s} → plan {b['plane']:5s} anneau local {b['position']}"
-          f" → arrivée {b['arrival']}")
+    sens = ' / '.join(f"{t['depuis']}→{t['vers']}" for t in b['transferts'])
+    print(f"  sphère {b['label']:22s} {b['position']}  [{sens}]")
 print('assertions géométriques : OK')

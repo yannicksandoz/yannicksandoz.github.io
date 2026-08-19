@@ -125,6 +125,21 @@ function _dessiner(p, secondes) {
 
 function _peindre(mesh, reste) {
   const mats = _materiaux(mesh);
+  // On ne montre PAS le délai du passage dans lequel on se tient : en
+  // débouchant d'une porte, on l'a dans le nez — un panneau rouge en plein
+  // cadre à l'instant même où l'on découvre la pièce. Le passage reste
+  // fermé (il compte en silence), il ne se signale qu'une fois quitté,
+  // c'est-à-dire quand on pourrait vouloir y revenir. `disarmed` dit
+  // exactement cela : le visiteur est encore dedans.
+  if (reste > 0 && mesh.userData.disarmed) {
+    const p = mesh.userData._cdSprite;
+    if (p) p.sprite.visible = false;
+    for (const m of mats) {
+      m.mat.emissive.copy(m.emissive);
+      if (m.color) m.mat.color.copy(m.color);
+    }
+    return;
+  }
   if (reste > 0) {
     for (const m of mats) {
       m.mat.emissive.setHex(ROUGE);

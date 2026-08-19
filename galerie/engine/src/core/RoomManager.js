@@ -8,6 +8,7 @@ const PORTAL_COLOR = 0x9f8cff;
 /** Densité de brouillard par défaut — celle d'une salle d'exposition. */
 export const FOG_DENSITY = 0.026;
 const REARM_DIST2 = 7; // (m²) zone à quitter pour réarmer un portail d'arrivée
+const HAUTEUR_CORPS = 2.2; // des pieds aux yeux : ce qui traverse une sphère
 const _worldPos = new THREE.Vector3(); // tampons du test de proximité
 const _worldUp = new THREE.Vector3();
 const _proj = new THREE.Vector3();     // direction caméra → portail
@@ -258,11 +259,12 @@ export class RoomManager {
    * ABOUTIT au mur cible place déjà le visiteur, après rotation, au ras
    * du nouveau sol — la caméra glisse à peine.
    */
-  basculer(room, cfg) {
+  basculer(room, cfg, mesh = null) {
     if (this._transitioning) return;
     this._transitioning = true;
-    // l'anneau se ferme derrière soi (rouge + décompte), comme un portail
-    const anneau = (room.basculeMeshes ?? []).find((m) => m.userData.bascule === cfg);
+    // le passage se ferme derrière soi (rouge + décompte), comme un portail
+    const anneau = mesh
+      ?? (room.basculeMeshes ?? []).find((m) => m.userData.bascule === cfg);
     if (anneau && fermer(anneau, delaiDe(cfg, this.app))) this._refroidis.add(anneau);
     this.app.activeFocus?.cancel?.();
     if (this.app.controls) this.app.controls.locked = true;
@@ -848,11 +850,23 @@ export class RoomManager {
     }
     // zones de bascule (hauts d'escaliers) : mêmes règles de désarmement
     for (const mesh of this.current.basculeMeshes ?? []) {
-      // un anneau n'agit que depuis SON plan : face tournée vers le haut.
-      // Celui du plafond, vu du sol, pend à l'envers — décor, pas piège.
-      _worldUp.set(0, 0, 1).transformDirection(mesh.matrixWorld);
-      if (_worldUp.y < 0.7) continue;
       const cfg = mesh.userData.bascule;
+      // Une SPHÈRE de transfert sert les deux sens : celui qui s'applique
+      // est donné par le plan sur lequel on se tient, non par la face de
+      // l'objet (une sphère n'en a pas). Depuis un plan qu'elle ne dessert
+      // pas, elle n'est qu'un décor suspendu.
+      let saut = cfg;
+      if (Array.isArray(cfg.transferts)) {
+        const t = cfg.transferts.find((x) => x.depuis === (this.current.plane ?? 'sol'));
+        if (!t) continue;
+        saut = { plane: t.vers, arrival: t.arrival, cooldown: cfg.cooldown,
+          label: t.label ?? cfg.label };
+      } else {
+        // un anneau n'agit que depuis SON plan : face tournée vers le haut.
+        // Celui du plafond, vu du sol, pend à l'envers — décor, pas piège.
+        _worldUp.set(0, 0, 1).transformDirection(mesh.matrixWorld);
+        if (_worldUp.y < 0.7) continue;
+      }
       const r = cfg.radius ?? 1.7;
       const c = mesh.getWorldPosition(_worldPos);
       const dx = ctx.cameraPos.x - c.x;
@@ -866,13 +880,22 @@ export class RoomManager {
       if (estFerme(mesh)) continue;          // encore rouge : on patiente
       if (this.app.derive?.active) continue; // la dérive ne bascule pas
       if (this.app.controls && !this.app.controls.walking) continue; // ni le regard
-      if (d2 < r * r && dy > 0 && dy < 3.2) {
+      // Une sphère se traverse en VOLUME — mais c'est le CORPS qui la
+      // traverse, pas l'œil : une sphère posée au sol est frôlée par des
+      // pieds tandis que le regard passe deux mètres plus haut. On mesure
+      // donc la distance au segment pieds-yeux, jamais au seul point de
+      // vue. Un anneau, lui, se foule : à plat sous les pieds.
+      const dyCorps = Math.max(0, Math.min(dy, dy - HAUTEUR_CORPS));
+      const dedans = Array.isArray(cfg.transferts)
+        ? d2 + dyCorps * dyCorps < r * r
+        : d2 < r * r && dy > 0 && dy < 3.2;
+      if (dedans) {
         // Mêmes gardes que les portails : ON NE BASCULE QUE CE QUE L'ON
-        // VOIT, ET EN Y ALLANT — pivoter dos à l'anneau ou reculer dedans
+        // VOIT, ET EN Y ALLANT — pivoter dos au passage ou reculer dedans
         // ne retourne pas le monde par surprise.
         if (!this._estVisible(c)) continue;
         if (!this._vaVers(c, ctx)) continue;
-        this.basculer(this.current, cfg);
+        this.basculer(this.current, saut, mesh);
         return;
       }
     }
@@ -891,9 +914,16 @@ export class RoomManager {
       console.warn(`[galerie] Portail vers une pièce inconnue : ${portal.cfg.to}`);
       return;
     }
-    // le passage se ferme derrière soi, le temps de regarder où l'on est
-    if (portal.mesh && fermer(portal.mesh, delaiDe(portal.cfg, this.app))) {
-      this._refroidis.add(portal.mesh);
+    // Le passage se ferme derrière soi, le temps de regarder où l'on est —
+    // et la porte de RETOUR avec lui : une porte et sa jumelle sont le même
+    // passage vu des deux côtés, elles ne peuvent pas être l'une ouverte et
+    // l'autre fermée.
+    const duree = delaiDe(portal.cfg, this.app);
+    const depuis = portal.room?.config.id ?? this.current?.config.id;
+    const jumelle = (target.portalMeshes ?? []).find(
+      (m) => (m.userData.portal?.cfg ?? {}).to === depuis);
+    for (const m of [portal.mesh, jumelle]) {
+      if (m && fermer(m, duree)) this._refroidis.add(m);
     }
     const arrival = portal.cfg.arrival ?? target.config.spawn ?? [0, 2.2, 10];
     // `plane` : sur quel plan de la pièce cible on débarque (Escher).
@@ -1347,31 +1377,66 @@ function disposeKeyLight(group) {
  * `rotation` couche l'anneau sur le plan auquel il appartient (un anneau
  * du mur est s'auteure [0, 0, 90], comme les portails Escher).
  */
+/**
+ * Le SABLIER DE LA GRAVITÉ : deux cônes pointe à pointe et un grain entre
+ * eux — le signe que le sens du monde s'inverse ici. Posé à plat dans un
+ * anneau (l'axe z du groupe est sa verticale), flottant au centre d'une
+ * sphère de transfert.
+ */
+function sablier(mat) {
+  const cone = new THREE.ConeGeometry(0.22, 0.42, 14);
+  const haut = new THREE.Mesh(cone, mat);
+  haut.rotation.x = Math.PI / 2;        // pointe vers le grain (bas)
+  haut.position.set(0, 0, 0.62);
+  const grain = new THREE.Mesh(new THREE.SphereGeometry(0.105, 12, 10), mat);
+  const bas = new THREE.Mesh(cone, mat);
+  bas.rotation.x = -Math.PI / 2;        // pointe vers le grain (haut)
+  bas.position.set(0, 0, -0.62);
+  const pieces = [haut, grain, bas];
+  for (const o of pieces) o.raycast = () => {};
+  return pieces;
+}
+
 export function buildBascules(config) {
   return (config?.bascules ?? []).map((cfg) => {
     const mat = new THREE.MeshStandardMaterial({
       color: 0x0c0c14, roughness: 0.35, metalness: 0.5,
       emissive: PORTAL_COLOR, emissiveIntensity: 0.9
     });
+
+    // SPHÈRE DE TRANSFERT (`transferts`) : un seul objet pour les deux sens.
+    // Deux anneaux — un pour partir, un pour revenir — disaient la même
+    // chose en double et obligeaient à les poser à deux endroits. Une
+    // sphère se traverse dans les deux sens : le sens est donné par le plan
+    // sur lequel on se tient, pas par la face de l'objet. Le sablier de la
+    // gravité flotte en son centre, la coque de verre marque le volume.
+    if (Array.isArray(cfg.transferts)) {
+      const groupe = new THREE.Group();
+      const r = cfg.radius ?? 2.2;
+      const coque = new THREE.Mesh(
+        new THREE.SphereGeometry(r * 0.92, 26, 18),
+        new THREE.MeshStandardMaterial({
+          color: 0x0c0c14, roughness: 0.2, metalness: 0.4,
+          emissive: PORTAL_COLOR, emissiveIntensity: 0.55,
+          transparent: true, opacity: 0.16, depthWrite: false,
+          side: THREE.DoubleSide
+        })
+      );
+      coque.raycast = () => {};
+      groupe.add(coque, ...sablier(mat));
+      groupe.position.set(cfg.position[0], cfg.position[1] ?? 0, cfg.position[2]);
+      groupe.userData.bascule = cfg;
+      groupe.userData.ignoreRaycast = true;
+      groupe.name = 'sphere-transfert';
+      return groupe;
+    }
     // L'anneau est DISCRET (le rayon de déclenchement, lui, ne change pas) :
     // un cerceau serré autour du SIGNE de l'inversion — deux cônes pointe à
     // pointe et un grain entre eux, le sablier de la gravité. C'est le signe
     // qui annonce « ici, le sens du monde se retourne », pas la taille du
     // cerceau.
     const mesh = new THREE.Mesh(new THREE.TorusGeometry(0.78, 0.055, 10, 40), mat);
-    const cone = new THREE.ConeGeometry(0.16, 0.3, 14);
-    const haut = new THREE.Mesh(cone, mat);
-    haut.rotation.x = Math.PI / 2;        // pointe vers le grain (bas)
-    haut.position.set(0, 0, 0.88);
-    const grain = new THREE.Mesh(new THREE.SphereGeometry(0.075, 12, 10), mat);
-    grain.position.set(0, 0, 0.62);
-    const bas = new THREE.Mesh(cone, mat);
-    bas.rotation.x = -Math.PI / 2;        // pointe vers le grain (haut)
-    bas.position.set(0, 0, 0.36);
-    for (const o of [haut, grain, bas]) {
-      o.raycast = () => {};
-      mesh.add(o);
-    }
+    for (const o of sablier(mat)) mesh.add(o);
     const [rx, ry, rz] = cfg.rotation ?? [0, 0, 0];
     mesh.rotation.set(
       THREE.MathUtils.degToRad(rx),
