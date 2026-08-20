@@ -15,6 +15,8 @@ export class AudioEngine {
     this.master = null;
     this.unlocked = false;
     this._cache = new Map();
+    // url → nombre d'œuvres et d'ambiances qui s'en servent (voir load)
+    this._usages = new Map();
   }
 
   /** À appeler depuis un geste utilisateur (obligatoire sur mobile/Safari). */
@@ -62,9 +64,19 @@ export class AudioEngine {
     if (this.ctx?.state === 'suspended') this.ctx.resume().catch(() => {});
   }
 
-  /** Charge et décode un fichier audio (mise en cache par URL). */
+  /**
+   * Charge et décode un fichier audio, mis en cache par URL et COMPTÉ.
+   *
+   * Sans comptage, deux œuvres qui partagent une nappe se la volaient :
+   * la première à s'éloigner vidait l'entrée, et la seconde — toujours
+   * audible — retéléchargeait puis redécodait le même fichier au prochain
+   * rechargement. C'est le cas de `nebuleuse-drone.wav`, commun à deux
+   * œuvres, et de `marees-basse.wav`, partagé entre une œuvre et l'ambiance
+   * d'une pièce.
+   */
   load(url) {
     if (!this.ctx) return Promise.reject(new Error('AudioContext non débloqué'));
+    this._usages.set(url, (this._usages.get(url) ?? 0) + 1);
     if (!this._cache.has(url)) {
       // mode cors explicite : un hôte distant doit autoriser le CORS pour
       // que le buffer soit lisible (voir README)
@@ -74,14 +86,22 @@ export class AudioEngine {
           return r.arrayBuffer();
         })
         .then((buf) => this.ctx.decodeAudioData(buf));
-      p.catch(() => this._cache.delete(url)); // un échec ne doit pas rester en cache
+      // un échec ne doit rester ni en cache ni au compteur
+      p.catch(() => { this._cache.delete(url); this._usages.delete(url); });
       this._cache.set(url, p);
     }
     return this._cache.get(url);
   }
 
-  /** Oublie un buffer décodé (libération mémoire au déchargement d'une œuvre). */
+  /**
+   * Rend un usage. Le buffer n'est oublié que lorsque PLUS PERSONNE ne s'en
+   * sert : la mémoire se libère toujours, mais jamais sous les pieds d'une
+   * autre œuvre.
+   */
   release(url) {
+    const reste = (this._usages.get(url) ?? 1) - 1;
+    if (reste > 0) { this._usages.set(url, reste); return; }
+    this._usages.delete(url);
     this._cache.delete(url);
   }
 

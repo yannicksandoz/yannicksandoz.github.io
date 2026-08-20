@@ -40,7 +40,10 @@ export class HRTFPanner extends Module {
   }
 
   _syncPosition(smoothing) {
-    const pos = this.artwork.group.position;
+    // MONDE, pas local : l'auditeur, lui, est placé depuis la matrice
+    // monde de la caméra. Dans une pièce pivotée (belvédère), une position
+    // locale plaçait la source ailleurs que ce que l'on voit.
+    const pos = this.artwork.worldPosition;
     const p = this.panner;
     if (p.positionX) {
       const t = this.app.audio.ctx.currentTime;

@@ -655,6 +655,13 @@ export class RoomManager {
     if (!cfgs.length || !this.app.audio.unlocked) return;
     if (room.state === 'far') return;
 
+    // Une pièce ADJACENTE créait ses sources et les faisait tourner à gain
+    // nul : décodage, mémoire et lecture pour un silence, hors du budget de
+    // voix qui protège pourtant les œuvres. Une ambiance ne naît donc que
+    // dans la pièce où l'on se trouve — le fondu d'entrée (0,6 s) la porte
+    // ensuite sans qu'on l'entende apparaître.
+    if (!room.ambience && !room.isCurrent) return;
+
     if (!room.ambience) {
       room.ambience = { bus: null, sources: [], loading: true };
       try {

@@ -17,13 +17,42 @@ export class SpatialCrossfade extends Module {
     this.artwork.bus.gain.value = 0;
   }
 
+  /**
+   * Y a-t-il DÉJÀ un mélangeur de couches sur cette œuvre ?
+   *
+   * Les deux modules atténuent avec la distance — l'un le bus entier,
+   * l'autre chaque piste — et leurs courbes se MULTIPLIENT : une œuvre qui
+   * portait les deux décroissait au carré de la portée voulue, et devenait
+   * inaudible bien avant le rayon affiché dans l'éditeur. C'est ce que
+   * l'import posait par défaut sur tout son ajouté.
+   *
+   * La règle : le mélangeur de couches l'emporte sur la distance (c'est
+   * son objet même), et le fondu spatial se réduit alors au volume de
+   * référence de l'œuvre. Aucune scène n'a plus besoin de savoir laquelle
+   * des deux courbes gagne.
+   */
+  get _melangeurPresent() {
+    // `moduleType` est posé par le registre : il survit à la minification,
+    // contrairement au nom de la classe.
+    return this.artwork.modules?.some((m) => m.moduleType === 'StemMixer');
+  }
+
   update(_dt, ctx) {
     const bus = this.artwork.bus;
     if (!bus) return;
+    // `baseGain` de l'œuvre servait de valeur initiale au bus, aussitôt
+    // écrasée ici : le champ n'avait donc aucun effet dès que ce module
+    // existait. Il devient le volume de référence, et `maxGain` sa
+    // surcharge locale.
+    const maxGain = this.params.maxGain ?? this.artwork.config.baseGain ?? 1;
+    const t = this.app.audio.ctx.currentTime;
+    if (this._melangeurPresent) {
+      bus.gain.setTargetAtTime(maxGain, t, 0.08);
+      return;
+    }
     const radius = this.params.radius ?? 15;
     const inner = this.params.inner ?? radius * 0.25;
-    const maxGain = this.params.maxGain ?? 1;
     const g = maxGain * smoothstep(radius, inner, ctx.distance);
-    bus.gain.setTargetAtTime(g, this.app.audio.ctx.currentTime, 0.08);
+    bus.gain.setTargetAtTime(g, t, 0.08);
   }
 }

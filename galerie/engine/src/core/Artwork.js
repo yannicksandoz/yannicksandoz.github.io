@@ -21,6 +21,13 @@ export function applyTransform(object3d, config) {
   object3d.scale.set(s[0] ?? 1, s[1] ?? 1, s[2] ?? 1);
 }
 
+/**
+ * Durée du fondu d'extinction d'une source, en secondes. Assez court pour
+ * que le vol de voix reste instantané à l'oreille, assez long pour qu'une
+ * nappe grave ne claque pas.
+ */
+const EXTINCTION = 0.12;
+
 const textureLoader = new THREE.TextureLoader();
 textureLoader.setCrossOrigin('anonymous');
 
@@ -123,6 +130,9 @@ export class Artwork {
     this.stems = [];           // [{ cfg, gain, source, buffer }]
     this.audioReady = false;
     this._stemsActive = false;
+    // Position MONDE, réévaluée chaque frame : c'est la seule qui vaille
+    // pour l'audio (voir update). Un vecteur réutilisé, pas d'allocation.
+    this._worldPos = new THREE.Vector3();
 
     this._video = null;
     this._mediaSrc = null;
@@ -544,6 +554,16 @@ export class Artwork {
     this.group.add(mesh);
   }
 
+  /**
+   * Position MONDE de l'œuvre — la seule que partagent l'auditeur (placé
+   * depuis la matrice monde de la caméra) et les sources. Recalculée à
+   * chaque lecture : un vecteur mémorisé se serait périmé au premier
+   * glissement de gizmo, et le coût se réduit à remonter deux parents.
+   */
+  get worldPosition() {
+    return this.group.getWorldPosition(this._worldPos);
+  }
+
   /* ------------------------------------------------------------ audio --- */
 
   async _loadAudio() {
@@ -589,6 +609,7 @@ export class Artwork {
     if (!this.audioReady || active === this._stemsActive) return;
     this._stemsActive = active;
     const ctx = this.app.audio.ctx;
+
     if (active) {
       const t0 = ctx.currentTime + 0.05;
       for (const s of this.stems) {
@@ -600,10 +621,20 @@ export class Artwork {
         s.source = src;
       }
     } else {
+      // ARRÊT EN FONDU. `stop()` tranche l'onde où elle se trouve : sur une
+      // nappe grave, c'est un claquement franc. Or le budget de voix en
+      // arrête toutes les demi-secondes, dès qu'une œuvre plus proche
+      // réclame sa place — le visiteur entendait la mécanique.
+      const t = ctx.currentTime;
       for (const s of this.stems) {
-        try { s.source?.stop(); } catch { /* déjà arrêtée */ }
-        s.source?.disconnect();
+        s.gain.gain.cancelScheduledValues(t);
+        s.gain.gain.setTargetAtTime(0, t, EXTINCTION / 3);
+        const src = s.source;
         s.source = null;
+        if (!src) continue;
+        try { src.stop(t + EXTINCTION); } catch { /* déjà arrêtée */ }
+        // la déconnexion attend la fin du fondu, sinon elle le coupe
+        src.onended = () => { try { src.disconnect(); } catch { /* déjà */ } };
       }
     }
   }
@@ -655,7 +686,12 @@ export class Artwork {
       return;
     }
 
-    this._distance = ctx.cameraPos.distanceTo(this.group.position);
+    // Distance mesurée en coordonnées MONDE, jamais locales. Une pièce
+    // « Escher » est pivotée ET translatée par RoomManager.orientRoom : dans
+    // le belvédère, la position locale d'une œuvre n'est pas celle que le
+    // visiteur occupe, et toute la spatialisation — portée, budget de voix,
+    // panoramique binaural — raisonnait sur un point qui n'existe pas.
+    this._distance = ctx.cameraPos.distanceTo(this.worldPosition);
 
     // chargement paresseux à l'approche, libération au-delà
     const loadDist = this.config.loadDistance ?? 50;
