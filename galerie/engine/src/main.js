@@ -259,8 +259,8 @@ function bootHeadless() {
       if (!headlessApp) {
         const [works, rooms, reglages] = await Promise.all([
           loadWorks(), loadRooms(), loadReglages()]);
-        app.reglages = reglages;
         const app = new App(document.getElementById('app'), { headless: true });
+        app.reglages = reglages;   // après la création : `app` n'existe qu'ici
         app.ui = new UI();
         // Contrôles factices : la visite audio n'utilise ni clavier de
         // déplacement ni orbite, mais FocusCamera lit `locked` et

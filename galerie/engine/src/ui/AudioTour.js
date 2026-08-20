@@ -45,7 +45,9 @@ export class AudioTour {
     this.active = false;
     this._lastFocusState = null;
     this._focusedTitle = '';
-    this._glide = null; // pré-écoute : point vers lequel l'auditeur glisse
+    this._glide = null;       // pré-écoute : point vers lequel l'auditeur glisse
+    this._historique = [];    // fil d'Ariane : les pièces d'où l'on vient
+    this._visitees = new Set(); // pour qu'« avancer » cherche l'inédit
 
     this._prepareArtworks();
     this._build();
@@ -112,6 +114,12 @@ export class AudioTour {
              à dessein — chaque mot en plus est du temps volé au son. -->
         <p id="at-help">${t('tour.help')}</p>
         <ul id="at-works" role="list" aria-label="${t('tour.works')}"></ul>
+        <!-- Les passages font partie de la MÊME liste verticale que les
+             œuvres : on descend des œuvres vers les sorties. Une pièce sans
+             œuvre n'est donc jamais une impasse — ses portes sont là, à une
+             flèche. C'est aussi la seule navigation praticable dans un
+             carrefour comme le Belvédère (treize passages). -->
+        <ul id="at-doors" role="list" aria-label="${t('tour.doors')}"></ul>
         <button id="at-quit">${t('tour.quit')}</button>
         <div id="at-live" aria-live="polite" class="at-sr-only"></div>
       </div>`;
@@ -157,18 +165,19 @@ export class AudioTour {
       }
     });
 
-    // La liste unique : haut/bas parcourt les œuvres (tabindex itinérant),
-    // gauche/droite change de pièce. Le focus initial étant sur l'en-tête
-    // (le temps que l'explication soit lue), la première flèche y descend.
+    // Une seule liste verticale : les œuvres, puis les passages. Haut/bas
+    // la parcourt d'un bout à l'autre (tabindex itinérant) ; droite avance
+    // vers l'inconnu, gauche revient sur ses pas. Le focus initial étant
+    // sur l'en-tête (le temps que l'explication soit lue), la première
+    // flèche y descend.
     el.addEventListener('keydown', (e) => {
-      const works = el.querySelector('#at-works');
-      const inList = works.contains(document.activeElement);
-      const onPanel = document.activeElement === el.querySelector('#at-title')
+      const dansListe = this._items().includes(document.activeElement);
+      const surRepere = document.activeElement === el.querySelector('#at-title')
         || document.activeElement === el.querySelector('#at-room');
       if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
-        if (!inList && !onPanel) return;
+        if (!dansListe && !surRepere) return;
         e.preventDefault();
-        const items = [...works.querySelectorAll('button')];
+        const items = this._items();
         if (!items.length) return;
         const i = items.indexOf(document.activeElement);
         const next = i === -1
@@ -176,11 +185,17 @@ export class AudioTour {
           : items[(i + (e.key === 'ArrowDown' ? 1 : -1) + items.length) % items.length];
         this._moveFocus(items, next);
       } else if (e.key === 'ArrowRight' || e.key === 'ArrowLeft') {
-        if (!inList && !onPanel) return;
+        if (!dansListe && !surRepere) return;
         e.preventDefault();
-        this._stepRoom(e.key === 'ArrowRight' ? 1 : -1);
+        if (e.key === 'ArrowRight') this._avancer();
+        else this._revenir();
       }
     });
+  }
+
+  /** La liste verticale complète : les œuvres, puis les passages. */
+  _items() {
+    return [...this.el.querySelectorAll('#at-works button, #at-doors button')];
   }
 
   _moveFocus(items, target) {
@@ -209,13 +224,17 @@ export class AudioTour {
     }
     this.el.hidden = false;
     this._renderWorks();
+    this._renderDoors();
     this._updateRoomLabel();
     // Le focus se pose sur l'en-tête : le lecteur d'écran lit « Visite
     // audio » puis l'explication des contrôles AVANT toute œuvre. Flèche
     // bas ou Tab pour entrer dans la liste.
     this.el.querySelector('#at-title').focus();
     const room = this.app.rooms.current;
-    if (room) this._announceRoom(room);
+    if (room) {
+      this._visitees.add(room.config.id);
+      this._announceRoom(room);
+    }
   }
 
   /** Rend au document ce que la visite lui avait pris (inertie, focus). */
@@ -255,15 +274,19 @@ export class AudioTour {
 
   _updateRoomLabel() {
     const label = this.el.querySelector('#at-room');
-    const rooms = this.app.rooms.list();
     const cur = this.app.rooms.current;
-    if (!cur || rooms.length < 2) {
+    if (!cur) {
       label.hidden = true;
       return;
     }
     const n = oeuvres(cur.artworks).length;
+    const nom = cur.config.title ?? cur.config.id;
     label.hidden = false;
-    label.textContent = t('tour.room', { room: cur.config.title ?? cur.config.id, n });
+    // Une pièce vide le dit franchement — « 0 œuvre » se lit mal et
+    // s'entend plus mal encore.
+    label.textContent = n === 0
+      ? t('tour.room.empty', { room: nom })
+      : t('tour.room', { room: nom, n });
   }
 
   _renderWorks() {
@@ -271,14 +294,14 @@ export class AudioTour {
     ul.innerHTML = '';
     const room = this.app.rooms.current;
     const artworks = oeuvres(room ? room.artworks : this.app.artworks);
-    artworks.forEach((art, i) => {
+    artworks.forEach((art) => {
       // Titre seul, volontairement : en parcourant, le lecteur d'écran dit
       // le nom puis SE TAIT — c'est le son qui parle. La description n'est
       // lue qu'à l'approche (Entrée), dans l'annonce.
       const li = document.createElement('li');
       const b = document.createElement('button');
       b.textContent = titre(art.config);
-      b.tabIndex = i === 0 ? 0 : -1;
+      b.tabIndex = -1;
       li.appendChild(b);
       b.addEventListener('click', () => this._approach(art));
       b.addEventListener('focus', () => this._audition(art));
@@ -287,6 +310,38 @@ export class AudioTour {
     if (!artworks.length) {
       ul.innerHTML = `<li class="at-empty">${t('tour.empty')}</li>`;
     }
+  }
+
+  /** Les pièces où mènent les passages de la pièce courante, sans doublon. */
+  _passages() {
+    const cur = this.app.rooms.current;
+    const vus = new Set();
+    const sorties = [];
+    for (const p of cur?.config.portals ?? []) {
+      const salle = this.app.rooms.rooms?.get(p.to);
+      if (!salle || vus.has(p.to)) continue;
+      vus.add(p.to);
+      sorties.push(salle);
+    }
+    return sorties;
+  }
+
+  _renderDoors() {
+    const ul = this.el.querySelector('#at-doors');
+    ul.innerHTML = '';
+    for (const salle of this._passages()) {
+      const li = document.createElement('li');
+      const b = document.createElement('button');
+      b.textContent = t('tour.door', { room: salle.config.title ?? salle.config.id });
+      b.tabIndex = -1;
+      b.addEventListener('click', () => this._allerVers(salle.config.id));
+      li.appendChild(b);
+      ul.appendChild(li);
+    }
+    // Le premier élément de la liste verticale porte le tabindex : c'est par
+    // lui qu'on entre, œuvre ou passage selon ce que la pièce contient.
+    const premier = this._items()[0];
+    if (premier) premier.tabIndex = 0;
   }
 
   /* ------------------------------------------------------- pré-écoute --- */
@@ -338,28 +393,67 @@ export class AudioTour {
   /* ----------------------------------------------------------- actions --- */
 
   /**
-   * Pièce précédente/suivante (flèches gauche/droite), en boucle. Les
-   * fondus existants du RoomManager jouent. setCurrent résout lui-même un
-   * éventuel focus d'œuvre en cours (cancel) et rend false si un fondu est
-   * déjà en route — dans ce cas on n'annonce rien : annoncer une pièce dans
-   * laquelle on n'est pas entré fausserait le modèle mental de l'utilisateur.
+   * Franchir un passage. Les fondus existants du RoomManager jouent, et
+   * `setCurrent` résout lui-même un éventuel focus d'œuvre en cours
+   * (cancel) ; il rend false si un fondu est déjà en route — dans ce cas
+   * on n'annonce rien : annoncer une pièce dans laquelle on n'est pas
+   * entré fausserait le modèle mental de l'utilisateur.
    */
-  async _stepRoom(dir) {
-    const rooms = this.app.rooms.list();
-    if (rooms.length < 2) return;
-    const i = rooms.indexOf(this.app.rooms.current);
-    const room = rooms[(i + dir + rooms.length) % rooms.length];
-    const entered = await this.app.rooms.setCurrent(room.config.id);
-    if (!entered) return;
+  async _allerVers(roomId, { retour = false } = {}) {
+    const depart = this.app.rooms.current?.config.id;
+    const entered = await this.app.rooms.setCurrent(roomId);
+    if (!entered) return false;
+    // Fil d'Ariane : on empile l'endroit d'où l'on vient, sauf quand on
+    // revient justement sur ses pas (sinon les deux pièces se renverraient
+    // l'une à l'autre indéfiniment).
+    if (!retour && depart) this._historique.push(depart);
+    this._visitees.add(roomId);
     this._glide = null; // la caméra vient d'être replacée dans la pièce
     this._renderWorks();
+    this._renderDoors();
     this._updateRoomLabel();
-    // Ordre d'annonce voulu : pièce — nombre d'œuvres — première œuvre.
-    // Le focus (lu en premier) va donc au repère de pièce ; la première
-    // œuvre suit par la zone d'annonces. Flèche bas pour y entrer.
+    // Ordre d'annonce voulu : pièce — nombre d'œuvres — puis ce qu'on y
+    // trouve. Le focus (lu en premier) va donc au repère de pièce ; la
+    // suite passe par la zone d'annonces. Flèche bas pour entrer.
     this.el.querySelector('#at-room').focus();
-    const first = oeuvres(this.app.rooms.current?.artworks ?? [])[0];
-    if (first) this._announce(titre(first.config));
+    this._announceArrivee();
+    return true;
+  }
+
+  /**
+   * Ce qu'on trouve en arrivant : la première œuvre s'il y en a, sinon les
+   * passages — une pièce vide doit dire par où l'on repart, sans quoi elle
+   * est une porte fermée au nez.
+   */
+  _announceArrivee() {
+    const premiere = oeuvres(this.app.rooms.current?.artworks ?? [])[0];
+    if (premiere) { this._announce(titre(premiere.config)); return; }
+    const sorties = this._passages();
+    this._announce(sorties.length
+      ? t('tour.doors.list', {
+        n: sorties.length,
+        liste: sorties.map((s) => s.config.title ?? s.config.id).join(', ')
+      })
+      : t('tour.doors.none'));
+  }
+
+  /** Flèche droite : avancer — de préférence vers une pièce jamais vue. */
+  _avancer() {
+    const sorties = this._passages();
+    if (!sorties.length) { this._announce(t('tour.doors.none')); return; }
+    const inedite = sorties.find((s) => !this._visitees.has(s.config.id));
+    const retour = this._historique[this._historique.length - 1];
+    const suivante = inedite
+      ?? sorties.find((s) => s.config.id !== retour)
+      ?? sorties[0];
+    this._allerVers(suivante.config.id);
+  }
+
+  /** Flèche gauche : revenir sur ses pas. */
+  _revenir() {
+    const precedente = this._historique.pop();
+    if (!precedente) { this._announce(t('tour.dead.end')); return; }
+    this._allerVers(precedente, { retour: true });
   }
 
   /**
@@ -382,10 +476,22 @@ export class AudioTour {
     requestAnimationFrame(() => { this.liveEl.textContent = text; });
   }
 
+  /**
+   * Annonce d'ouverture : la pièce et ce qu'elle contient — et quand elle
+   * ne contient rien, par où l'on en sort. Le premier geste de la visite
+   * ne doit jamais tomber dans le vide.
+   */
   _announceRoom(room) {
-    this._announce(t('tour.room', {
-      room: room.config.title ?? room.config.id, n: oeuvres(room.artworks).length
-    }));
+    const nom = room.config.title ?? room.config.id;
+    const n = oeuvres(room.artworks).length;
+    if (n > 0) { this._announce(t('tour.room', { room: nom, n })); return; }
+    const sorties = this._passages();
+    this._announce(`${t('tour.room.empty', { room: nom })}. ` + (sorties.length
+      ? t('tour.doors.list', {
+        n: sorties.length,
+        liste: sorties.map((s) => s.config.title ?? s.config.id).join(', ')
+      })
+      : t('tour.doors.none')));
   }
 
   /**
