@@ -548,7 +548,8 @@ champs numériques pour le placement précis, barre d'outils défilante.
 
 **Barre d'outils** : 📁 Médias (import de fichiers), 🔗 URL (média distant),
 ⤒ JSON (réimport d'un export), ＋ Objet, gizmos ↔ / ⟳ / ⤢ (raccourcis
-1 / 2 / 3), ⧉ dupliquer, 🗑 supprimer (Suppr), 💾 Exporter, ✕ quitter.
+1 / 2 / 3), ⧉ dupliquer, 🗑 supprimer (Suppr), ⇪ Publier (écriture directe
+dans `content/`), 💾 Exporter (repli par téléchargement), ✕ quitter.
 
 ### Importer des médias
 
@@ -749,15 +750,35 @@ modifiables).
 
 ### Publier (site 100 % statique, sans backend)
 
-1. **💾 Exporter** télécharge `works.json` et `rooms.json` ;
-2. déposez-les dans `content/works/` et `content/rooms/` (les fichiers
-   combinés prennent le pas sur les `index.json`) ;
-3. copiez les médias **importés en fichier** dans **`content/assets/`** en
-   gardant les noms listés dans le panneau « Publier » après l'export (les
-   JSON les référencent par `assets/<nom>`) ; les médias référencés par URL
-   n'ont rien à copier — leur URL absolue est déjà dans le JSON ;
-4. `git add … && git commit && git push` → le déploiement automatique met le
-   site à jour.
+**⇪ Publier** écrit la galerie **directement dans `content/`**. Au premier
+clic, le navigateur demande de désigner le dossier ; ensuite le bouton porte
+son nom (`⇪ Publier → content/`) et un clic suffit. **Maj+clic** pour changer
+de dossier.
+
+Ce qui est écrit — le format déjà en place dans le dépôt, celui qui donne des
+diffs lisibles dans git :
+
+- `works/<id>.json`, un fichier par objet, plus `works/index.json` ;
+- `rooms/<id>.json`, un par pièce, plus `rooms/index.json` ;
+- `reglages.json` (réglages généraux) ;
+- un `<modèle>.attribution.json` par modèle importé ;
+- les médias importés en fichier, déposés dans `content/assets/` — plus rien
+  à copier à la main.
+
+Avant d'écrire, un récapitulatif **nomme tout** : combien d'objets et de
+pièces, combien de fichiers, et surtout **ce qui va être effacé** — les
+fichiers d'objets supprimés depuis la dernière publication, et le fichier
+combiné `works.json`/`rooms.json` s'il traîne encore (le chargeur lui donne
+la priorité : laissé en place, il masquerait toute la publication). Rien ne
+part en ligne : `git add … && git commit && git push` reste votre geste.
+
+Une **attribution incomplète refuse la publication**, exactement comme
+l'export : c'est une condition de licence, pas une préférence.
+
+**Repli** — Firefox et Safari n'ont pas l'API d'écriture dans un dossier.
+**💾 Exporter** y télécharge alors `works.json` + `rooms.json` + les fichiers
+d'attribution, à déposer dans `content/works/`, `content/rooms/` et
+`content/assets/` (les noms des médias à copier sont listés après l'export).
 
 **Réimport** : ⤒ JSON (ou glisser un `.json` sur la fenêtre) recharge un
 export — works.json, rooms.json ou les deux — pour reprendre l'édition plus

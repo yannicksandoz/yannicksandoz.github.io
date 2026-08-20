@@ -17,10 +17,19 @@ export function speakableTitle(work) {
  * Œuvres auxquelles il manque un titre ou une description.
  * Contrairement aux attributions, ce n'est PAS bloquant : c'est un manque
  * de qualité, pas une obligation de licence. L'export avertit, il n'échoue pas.
+ *
+ * Ne sont examinées que les œuvres RÉELLEMENT annoncées au visiteur — les
+ * mêmes que compte la progression : ni le décor (ni listé, ni approchable,
+ * ni cliquable), ni les membres d'un ensemble (`partOf`, qui ne parle que
+ * par son porteur). Les compter donnait cent cinquante lignes
+ * d'avertissement à chaque publication, pour cent cinquante bancs et
+ * lanternes qui n'ont rien à dire — et un avertissement qu'on apprend à
+ * ignorer ne signale plus rien.
  */
 export function a11yGaps(works) {
   const gaps = [];
   for (const work of works ?? []) {
+    if (work.role === 'decor' || work.partOf) continue;
     const missing = [];
     if (!String(work.title ?? '').trim()) missing.push('titre');
     if (!String(work.description ?? '').trim()) missing.push('description');

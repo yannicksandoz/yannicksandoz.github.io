@@ -203,6 +203,12 @@ console.log('\naccessibilité — titres et descriptions');
     describeA11yGaps(a11yGaps([{ id: 'a' }, { id: 'b', title: 'B' }])),
     '• « a » : titre et description manquants\n• « B » : description manquant');
   check('scène vide', a11yGaps(), []);
+  check('le décor ne parle pas : rien à lui reprocher',
+    a11yGaps([{ id: 'banc', role: 'decor' }]), []);
+  check("un membre d'ensemble non plus : son porteur parle pour lui",
+    a11yGaps([{ id: 'aile', partOf: 'oiseau' }]), []);
+  check("mais le porteur, lui, doit parler",
+    a11yGaps([{ id: 'oiseau' }])[0].missing, ['titre', 'description']);
   check('libellé prononçable de repli', speakableTitle({ title: '  ' }), 'Sans titre');
   check('libellé prononçable normal', speakableTitle({ title: 'Marées' }), 'Marées');
 }
