@@ -9,8 +9,14 @@ const titre = (config) => {
   return s || t('tour.untitled');
 };
 
-/** La visite ne parcourt que les œuvres : le décor (role: "decor") s'écarte. */
-const oeuvres = (artworks) => artworks.filter((a) => a.config.role !== 'decor');
+/**
+ * La visite ne parcourt que les œuvres : le décor s'écarte, et les membres
+ * d'un ensemble (`partOf`) aussi — la margelle n'est pas une œuvre, le
+ * bassin l'est. Même règle que `Progression.oeuvres`, sans quoi une liste
+ * annoncerait des objets que le catalogue ne compte pas.
+ */
+const oeuvres = (artworks) => artworks.filter(
+  (a) => a.config.role !== 'decor' && !a.config.partOf);
 
 /**
  * Visite audio — navigation accessible par-dessus le runtime Visiteur.
@@ -48,6 +54,7 @@ export class AudioTour {
     this._glide = null;       // pré-écoute : point vers lequel l'auditeur glisse
     this._historique = [];    // fil d'Ariane : les pièces d'où l'on vient
     this._visitees = new Set(); // pour qu'« avancer » cherche l'inédit
+    this._connues = new Set();  // œuvres déjà nommées, pour n'annoncer que le neuf
 
     this._prepareArtworks();
     this._build();
@@ -65,6 +72,10 @@ export class AudioTour {
       this._observeFocus();
       this._glideStep(dt);
     });
+    // Le catalogue se gagne aussi à l'oreille : les libellés suivent les
+    // découvertes, qu'elles viennent d'une approche ou du temps passé tout
+    // près — c'est la même règle que dans la visite 3D, au même endroit.
+    app.progression?.onChange(() => this._onDecouverte());
   }
 
   /**
@@ -223,6 +234,7 @@ export class AudioTour {
       }
     }
     this.el.hidden = false;
+    this._noterConnues();
     this._renderWorks();
     this._renderDoors();
     this._updateRoomLabel();
@@ -272,6 +284,41 @@ export class AudioTour {
 
   /* ------------------------------------------------------------ listes --- */
 
+  /* --------------------------------------------------- progression --- */
+
+  /**
+   * Ce que dit une entrée de la liste. Tant que l'œuvre n'a pas été
+   * rencontrée, elle n'est pas nommée — même pari que le catalogue de la
+   * visite 3D, où elle tient son rang sous un « ??? ». Le mot « ??? » ne
+   * s'entendant pas, la voix dit « Œuvre non découverte » : on sait
+   * qu'elle est là, on ne sait pas encore ce qu'elle est.
+   */
+  _libelle(art) {
+    const p = this.app.progression;
+    if (!p || p.estDecouverte(art) || p.estRevelee(art)) return titre(art.config);
+    return t('tour.unknown');
+  }
+
+  /**
+   * Photographie de ce qui est déjà rencontré en arrivant : sans elle, la
+   * première découverte de la pièce annoncerait aussi tout ce qu'on avait
+   * trouvé lors d'une visite précédente.
+   */
+  _noterConnues() {
+    const p = this.app.progression;
+    for (const a of oeuvres(this.app.rooms.current?.artworks ?? [])) {
+      if (p?.estDecouverte(a)) this._connues.add(a.config.id);
+    }
+  }
+
+  /** Nombre d'œuvres de la pièce, et combien sont déjà rencontrées. */
+  _compteur(room) {
+    const liste = oeuvres(room.artworks);
+    const p = this.app.progression;
+    const n = p ? liste.filter((a) => p.estDecouverte(a)).length : 0;
+    return { total: liste.length, n };
+  }
+
   _updateRoomLabel() {
     const label = this.el.querySelector('#at-room');
     const cur = this.app.rooms.current;
@@ -279,14 +326,52 @@ export class AudioTour {
       label.hidden = true;
       return;
     }
-    const n = oeuvres(cur.artworks).length;
     const nom = cur.config.title ?? cur.config.id;
+    const { total, n } = this._compteur(cur);
     label.hidden = false;
     // Une pièce vide le dit franchement — « 0 œuvre » se lit mal et
-    // s'entend plus mal encore.
-    label.textContent = n === 0
+    // s'entend plus mal encore. Sinon le compte se tient dans le champ
+    // proche : « 2 sur 4 » dans CETTE pièce, jamais un « 2 sur 60 »
+    // décourageant à l'échelle de la galerie.
+    label.textContent = total === 0
       ? t('tour.room.empty', { room: nom })
-      : t('tour.room', { room: nom, n });
+      : n >= total
+        ? t('tour.room.complete', { room: nom, total, n: total })
+        : t('tour.room.count', { room: nom, n, total });
+  }
+
+  /**
+   * Une découverte vient de tomber : les libellés se mettent à jour sur
+   * place (le focus ne bouge pas), et on l'annonce — sauf quand elle vient
+   * d'une approche, que `_observeFocus` annonce déjà et mieux.
+   */
+  _onDecouverte() {
+    if (!this.active) return;
+    const cur = this.app.rooms.current;
+    if (!cur) return;
+    const p = this.app.progression;
+    const liste = oeuvres(cur.artworks);
+
+    // ce qui vient d'apparaître, par différence avec le tour précédent
+    const nouvelles = liste.filter(
+      (a) => p?.estDecouverte(a) && !this._connues.has(a.config.id));
+    for (const a of nouvelles) this._connues.add(a.config.id);
+
+    for (const b of this.el.querySelectorAll('#at-works button')) {
+      const art = liste.find((a) => a.config.id === b.dataset.work);
+      if (art) b.textContent = this._libelle(art);
+    }
+    this._updateRoomLabel();
+    if (!nouvelles.length) return;
+
+    const { total, n } = this._compteur(cur);
+    if (n >= total) { this._announce(t('tour.room.done')); return; }
+    // Une approche annonce déjà l'œuvre, et mieux : on ne parle par-dessus
+    // que pour les découvertes venues du seul fait d'avoir écouté à côté.
+    if (this.app.activeFocus) return;
+    this._announce(t('tour.discovered', {
+      title: titre(nouvelles[0].config), n, total
+    }));
   }
 
   _renderWorks() {
@@ -300,7 +385,8 @@ export class AudioTour {
       // lue qu'à l'approche (Entrée), dans l'annonce.
       const li = document.createElement('li');
       const b = document.createElement('button');
-      b.textContent = titre(art.config);
+      b.dataset.work = art.config.id;
+      b.textContent = this._libelle(art);
       b.tabIndex = -1;
       li.appendChild(b);
       b.addEventListener('click', () => this._approach(art));
@@ -409,6 +495,7 @@ export class AudioTour {
     if (!retour && depart) this._historique.push(depart);
     this._visitees.add(roomId);
     this._glide = null; // la caméra vient d'être replacée dans la pièce
+    this._noterConnues();
     this._renderWorks();
     this._renderDoors();
     this._updateRoomLabel();
@@ -427,7 +514,14 @@ export class AudioTour {
    */
   _announceArrivee() {
     const premiere = oeuvres(this.app.rooms.current?.artworks ?? [])[0];
-    if (premiere) { this._announce(titre(premiere.config)); return; }
+    if (premiere) {
+      // Jamais le titre d'une œuvre qu'on n'a pas encore rencontrée : ce
+      // serait la nommer sans l'avoir trouvée. Le repère de pièce, lui,
+      // vient d'annoncer « 0 sur 4 » — le silence dit le reste.
+      const nom = this._libelle(premiere);
+      if (nom !== t('tour.unknown')) this._announce(nom);
+      return;
+    }
     const sorties = this._passages();
     this._announce(sorties.length
       ? t('tour.doors.list', {

@@ -95,6 +95,11 @@ const FR = {
   'tour.approached': '{title}, approché.',
   'tour.back': 'Reculé.',
   'tour.room': '{room} — {n} œuvre{s}',
+  'tour.room.count': '{room} — {n} sur {total} découverte{s}',
+  'tour.room.complete': '{room} — complète, {total} œuvre{s}',
+  'tour.unknown': 'Œuvre non découverte',
+  'tour.discovered': 'Découverte : {title}. {n} sur {total}.',
+  'tour.room.done': 'Pièce complète.',
 
   'focus.tip': 'Échap ou × pour reculer',
   'focus.close': 'Fermer',
@@ -195,6 +200,11 @@ const EN = {
   'tour.approached': '{title}, approached.',
   'tour.back': 'Stepped back.',
   'tour.room': '{room} — {n} work{s}',
+  'tour.room.count': '{room} — {n} of {total} found',
+  'tour.room.complete': '{room} — complete, {total} work{s}',
+  'tour.unknown': 'Undiscovered work',
+  'tour.discovered': 'Found: {title}. {n} of {total}.',
+  'tour.room.done': 'Room complete.',
 
   'focus.tip': 'Escape or × to step back',
   'focus.close': 'Close',

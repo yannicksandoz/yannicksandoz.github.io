@@ -155,6 +155,12 @@ async function boot() {
     app.audio.unlock(); // depuis le geste utilisateur : requis par les navigateurs
     app.rooms.onAudioUnlocked();
     if (audioTour) {
+      // La progression appartient à la VISITE, pas à la 3D : sans elle, le
+      // visiteur qui entre par l'oreille n'avait aucune découverte comptée
+      // — sa galerie restait sans mémoire et sans catalogue à gagner. Pas
+      // de badge en revanche : le panneau couvre l'écran.
+      mountProgression(app);
+      mountJetons(app);
       await startAudioTour(app);
     } else {
       app.ui.maybeShowTouchHint(app.quality.isMobile);
@@ -261,6 +267,9 @@ function bootHeadless() {
           loadWorks(), loadRooms(), loadReglages()]);
         const app = new App(document.getElementById('app'), { headless: true });
         app.reglages = reglages;   // après la création : `app` n'existe qu'ici
+        // La mémoire avant la scène : pièces, œuvres et jetons la lisent en
+        // naissant. Sans WebGL2 non plus, la visite ne repart pas de zéro.
+        mountMemoire(app);
         app.ui = new UI();
         // Contrôles factices : la visite audio n'utilise ni clavier de
         // déplacement ni orbite, mais FocusCamera lit `locked` et
@@ -277,6 +286,7 @@ function bootHeadless() {
         app.start();
         app.audio.unlock(); // le geste utilisateur est encore actif
         app.rooms.onAudioUnlocked();
+        mountProgression(app);   // le catalogue se gagne ici aussi
         headlessApp = app;
         window.__galerie = app;
       }
