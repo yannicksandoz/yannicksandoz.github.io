@@ -44,18 +44,43 @@ export function isImported(work) {
 }
 
 /**
+ * Sons de l'œuvre venus d'ailleurs que du projet — mêmes obligations que
+ * les modèles, et pour la même raison.
+ *
+ * Le contrôle ne regardait que `model.source` : une œuvre « monolithe + son
+ * Freesound CC-BY » passait l'export sans la moindre citation, alors que la
+ * licence l'exige et que le panneau d'import l'annonçait comme bloquante.
+ * Un son est une œuvre au même titre qu'un modèle ; ici plus qu'ailleurs,
+ * puisque c'est une galerie sonore.
+ */
+export function sonsImportes(work) {
+  return (work?.stems ?? [])
+    .map((stem, index) => ({ stem, index }))
+    .filter(({ stem }) => Boolean(stem?.source));
+}
+
+/**
  * Champs manquants pour une œuvre donnée. Tableau vide = conforme.
  *
  * Seuls les modèles importés sont contraints : une primitive, une
  * construction voxel ou une œuvre personnelle n'ont personne à citer.
  */
 export function validateWorkCredit(work) {
-  if (!isImported(work)) return [];
   const manquants = [];
-  if (!String(work.title ?? '').trim()) manquants.push('name');
-  const credit = work.credit ?? {};
-  for (const champ of CHAMPS_REQUIS) {
-    if (!String(credit[champ] ?? '').trim()) manquants.push(champ);
+  if (isImported(work)) {
+    if (!String(work.title ?? '').trim()) manquants.push('name');
+    const credit = work.credit ?? {};
+    for (const champ of CHAMPS_REQUIS) {
+      if (!String(credit[champ] ?? '').trim()) manquants.push(champ);
+    }
+  }
+  // Les sons importés se signalent par un préfixe : l'auteur doit savoir
+  // LEQUEL de ses trois stems n'est pas cité, pas seulement qu'il en manque.
+  for (const { stem, index } of sonsImportes(work)) {
+    const credit = stem.credit ?? {};
+    for (const champ of CHAMPS_REQUIS) {
+      if (!String(credit[champ] ?? '').trim()) manquants.push(`son${index + 1}.${champ}`);
+    }
   }
   return manquants;
 }
@@ -80,8 +105,12 @@ export function describeSceneFaults(fautes) {
   const noms = {
     name: 'nom', author: 'auteur', license: 'licence', sourceUrl: 'URL source'
   };
+  const dire = (m) => {
+    const son = /^son(\d+)\.(.+)$/.exec(m);
+    return son ? `son n° ${son[1]} : ${noms[son[2]] ?? son[2]}` : (noms[m] ?? m);
+  };
   return fautes.map((f) =>
-    `• « ${f.title || f.id} » : ${f.missing.map((m) => noms[m] ?? m).join(', ')}`
+    `• « ${f.title || f.id} » : ${f.missing.map(dire).join(', ')}`
   ).join('\n');
 }
 
@@ -104,6 +133,25 @@ export function attributionFile(work) {
   };
 }
 
+/**
+ * Fichier compagnon d'un SON importé, écrit à côté de lui. Même rôle que
+ * celui d'un modèle : effacer le crédit du JSON de scène ne suffit pas à
+ * le perdre, il faut aussi effacer un fichier qu'on n'a aucune raison
+ * d'ouvrir.
+ */
+export function attributionFileSon(stem) {
+  return {
+    name: String(stem?.file ?? '').split('/').pop(),
+    author: stem?.credit?.author ?? '',
+    license: stem?.credit?.license ?? '',
+    sourceUrl: stem?.credit?.sourceUrl ?? '',
+    source: stem?.source ?? '',
+    audio: stem?.file ?? '',
+    note: "Attribution du son voisin. Conservez ce fichier avec lui : "
+        + "il porte l'obligation de citation, indépendamment de la scène."
+  };
+}
+
 /** Chemin du fichier compagnon pour une URL de modèle. */
 export function attributionPath(modelUrl) {
   return `${String(modelUrl).split('?')[0]}.attribution.json`;
@@ -115,13 +163,19 @@ export function attributionPath(modelUrl) {
  */
 export function collectCredits(works) {
   const seen = new Map();
-  for (const work of works ?? []) {
-    const c = work.credit;
-    if (!c) continue;
+  const ajouter = (c, titre) => {
+    if (!c) return;
     const key = `${c.author}|${c.license}|${c.sourceUrl}`;
     const entry = seen.get(key) ?? { ...c, titles: [] };
-    entry.titles.push(work.title || work.id);
+    if (!entry.titles.includes(titre)) entry.titles.push(titre);
     seen.set(key, entry);
+  };
+  for (const work of works ?? []) {
+    const titre = work.title || work.id;
+    ajouter(work.credit, titre);
+    // Un son emprunté se cite lui aussi, sur la page publique des crédits :
+    // le stocker dans le JSON sans jamais l'afficher ne serait pas citer.
+    for (const { stem } of sonsImportes(work)) ajouter(stem.credit, titre);
   }
   return [...seen.values()];
 }
@@ -129,6 +183,6 @@ export function collectCredits(works) {
 /** Sources tierces citées par la scène (pour la mention obligatoire). */
 export function collectSources(works) {
   return [...new Set((works ?? [])
-    .map((w) => w.model?.source)
-    .filter((s) => s && s !== 'library'))];
+    .flatMap((w) => [w.model?.source, ...sonsImportes(w).map(({ stem }) => stem.source)])
+    .filter((s) => s && s !== 'library' && s !== 'locale'))];
 }

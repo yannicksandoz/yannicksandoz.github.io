@@ -1,6 +1,6 @@
 import { assetUrl } from './utils.js';
 import { migrateWork, migrateRoom } from './schema.js';
-import { attributionPath, CHAMPS_REQUIS } from './credits.js';
+import { attributionPath, CHAMPS_REQUIS, sonsImportes } from './credits.js';
 
 /**
  * Charge la liste des œuvres.
@@ -44,21 +44,33 @@ export async function loadWorks() {
  * en l'état.
  */
 async function restoreCredits(works) {
-  const importes = works.filter((w) => w.model?.source && w.model?.url);
-  if (!importes.length) return works;
+  // Une cible = un porteur de crédit à recompléter : le modèle d'une œuvre,
+  // ou l'un de ses sons empruntés. Les deux obéissent à la même licence.
+  const cibles = [];
+  for (const work of works) {
+    if (work.model?.source && work.model?.url) {
+      cibles.push({ url: work.model.url, porteur: work, titre: work });
+    }
+    for (const { stem } of sonsImportes(work)) {
+      if (stem.file) cibles.push({ url: stem.file, porteur: stem, titre: null });
+    }
+  }
+  if (!cibles.length) return works;
 
-  await parVagues(importes, async (work) => {
-    const complet = CHAMPS_REQUIS.every((c) => String(work.credit?.[c] ?? '').trim());
+  await parVagues(cibles, async ({ url, porteur, titre }) => {
+    const complet = CHAMPS_REQUIS.every((c) => String(porteur.credit?.[c] ?? '').trim());
     if (complet) return;
-    const compagnon = await fetchJson(assetUrl(attributionPath(work.model.url)), true);
+    const compagnon = await fetchJson(assetUrl(attributionPath(url)), true);
     if (!compagnon) return;
-    work.credit = { ...work.credit };
+    porteur.credit = { ...porteur.credit };
     for (const champ of CHAMPS_REQUIS) {
-      if (!String(work.credit[champ] ?? '').trim() && compagnon[champ]) {
-        work.credit[champ] = compagnon[champ];
+      if (!String(porteur.credit[champ] ?? '').trim() && compagnon[champ]) {
+        porteur.credit[champ] = compagnon[champ];
       }
     }
-    if (!String(work.title ?? '').trim() && compagnon.name) work.title = compagnon.name;
+    if (titre && !String(titre.title ?? '').trim() && compagnon.name) {
+      titre.title = compagnon.name;
+    }
   });
   return works;
 }

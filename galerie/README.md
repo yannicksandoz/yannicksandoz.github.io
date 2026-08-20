@@ -430,8 +430,15 @@ au code du moteur** :
   "scale": [1, 1, 1],              // échelle par axe (gizmo « échelle »)
 
   // — audio : autant de pistes que voulu, lues en boucle —
+  "baseGain": 1,                   // volume de référence de l'objet
   "stems": [
-    { "file": "audio/nappe.wav", "radius": 20, "gain": 0.9 }
+    { "file": "audio/nappe.wav", "radius": 20, "gain": 0.9 },
+    // un son EMPRUNTÉ porte sa source et son crédit, comme un modèle :
+    // sans eux, la publication est refusée (voir « Attribution »)
+    { "file": "assets/freesound/vent-42.mp3", "gain": 0.6,
+      "source": "freesound",
+      "credit": { "author": "A. Vento", "license": "Attribution",
+                  "sourceUrl": "https://freesound.org/s/42" } }
   ],
 
   // — comportements —
@@ -441,6 +448,14 @@ au code du moteur** :
   ]
 }
 ```
+
+**UN SEUL module de distance par objet.** `SpatialCrossfade` atténue le bus
+entier, `StemMixer` atténue chaque piste : posés ensemble, leurs courbes se
+**multiplient** et le son décroît au carré de la portée annoncée. Une seule
+piste → `SpatialCrossfade` ; plusieurs → `StemMixer`, dont c'est justement
+l'objet. Le moteur se protège des scènes qui portent les deux (le mélangeur
+l'emporte sur la distance, le fondu se réduit alors à `baseGain`), et
+l'éditeur n'en pose plus qu'un.
 
 Ajout pas à pas : déposer les médias → créer le JSON → l'ajouter à
 `works/index.json` → recharger. Ou plus simple : composer directement dans

@@ -8,7 +8,8 @@ import { normalizeItem, filterItems }
   from '../engine/src/core/library.js';
 import { a11yGaps, describeA11yGaps, speakableTitle } from '../engine/src/core/a11y.js';
 import { creditOf, collectCredits, collectSources, validateWorkCredit,
-         validateScene, describeSceneFaults, attributionFile, attributionPath }
+         validateScene, describeSceneFaults, attributionFile, attributionPath,
+         attributionFileSon, sonsImportes }
   from '../engine/src/core/credits.js';
 
 let passed = 0, failed = 0;
@@ -183,6 +184,46 @@ console.log('\nmention obligatoire de plateforme');
   check('le mobilier livré n’est pas une plateforme tierce',
     collectSources([{ id: 'c', model: { source: 'library' } }]), []);
   check('scène sans import : aucune mention', collectSources([{ id: 'd' }]), []);
+}
+
+console.log('\nattribution — les SONS empruntés');
+{
+  const emprunte = {
+    id: 'brume', title: 'Brume',
+    stems: [
+      { file: 'audio/local.wav' },
+      { file: 'assets/freesound/vent-42.mp3', source: 'freesound',
+        credit: { author: 'A. Vento', license: 'Attribution', sourceUrl: 'https://x/42' } }
+    ]
+  };
+  const nu = {
+    id: 'nu', title: 'Nu',
+    stems: [{ file: 'assets/freesound/nu-7.mp3', source: 'freesound' }]
+  };
+  check('un son du projet n’a personne à citer',
+    sonsImportes({ stems: [{ file: 'a.wav' }] }), []);
+  check('un son emprunté est repéré par sa source',
+    sonsImportes(emprunte).map((x) => x.index), [1]);
+  check('un son emprunté et cité ne manque de rien',
+    validateWorkCredit(emprunte), []);
+  check('un son emprunté SANS crédit bloque, et l’on sait lequel',
+    validateWorkCredit(nu), ['son1.author', 'son1.license', 'son1.sourceUrl']);
+  check('…et le message le dit en français',
+    describeSceneFaults(validateScene([nu])),
+    '• « Nu » : son n° 1 : auteur, son n° 1 : licence, son n° 1 : URL source');
+  check('l’auteur d’un son figure dans les crédits publics',
+    collectCredits([emprunte]).map((c) => c.author), ['A. Vento']);
+  check('…et sa banque dans les sources citées',
+    collectSources([emprunte]), ['freesound']);
+  check('un son local ne pollue pas les sources',
+    collectSources([{ stems: [{ file: 'a.wav', source: 'locale' }] }]), []);
+  check('le fichier compagnon d’un son est autonome',
+    attributionFileSon(emprunte.stems[1]).author, 'A. Vento');
+  check('…et pointe le son qu’il accompagne',
+    attributionFileSon(emprunte.stems[1]).audio, 'assets/freesound/vent-42.mp3');
+  check('…à côté de lui sur le disque',
+    attributionPath('assets/freesound/vent-42.mp3'),
+    'assets/freesound/vent-42.mp3.attribution.json');
 }
 
 console.log('\naccessibilité — titres et descriptions');
