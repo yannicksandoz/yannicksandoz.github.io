@@ -255,6 +255,23 @@ export function scaleBoxUV(geometry, w, h, d) {
   uv.needsUpdate = true;
 }
 
+/**
+ * Même échelle-monde pour une géométrie EXTRUDÉE (un mur percé).
+ *
+ * `ExtrudeGeometry` pose les UV des faces avant et arrière directement en
+ * mètres (les coordonnées de la forme) : il suffit de les ramener au pas de
+ * la tuile. Les faces de tranche — l'ébrasement d'une baie — suivent la
+ * même règle, si bien qu'une brique garde sa taille en tournant le coin.
+ */
+export function scaleWorldUV(geometry, tile = TILE) {
+  const uv = geometry.attributes?.uv;
+  if (!uv) return;
+  for (let i = 0; i < uv.count; i++) {
+    uv.setXY(i, uv.getX(i) / tile, uv.getY(i) / tile);
+  }
+  uv.needsUpdate = true;
+}
+
 /** Même échelle-monde pour un plan (le sol). */
 export function scalePlaneUV(geometry, w, h) {
   const uv = geometry.attributes.uv;

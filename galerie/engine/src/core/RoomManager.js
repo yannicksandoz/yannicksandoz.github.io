@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { assetUrl, isWalkable } from './utils.js';
 import { buildSky, disposeSky, updateSkyUniforms } from './Sky.js';
-import { styleTexture, scaleBoxUV, scalePlaneUV } from './textures.js';
+import { styleTexture, scaleBoxUV, scalePlaneUV, scaleWorldUV } from './textures.js';
 import { delaiDe, fermer, estFerme, tick as tickCooldown } from './Cooldown.js';
 
 const PORTAL_COLOR = 0x9f8cff;
@@ -1060,52 +1060,108 @@ export const WALL_NAMES = ['nord', 'sud', 'est', 'ouest'];
 const WALL_T = 0.35; // épaisseur des murs
 
 /**
- * Découpe un mur (longueur × hauteur) autour de ses baies : segments pleins
- * entre les fenêtres, allège sous l'appui et linteau au-dessus. Renvoie des
- * rectangles {c, len, y, h} en coordonnées locales du mur (c = centre le
- * long du mur, y = centre en hauteur).
+ * FORMES D'OUVERTURE — ce qu'on peut percer dans un mur.
+ *
+ * Un mur n'est plus un assemblage de pavés contournant ses baies, mais UNE
+ * surface extrudée dont les baies sont des trous. Le découpage en segments
+ * ne savait faire que des rectangles : il posait un pavé à gauche, un à
+ * droite, une allège sous l'appui, un linteau au-dessus. Une arche ou un
+ * oculus n'y entraient pas — et c'est de l'architecture ordinaire.
+ *
+ *   rect   : une baie droite (le comportement historique, et le défaut) ;
+ *   arche  : droite jusqu'aux naissances, puis un demi-cercle ;
+ *   cercle : un oculus, inscrit dans la largeur ou la hauteur — la plus
+ *            petite des deux, pour qu'il tienne toujours dans le mur.
  */
-function wallSegments(length, height, windows) {
-  const wins = (windows ?? [])
-    .map((w) => ({
-      from: Math.max(-length / 2, (w.offset ?? 0) - (w.width ?? 4) / 2),
-      to: Math.min(length / 2, (w.offset ?? 0) + (w.width ?? 4) / 2),
-      sill: Math.max(0, Math.min(height - 0.2, w.sill ?? 1.1)),
-      top: Math.min(height, (w.sill ?? 1.1) + (w.height ?? 1.8))
-    }))
-    .filter((w) => w.to > w.from)
-    .sort((a, b) => a.from - b.from);
+export const FORMES_OUVERTURE = ['rect', 'arche', 'cercle'];
 
-  const parts = [];
-  let cursor = -length / 2;
-  for (const win of wins) {
-    if (win.from > cursor) {
-      parts.push({ c: (cursor + win.from) / 2, len: win.from - cursor, y: height / 2, h: height });
-    }
-    const wl = win.to - win.from, wc = (win.from + win.to) / 2;
-    if (win.sill > 0) parts.push({ c: wc, len: wl, y: win.sill / 2, h: win.sill });
-    if (win.top < height) {
-      parts.push({ c: wc, len: wl, y: (win.top + height) / 2, h: height - win.top });
-    }
-    cursor = win.to;
-  }
-  if (cursor < length / 2) {
-    parts.push({ c: (cursor + length / 2) / 2, len: length / 2 - cursor, y: height / 2, h: height });
-  }
-  return parts;
+/** Géométrie d'une baie, bornée au mur. Null si elle n'a plus de surface. */
+function baie(o, length, height) {
+  const from = Math.max(-length / 2, (o.offset ?? 0) - (o.width ?? 4) / 2);
+  const to = Math.min(length / 2, (o.offset ?? 0) + (o.width ?? 4) / 2);
+  const sill = Math.max(0, Math.min(height - 0.2, o.sill ?? 1.1));
+  const top = Math.min(height, (o.sill ?? 1.1) + (o.height ?? 1.8));
+  if (to <= from || top <= sill) return null;
+  return {
+    forme: FORMES_OUVERTURE.includes(o.shape) ? o.shape : 'rect',
+    c: (from + to) / 2, wl: to - from, sill, top
+  };
 }
 
-/** Rectangles de baies clampés au mur (mêmes règles que wallSegments). */
-function windowRects(length, height, windows) {
-  return (windows ?? [])
-    .map((f) => {
-      const from = Math.max(-length / 2, (f.offset ?? 0) - (f.width ?? 4) / 2);
-      const to = Math.min(length / 2, (f.offset ?? 0) + (f.width ?? 4) / 2);
-      const sill = Math.max(0, Math.min(height - 0.2, f.sill ?? 1.1));
-      const top = Math.min(height, (f.sill ?? 1.1) + (f.height ?? 1.8));
-      return { c: (from + to) / 2, wl: to - from, sill, top };
-    })
-    .filter((r) => r.wl > 0);
+/**
+ * Contour d'une baie, éventuellement DILATÉ de `marge` — c'est ce qui donne
+ * le cadre : le même contour, une fois pour le trou, une fois élargi pour
+ * la pièce de bois qui l'entoure.
+ *
+ * Les trois formes se dilatent analytiquement ; on n'essaie pas d'offsetter
+ * un chemin quelconque, ce qui n'a pas de solution simple et n'aurait servi
+ * qu'à des formes que personne ne demande.
+ */
+function contourBaie(b, marge = 0, height = Infinity) {
+  const p = new THREE.Path();
+  const demi = b.wl / 2 + marge;
+  const bas = Math.max(-0.5, b.sill - marge);
+  const haut = Math.min(height + 0.5, b.top + marge);
+
+  if (b.forme === 'cercle') {
+    const r = Math.min(b.wl, b.top - b.sill) / 2 + marge;
+    p.absarc(b.c, (b.sill + b.top) / 2, Math.max(0.02, r), 0, Math.PI * 2, false);
+    return p;
+  }
+  if (b.forme === 'arche') {
+    // le cintre occupe le haut : sa naissance est à `haut - demi`, et
+    // l'arche dégénère en demi-cercle si la baie est plus large que haute
+    const naissance = Math.max(bas, haut - demi);
+    p.moveTo(b.c - demi, bas);
+    p.lineTo(b.c - demi, naissance);
+    p.absarc(b.c, naissance, demi, Math.PI, 0, true);
+    p.lineTo(b.c + demi, bas);
+    p.lineTo(b.c - demi, bas);
+    return p;
+  }
+  p.moveTo(b.c - demi, bas);
+  p.lineTo(b.c + demi, bas);
+  p.lineTo(b.c + demi, haut);
+  p.lineTo(b.c - demi, haut);
+  p.lineTo(b.c - demi, bas);
+  return p;
+}
+
+/**
+ * Un mur PERCÉ : une plaque rectangulaire dont chaque baie est un trou,
+ * extrudée sur l'épaisseur du mur et centrée sur son plan.
+ *
+ * `sink` enfonce le pied sous le sol : deux faces exactement coplanaires
+ * grésillent, et le pied de mur clignotait sur toute sa longueur.
+ */
+function murPerce(length, height, ouvertures, sink) {
+  const forme = new THREE.Shape();
+  forme.moveTo(-length / 2, -sink);
+  forme.lineTo(length / 2, -sink);
+  forme.lineTo(length / 2, height);
+  forme.lineTo(-length / 2, height);
+  forme.lineTo(-length / 2, -sink);
+  for (const b of ouvertures) forme.holes.push(contourBaie(b, 0, height));
+
+  // 36 segments par courbe : à 15° un oculus se lit comme un polygone, et
+  // c'est justement l'objet qu'on regarde de près.
+  const geo = new THREE.ExtrudeGeometry(forme, {
+    depth: WALL_T, bevelEnabled: false, curveSegments: 36
+  });
+  geo.translate(0, 0, -WALL_T / 2);   // le mur est centré sur son plan
+  return geo;
+}
+
+/** Cadre d'une baie : son contour dilaté, évidé de la baie elle-même. */
+function cadreBaie(b, marge, profondeur, height) {
+  const forme = new THREE.Shape();
+  forme.curves.push(...contourBaie(b, marge, height).curves);
+  forme.holes.push(contourBaie(b, 0, height));
+  const geo = new THREE.ExtrudeGeometry(forme, {
+    depth: profondeur, bevelEnabled: false, curveSegments: 36
+  });
+  geo.translate(0, 0, -profondeur / 2);
+  return geo;
 }
 
 export function buildShell(config) {
@@ -1182,64 +1238,48 @@ export function buildShell(config) {
   // mur clignote sur toute sa longueur. On l'enfonce de huit centimètres
   // sous le sol — personne ne les voit, et le pied redevient net.
   const SINK = 0.08;
-  const foot = (p) => (Math.abs(p.y - p.h / 2) < 1e-6
-    ? { ...p, h: p.h + SINK, y: p.y - SINK / 2 } : p);
 
   const has = (wall) => !Array.isArray(opt.walls) || opt.walls.includes(wall);
   const winsOf = (wall) => (opt.windows ?? []).filter((f) => f.wall === wall);
-  const FT = 0.12;              // section du cadre de fenêtre
-  const FD = WALL_T + 0.14;     // il déborde du mur : on le voit de biais
-  // Le cadre MORD sur la baie de quelques centimètres. Sans ce recouvrement,
-  // la face inférieure du linteau et celle du mur qui le surmonte sont
-  // exactement coplanaires : deux faces au même z, le GPU tranche au hasard
-  // d'un pixel à l'autre — la fenêtre « grésille ». Ici elles ne se touchent
-  // jamais, elles s'emboîtent.
-  const OV = 0.04;
-  // barreau horizontal : `edge` est le bord de la baie qu'il borde,
-  // `dir` vaut +1 s'il monte (linteau) ou -1 s'il descend (appui)
-  const barY = (edge, dir) => ({
-    h: FT + OV, y: edge + dir * (FT - OV) / 2
-  });
-  const barX = (edge, dir) => ({
-    len: FT + OV, c: edge + dir * (FT - OV) / 2
-  });
+  const FT = 0.12;              // débord du cadre autour de la baie
+  const FD = WALL_T + 0.14;     // il dépasse du mur : on le voit de biais
 
-  // fond (-z) et face (+z) : segments le long de x, cadres autour des baies
-  for (const [wall, zPos] of [['nord', -d / 2], ['sud', d / 2]]) {
-    if (!has(wall)) continue;
-    const wins = winsOf(wall);
-    for (const p of wallSegments(w + WALL_T, h, wins).map(foot)) {
-      box(p.len, p.h, WALL_T, p.c, p.y, zPos, matFor(wall));
+  /**
+   * Pose un mur percé et les cadres de ses baies. `rotY` oriente la plaque :
+   * les murs nord/sud regardent le long de x, est/ouest le long de z, et
+   * c'est la seule différence entre eux.
+   */
+  const mur = (wall, length, x, z, rotY) => {
+    const ouvertures = winsOf(wall)
+      .map((o) => baie(o, length, h)).filter(Boolean);
+    const geo = murPerce(length, h, ouvertures, SINK);
+    if (wallMap) scaleWorldUV(geo);
+    const m = new THREE.Mesh(geo, matFor(wall));
+    m.position.set(x, 0, z);
+    m.rotation.y = rotY;
+    m.receiveShadow = true;
+    m.userData.ignoreRaycast = true;
+    group.add(m);
+
+    for (const b of ouvertures) {
+      const cadre = new THREE.Mesh(cadreBaie(b, FT, FD, h), frameMat);
+      cadre.position.set(x, 0, z);
+      cadre.rotation.y = rotY;
+      cadre.userData.ignoreRaycast = true;
+      group.add(cadre);
+      // vitre invisible : elle couvre TOUTE la hauteur du mur et déborde en
+      // largeur — bornée à la baie, un rayon rasant l'appui passait à côté
+      // et le visiteur se retrouvait coincé derrière la fenêtre
+      const dx = rotY === 0 ? b.c : 0;
+      const dz = rotY === 0 ? 0 : b.c;
+      verre(b.wl + 2 * FT, h, x + dx, h / 2, z + dz, rotY);
     }
-    for (const r of windowRects(w + WALL_T, h, wins)) {
-      const mid = (r.sill + r.top) / 2, wh = r.top - r.sill + 2 * OV;
-      const lin = barY(r.top, 1), app = barY(r.sill, -1);
-      const mg = barX(r.c - r.wl / 2, -1), md = barX(r.c + r.wl / 2, 1);
-      box(r.wl + 2 * FT, lin.h, FD, r.c, lin.y, zPos, frameMat);
-      box(r.wl + 2 * FT, app.h, FD, r.c, app.y, zPos, frameMat);
-      box(mg.len, wh, FD, mg.c, mid, zPos, frameMat);
-      box(md.len, wh, FD, md.c, mid, zPos, frameMat);
-      verre(r.wl + 2 * FT, h, r.c, h / 2, zPos, 0);
-    }
-  }
-  // gauche (-x) et droite (+x) : segments le long de z
-  for (const [wall, xPos] of [['ouest', -w / 2], ['est', w / 2]]) {
-    if (!has(wall)) continue;
-    const wins = winsOf(wall);
-    for (const p of wallSegments(d - WALL_T, h, wins).map(foot)) {
-      box(WALL_T, p.h, p.len, xPos, p.y, p.c, matFor(wall));
-    }
-    for (const r of windowRects(d - WALL_T, h, wins)) {
-      const mid = (r.sill + r.top) / 2, wh = r.top - r.sill + 2 * OV;
-      const lin = barY(r.top, 1), app = barY(r.sill, -1);
-      const mg = barX(r.c - r.wl / 2, -1), md = barX(r.c + r.wl / 2, 1);
-      box(FD, lin.h, r.wl + 2 * FT, xPos, lin.y, r.c, frameMat);
-      box(FD, app.h, r.wl + 2 * FT, xPos, app.y, r.c, frameMat);
-      box(FD, wh, mg.len, xPos, mid, mg.c, frameMat);
-      box(FD, wh, md.len, xPos, mid, md.c, frameMat);
-      verre(r.wl + 2 * FT, h, xPos, h / 2, r.c, Math.PI / 2);
-    }
-  }
+  };
+
+  if (has('nord')) mur('nord', w + WALL_T, 0, -d / 2, 0);
+  if (has('sud')) mur('sud', w + WALL_T, 0, d / 2, 0);
+  if (has('ouest')) mur('ouest', d - WALL_T, -w / 2, 0, Math.PI / 2);
+  if (has('est')) mur('est', d - WALL_T, w / 2, 0, Math.PI / 2);
 
   if (opt.ceiling) {
     box(w + WALL_T, WALL_T, d + WALL_T, 0, h + WALL_T / 2, 0, matFor('plafond'));
