@@ -16,6 +16,7 @@
  * (liste → en-tête → sortie) — quand elle est active, le menu ne s'ouvre
  * pas (garde dans main.js).
  */
+import { peindreLibelles } from '../core/clavier.js';
 import { t, lang, setLang, onLangChange } from '../core/i18n.js';
 import { fpsMeterEnabled, setFpsMeter } from './FpsMeter.js';
 
@@ -65,7 +66,7 @@ export class VisitMenu {
           <li>
             <button id="vm-keys" aria-expanded="false" aria-controls="vm-keys-help">${t('menu.keys')}</button>
             <div id="vm-keys-help" hidden>
-              <p>${t('menu.keys.move')}</p>
+              <p>${t('menu.keys.move', { move: '<span data-keylabel="move">ZQSD / WASD</span>' })}</p>
               <p>${t('menu.keys.pivot', { pivot: '<span data-keylabel="pivot">A/E ou Q/E</span>' })}</p>
               <p>${t('menu.keys.orbit')}</p>
               <p>${t('menu.keys.focus')}</p>
@@ -95,6 +96,10 @@ export class VisitMenu {
       </div>`;
     document.body.appendChild(el);
     this.el = el;
+    // Le menu naît après l'écran d'accueil : ses étiquettes de touches
+    // n'avaient jamais été repeintes, et le menu restait le seul endroit à
+    // annoncer des touches qui ne sont pas celles du clavier de la personne.
+    peindreLibelles(el);
 
     el.querySelector('#vm-close').addEventListener('click', () => this.hide());
     // Chaque bouton porte son propre `lang` : le lecteur d'écran prononce

@@ -1,5 +1,13 @@
 import { collectCredits, collectSources } from '../core/credits.js';
-import { t, lang, traduireDom, onLangChange } from '../core/i18n.js';
+import { t, traduireDom, onLangChange } from '../core/i18n.js';
+import { peindreLibelles } from '../core/clavier.js';
+
+/**
+ * Repli des touches de marche, tant que la disposition réelle n'est pas
+ * connue (Firefox, Safari) : il nomme les deux dispositions courantes
+ * plutôt que d'en choisir une au hasard.
+ */
+const MARCHE = '<span data-keylabel="move">ZQSD / WASD</span>';
 
 /**
  * Interface DOM : écran d'accueil (chargement + déblocage AudioContext),
@@ -51,9 +59,12 @@ export class UI {
    */
   _renderKeyTexts() {
     const pivot = '<span data-keylabel="pivot">A/E ou Q/E</span>';
+    // `peindreLibelles` remplacera ces replis par les vraies étiquettes
+    // dès que la carte du clavier est connue — d'où le point d'accroche.
     const tip = this.enterScreen?.querySelector('.tip');
     if (tip) {
-      tip.innerHTML = this.tactile ? t('enter.tip.touch') : t('enter.tip', { pivot });
+      tip.innerHTML = this.tactile
+        ? t('enter.tip.touch') : t('enter.tip', { move: MARCHE, pivot });
     }
     if (this.hint) {
       if (this.tactile) {
@@ -63,8 +74,7 @@ export class UI {
         // du build Visiteur ne le contient pas) : on le préserve tel quel.
         const edit = this.hint.querySelector('[data-keylabel="edit"]');
         const suffixe = edit ? ` · <b data-keylabel="edit">${edit.textContent}</b> : édition` : '';
-        const move = lang() === 'en' ? 'WASD' : 'ZQSD / WASD';
-        this.hint.innerHTML = t('hint.line', { move, pivot }) + suffixe;
+        this.hint.innerHTML = t('hint.line', { move: MARCHE, pivot }) + suffixe;
       }
     }
   }
@@ -96,26 +106,13 @@ export class UI {
   }
 
   /**
-   * Remplace les étiquettes de touches par celles du clavier RÉEL.
-   *
-   * Les raccourcis sont liés aux touches physiques (`e.code`), mais
-   * l'utilisateur lit des étiquettes : sur un AZERTY, la touche physique
-   * KeyQ s'appelle « A ». `getLayoutMap()` (Chrome/Edge) donne la
-   * correspondance ; ailleurs, les textes statiques restent — ils couvrent
-   * déjà les deux dispositions courantes (« A/E ou Q/E »).
+   * Remplace les étiquettes de touches par celles du clavier RÉEL —
+   * marche, pivot, et la touche d'édition. Voir `core/clavier.js` : les
+   * raccourcis visent des POSITIONS, l'utilisateur lit des ÉTIQUETTES, et
+   * les deux ne coïncident que sur un clavier américain.
    */
-  async _refineKeyLabels() {
-    try {
-      const map = await navigator.keyboard?.getLayoutMap?.();
-      if (!map) return;
-      const of = (code, fallback) => (map.get(code) || fallback).toUpperCase();
-      document.querySelectorAll('[data-keylabel="pivot"]').forEach((el) => {
-        el.textContent = `${of('KeyQ', 'Q')}/${of('KeyE', 'E')}`;
-      });
-      document.querySelectorAll('[data-keylabel="edit"]').forEach((el) => {
-        el.textContent = of('Backquote', '²');
-      });
-    } catch { /* pas de carte de layout : les libellés neutres suffisent */ }
+  _refineKeyLabels() {
+    return peindreLibelles();
   }
 
   /** Branche la barre de progression sur le LoadingTracker de l'App. */

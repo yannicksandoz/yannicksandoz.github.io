@@ -89,13 +89,15 @@ export class Controls {
       // jetait une exception qui coupait toute la saisie clavier.
       if (e.target instanceof Element
         && e.target.matches('input, textarea, select')) return;
-      // En ÉDITION, les lettres appartiennent à l'éditeur (G/R/S : gizmo,
-      // X : supprimer, F : cadrer…). Les empiler ici faisait tout à la
-      // fois : « S » choisissait l'échelle ET reculait la caméra, « Maj+D »
-      // dupliquait ET faisait deux pas de côté. Les flèches et le joystick,
-      // eux, continuent de déplacer — on veut pouvoir se déplacer en
-      // composant.
-      if (this.app.editor?.enabled && /^Key/.test(e.code)) return;
+      // En ÉDITION, certaines touches appartiennent à l'éditeur (G/R/S :
+      // gizmo, X : supprimer, F : cadrer…) : les empiler ici faisait tout à
+      // la fois — « S » choisissait l'échelle ET reculait la caméra.
+      //
+      // C'est l'éditeur qui dit lesquelles, et QUAND : sans sélection, G et
+      // S ne lui servent à rien et doivent redevenir de la marche. Suspendre
+      // toutes les lettres, comme on l'a fait d'abord, revenait à interdire
+      // de se déplacer en composant — sauf aux flèches, restées seules.
+      if (this.app.editor?.claimsKey?.(e)) return;
       this._keys.add(e.code);
     });
     window.addEventListener('keyup', (e) => this._keys.delete(e.code));
