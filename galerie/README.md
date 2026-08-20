@@ -561,7 +561,8 @@ avec **`?edit`** (ex. `http://localhost:5173/?edit`). Les mêmes commandes
 referment l'éditeur. Utilisable au doigt sur iOS : panneaux repliables,
 champs numériques pour le placement précis, barre d'outils défilante.
 
-**Barre d'outils** : 📁 Médias (import de fichiers), 🔗 URL (média distant),
+**Barre d'outils** : ◻ Objets / ▦ Voxel (**V**) / ✂ Découpe (**C**),
+📁 Médias (import de fichiers), 🔗 URL (média distant),
 ⤒ JSON (réimport d'un export), ＋ Objet, gizmos ↔ / ⟳ / ⤢ (raccourcis
 1 / 2 / 3), ⧉ dupliquer, 🗑 supprimer (Suppr), ⇪ Publier (écriture directe
 dans `content/`), ⟲ Revenir (version précédente), 💾 Exporter (repli par
@@ -715,8 +716,9 @@ désactivable.
 
 ### Mode Voxel — construire cellule par cellule
 
-La barre d'outils propose deux modes : **◻ Objets** (médias, primitives,
-gizmos) et **▦ Voxel** (touche **V**). Une construction voxel n'est pas un
+La barre d'outils propose trois modes : **◻ Objets** (médias, primitives,
+gizmos), **▦ Voxel** (touche **V**) et **✂ Découpe** (touche **C**, voir plus
+bas). Une construction voxel n'est pas un
 type d'objet à part : c'est une œuvre ordinaire dont le modèle est une
 grille. Elle accepte donc **stems, modules et transformation** comme les
 autres, sans réglage particulier — on peut spatialiser un son dans une
@@ -753,6 +755,39 @@ donc une petite maison de 378 cellules pèse ≈ 1 ko de JSON. Le rendu est un
 et les cellules entièrement entourées ne sont pas instanciées. Coût mesuré
 d'une pose, reconstruction du maillage comprise : **0,017 ms** en 16³,
 **0,13 ms** en 32³, **1,1 ms** en 64³ (le maximum autorisé par axe).
+
+### Mode Découpe — percer un mur à la main
+
+Une baie est un champ de la pièce (`shell.windows`), mais la remplir au
+clavier revient à deviner des coordonnées : on ne sait pas *où* est
+« position 3,2 » avant de l'avoir vu. Le mode **✂ Découpe** (touche **C**)
+rend le geste à la main — on vise le mur, on trace la baie, elle apparaît —
+et laisse les chiffres pour caler ensuite.
+
+| Geste | Effet |
+| --- | --- |
+| presser sur un mur puis **glisser** | trace la baie ; relâcher la perce |
+| clic bref sur une baie existante | la reprend (ses chiffres s'affichent) |
+| clic bref sur un mur nu | désélectionne |
+| **▭ Baie / ⌂ Arche / ○ Oculus** | forme du prochain tracé — et de la baie choisie |
+| champs position / largeur / hauteur / appui | règlent la baie au centimètre |
+| **Suppr** ou « Reboucher cette baie » | la rebouche |
+
+Le tracé s'affiche en violet pendant le glissement, la baie choisie en
+turquoise. Un tracé de moins de 40 cm de côté est ignoré : c'est une
+éraflure, pas une ouverture.
+
+**Viser un trou.** Une fois la baie percée, il n'y a plus de matière en son
+milieu : un rayon lancé là traverse le mur et sort de la pièce. Le viseur
+double donc le tir de matière d'un tir sur le **plan** des murs et garde le
+plus proche des deux — sans quoi une baie déjà faite serait impossible à
+reprendre au clic. Les deux tirs travaillent dans le repère de la pièce
+(`worldToLocal`, ou l'inverse de la matrice du groupe) : dans une pièce
+basculée du belvédère, viser en coordonnées monde percerait le mur d'à côté.
+
+Toute création, tout réglage et toute suppression passent par une commande
+du document : **Ctrl/Cmd + Z** rebouche, la publication et l'export suivent
+sans une ligne de plus.
 
 ### Pièces et portails
 

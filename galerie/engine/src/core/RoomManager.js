@@ -1128,6 +1128,42 @@ function contourBaie(b, marge = 0, height = Infinity) {
 }
 
 /**
+ * Où se tient un mur, et quelle longueur il fait.
+ *
+ * Les murs nord/sud portent sur la largeur PLUS l'épaisseur (ils ferment
+ * les angles), est/ouest sur la profondeur MOINS l'épaisseur (ils s'y
+ * logent). Cette asymétrie est ce qui rend les coins nets ; l'éditeur doit
+ * la connaître pour viser juste, et la recopier chez lui l'aurait fait
+ * dériver au premier changement.
+ */
+export function planMur(shell, wall) {
+  const opt = { ...SHELL_DEFAULTS, ...(shell && shell !== true ? shell : {}) };
+  const w = Math.max(2, Number(opt.width) || SHELL_DEFAULTS.width);
+  const d = Math.max(2, Number(opt.depth) || SHELL_DEFAULTS.depth);
+  const height = Math.max(1, Number(opt.height) || SHELL_DEFAULTS.height);
+  switch (wall) {
+    case 'nord': return { length: w + WALL_T, x: 0, z: -d / 2, rotY: 0, height, axe: 'x' };
+    case 'sud': return { length: w + WALL_T, x: 0, z: d / 2, rotY: 0, height, axe: 'x' };
+    case 'ouest': return { length: d - WALL_T, x: -w / 2, z: 0, rotY: Math.PI / 2, height, axe: 'z' };
+    case 'est': return { length: d - WALL_T, x: w / 2, z: 0, rotY: Math.PI / 2, height, axe: 'z' };
+    default: return null;
+  }
+}
+
+/**
+ * Silhouette d'une ouverture, dans le repère du mur — de quoi en dessiner
+ * l'aperçu pendant qu'on la trace, sans réécrire les trois formes ailleurs.
+ * Null si l'ouverture, bornée au mur, n'a plus de surface.
+ */
+export function silhouetteOuverture(o, length, height) {
+  const b = baie(o, length, height);
+  if (!b) return null;
+  const forme = new THREE.Shape();
+  forme.curves.push(...contourBaie(b, 0, height).curves);
+  return forme;
+}
+
+/**
  * Un mur PERCÉ : une plaque rectangulaire dont chaque baie est un trou,
  * extrudée sur l'épaisseur du mur et centrée sur son plan.
  *
@@ -1259,6 +1295,7 @@ export function buildShell(config) {
     m.rotation.y = rotY;
     m.receiveShadow = true;
     m.userData.ignoreRaycast = true;
+    m.userData.mur = wall;      // l'éditeur vise un mur : il doit le nommer
     group.add(m);
 
     for (const b of ouvertures) {
