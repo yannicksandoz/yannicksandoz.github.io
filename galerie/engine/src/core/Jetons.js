@@ -62,6 +62,20 @@ export class Jetons {
     this.app.progression?._peindre?.();
   }
 
+  /**
+   * Oublie les jetons POSÉS (d'une pièce, ou de toutes) sans rien rendre au
+   * visiteur : les octaèdres déjà ramassés le restent, ceux qui attendaient
+   * seront reposés à la prochaine visite de la pièce.
+   *
+   * Sert à l'éditeur : une reconstruction de scène détruit le groupe qui
+   * portait les jetons, mais ce cache — qui existe pour ne pas les reposer
+   * chaque frame — continuerait de croire le travail fait, et la pièce
+   * resterait vide.
+   */
+  oublier(roomId = null) {
+    if (roomId) this._meshes.delete(roomId); else this._meshes.clear();
+  }
+
   /** Pose (une fois) les jetons restants de la pièce dans son groupe. */
   _poser(room) {
     const id = room.config.id;
