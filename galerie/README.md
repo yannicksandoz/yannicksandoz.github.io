@@ -549,7 +549,8 @@ champs numériques pour le placement précis, barre d'outils défilante.
 **Barre d'outils** : 📁 Médias (import de fichiers), 🔗 URL (média distant),
 ⤒ JSON (réimport d'un export), ＋ Objet, gizmos ↔ / ⟳ / ⤢ (raccourcis
 1 / 2 / 3), ⧉ dupliquer, 🗑 supprimer (Suppr), ⇪ Publier (écriture directe
-dans `content/`), 💾 Exporter (repli par téléchargement), ✕ quitter.
+dans `content/`), ⟲ Revenir (version précédente), 💾 Exporter (repli par
+téléchargement), ✕ quitter.
 
 ### Importer des médias
 
@@ -774,6 +775,19 @@ part en ligne : `git add … && git commit && git push` reste votre geste.
 
 Une **attribution incomplète refuse la publication**, exactement comme
 l'export : c'est une condition de licence, pas une préférence.
+
+**⟲ Revenir** — avant d'écrire, la publication archive l'état précédent dans
+`content/.sauvegardes/<date>/` (works, rooms, réglages ; pas les médias, ce
+sont les mêmes octets). Les **cinq dernières** sont gardées. Le bouton liste
+les versions et remet celle qu'on choisit : ses fichiers reprennent leur
+place, ce qui est né depuis s'en va, et la page se recharge dessus. L'état
+d'avant le retour est sauvegardé lui aussi — revenir se regrette aussi.
+
+Ce dossier ne part **ni dans git** (`.gitignore`) **ni en ligne** : un plugin
+Vite le retire de `dist/`, et `scripts/check-visitor-build.mjs` échoue s'il en
+reste la moindre trace — ce sont des copies entières de la galerie, elles se
+laisseraient parcourir par qui connaît le chemin. Git reste l'historique
+long ; ces sauvegardes servent quand git n'est pas à portée de main.
 
 **Repli** — Firefox et Safari n'ont pas l'API d'écriture dans un dossier.
 **💾 Exporter** y télécharge alors `works.json` + `rooms.json` + les fichiers

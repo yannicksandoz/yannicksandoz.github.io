@@ -1,4 +1,4 @@
-import { existsSync } from 'node:fs';
+import { existsSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { defineConfig } from 'vite';
@@ -59,6 +59,30 @@ function retirerDomEditeur() {
 }
 
 /**
+ * Le dossier de contenu est recopié TEL QUEL à la racine du site : ce qu'on
+ * y range est publié. Or l'éditeur y archive l'état d'avant chaque
+ * publication (`content/.sauvegardes/`) — des copies entières de la galerie,
+ * qui partiraient en ligne à l'insu de tout le monde, et qu'un curieux
+ * pourrait parcourir. On les retire de `dist/`, dans les deux builds ;
+ * `scripts/check-visitor-build.mjs` vérifie ensuite qu'il n'en reste rien
+ * plutôt que de le supposer.
+ */
+const SAUVEGARDES = '.sauvegardes';
+
+function retirerSauvegardes() {
+  let sortie = 'dist';
+  return {
+    name: 'galerie-retirer-sauvegardes',
+    // le dossier de sortie vient de --outDir : on le demande à Vite plutôt
+    // que de le deviner, pour que le build Auteur soit couvert lui aussi
+    configResolved(config) { sortie = config.build.outDir; },
+    closeBundle() {
+      rmSync(join(sortie, SAUVEGARDES), { recursive: true, force: true });
+    }
+  };
+}
+
+/**
  * Proxy local pour l'éditeur (mode Auteur uniquement).
  *
  * L'API Poly Pizza refuse le préflight CORS qu'impose l'en-tête
@@ -104,7 +128,7 @@ export default defineConfig({
   //   GALERIE_CONTENT=../mon-contenu npm run build
   publicDir: process.env.GALERIE_CONTENT || 'content',
 
-  plugins: [retirerDomEditeur()],
+  plugins: [retirerDomEditeur(), retirerSauvegardes()],
 
   resolve: {
     // Un alias plutôt qu'un `if` dans le code : une condition à l'exécution

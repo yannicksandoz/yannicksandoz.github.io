@@ -1,3 +1,9 @@
 node_modules/
 dist/
 dist-auteur/
+
+# Sauvegardes d'avant-publication écrites par l'éditeur. Ce sont des copies
+# entières de la galerie : elles feraient doubler le dépôt à chaque
+# publication, et git est déjà l'historique. Elles servent quand git ne peut
+# pas — un retour immédiat, sans ligne de commande.
+content/.sauvegardes/

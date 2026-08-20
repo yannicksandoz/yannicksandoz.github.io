@@ -102,6 +102,17 @@ for (const chemin of texte) {
   }
 }
 
+// Les SAUVEGARDES d'avant-publication vivent dans le dossier de contenu,
+// que Vite recopie tel quel à la racine du site : sans le plugin qui les
+// retire, chaque version antérieure de la galerie partirait en ligne, et
+// se laisserait parcourir par qui connaît le chemin. On le vérifie ici
+// plutôt que de faire confiance au plugin.
+const sauvegardes = tous.filter((f) => f.includes('/.sauvegardes/'));
+if (sauvegardes.length) {
+  erreurs.push(`sauvegardes d'éditeur publiées : ${sauvegardes.length} fichier(s), `
+    + `dont ${sauvegardes[0]}`);
+}
+
 // Un modèle Poly Pizza n'a rien à faire dans le dépôt du moteur : les
 // modèles importés vivent dans les projets de galerie.
 const modelesHorsLibrairie = tous.filter(
