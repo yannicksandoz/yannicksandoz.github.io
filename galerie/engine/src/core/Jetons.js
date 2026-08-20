@@ -11,7 +11,10 @@ import * as THREE from 'three';
  *
  * Deux économies, zéro paywall : explorer révèle les œuvres, fouiller
  * révèle les jetons — et les jetons achètent ce que l'exploration n'a pas
- * encore donné. Tout se rejoue à chaque visite, comme le catalogue.
+ * encore donné. Ramassés et solde SE GARDENT d'une visite à l'autre, comme
+ * le catalogue et la carte : fouiller une pièce pour rien parce qu'on l'a
+ * déjà fouillée la semaine dernière est le contraire d'un jeu. « Recommencer
+ * la visite » (menu) recache tout.
  */
 
 const PORTEE = 1.7;   // on ramasse en marchant dessus
@@ -20,8 +23,10 @@ const TAILLE = 0.26;
 export class Jetons {
   constructor(app) {
     this.app = app;
-    this.compte = 0;
-    this._pris = new Set();      // "roomId:index" — le temps de la session
+    // « pris » et solde appartiennent à la mémoire de visite : un jeton
+    // ramassé ne se repose pas, et ce qui n'a pas été dépensé attend.
+    this._pris = this.app.memoire?.jetonsPris ?? new Set(); // "roomId:index"
+    this.compte = this.app.memoire?.jetonsSolde ?? 0;
     this._meshes = new Map();    // roomId → [{ mesh, cle }]
     this._abonnes = new Set();
     this._mat = new THREE.MeshStandardMaterial({
@@ -57,6 +62,7 @@ export class Jetons {
   }
 
   _notifier() {
+    this.app.memoire?.setSolde(this.compte);
     for (const fn of this._abonnes) fn(this);
     // le compteur ◈ vit sur le badge du catalogue
     this.app.progression?._peindre?.();
@@ -112,7 +118,8 @@ export class Jetons {
       const d = j.mesh.getWorldPosition(_pos).distanceTo(ctx.cameraPos);
       if (d < PORTEE + 1.2 && Math.abs(_pos.y - ctx.cameraPos.y) < 2.6
         && Math.hypot(_pos.x - ctx.cameraPos.x, _pos.z - ctx.cameraPos.z) < PORTEE) {
-        this._pris.add(j.cle);
+        if (this.app.memoire) this.app.memoire.noter('jetonsPris', j.cle);
+        else this._pris.add(j.cle);
         j.mesh.removeFromParent();
         liste.splice(i, 1);
         this.compte++;

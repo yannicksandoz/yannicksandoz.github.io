@@ -243,6 +243,9 @@ html, body {
   #focus-overlay h2 { font-size: 1.1rem; }
   #focus-overlay p { font-size: 0.82rem; }
   #hint { display: none; }
+  /* Sur un petit écran, la minimap prend une place que la vue n'a pas à
+     donner : elle rétrécit et remonte au-dessus des pastilles. */
+  #minimap { width: 6.4rem; height: 6.4rem; bottom: calc(7rem + env(safe-area-inset-bottom, 0px)); }
   #joystick { width: 6.2rem; height: 6.2rem; }
   .enter-inner { padding: 1.2rem; }
   .enter-inner .tip { display: none; }
@@ -535,6 +538,73 @@ html, body {
   background: none; border: none; padding: 0.4rem 0.7rem;
 }
 #viewer-close:hover, #viewer-close:focus-visible { color: var(--fg); }
+
+/* ——— Carte de la visite ———
+   Le tracé vit dans un SVG dont les unités sont des MÈTRES : tout se règle
+   donc en épaisseur de trait, jamais en pixels. */
+.ca-svg { width: 100%; height: 100%; display: block; overflow: hidden; }
+.ca-piece rect {
+  fill: rgba(159, 140, 255, 0.10);
+  stroke: rgba(159, 140, 255, 0.45); stroke-width: 0.7;
+}
+.ca-piece .ca-nom {
+  fill: rgba(232, 230, 240, 0.75); text-anchor: middle;
+  paint-order: stroke; stroke: rgba(8, 8, 16, 0.8); stroke-width: 0.5;
+}
+.ca-ici rect {
+  fill: rgba(159, 140, 255, 0.26); stroke: var(--accent); stroke-width: 1.3;
+}
+.ca-ici .ca-nom { fill: var(--fg); }
+.ca-lien { stroke: rgba(159, 140, 255, 0.5); stroke-width: 1; }
+.ca-amorce {
+  stroke: rgba(232, 230, 240, 0.28); stroke-width: 0.7; stroke-dasharray: 2 2;
+}
+.ca-inconnue circle {
+  fill: rgba(12, 12, 22, 0.75); stroke: rgba(232, 230, 240, 0.3);
+  stroke-width: 0.6; stroke-dasharray: 1.6 1.6;
+}
+.ca-inconnue text { fill: rgba(232, 230, 240, 0.55); text-anchor: middle; }
+.ca-vous { fill: #ffd97a; }
+
+/* La carte du menu : cliquable à la souris (la liste sous elle reste le
+   chemin clavier et lecteur d'écran). */
+.vm-carte {
+  margin: 0.6rem 0 0.4rem; padding: 0.6rem;
+  height: min(38vh, 18rem);
+  border-radius: 0.6rem; background: rgba(8, 8, 16, 0.5);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+.vm-carte .ca-piece { cursor: pointer; }
+.vm-carte .ca-piece:hover rect { fill: rgba(159, 140, 255, 0.3); }
+.vm-carte-note, .vm-note {
+  margin: 0.2rem 0 0.6rem; font-size: 0.78rem; color: var(--dim);
+}
+.vm-inconnue {
+  display: inline-block; padding: 0.45rem 0;
+  font-size: 0.9rem; color: rgba(232, 230, 240, 0.3); letter-spacing: 0.2em;
+}
+.vm-danger { font-size: 0.9rem; color: #ff8ab8; }
+.vm-danger:hover, .vm-danger:focus-visible { color: #ffb3d0; }
+.vm-danger[disabled] { color: var(--dim); cursor: default; }
+
+/* La minimap : coin bas-droit, au-dessus des deux pastilles rondes et à
+   l'opposé du joystick tactile (bas-gauche). */
+#minimap {
+  position: fixed;
+  right: calc(1rem + env(safe-area-inset-right, 0px));
+  bottom: calc(7rem + env(safe-area-inset-bottom, 0px));
+  z-index: 13; width: 9rem; height: 9rem; padding: 0.4rem;
+  border-radius: 0.6rem; cursor: pointer;
+  background: rgba(8, 8, 16, 0.5);
+  border: 1px solid rgba(255, 255, 255, 0.10);
+  transition: border-color 0.3s;
+}
+#minimap:hover { border-color: rgba(159, 140, 255, 0.4); }
+#minimap[hidden] { display: none; }
+/* En édition, le coin bas-droit appartient aux panneaux de l'éditeur : la
+   carte du visiteur n'a rien à y faire (la classe est posée par l'éditeur,
+   la règle vit ici — elle concerne un élément du visiteur). */
+body.editing #minimap { display: none; }
 
 /* ——— Menu : liste des pièces, lien liste ——— */
 .vm-rooms { margin: 0.3rem 0 0.2rem 0.8rem; }

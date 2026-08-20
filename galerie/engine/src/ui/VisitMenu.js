@@ -19,6 +19,8 @@
 import { peindreLibelles } from '../core/clavier.js';
 import { t, lang, setLang, onLangChange } from '../core/i18n.js';
 import { fpsMeterEnabled, setFpsMeter } from './FpsMeter.js';
+import { dessinerPlan, minimapActive, setMinimap } from './Carte.js';
+import { recommencerLaVisite } from '../core/Memoire.js';
 
 export class VisitMenu {
   constructor(app) {
@@ -46,12 +48,33 @@ export class VisitMenu {
     const el = document.createElement('div');
     el.id = 'visit-menu';
     el.hidden = true;
-    // La liste des pièces vient de la configuration chargée : le menu EST
-    // le plan de la galerie — on saute où l'on veut, sans marcher.
-    const pieces = [...(this.app.rooms?.rooms?.values() ?? [])]
-      .map((r) => `<li><button data-room="${r.config.id}"
-        ${r === this.app.rooms.current ? 'aria-current="true"' : ''}>
-        ${esc(r.config.title ?? r.config.id)}</button></li>`).join('');
+    // La section « Pièces » EST la carte : un plan dessiné au fil de la
+    // visite, et sous lui la liste de ce qu'on a vu — on y saute d'un clic.
+    //
+    // Les pièces jamais visitées y figurent en « ??? », non cliquables. La
+    // liste montrait autrefois toute la galerie, noms compris, dès la
+    // première seconde : elle vendait ce que la carte ménage, et l'une des
+    // deux mentait forcément. C'est la liste qui a cédé — on garde le
+    // plaisir de trouver, et le catalogue ◈ reste l'autre chemin.
+    const memoire = this.app.memoire;
+    const vues = memoire?.pieces ?? null;
+    const courante = this.app.rooms?.current?.config.id;
+    const toutes = [...(this.app.rooms?.rooms?.values() ?? [])];
+    const connues = toutes.filter(
+      (r) => !vues || vues.has(r.config.id) || r.config.id === courante);
+    // Le reste tient sur UNE ligne : quatorze « ? ? ? » alignés donnaient
+    // une liste plus longue que la galerie, et ne disaient rien de plus que
+    // le nombre — qui, lui, se dit en une phrase.
+    const reste = toutes.length - connues.length;
+    const pieces = connues.map((r) => {
+      const id = r.config.id;
+      return `<li><button data-room="${esc(id)}"
+        ${id === courante ? 'aria-current="true"' : ''}>
+        ${esc(r.config.title ?? id)}</button></li>`;
+    }).join('') + (reste > 0
+      ? `<li><span class="vm-inconnue">${t('menu.rooms.left', { n: reste })}</span></li>`
+      : '');
+    const carte = dessinerPlan(this.app, { noms: true });
     const pleinEcranDispo = Boolean(document.fullscreenEnabled);
     el.innerHTML = `
       <div class="vm-panel" role="dialog" aria-modal="true" aria-label="${t('menu.label')}">
@@ -61,7 +84,11 @@ export class VisitMenu {
           <li><button id="vm-audio">${t('menu.audio')}</button></li>
           <li>
             <button id="vm-rooms" aria-expanded="false" aria-controls="vm-rooms-list">${t('menu.rooms')}</button>
-            <ul id="vm-rooms-list" class="vm-rooms" role="list" hidden>${pieces}</ul>
+            <div id="vm-rooms-list" hidden>
+              ${carte ? `<div class="vm-carte">${carte}</div>
+              <p class="vm-carte-note">${t('menu.map.note')}</p>` : ''}
+              <ul class="vm-rooms" role="list">${pieces}</ul>
+            </div>
           </li>
           <li>
             <button id="vm-keys" aria-expanded="false" aria-controls="vm-keys-help">${t('menu.keys')}</button>
@@ -78,6 +105,13 @@ export class VisitMenu {
           <li>
             <button id="vm-settings" aria-expanded="false" aria-controls="vm-settings-panel">${t('menu.settings')}</button>
             <div id="vm-settings-panel" hidden>
+              <label class="vm-check">
+                <input type="checkbox" id="vm-minimap" ${minimapActive() ? 'checked' : ''}>
+                ${t('menu.settings.minimap')}
+              </label>
+              <p class="vm-subhead">${t('menu.settings.memory')}</p>
+              <p class="vm-note">${t('menu.settings.memory.note')}</p>
+              <button id="vm-forget" class="vm-danger">${t('menu.settings.forget')}</button>
               <p class="vm-subhead">${t('menu.settings.dev')}</p>
               <label class="vm-check">
                 <input type="checkbox" id="vm-fps" ${fpsMeterEnabled() ? 'checked' : ''}>
@@ -121,15 +155,40 @@ export class VisitMenu {
     el.querySelector('#vm-fps').addEventListener('change', (e) => {
       setFpsMeter(this.app, e.currentTarget.checked);
     });
+    el.querySelector('#vm-minimap').addEventListener('change', (e) => {
+      setMinimap(this.app, e.currentTarget.checked);
+    });
+
+    // Recommencer : la seule porte de sortie d'une mémoire qui persiste.
+    // Deux clics — le premier demande, le second efface. Un geste unique
+    // sur un bouton qu'on ne peut plus annuler serait un piège.
+    el.querySelector('#vm-forget').addEventListener('click', (e) => {
+      const bouton = e.currentTarget;
+      if (bouton.dataset.sur !== '1') {
+        bouton.dataset.sur = '1';
+        bouton.textContent = t('menu.settings.forget.sure');
+        setTimeout(() => {
+          if (!bouton.isConnected || bouton.dataset.sur !== '1') return;
+          bouton.dataset.sur = '';
+          bouton.textContent = t('menu.settings.forget');
+        }, 5000);
+        return;
+      }
+      recommencerLaVisite(this.app);
+      bouton.dataset.sur = '';
+      bouton.textContent = t('menu.settings.forget.done');
+      bouton.disabled = true;
+    });
+
+    // Cliquer une pièce SUR LA CARTE fait la même chose que la liste : le
+    // plan n'est pas qu'une image, mais la liste reste le chemin accessible.
+    for (const g of el.querySelectorAll('[data-carte-room]')) {
+      g.addEventListener('click', () => this._allerA(g.dataset.carteRoom));
+    }
 
     // sauter dans une pièce : fondu de transition habituel, menu refermé
     for (const b of el.querySelectorAll('[data-room]')) {
-      b.addEventListener('click', () => {
-        this.hide();
-        this.app.derive?.arreter?.();
-        this.app.activeFocus?.release?.();
-        this.app.rooms.setCurrent(b.dataset.room);
-      });
+      b.addEventListener('click', () => this._allerA(b.dataset.room));
     }
 
     // « Laisse-toi porter » : la dérive démarre, le menu s'efface
@@ -199,6 +258,25 @@ export class VisitMenu {
         first.focus();
       }
     });
+  }
+
+  /** Sauter dans une pièce, depuis la liste comme depuis la carte. */
+  _allerA(id) {
+    if (!id) return;
+    this.hide();
+    this.app.derive?.arreter?.();
+    this.app.activeFocus?.release?.();
+    this.app.rooms.setCurrent(id);
+  }
+
+  /** Ouvre le menu directement sur la carte (clic sur la minimap). */
+  ouvrirPieces() {
+    this.show();
+    const bouton = this.el.querySelector('#vm-rooms');
+    if (!bouton) return;
+    bouton.setAttribute('aria-expanded', 'true');
+    this.el.querySelector('#vm-rooms-list').hidden = false;
+    bouton.focus();
   }
 
   show() {

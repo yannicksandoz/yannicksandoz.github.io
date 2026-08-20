@@ -646,6 +646,10 @@ export class RoomManager {
     // le badge (haut-gauche) affiche toujours la pièce où l'on se trouve
     this.app.ui?.setRoomTitle?.(
       this.current?.config.title ?? this.current?.config.id);
+    // La carte se dessine en marchant : une pièce n'y entre qu'une fois
+    // qu'on y est. Ici et pas dans `traverse` — on arrive aussi par le
+    // menu, par le catalogue, par la dérive ou par un lien partagé.
+    if (this.current) this.app.memoire?.noter('pieces', this.current.config.id);
   }
 
   /* ---------------------------------------------------------- ambiance --- */
@@ -939,6 +943,10 @@ export class RoomManager {
     for (const m of [portal.mesh, jumelle]) {
       if (m && fermer(m, duree)) this._refroidis.add(m);
     }
+    // Le trait sur la carte se gagne en FRANCHISSANT le passage : sauter
+    // d'une pièce à l'autre par le menu montre les deux salles, jamais le
+    // lien — c'est bien en marchant qu'on apprend comment tout se tient.
+    this.app.memoire?.noterPorte(depuis, target.config.id);
     const arrival = portal.cfg.arrival ?? target.config.spawn ?? [0, 2.2, 10];
     // `plane` : sur quel plan de la pièce cible on débarque (Escher).
     // La cible peut être LA MÊME pièce — on en ressort sur un autre mur.

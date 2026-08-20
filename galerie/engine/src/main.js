@@ -13,6 +13,8 @@ import { mountProgression, pointDeVue } from './core/Progression.js';
 import { mountBoussole } from './ui/Boussole.js';
 import { mountDerive } from './core/Derive.js';
 import { mountJetons } from './core/Jetons.js';
+import { mountMemoire } from './core/Memoire.js';
+import { mountMinimap, minimapActive } from './ui/Carte.js';
 
 // --- enregistrement des modules disponibles -------------------------------
 // Pour ajouter un comportement : créer une classe dans engine/src/modules/
@@ -59,6 +61,9 @@ async function boot() {
   }
 
   const app = new App(document.getElementById('app'));
+  // La mémoire de visite avant tout le reste : les pièces, les œuvres et les
+  // jetons la lisent au moment où ils naissent.
+  mountMemoire(app);
   app.ui = new UI();
   app.ui.bindLoading(app.loading);
   app.ui.mountRoomBadge(app);
@@ -144,6 +149,7 @@ async function boot() {
     mountJetons(app);     // avant la dérive : elle lit le porte-monnaie
     mountBoussole(app);
     mountDerive(app);
+    if (minimapActive()) mountMinimap(app);
   } else {
     const { audioTour } = await app.ui.waitForEnter();
     app.audio.unlock(); // depuis le geste utilisateur : requis par les navigateurs
@@ -158,8 +164,16 @@ async function boot() {
       mountJetons(app);   // avant la dérive : elle lit le porte-monnaie
       mountBoussole(app);
       mountDerive(app);
+      if (minimapActive()) mountMinimap(app);
     }
   }
+
+  // La minimap n'a pas de panneau à elle : cliquer dessus ouvre le menu de
+  // visite, section « Pièces » dépliée — c'est là que vit la grande carte.
+  app.ouvrirCarte = async () => {
+    const { mountVisitMenu } = await import('./ui/VisitMenu.js');
+    mountVisitMenu(app).ouvrirPieces();
+  };
 
   // Échap remonte, partout : en 3D sans œuvre approchée, il ouvre le MENU
   // de la visite (visite audio, aide clavier…) — c'est là que la visite

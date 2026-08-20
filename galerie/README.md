@@ -66,8 +66,9 @@ le compteur « ◆ 2 / 7 » (haut-droite) se déplie d'un clic et montre la
 liste — les trouvées portent leur titre et leur salle, et **s'y rejoignent
 d'un clic** ; les autres tiennent leur rang sous un « ??? », avec le rappel
 de suivre le pointeur. Une œuvre est découverte après quelques secondes à
-portée, ou dès qu'on l'approche. Le catalogue se gagne **à chaque visite** :
-on ouvre la galerie sur une liste de « ??? », comme le premier jour.
+portée, ou dès qu'on l'approche. Le catalogue **se garde d'une visite à
+l'autre** (voir « Mémoire de visite ») : une galerie de cette taille ne se
+traverse pas d'un trait, et repartir de zéro punissait qui revient.
 
 **« Laisse-toi porter »** (barre `◂ ▸` en bas de l'écran, ou le menu) : la
 visite guidée **rejoue les œuvres découvertes**, dans l'ordre du catalogue,
@@ -92,19 +93,67 @@ un indice, la rencontre reste à faire sur place. Sans jeton ni découverte,
 la visite guidée reste inerte et dit pourquoi ; un seul jeton suffit à
 l'armer. Les positions (et donc le NOMBRE, à régler selon celui des
 œuvres) sont déclarées par pièce : `"jetons": [[x, y, z], …]` dans
-`rooms/*.json`. Tout se rejoue à chaque visite, comme le catalogue.
+`rooms/*.json`. Ramassés et solde se gardent d'une visite à l'autre, comme
+le catalogue et la carte : refouiller une pièce déjà fouillée n'est pas un jeu.
 
 **Le chapeau (TipJar)** s'appuie sur cette progression : voir « Le chapeau »
 plus bas — ses trois portes sont toutes atteignables, et celle du « tout
 découvert » ne compte que les découvertes **de la visite en cours** (sans
 quoi un visiteur qui revient recevrait l'écran de fin au premier pas).
 
+**La carte se dessine en marchant.** Une carte complète serait une table
+des matières : on saurait d'avance combien de salles restent et comment
+elles s'enchaînent, et la galerie cesserait d'être un endroit où l'on se
+perd. Celle-ci ne montre que ce qu'on a vécu :
+
+- une **pièce** n'apparaît qu'une fois qu'on y a posé le pied ;
+- un **trait** n'apparaît qu'une fois le passage franchi — sauter d'une
+  salle à l'autre par le menu montre les deux salles, jamais le lien ;
+- une porte vue mais non prise laisse un **« ? »** : on sait qu'il y a
+  quelque chose par là, on ne sait pas quoi.
+
+Elle vit à deux endroits : la **minimap** du coin bas-droit (la salle où
+l'on est, ses portes, une aiguille qui suit le regard — un clic ouvre la
+grande) et la **carte** du menu, section « Pièces », où l'on saute d'un
+clic dans une salle déjà connue. La liste sous la carte suit exactement la
+même mémoire : elle nomme les pièces visitées et compte les autres sans les
+nommer (« 11 pièces encore inconnues »). Une carte qui ménage la surprise à
+côté d'une liste qui la vend n'aurait rien ménagé du tout.
+
+**D'où viennent les coordonnées.** De nulle part : aucune pièce n'en porte,
+et en tenir un jeu à jour à la main aurait été une seconde vérité, la
+première à mentir. `engine/src/core/planGalerie.js` les **déduit du graphe
+des portails** — chaque salle a une empreinte (`shell.width × depth`),
+chaque porte une position et une orientation, et franchir une porte c'est
+sortir par sa face extérieure. Un parcours en largeur pose les voisines de
+l'autre côté de chaque porte, puis une relaxation rapproche ce que relie un
+passage et écarte ce qui se recouvre. Le résultat n'est pas un plan
+d'architecte — la galerie est un espace d'Escher, six chambres y tiennent
+dans un cube — mais un **plan de métro** : les distances mentent, les liens
+disent vrai. Module pur, sans Three.js ni DOM : il se teste au nœud
+(`npm test`).
+
+**Mémoire de visite.** Une seule clé de `localStorage`
+(`galerie-visite`, `engine/src/core/Memoire.js`) retient les pièces
+visitées, les passages franchis, les œuvres rencontrées, celles dévoilées
+par un jeton, les jetons ramassés et le solde. Elle **ne retient pas** où
+l'on se tenait : on revient toujours par l'entrée — retrouver ses pas est
+le plaisir, être reposé là où l'on s'était arrêté ne l'est pas.
+
+Rien n'est irréversible : **menu → Réglages → « Recommencer la visite »**
+(deux clics, le premier demande) efface tout et rend la galerie au premier
+jour — les jetons se recachent, le catalogue redevient une liste de « ??? »,
+la carte redevient blanche, sans recharger la page. Le stockage peut être
+refusé (navigation privée) : tout y est en `try`, et la visite se déroule
+alors normalement, simplement sans mémoire. La minimap s'éteint depuis les
+mêmes réglages.
+
 **Fiches d'œuvre.** La fiche affiche le cartel (`year` · `technique`), la
 description, un lien externe optionnel (`link`) et, pour les œuvres qui ont
 une image, une **vue détail** plein écran.
 
-**Menu de la visite** (Échap ou ☰) : liste des **pièces** pour sauter
-directement dans l'une d'elles, visite audio, **partage** (Web Share sur
+**Menu de la visite** (Échap ou ☰) : la **carte** et la liste des pièces
+visitées, pour sauter directement dans l'une d'elles, visite audio, **partage** (Web Share sur
 mobile, copie du lien sinon) avec **lien profond** `?room=pièce` /
 `?work=œuvre` — celui qui l'ouvre arrive au même endroit, **sans écran
 d'accueil** (l'audio se débloque au premier geste, règle des navigateurs) —,
@@ -193,7 +242,7 @@ npm run build        # → dist/        site publiable, SANS éditeur
 npm run check        # vérifie que dist/ ne contient rien d'éditeur
 npm run build:auteur # → dist-auteur/ build local avec éditeur (jamais publié)
 npm run preview      # prévisualise un build
-npm run test         # tests unitaires (161 assertions)
+npm run test         # tests unitaires (356 assertions, 5 fichiers)
 npm run assets       # régénère les textures/stems de démo
 npm run library      # régénère le mobilier de galerie (GLB + vignettes)
 ```

@@ -11,31 +11,29 @@ import { t, onLangChange } from './i18n.js';
  * matières de ce qu'on a trouvé — chaque titre y ramène.
  *
  * Une œuvre est découverte après quelques secondes à portée, ou dès qu'on
- * l'approche (FocusCamera). Le catalogue se gagne à CHAQUE visite : on
- * ouvre la galerie sur une liste de « ??? », comme le premier jour. Les
- * œuvres composées (`partOf`) comptent pour une : n'importe lequel de
- * leurs membres les révèle.
+ * l'approche (FocusCamera). Le catalogue SE GARDE d'une visite à l'autre
+ * (`Memoire`) : une galerie de cette taille ne se traverse pas d'un trait,
+ * et effacer entre deux sessions punissait qui revient. « Recommencer la
+ * visite » (menu) rend la liste de « ??? » du premier jour. Les œuvres
+ * composées (`partOf`) comptent pour une : n'importe lequel de leurs
+ * membres les révèle.
  */
 
-const CLE = 'galerie-decouvertes';
 const RAYON = 10;   // à portée = on l'entend, on la voit
 const PALIER = 3;   // secondes à portée avant de compter la découverte
 
 export class Progression {
   constructor(app) {
     this.app = app;
-    // Le catalogue se gagne À CHAQUE VISITE : on ouvre la galerie sur six
-    // « ??? », comme le premier jour. Mémoriser les découvertes d'une
-    // session à l'autre vidait le pari de sa substance — on revenait sur
-    // une liste déjà écrite, sans plus rien à trouver. L'ancienne clé de
-    // stockage est effacée : elle ne servirait qu'à traîner.
-    this.decouvertes = new Set();
-    try { localStorage.removeItem(CLE); } catch { /* stockage refusé */ }
+    // Les deux ensembles VIVENT dans la mémoire de visite : ce sont les
+    // siens, la progression ne fait que s'en servir. Sans mémoire (stockage
+    // refusé), `mountMemoire` en fournit une qui n'écrit nulle part — le
+    // code d'ici n'a donc jamais à savoir s'il est mémorisé ou non.
+    this.decouvertes = app.memoire?.oeuvres ?? new Set();
     // Révélées par un jeton ◈ : le NOM et la pièce sont dévoilés dans la
     // liste, mais la découverte (compteur, visite guidée) reste à faire
-    // sur place — le jeton est un indice, pas un raccourci. Per-visite,
-    // comme tout le catalogue.
-    this.revelees = new Set();
+    // sur place — le jeton est un indice, pas un raccourci.
+    this.revelees = app.memoire?.revelees ?? new Set();
     this.nouvelles = 0;
     this._dwell = new Map(); // artwork → secondes cumulées à portée
     this._abonnes = new Set();
@@ -93,11 +91,24 @@ export class Progression {
     return this.revelees.has(artwork.config.id);
   }
 
+  /**
+   * Ajoute à la mémoire de visite, et rend true si c'était nouveau. Le
+   * repli (pas de mémoire du tout) garde le même contrat, pour que
+   * l'appelant n'ait jamais à distinguer les deux cas.
+   */
+  _noter(champ, id) {
+    if (this.app.memoire) return this.app.memoire.noter(champ, id);
+    const set = champ === 'oeuvres' ? this.decouvertes : this.revelees;
+    if (set.has(id)) return false;
+    set.add(id);
+    return true;
+  }
+
   /** Dévoile une « ??? » contre un jeton ◈. Renvoie false faute de jeton. */
   reveler(artwork) {
     if (!artwork || this.estDecouverte(artwork) || this.estRevelee(artwork)) return false;
     if (!this.app.jetons?.depenser(1)) return false;
-    this.revelees.add(artwork.config.id);
+    this._noter('revelees', artwork.config.id);
     this._notifier();
     return true;
   }
@@ -106,8 +117,7 @@ export class Progression {
   marquer(artwork) {
     if (!artwork || artwork.config.role === 'decor') return;
     const id = artwork.config.partOf ?? artwork.config.id;
-    if (this.decouvertes.has(id)) return;
-    this.decouvertes.add(id);
+    if (!this._noter('oeuvres', id)) return;
     this.nouvelles++;
     this._notifier();
   }
