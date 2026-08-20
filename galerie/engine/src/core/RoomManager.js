@@ -441,9 +441,16 @@ export class RoomManager {
       if (room.floor) disposeFloor(room.floor);
       if (room.shell) disposeShell(room.shell);
       if (room.keyLight) disposeKeyLight(room.keyLight);
+      // Un passage de gravité est tantôt un Mesh (anneau) tantôt un Group
+      // (sphère de transfert : coque + sablier) : on parcourt, on ne
+      // suppose pas. Supposer coûtait une exception qui interrompait le
+      // vidage — donc la reconstruction entière de la scène en édition.
       for (const m of room.basculeMeshes ?? []) {
-        m.geometry.dispose();
-        m.material.dispose();
+        m.traverse((o) => {
+          o.geometry?.dispose();
+          const mats = Array.isArray(o.material) ? o.material : [o.material];
+          for (const mat of mats) mat?.dispose();
+        });
       }
       this.app.vistas?.dispose(room);
       if (room.sky) {

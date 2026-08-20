@@ -84,7 +84,18 @@ export class Controls {
     this.walking = false;
 
     window.addEventListener('keydown', (e) => {
-      if (e.target.matches('input, textarea, select')) return;
+      // `e.target` n'est pas toujours un élément (événement synthétique,
+      // touche reçue par la fenêtre) : demander `matches` sans vérifier
+      // jetait une exception qui coupait toute la saisie clavier.
+      if (e.target instanceof Element
+        && e.target.matches('input, textarea, select')) return;
+      // En ÉDITION, les lettres appartiennent à l'éditeur (G/R/S : gizmo,
+      // X : supprimer, F : cadrer…). Les empiler ici faisait tout à la
+      // fois : « S » choisissait l'échelle ET reculait la caméra, « Maj+D »
+      // dupliquait ET faisait deux pas de côté. Les flèches et le joystick,
+      // eux, continuent de déplacer — on veut pouvoir se déplacer en
+      // composant.
+      if (this.app.editor?.enabled && /^Key/.test(e.code)) return;
       this._keys.add(e.code);
     });
     window.addEventListener('keyup', (e) => this._keys.delete(e.code));
