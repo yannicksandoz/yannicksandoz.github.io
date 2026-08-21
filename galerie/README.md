@@ -242,7 +242,7 @@ npm run build        # → dist/        site publiable, SANS éditeur
 npm run check        # vérifie que dist/ ne contient rien d'éditeur
 npm run build:auteur # → dist-auteur/ build local avec éditeur (jamais publié)
 npm run preview      # prévisualise un build
-npm run test         # tests unitaires (356 assertions, 5 fichiers)
+npm run test         # tests unitaires (370 assertions, 5 fichiers)
 npm run assets       # régénère les textures/stems de démo
 npm run library      # régénère le mobilier de galerie (GLB + vignettes)
 ```
