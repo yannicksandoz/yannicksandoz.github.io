@@ -83,6 +83,9 @@ async function boot() {
   app.onArtworkClick((hit) => {
     if (app.editor?.enabled) return false; // le handler de l'éditeur s'en charge
     if (hit?.type === 'portal') {
+      // Une porte fermée refuse le passage (RoomManager.traverse) : le clic
+      // reste consommé pour autant — on ne veut pas qu'il aille chercher
+      // ce qu'il y a DERRIÈRE la porte qu'on vient de heurter.
       app.activeFocus?.release();
       app.rooms.traverse(hit.portal);
       return true;

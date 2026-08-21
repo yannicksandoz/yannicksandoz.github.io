@@ -990,12 +990,27 @@ export class RoomManager {
     }
   }
 
+  /**
+   * Franchit un passage. Rend false s'il a été refusé.
+   *
+   * **Une porte rouge ne se franchit pas, quelle que soit la manière.** Le
+   * test du délai ne vivait que dans la boucle de proximité : marcher dans
+   * une porte fermée était refusé, mais CLIQUER dessus passait outre — et
+   * un délai qu'un clic contourne n'est pas un délai, c'est une décoration.
+   * La garde vit donc ici, dans le passage lui-même, là où tous les chemins
+   * se rejoignent.
+   *
+   * Sauter d'une salle à l'autre par le menu ou le catalogue reste permis :
+   * ce n'est pas franchir une porte, c'est se téléporter — et rien n'y est
+   * rouge.
+   */
   traverse(portal) {
     const target = this.rooms.get(portal.cfg.to);
     if (!target) {
       console.warn(`[galerie] Portail vers une pièce inconnue : ${portal.cfg.to}`);
-      return;
+      return false;
     }
+    if (estFerme(portal.mesh)) return false;
     // Le passage se ferme derrière soi, le temps de regarder où l'on est —
     // et la porte de RETOUR avec lui : une porte et sa jumelle sont le même
     // passage vu des deux côtés, elles ne peuvent pas être l'une ouverte et
@@ -1041,6 +1056,7 @@ export class RoomManager {
         // la minimap le dit — une porte fermée doit se voir fermée.
         if (jumelle && ailleurs) jumelle.userData.arriveeA = performance.now();
       });
+    return true;
   }
 
   /** L'ambiance démarre après le déblocage audio : à rappeler à ce moment. */

@@ -217,7 +217,13 @@ gardes des portails : marcher, la voir, aller vers elle. Format :
 **Délai de réarmement des passages.** Un portail ou une sphère franchi se
 **ferme quelques secondes** : il devient rouge, affiche le signe du sens
 interdit et **décompte** ce qui reste — jamais une porte muette qui refuse
-sans dire pourquoi. Une porte et **sa jumelle** (la même ouverture vue de
+sans dire pourquoi. Et une porte rouge **ne se franchit pas**, quelle que
+soit la manière : le test vivait dans la seule boucle de proximité, si bien
+que marcher dedans était refusé mais CLIQUER dessus passait outre. Un délai
+qu'un clic contourne n'est pas un délai, c'est une décoration ; la garde vit
+désormais dans le passage lui-même, là où tous les chemins se rejoignent.
+Sauter d'une salle à l'autre par le menu ou le catalogue reste permis : ce
+n'est pas franchir une porte, c'est se téléporter. Une porte et **sa jumelle** (la même ouverture vue de
 l'autre côté) se ferment **ensemble** : un passage ne peut pas être ouvert
 d'un bord et fermé de l'autre.
 
