@@ -24,6 +24,9 @@ export class AudioEngine {
     if (!this.unlocked) {
       const AC = window.AudioContext || window.webkitAudioContext;
       this.ctx = new AC();
+      // un contexte neuf a un écoutant neuf : la mémoire de `updateListener`
+      // ne parle plus de lui
+      this._listener = null;
       this.master = this.ctx.createGain();
       this.master.gain.value = 1;
       this.master.connect(this.ctx.destination);
@@ -105,7 +108,17 @@ export class AudioEngine {
     this._cache.delete(url);
   }
 
-  /** Aligne le listener Web Audio sur la caméra (position + orientation). */
+  /**
+   * Aligne le listener Web Audio sur la caméra (position + orientation).
+   *
+   * Appelé à chaque frame. Quand la caméra n'a pas bougé — visiteur à
+   * l'arrêt, fiche d'œuvre ouverte, focus en pause — les neuf valeurs sont
+   * identiques à celles déjà posées, et neuf `setTargetAtTime` de plus ne
+   * changeraient rien : l'approche exponentielle vers une cible identique
+   * est sans mémoire, ré-ancrer l'événement redonne exactement la même
+   * courbe. On s'en dispense donc, et le fil audio cesse d'entretenir une
+   * automation permanente pour une écoute qui ne bouge pas.
+   */
   updateListener(camera) {
     if (!this.ctx) return;
     const l = this.ctx.listener;
@@ -114,6 +127,11 @@ export class AudioEngine {
     // Colonne -Z = direction de visée, colonne Y = up
     const fx = -e[8], fy = -e[9], fz = -e[10];
     const ux = e[4], uy = e[5], uz = e[6];
+    const d = this._listener;
+    if (d && d[0] === px && d[1] === py && d[2] === pz
+      && d[3] === fx && d[4] === fy && d[5] === fz
+      && d[6] === ux && d[7] === uy && d[8] === uz) return;
+    this._listener = [px, py, pz, fx, fy, fz, ux, uy, uz];
     if (l.positionX) {
       const t = this.ctx.currentTime;
       l.positionX.setTargetAtTime(px, t, 0.03);

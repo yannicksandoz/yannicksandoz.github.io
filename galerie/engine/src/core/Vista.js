@@ -55,6 +55,20 @@ const _scale = new THREE.Vector3();
 const _pos = new THREE.Vector3();
 const _dir = new THREE.Vector3();
 const _toCam = new THREE.Vector3();
+const _frustum = new THREE.Frustum();
+const _matFrustum = new THREE.Matrix4();
+const _invCam = new THREE.Matrix4();
+const _sphere = new THREE.Sphere();
+
+/**
+ * Sphère englobant une baie, centrée sur son mesh : la demi-diagonale du
+ * carreau. La marge fait entrer la baie dans le champ un peu avant qu'on
+ * la voie — mieux vaut peindre une frame pour rien que montrer une image
+ * périmée au bord de l'écran pendant une rotation.
+ */
+function rayonBaie(v) {
+  return Math.hypot(v.cfg.width ?? 4, v.cfg.height ?? 2.2) / 2 + 0.5;
+}
 
 export class VistaManager {
   constructor(app) {
@@ -198,6 +212,14 @@ export class VistaManager {
     // lucarne pendant qu'on traverse un portail, c'est payer pour rien
     if (rooms?._transitioning || this.app.warpPass?.enabled) return;
     const camWorld = this.app.camera;
+    // Le champ de vision se calcule sur la position de CETTE frame : la
+    // matrice inverse que garde le moteur date du rendu précédent, et
+    // pendant une rotation vive elle ferait juger une baie sur un regard
+    // qu'on n'a plus.
+    camWorld.updateMatrixWorld();
+    _invCam.copy(camWorld.matrixWorld).invert();
+    _matFrustum.multiplyMatrices(camWorld.projectionMatrix, _invCam);
+    _frustum.setFromProjectionMatrix(_matFrustum);
     const vistas = (current?.vistas ?? []).filter((v) => {
       if (!v.rt) return false;
       // hors de portée ou vue de dos : rien à rafraîchir
@@ -205,7 +227,17 @@ export class VistaManager {
       if (_pos.distanceToSquared(camWorld.position) > 1600) return false;
       _dir.set(0, 0, 1).transformDirection(v.mesh.matrixWorld);
       _toCam.copy(camWorld.position).sub(_pos);
-      return _dir.dot(_toCam) > 0;
+      if (_dir.dot(_toCam) <= 0) return false;
+      // Debout dans une pièce, on est DEVANT tous ses murs à la fois : le
+      // produit scalaire ne dit donc rien de ce qu'on regarde, et le tour
+      // de rôle repeignait une pièce entière dans la RTT pour une baie
+      // qu'on avait dans le dos. Une baie DÉJÀ peinte attend d'être
+      // regardée ; une baie neuve garde sa priorité, sinon elle resterait
+      // noire jusqu'à ce qu'on la trouve.
+      if (!v.camAt) return true;
+      _sphere.center.copy(_pos);
+      _sphere.radius = rayonBaie(v);
+      return _frustum.intersectsSphere(_sphere);
     });
     if (!vistas.length) return;
 

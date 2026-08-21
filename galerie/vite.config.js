@@ -1,4 +1,4 @@
-import { existsSync, rmSync } from 'node:fs';
+import { existsSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { defineConfig } from 'vite';
@@ -83,6 +83,59 @@ function retirerSauvegardes() {
 }
 
 /**
+ * Un fichier de configuration au lieu de cent soixante-quinze.
+ *
+ * Le contenu vit en un fichier par œuvre et par pièce : c'est ce qui rend
+ * une galerie lisible, versionnable, modifiable à la main. Mais le
+ * navigateur, lui, paie chaque fichier — l'index, puis les œuvres par
+ * vagues de huit, soit une vingtaine d'allers-retours EN SÉRIE avant que la
+ * scène puisse se construire. Sur un réseau mobile à 100 ms de latence,
+ * c'est plusieurs secondes d'écran de chargement, à chaque visite.
+ *
+ * Le chargeur sait déjà lire un fichier combiné, et le préfère : c'est le
+ * format que produit l'export de l'éditeur. Il n'était simplement jamais
+ * écrit. Ce plugin le fabrique À LA PUBLICATION, dans `dist/` seulement —
+ * `content/` garde ses fichiers séparés, qui restent la source de vérité et
+ * le repli si le combiné manque.
+ *
+ * L'ordre suit l'index : c'est lui qui décide de l'ordre des pièces dans le
+ * menu et du parcours du catalogue.
+ */
+function combinerContenu() {
+  let sortie = 'dist';
+  return {
+    name: 'galerie-combiner-contenu',
+    configResolved(config) { sortie = config.build.outDir; },
+    closeBundle() {
+      for (const genre of ['works', 'rooms']) {
+        const dossier = join(sortie, genre);
+        const index = lireJson(join(dossier, 'index.json'));
+        const noms = Array.isArray(index) ? index : index?.[genre];
+        if (!Array.isArray(noms) || !noms.length) continue;
+        const items = [];
+        let complet = true;
+        for (const nom of noms) {
+          const fichier = String(nom).endsWith('.json') ? String(nom) : `${nom}.json`;
+          const item = lireJson(join(dossier, fichier));
+          // un fichier illisible et l'on renonce : mieux vaut le chargement
+          // par fichier, qui sait ignorer l'intrus avec un avertissement,
+          // qu'un combiné amputé en silence
+          if (!item) { complet = false; break; }
+          items.push(item);
+        }
+        if (complet) {
+          writeFileSync(join(dossier, `${genre}.json`), JSON.stringify(items));
+        }
+      }
+    }
+  };
+}
+
+function lireJson(chemin) {
+  try { return JSON.parse(readFileSync(chemin, 'utf8')); } catch { return null; }
+}
+
+/**
  * Proxy local pour l'éditeur (mode Auteur uniquement).
  *
  * L'API Poly Pizza refuse le préflight CORS qu'impose l'en-tête
@@ -128,7 +181,7 @@ export default defineConfig({
   //   GALERIE_CONTENT=../mon-contenu npm run build
   publicDir: process.env.GALERIE_CONTENT || 'content',
 
-  plugins: [retirerDomEditeur(), retirerSauvegardes()],
+  plugins: [retirerDomEditeur(), retirerSauvegardes(), combinerContenu()],
 
   resolve: {
     // Un alias plutôt qu'un `if` dans le code : une condition à l'exécution

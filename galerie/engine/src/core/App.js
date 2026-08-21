@@ -190,17 +190,49 @@ class PasseGTAO extends GTAOPass {
     super.setSize(Math.max(1, Math.ceil(w / 2)), Math.max(1, Math.ceil(h / 2)));
   }
 
+  /**
+   * Masque, pour la pré-passe des normales, ce qui n'a rien à y faire.
+   *
+   * La version de three parcourt LE GRAPHE ENTIER et note la visibilité de
+   * chaque nœud dans une Map, deux fois par frame (masquer, restaurer). Or
+   * la galerie garde ses quinze pièces dans la scène et n'en montre qu'une :
+   * 996 nœuds pour 75 visibles, soit deux mille écritures de Map par frame
+   * pour rétablir un état que l'immense majorité n'avait jamais quitté.
+   *
+   * On ne descend donc que dans le VISIBLE — un sous-arbre éteint n'est pas
+   * rendu, le masquer ne changerait rien — et l'on ne retient que ce qu'on a
+   * effectivement éteint : quelques objets, dans un tableau. Le G-buffer
+   * reçoit exactement les mêmes triangles qu'avant.
+   */
   overrideVisibility() {
-    const cache = this._visibilityCache;
-    this.scene.traverse((o) => {
-      cache.set(o, o.visible);
-      // Ni lutins ni traits — et rien de TRANSPARENT : un faisceau de
-      // lumière ou un disque de portail rendu opaque dans la profondeur
-      // deviendrait un faux occulteur, et l'AO assombrirait derrière lui.
-      if (o.isPoints || o.isLine || o.isSprite
-        || (o.isMesh && o.material?.transparent)) o.visible = false;
-    });
+    this._masques ??= [];
+    this._masques.length = 0;
+    masquerPourAO(this.scene, this._masques);
   }
+
+  restoreVisibility() {
+    for (const o of this._masques ?? []) o.visible = true;
+    if (this._masques) this._masques.length = 0;
+    this._visibilityCache.clear();   // la classe de base la croit sienne
+  }
+}
+
+/**
+ * Éteint récursivement ce qui fausserait le G-buffer, et l'empile.
+ *
+ * Ni lutins ni traits — et rien de TRANSPARENT : un faisceau de lumière ou
+ * un disque de portail rendu opaque dans la profondeur deviendrait un faux
+ * occulteur, et l'AO assombrirait derrière lui.
+ */
+function masquerPourAO(o, pile) {
+  if (!o.visible) return;          // sous-arbre non rendu : rien à masquer
+  if (o.isPoints || o.isLine || o.isSprite
+    || (o.isMesh && o.material?.transparent)) {
+    o.visible = false;
+    pile.push(o);
+    return;                        // inutile de fouiller sous un nœud éteint
+  }
+  for (const enfant of o.children) masquerPourAO(enfant, pile);
 }
 
 /**

@@ -289,6 +289,17 @@ ressemble à une clé d'API apparaît dans ce qui serait publié. Le workflow
 de déploiement le lance avant de publier ; rouge vaut mieux que vert avec
 l'outil d'auteur en ligne.
 
+**Un fichier de configuration au lieu de cent soixante-quinze.** Le contenu
+vit en un fichier par œuvre et par pièce — c'est ce qui le rend lisible,
+versionnable, modifiable à la main. Le navigateur, lui, paie chaque fichier :
+l'index, puis les œuvres par vagues de huit, soit une vingtaine d'allers-
+retours **en série** avant que la scène puisse se construire. Le build
+concatène donc `works/*.json` en `dist/works/works.json` (idem pour les
+pièces), dans l'ordre de l'index. Le chargeur préférait déjà ce format —
+c'est celui qu'exporte l'éditeur — il n'était simplement jamais produit.
+`content/` garde ses fichiers séparés : ils restent la source de vérité, et
+le repli si le combiné manque ou se lit mal.
+
 **Navigation** — desktop : ZQSD / WASD / flèches (Maj = courir), **A/E**
 (Q/E en QWERTY) pour pivoter sur place, souris pour orbiter, clic sur une
 œuvre pour l'approcher (Échap pour reculer). Tous les raccourcis sont liés
