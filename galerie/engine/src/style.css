@@ -4,6 +4,8 @@
   --dim: #8a87a0;
   --accent: #9f8cff;
   --panel: rgba(12, 12, 22, 0.88);
+  /* diamètre du hublot de la minimap : le catalogue s'ouvre juste dessous */
+  --minimap: 8.4rem;
   font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
 }
 
@@ -245,7 +247,8 @@ html, body {
   #hint { display: none; }
   /* Sur un petit écran, la minimap prend une place que la vue n'a pas à
      donner : elle rétrécit et remonte au-dessus des pastilles. */
-  #minimap { width: 6.4rem; height: 6.4rem; bottom: calc(7rem + env(safe-area-inset-bottom, 0px)); }
+  :root { --minimap: 5.8rem; }
+  #minimap { padding: 0.35rem; }
   #joystick { width: 6.2rem; height: 6.2rem; }
   .enter-inner { padding: 1.2rem; }
   .enter-inner .tip { display: none; }
@@ -428,7 +431,9 @@ html, body {
    tient son rang sous un « ??? ». */
 #progress-list {
   position: fixed;
-  top: calc(2.9rem + env(safe-area-inset-top, 0px));
+  /* sous la minimap quand elle est là (elle occupe le haut-droit), sinon
+     juste sous le badge : la variable porte la hauteur du hublot */
+  top: calc(3.9rem + var(--minimap) + env(safe-area-inset-top, 0px));
   right: calc(1rem + env(safe-area-inset-right, 0px));
   z-index: 16; width: min(19rem, 88vw);
   max-height: min(60vh, 30rem); overflow-y: auto;
@@ -467,6 +472,13 @@ html, body {
 #progress-list .pl-s { color: var(--dim); font-size: 0.7rem; }
 #progress-list .pl-astuce {
   margin-top: 0.7rem; padding-top: 0.6rem; font-size: 0.75rem; color: var(--dim);
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+/* Ce qui reste AILLEURS : le seul chiffre du panneau qui parle du dehors,
+   et il ne nomme rien — c'est le rappel qu'il y a encore des portes. */
+#progress-list .pl-ailleurs {
+  margin-top: 0.7rem; padding-top: 0.6rem;
+  font-size: 0.75rem; color: rgba(159, 140, 255, 0.75);
   border-top: 1px solid rgba(255, 255, 255, 0.1);
 }
 
@@ -591,24 +603,42 @@ html, body {
 .vm-danger:hover, .vm-danger:focus-visible { color: #ffb3d0; }
 .vm-danger[disabled] { color: var(--dim); cursor: default; }
 
-/* La minimap : coin bas-droit, au-dessus des deux pastilles rondes et à
-   l'opposé du joystick tactile (bas-gauche). */
+/* La minimap — un HUBLOT rond en haut à droite, sous le compteur d'œuvres.
+   Elle ne montre que la salle où l'on est : son emprise, ses portes, et
+   l'aiguille du regard. Le disque est un vrai découpage (overflow), pas une
+   illusion : un tracé qui déborderait d'un cadre rond se verrait. */
 #minimap {
   position: fixed;
   right: calc(1rem + env(safe-area-inset-right, 0px));
-  bottom: calc(7rem + env(safe-area-inset-bottom, 0px));
-  z-index: 13; width: 9rem; height: 9rem; padding: 0.4rem;
-  border-radius: 0.6rem; cursor: pointer;
-  background: rgba(8, 8, 16, 0.5);
-  border: 1px solid rgba(255, 255, 255, 0.10);
+  top: calc(3.1rem + env(safe-area-inset-top, 0px));
+  z-index: 13;
+  width: var(--minimap); height: var(--minimap); padding: 0.5rem;
+  border-radius: 50%; overflow: hidden; cursor: pointer;
+  /* assez opaque pour que le tracé se lise par-dessus n'importe quelle
+     scène — une carte translucide sur une lune ne se lit pas */
+  background: rgba(6, 6, 13, 0.9);
+  border: 1px solid rgba(255, 255, 255, 0.12);
   transition: border-color 0.3s;
 }
-#minimap:hover { border-color: rgba(159, 140, 255, 0.4); }
+#minimap:hover { border-color: rgba(159, 140, 255, 0.45); }
 #minimap[hidden] { display: none; }
-/* En édition, le coin bas-droit appartient aux panneaux de l'éditeur : la
-   carte du visiteur n'a rien à y faire (la classe est posée par l'éditeur,
-   la règle vit ici — elle concerne un élément du visiteur). */
+/* En édition, le haut-droit appartient aux panneaux de l'éditeur. */
 body.editing #minimap { display: none; }
+
+/* L'emprise de la salle, et ses portes. Une porte FRANCHIE est pleine — on
+   sait ce qu'il y a derrière ; une porte jamais prise reste évidée ; une
+   porte fermée pour l'instant passe au rouge. */
+.ca-salle {
+  fill: rgba(159, 140, 255, 0.13);
+  stroke: rgba(159, 140, 255, 0.5); stroke-width: 0.5;
+}
+.ca-porte rect {
+  fill: rgba(8, 8, 16, 0.9);
+  stroke: var(--accent); stroke-width: 0.42;
+}
+.ca-porte.ca-prise rect { fill: var(--accent); }
+.ca-porte.ca-fermee rect { fill: rgba(24, 8, 14, 0.9); stroke: #ff6b8a; }
+.ca-porte.ca-fermee.ca-prise rect { fill: #ff6b8a; stroke: #ff6b8a; }
 
 /* ——— Menu : liste des pièces, lien liste ——— */
 .vm-rooms { margin: 0.3rem 0 0.2rem 0.8rem; }

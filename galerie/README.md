@@ -61,14 +61,33 @@ le plus court dans le graphe des pièces). Le jeton ◈ suit la même règle :
 il débloque la prochaine du catalogue. Le **son sert de boussole** : les rayons d'audibilité sont larges —
 une œuvre lointaine reste faiblement perceptible et attire.
 
-**Le catalogue se gagne.** Une œuvre n'est nommée qu'une fois rencontrée :
-le compteur « ◆ 2 / 7 » (haut-droite) se déplie d'un clic et montre la
-liste — les trouvées portent leur titre et leur salle, et **s'y rejoignent
-d'un clic** ; les autres tiennent leur rang sous un « ??? », avec le rappel
-de suivre le pointeur. Une œuvre est découverte après quelques secondes à
-portée, ou dès qu'on l'approche. Le catalogue **se garde d'une visite à
-l'autre** (voir « Mémoire de visite ») : une galerie de cette taille ne se
-traverse pas d'un trait, et repartir de zéro punissait qui revient.
+**Le catalogue se gagne — et il parle de la salle où l'on est.** Une œuvre
+n'est nommée qu'une fois rencontrée : le compteur « ◆ 2 / 4 » (haut-droite)
+se déplie d'un clic et montre les œuvres **de cette salle** — les trouvées
+portent leur titre et s'y rejoignent d'un clic, les autres tiennent leur
+rang sous un « ??? ». Un total global (« 3 / 47 ») écrasait le visiteur dès
+le premier pas : le chiffre ne bougeait presque jamais, et la liste dépliée
+était l'inventaire de la galerie entière — exactement ce que la carte se
+donnait du mal à ne pas divulguer. Ramené à la pièce, le compteur se
+remplit vite, se vide en changeant de salle, et redevient la seule question
+qu'il doit poser : **ai-je fait le tour d'ici ?**
+
+Ce qu'il y a AILLEURS se lit sur les portes. Chaque portail annonce, sous
+le nom de la salle qu'il dessert, **le compte de ses œuvres** — « ◆ 1 / 4 »,
+vert quand on les a toutes rencontrées. Un nom seul ne dit pas s'il vaut le
+détour ; le compte promet sans rien dévoiler : quatre œuvres derrière cette
+porte, une seule connue, jamais lesquelles. Une dernière ligne du panneau
+rappelle combien de salles restent inconnues.
+
+Une œuvre est découverte après quelques secondes à portée, ou dès qu'on
+l'approche. Le catalogue **se garde d'une visite à l'autre** (voir « Mémoire
+de visite ») : une galerie de cette taille ne se traverse pas d'un trait, et
+repartir de zéro punissait qui revient.
+
+*Conséquence assumée :* le jeton ◈ dévoile une « ??? » **de la salle où
+l'on se trouve**. Dans une salle sans œuvre, il n'y a rien à dévoiler — mais
+l'autre chemin du jeton, le `▸ ◈` de la visite guidée, continue de débloquer
+la prochaine œuvre du parcours, où qu'elle soit.
 
 **« Laisse-toi porter »** (barre `◂ ▸` en bas de l'écran, ou le menu) : la
 visite guidée **rejoue les œuvres découvertes**, dans l'ordre du catalogue,
@@ -112,13 +131,27 @@ perd. Celle-ci ne montre que ce qu'on a vécu :
 - une porte vue mais non prise laisse un **« ? »** : on sait qu'il y a
   quelque chose par là, on ne sait pas quoi.
 
-Elle vit à deux endroits : la **minimap** du coin bas-droit (la salle où
-l'on est, ses portes, une aiguille qui suit le regard — un clic ouvre la
-grande) et la **carte** du menu, section « Pièces », où l'on saute d'un
-clic dans une salle déjà connue. La liste sous la carte suit exactement la
-même mémoire : elle nomme les pièces visitées et compte les autres sans les
-nommer (« 11 pièces encore inconnues »). Une carte qui ménage la surprise à
-côté d'une liste qui la vend n'aurait rien ménagé du tout.
+Elle vit à deux endroits, et ils ne racontent pas la même chose.
+
+La **minimap** — un hublot rond, en haut à droite, sous le compteur — ne
+montre que **la salle où l'on est** : son emprise, ses portes, et l'aiguille
+du regard, qui bouge à chaque image. Elle a d'abord affiché un fragment du
+plan général ; c'était illisible, un morceau de plan de métro dans un rond
+de huit centimètres. Une minimap répond à deux questions et à deux
+seulement : *où suis-je tourné*, et *où sont les portes*. Chaque porte y
+porte son état — **pleine** si on l'a déjà franchie, **évidée** si la salle
+d'après reste à découvrir, **rouge** si le passage est fermé pour l'instant.
+La porte par laquelle on vient d'entrer ne rougit jamais : elle se referme
+derrière soi par règle, et l'afficher comme un obstacle là où l'on vient de
+marcher ferait peur pour rien.
+
+La **carte** du menu, section « Pièces », montre le reste : le graphe des
+salles connues, les passages franchis, et un « ? » là où une porte n'a pas
+encore été prise. On y saute d'un clic dans une salle déjà connue. La liste
+sous elle suit exactement la même mémoire : elle nomme les pièces visitées
+et compte les autres sans les nommer (« 11 pièces encore inconnues »). Une
+carte qui ménage la surprise à côté d'une liste qui la vend n'aurait rien
+ménagé du tout.
 
 **D'où viennent les coordonnées.** De nulle part : aucune pièce n'en porte,
 et en tenir un jeu à jour à la main aurait été une seconde vérité, la
@@ -158,6 +191,16 @@ mobile, copie du lien sinon) avec **lien profond** `?room=pièce` /
 `?work=œuvre` — celui qui l'ouvre arrive au même endroit, **sans écran
 d'accueil** (l'audio se débloque au premier geste, règle des navigateurs) —,
 **plein écran**, vue liste, raccourcis, langue, « Terminer la visite ».
+
+**Après une bascule, on regarde devant soi.** Le regard suit la pièce — le
+mur qu'on avait en face reste en face — puis se repose sur l'horizon. La
+règle d'avant (« le regard garde sa direction, c'est le monde qui tourne »)
+était élégante et désorientante : on arrivait le nez dans ses chaussures ou
+dans le plafond selon ce qu'on regardait en entrant dans l'anneau, et le cap
+semblait tourner au hasard. Il tournait en fait d'exactement ce dont la
+pièce avait tourné — ce qui ne se devine pas de l'intérieur. Le calcul part
+donc du **cap** et non du regard : l'inclinaison du menton ne doit rien
+décider.
 
 **Sphères de transfert de gravité.** Un seul objet par passage : une
 sphère de verre où **flotte le sablier de la gravité** (deux cônes pointe

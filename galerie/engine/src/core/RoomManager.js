@@ -10,6 +10,48 @@ export const FOG_DENSITY = 0.026;
 const REARM_DIST2 = 7; // (m²) zone à quitter pour réarmer un portail d'arrivée
 const HAUTEUR_CORPS = 2.2; // des pieds aux yeux : ce qui traverse une sphère
 const _worldPos = new THREE.Vector3(); // tampons du test de proximité
+const _qTour = new THREE.Quaternion(); // rotation du regard pendant une bascule
+const _regard = new THREE.Vector3();
+const _cap = new THREE.Vector3();
+
+/**
+ * Où regarder une fois la gravité retournée — rendu comme la ROTATION à
+ * appliquer au regard actuel, pour qu'elle s'anime au lieu de claquer.
+ *
+ * L'ancienne règle était « le regard garde sa direction, c'est le monde qui
+ * tourne ». Élégante sur le papier, désorientante en pratique : on arrivait
+ * le nez dans ses chaussures ou dans le plafond selon ce qu'on regardait en
+ * entrant dans l'anneau, et le cap semblait tourner au hasard — il tournait
+ * en fait d'exactement ce dont la pièce avait tourné, ce qui ne se devine
+ * pas de l'intérieur.
+ *
+ * Deux principes désormais, et ils se voient :
+ *   • le regard SUIT LA PIÈCE — le mur qu'on avait en face reste en face,
+ *     c'est lui qui donne le sens de l'espace ;
+ *   • il se repose sur L'HORIZON — après une bascule on veut voir devant
+ *     soi, jamais ses pieds.
+ */
+function capApresBascule(dir, q0, q1) {
+  // On part du CAP, pas du regard : le regard porte une inclinaison (on
+  // levait la tête vers le mur qui va devenir sol), et la faire voyager
+  // dans la rotation la transforme en virage — c'est de là que venait le
+  // « des fois ça tourne à gauche, des fois non ». Le cap, lui, est ce
+  // qu'on entend par « devant », et il ne doit rien devoir au menton.
+  const cap = _cap.set(dir.x, 0, dir.z);
+  if (cap.lengthSq() < 1e-8) cap.set(0, 0, -1);  // regard vertical : cap par défaut
+  cap.normalize();
+  // ce cap, exprimé dans le repère de la pièce puis relu dans son nouveau
+  // repère : c'est ce que « suivre la pièce » veut dire
+  const fin = _regard.copy(cap)
+    .applyQuaternion(_qTour.copy(q0).invert())
+    .applyQuaternion(q1);
+  fin.y = 0;                                     // et l'on se repose sur l'horizon
+  // le cap d'avant pointait vers ce qui devient le haut ou le bas : à plat,
+  // il ne reste rien. Mieux vaut alors garder le cap qu'un vecteur nul, qui
+  // ferait disparaître le regard.
+  if (fin.lengthSq() < 1e-8) fin.copy(cap);
+  return new THREE.Quaternion().setFromUnitVectors(dir, fin.normalize());
+}
 const _worldUp = new THREE.Vector3();
 const _proj = new THREE.Vector3();     // direction caméra → portail
 const _vers = new THREE.Vector3();     // direction vers le portail
@@ -286,7 +328,7 @@ export class RoomManager {
       room, q0, q1, p0, p1,
       c0: cam.position.clone(),
       c1: new THREE.Vector3(...(cfg.arrival ?? [0, 2.2, 0])),
-      dir, t: 0, dur: cfg.duration ?? 1.6
+      dir, tourner: capApresBascule(dir, q0, q1), t: 0, dur: cfg.duration ?? 1.6
     };
   }
 
@@ -302,8 +344,12 @@ export class RoomManager {
     b.room.group.updateMatrixWorld(true);
     const cam = this.app.camera;
     cam.position.lerpVectors(b.c0, b.c1, e);
-    // le regard garde sa direction : c'est le MONDE qui tourne, pas la tête
-    this.app.controls?.orbit.target.copy(cam.position).addScaledVector(b.dir, 4);
+    // Le regard tourne AVEC la pièce, et se repose sur l'horizon (voir
+    // `capApresBascule`) : la rotation s'étale sur toute la bascule, pour
+    // qu'on la vive comme un basculement et non comme une coupure.
+    _qTour.identity().slerp(b.tourner, e);
+    _regard.copy(b.dir).applyQuaternion(_qTour);
+    this.app.controls?.orbit.target.copy(cam.position).addScaledVector(_regard, 4);
     if (k >= 1) {
       this._bascule = null;
       this._transitioning = false;
@@ -481,6 +527,21 @@ export class RoomManager {
     }
   }
 
+  /**
+   * Remet à jour ce que les portes annoncent : « ◆ 1 / 4 » pour la salle
+   * qu'elles desservent. Appelé au changement de pièce et à chaque
+   * découverte — le compte doit bouger sous les yeux du visiteur, sinon la
+   * porte ment jusqu'au prochain passage.
+   */
+  rafraichirEtiquettes(room = this.current) {
+    const prog = this.app.progression;
+    if (!room || !prog?.bilanDe) return;
+    for (const mesh of room.portalMeshes ?? []) {
+      const vers = mesh.userData.portal?.cfg?.to;
+      if (vers) peindreEtiquette(mesh, prog.bilanDe(vers));
+    }
+  }
+
   /* ------------------------------------------------- pièce courante ----- */
 
   /**
@@ -650,6 +711,9 @@ export class RoomManager {
     // qu'on y est. Ici et pas dans `traverse` — on arrive aussi par le
     // menu, par le catalogue, par la dérive ou par un lien partagé.
     if (this.current) this.app.memoire?.noter('pieces', this.current.config.id);
+    // Le compteur d'œuvres est LOCAL à la salle : changer de pièce le change.
+    this.rafraichirEtiquettes();
+    this.app.progression?._peindre?.();
   }
 
   /* ---------------------------------------------------------- ambiance --- */
@@ -943,6 +1007,11 @@ export class RoomManager {
     for (const m of [portal.mesh, jumelle]) {
       if (m && fermer(m, duree)) this._refroidis.add(m);
     }
+    // La porte de RETOUR se ferme derrière soi : c'est la règle du passage,
+    // pas un obstacle. La marquer permet à la minimap de ne pas l'annoncer
+    // en rouge à la seconde où l'on débarque — signaler « bloqué » là où
+    // l'on vient de passer, c'est faire peur pour rien.
+    if (jumelle) jumelle.userData.arrivee = true;
     // Le trait sur la carte se gagne en FRANCHISSANT le passage : sauter
     // d'une pièce à l'autre par le menu montre les deux salles, jamais le
     // lien — c'est bien en marchant qu'on apprend comment tout se tient.
@@ -1589,24 +1658,56 @@ function buildPortalMesh(cfg, label) {
   group.add(glow);
   group.userData.glow = glow;
 
-  // étiquette (CanvasTexture)
+  // étiquette (CanvasTexture) : le nom de la salle, et sous lui le compte
+  // de ses œuvres — voir `peindreEtiquette`
   const canvas = document.createElement('canvas');
-  canvas.width = 512; canvas.height = 128;
-  const g = canvas.getContext('2d');
-  g.font = '300 52px system-ui, sans-serif';
-  g.textAlign = 'center';
-  g.textBaseline = 'middle';
-  g.fillStyle = '#cfc8ff';
-  g.fillText(cfg.label ?? label ?? '', 256, 64);
+  canvas.width = 512; canvas.height = 176;
   const tex = new THREE.CanvasTexture(canvas);
   const sprite = new THREE.Sprite(new THREE.SpriteMaterial({
     map: tex, transparent: true, depthWrite: false
   }));
-  sprite.scale.set(2.6, 0.65, 1);
-  sprite.position.set(0, 3.3, 0);
+  sprite.scale.set(2.6, 0.9, 1);
+  sprite.position.set(0, 3.4, 0);
   group.add(sprite);
+  group.userData.etiquette = { canvas, tex, nom: cfg.label ?? label ?? '', bilan: null };
+  peindreEtiquette(group, null);
 
   return group;
+}
+
+/**
+ * L'étiquette d'un portail : le nom de la salle, et sous lui ce qu'elle
+ * contient — « ◆ 1 / 4 ».
+ *
+ * Un nom seul ne dit pas s'il vaut le détour. Le compte, lui, promet sans
+ * rien dévoiler : on apprend qu'il y a quatre œuvres derrière cette porte
+ * et qu'on en connaît une, jamais lesquelles. C'est ce qui fait qu'on
+ * pousse la porte — et ce qui rend supportable un compteur d'écran devenu
+ * local à la salle où l'on se tient.
+ *
+ * `bilan` à null : on ne sait pas encore (la progression n'existe pas au
+ * moment où la porte se construit) — on n'écrit alors que le nom.
+ */
+function peindreEtiquette(group, bilan) {
+  const e = group.userData.etiquette;
+  if (!e) return;
+  const cle = bilan ? `${bilan.vues}/${bilan.total}` : '';
+  if (e.bilan === cle) return;            // rien de neuf : pas de ré-upload
+  e.bilan = cle;
+  const g = e.canvas.getContext('2d');
+  g.clearRect(0, 0, e.canvas.width, e.canvas.height);
+  g.textAlign = 'center';
+  g.textBaseline = 'middle';
+  g.font = '300 52px system-ui, sans-serif';
+  g.fillStyle = '#cfc8ff';
+  g.fillText(e.nom, 256, 52);
+  if (bilan && bilan.total > 0) {
+    g.font = '300 38px system-ui, sans-serif';
+    // tout trouvé : la porte le dit d'une couleur, sans un mot de plus
+    g.fillStyle = bilan.vues >= bilan.total ? '#8fe0c0' : 'rgba(207, 200, 255, 0.62)';
+    g.fillText(`\u25C6 ${bilan.vues} / ${bilan.total}`, 256, 122);
+  }
+  e.tex.needsUpdate = true;
 }
 
 function disposePortalMesh(group) {

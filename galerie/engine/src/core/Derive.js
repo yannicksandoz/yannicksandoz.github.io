@@ -165,6 +165,7 @@ export class Derive {
     if (n === 0 && !((this.app.jetons?.compte ?? 0) > 0 && this.inconnues.length)) return;
     this.active = true;
     this._chute = null;                   // une descente en cours s'annule
+    this._aPoser = false;                 // et celle qui attendait son tour
     this.app.activeFocus?.release?.();
     this.app.controls.locked = true;      // la caméra appartient à la dérive
     // La visite suit l'ORDRE du catalogue, du premier au dernier. Partir de
@@ -205,10 +206,15 @@ export class Derive {
     // vol — le tore flotte au centre du cube de 80 m — et le visiteur qui
     // reprenait la main là-haut restait suspendu, marchant dans le vide :
     // la visite se terminait par un bug. On le repose d'abord au sol.
-    if (!this._poser()) {
-      this.app.controls.locked = false;
-      this.app.controls.resyncCollision?.();
-    }
+    //
+    // Mais sans se précipiter : le geste qui arrête la visite est le plus
+    // souvent un CLIC SUR L'ŒUVRE qu'on vient d'atteindre, et celle-là
+    // flotte peut-être. Redescendre pour laisser aussitôt le travelling
+    // d'approche remonter donnait le mal de mer — et les deux animations,
+    // tirant la même caméra, se marchaient dessus. La descente attend donc
+    // son heure : elle se fera à la sortie de la fiche, quand la main
+    // revient pour de bon (voir `_tick`).
+    this._aPoser = true;
   }
 
   /**
@@ -294,6 +300,23 @@ export class Derive {
       this.app.controls.orbit.target.y += dy; // l'assiette du regard suit
       if (c.t >= 1) {
         this._chute = null;
+        this.app.controls.locked = false;
+        this.app.controls.resyncCollision?.();
+      }
+      return;
+    }
+    // Descente en attente : elle patiente tant qu'une œuvre tient la main
+    // (approche, fiche ouverte, recul en cours). Le visiteur reste donc en
+    // l'air aussi longtemps qu'il contemple — c'est là-haut que l'œuvre se
+    // regarde — et ne redescend qu'au moment où il se retrouve vraiment
+    // libre de marcher.
+    if (this._aPoser) {
+      if (this.app.activeFocus) return;
+      this._aPoser = false;
+      if (this._poser()) {
+        // la descente pilote la caméra : elle la garde jusqu'au sol
+        this.app.controls.locked = true;
+      } else {
         this.app.controls.locked = false;
         this.app.controls.resyncCollision?.();
       }

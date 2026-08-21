@@ -155,5 +155,8 @@ export function recommencerLaVisite(app) {
     app.progression._dwell?.clear?.();
     app.progression._peindre?.();
   }
+  // les portes annoncent le contenu des salles : elles mentiraient jusqu'au
+  // prochain pas si on ne les reprenait pas ici
+  app.rooms?.rafraichirEtiquettes?.();
   app._minimap?.redessiner?.();
 }

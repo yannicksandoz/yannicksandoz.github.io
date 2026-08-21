@@ -22,6 +22,7 @@
  */
 import * as THREE from 'three';
 import { planGalerie } from '../core/planGalerie.js';
+import { estFerme } from '../core/Cooldown.js';
 
 const CLE_MINIMAP = 'galerie-minimap';
 const MARGE = 14;      // mètres laissés autour du tracé
@@ -214,10 +215,19 @@ export function setMinimap(app, on) {
 }
 
 /**
- * Le carré du coin bas-droit. Il ne se redessine PAS à chaque image : le
- * tracé ne change qu'en changeant de pièce ou en découvrant quelque chose,
- * et seule l'aiguille bouge — quatre fois par seconde suffisent à la main,
- * et un `innerHTML` par frame coûterait plus que la scène 3D.
+ * La minimap : LA SALLE OÙ L'ON EST, et ses portes.
+ *
+ * Elle a d'abord montré un morceau du plan général — un fragment de plan de
+ * métro dans un rond de neuf centimètres. Illisible : à cette échelle, les
+ * traits entre salles ne disaient rien qu'on ne sût déjà, et la salle
+ * courante s'y perdait. Une minimap répond à deux questions, et à deux
+ * seulement : **où suis-je tourné**, et **où sont les portes**. Le reste est
+ * le travail de la grande carte.
+ *
+ * Chaque porte porte donc son état, lisible d'un coup d'œil :
+ *   • pleine        — passage déjà emprunté, on sait ce qu'il y a derrière ;
+ *   • évidée        — jamais franchie, la salle d'après reste à découvrir ;
+ *   • rouge         — fermée pour l'instant (délai de réarmement).
  */
 export class Minimap {
   constructor(app) {
@@ -229,40 +239,107 @@ export class Minimap {
     document.body.appendChild(this.el);
     this.el.addEventListener('click', () => this.app.ouvrirCarte?.());
 
-    this._acc = 0;
     this.redessiner();
     this._offMemoire = app.memoire?.onChange(() => this.redessiner());
     this._off = app.onUpdate((dt) => this._tick(dt));
   }
 
+  get piece() { return this.app.rooms?.current ?? null; }
+
   redessiner() {
-    this._piece = this.app.rooms?.current?.config.id ?? null;
+    const room = this.piece;
+    this._id = room?.config.id ?? null;
     this._signature = this._sig();
-    // La fenêtre suit la taille de la pièce où l'on est : un cadre fixe
-    // noyait une petite salle et coupait le belvédère de 50 m.
-    const p = planDe(this.app).pieces.find((q) => q.id === this._piece);
-    const autour = Math.max(26, Math.max(p?.w ?? 26, p?.d ?? 20) / 2 + 14);
-    this.el.innerHTML = dessinerPlan(this.app,
-      { noms: false, autour, centreSur: p ?? null });
+    this.el.innerHTML = this._svg();
     this._aiguille = this.el.querySelector('.ca-vous');
+    this._portes = [...this.el.querySelectorAll('[data-porte]')];
     this.el.hidden = !this.el.firstChild;
   }
 
+  /** Ce qui, en changeant, oblige à refaire le tracé (et non à le bouger). */
   _sig() {
     const m = this.app.memoire;
-    return `${m?.pieces.size ?? 0}:${m?.portes.size ?? 0}`;
+    return `${this._id}:${m?.pieces.size ?? 0}:${m?.portes.size ?? 0}`
+      + `:${(this.piece?.portalMeshes ?? []).length}`;
   }
 
-  _tick(dt) {
-    this._acc += dt;
-    if (this._acc < 0.25) return;
-    this._acc = 0;
-    if (this.app.rooms?.current?.config.id !== this._piece
+  _svg() {
+    const room = this.piece;
+    if (!room) return '';
+    const plan = planDe(this.app).pieces.find((p) => p.id === this._id);
+    const w = plan?.w ?? 26;
+    const d = plan?.d ?? 20;
+    // Cadre carré, dont le CSS ne montre que le disque inscrit : une salle
+    // carrée de côté s n'y tient qu'à partir d'un diamètre s√2. On prend un
+    // peu plus, pour que les murs ne frôlent pas le bord du hublot.
+    const cote = Math.max(w, d) * 1.62;
+    const demi = cote / 2;
+
+    const portes = (room.portalMeshes ?? []).map((mesh, i) => {
+      const cfg = mesh.userData.portal?.cfg;
+      if (!Array.isArray(cfg?.position)) return '';
+      const [x, , z] = cfg.position;
+      // la porte regarde vers l'intérieur : on la couche le long du mur
+      const deg = Array.isArray(cfg.rotation) ? Number(cfg.rotation[1]) || 0 : 0;
+      const t = Math.max(2.2, cote / 16);
+      return `<g class="ca-porte" data-porte="${i}"
+        transform="translate(${x} ${z}) rotate(${-deg})">
+        <rect x="${-t * 0.62}" y="${-t * 0.22}" width="${t * 1.24}" height="${t * 0.44}"
+          rx="${t * 0.14}"/></g>`;
+    }).join('');
+
+    const corps = Math.max(2.4, cote / 12);
+    const moi = `<g class="ca-vous" transform="translate(0 0)">
+      <path d="M0,-${corps * 0.62} L${corps * 0.42},${corps * 0.5}
+        L0,${corps * 0.16} L-${corps * 0.42},${corps * 0.5} Z"/></g>`;
+
+    return `<svg class="ca-svg" viewBox="${-demi} ${-demi} ${cote} ${cote}"
+      preserveAspectRatio="xMidYMid meet" aria-hidden="true" focusable="false">
+      <rect class="ca-salle" x="${-w / 2}" y="${-d / 2}" width="${w}" height="${d}"
+        rx="${Math.min(2.5, Math.min(w, d) / 8)}"/>${portes}${moi}</svg>`;
+  }
+
+  /**
+   * Une aiguille se suit à l'œil : elle bouge donc à CHAQUE image. Ce n'est
+   * pas un luxe — à quatre rafraîchissements par seconde elle sautait, et
+   * une carte qui saute pendant qu'on tourne la tête est pire que pas de
+   * carte. Le coût est d'un attribut `transform` par frame ; le tracé, lui,
+   * ne se refait qu'en changeant de salle.
+   */
+  _tick() {
+    if (this._id !== (this.piece?.config.id ?? null)
       || this._sig() !== this._signature) { this.redessiner(); return; }
-    const ici = position(this.app);
-    if (!ici || !this._aiguille) return;
-    this._aiguille.setAttribute('transform',
-      `translate(${ici.x.toFixed(2)} ${ici.z.toFixed(2)}) rotate(${ici.cap.toFixed(1)})`);
+    const room = this.piece;
+    if (!room) return;
+
+    if (this._aiguille) {
+      // position DANS LA PIÈCE : le tracé est en coordonnées locales, et la
+      // pièce peut être basculée (Escher) — lire la caméra en monde
+      // poserait l'aiguille n'importe où
+      const local = room.group.worldToLocal(_v.copy(this.app.camera.position));
+      this.app.camera.getWorldDirection(_d);
+      _d.applyQuaternion(room.group.getWorldQuaternion(_q).invert());
+      const cap = (Math.atan2(_d.x, -_d.z) * 180) / Math.PI;
+      this._aiguille.setAttribute('transform',
+        `translate(${local.x.toFixed(2)} ${local.z.toFixed(2)}) rotate(${cap.toFixed(1)})`);
+    }
+
+    // l'état des portes : franchie, inconnue, ou fermée pour l'instant
+    const memoire = this.app.memoire;
+    const ici = room.config.id;
+    for (const g of this._portes) {
+      const mesh = room.portalMeshes[Number(g.dataset.porte)];
+      if (!mesh) continue;
+      const vers = mesh.userData.portal?.cfg?.to;
+      // La porte par laquelle on vient d'entrer est fermée derrière soi :
+      // elle ne rougit pas, ce serait annoncer un mur là où l'on a marché.
+      // Sa marque tombe d'elle-même quand le passage se rouvre.
+      if (mesh.userData.arrivee && !estFerme(mesh)) mesh.userData.arrivee = false;
+      const fermee = estFerme(mesh) && !mesh.userData.arrivee;
+      const prise = memoire ? memoire.aPris(ici, vers) : true;
+      const classe = `ca-porte${fermee ? ' ca-fermee' : ''}${prise ? ' ca-prise' : ''}`;
+      if (g.getAttribute('class') !== classe) g.setAttribute('class', classe);
+    }
   }
 
   dispose() {

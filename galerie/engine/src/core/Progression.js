@@ -78,6 +78,33 @@ export class Progression {
     return this.total > 0 && this.compte >= this.total;
   }
 
+  /** Les œuvres d'UNE pièce, dans l'ordre du catalogue. */
+  parcoursDe(roomId) {
+    return this.parcours.filter((a) => a.room?.config.id === roomId);
+  }
+
+  /** Ce qu'une pièce contient, et ce qu'on y a déjà rencontré. */
+  bilanDe(roomId) {
+    let total = 0, vues = 0;
+    for (const a of this.oeuvres) {
+      if (a.room?.config.id !== roomId) continue;
+      total++;
+      if (this.estDecouverte(a)) vues++;
+    }
+    return { total, vues };
+  }
+
+  /** Pièces de la galerie où l'on n'a jamais mis les pieds. */
+  get piecesInconnues() {
+    const salles = this.app.rooms?.rooms;
+    if (!salles) return 0;
+    const vues = this.app.memoire?.pieces;
+    if (!vues) return 0;
+    let n = 0;
+    for (const id of salles.keys()) if (!vues.has(id)) n++;
+    return n;
+  }
+
   /** Minutes écoulées depuis l'entrée dans la galerie. */
   get minutes() {
     return (performance.now() - this._debut) / 60000;
@@ -130,6 +157,9 @@ export class Progression {
   _notifier() {
     for (const fn of this._abonnes) fn(this);
     this._peindre();
+    // les portes annoncent le contenu des salles voisines : une découverte
+    // change ce qu'elles disent, et elles doivent le dire tout de suite
+    this.app.rooms?.rafraichirEtiquettes?.();
   }
 
   _tick(dt) {
@@ -197,6 +227,9 @@ export class Progression {
     this._badge = badge;
     this._panneau = panneau;
     this._peindre();
+    // La salle de départ n'a jamais vu passer un changement de pièce : sans
+    // ce premier appel, ses portes resteraient muettes jusqu'au premier pas.
+    this.app.rooms?.rafraichirEtiquettes?.();
     onLangChange(() => this._peindre());
   }
 
@@ -211,25 +244,41 @@ export class Progression {
     }
   }
 
+  /**
+   * Le badge et son panneau ne parlent que de LA SALLE OÙ L'ON EST.
+   *
+   * Un « ◆ 3 / 47 » global écrasait le visiteur dès le premier pas : le
+   * chiffre ne bougeait presque jamais, et la liste dépliée était un
+   * inventaire de la galerie entière — exactement ce que la carte s'était
+   * donné du mal à ne pas divulguer. Ramené à la pièce, le compteur se
+   * remplit vite, se vide en changeant de salle, et redevient ce qu'il
+   * doit être : « ai-je fait le tour d'ici ? ». Ce qu'il y a AILLEURS se
+   * lit sur les portes (« ◆ 1 / 4 », voir `peindreEtiquette`) et sur la
+   * carte, pas dans un total qui ne veut rien dire.
+   */
   _peindre() {
     if (!this._badge) return;
     const jetons = this.app.jetons?.compte ?? 0;
-    const texte = t('progress.label', { n: this.compte, total: this.total })
+    const salle = this.app.rooms?.current?.config.id ?? null;
+    const bilan = salle ? this.bilanDe(salle) : { total: 0, vues: 0 };
+    const texte = t('progress.label', { n: bilan.vues, total: bilan.total })
       + (jetons > 0 ? ` · ${t('progress.jetons', { n: jetons })}` : '');
-    this._badge.textContent = `◆ ${this.compte} / ${this.total}`
+    this._badge.textContent = `◆ ${bilan.vues} / ${bilan.total}`
       + (jetons > 0 ? `  ·  ◈ ${jetons}` : '');
     this._badge.title = texte;
     this._badge.setAttribute('aria-label', texte);
+    // Une salle sans œuvre affiche « ◆ 0 / 0 » plutôt que de disparaître :
+    // c'est une information (il n'y a rien à chercher ici), et c'est par ce
+    // bouton qu'on ouvre le panneau — lequel dit justement où aller.
     if (this._panneau.hidden) return;
 
-    const reste = this.total - this.compte;
-    const lignes = this.parcours.map((a, i) => {
+    const reste = bilan.total - bilan.vues;
+    const lignes = this.parcoursDe(salle).map((a, i) => {
       const vue = this.estDecouverte(a);
       const revelee = !vue && this.estRevelee(a);
       // une ??? se DÉVOILE contre un jeton : la ligne devient cliquable
       const devoilable = !vue && !revelee && jetons > 0;
       const titre = (vue || revelee) ? (a.config.title ?? a.config.id) : '???';
-      const salle = (vue || revelee) ? (a.room?.config.title ?? '') : '';
       const attrs = vue
         ? `data-work="${esc(a.config.id)}" class="vue"`
         : devoilable
@@ -239,17 +288,20 @@ export class Progression {
              ${revelee ? `title="${esc(t('progress.revelee'))}"` : ''}`;
       return `<li><button type="button" ${attrs}>
         <span class="pl-n">${i + 1}</span>
-        <span class="pl-t">${esc(titre)}${revelee ? ' ◈' : ''}${devoilable ? ' <span class="pl-j">◈</span>' : ''}</span>
-        <span class="pl-s">${esc(salle)}</span></button></li>`;
+        <span class="pl-t">${esc(titre)}${revelee ? ' ◈' : ''}${devoilable ? ' <span class="pl-j">◈</span>' : ''}</span></button></li>`;
     }).join('');
 
+    const inconnues = this.piecesInconnues;
     const jetonsAstuce = reste > 0 && this.app.jetons?.total > 0
       ? `<p class="pl-astuce">${esc(t('progress.jetons.hint'))}</p>` : '';
     this._panneau.innerHTML = `
-      <h2>${esc(t('progress.title'))}</h2>
-      <ul role="list">${lignes}</ul>
+      <h2>${esc(this.app.rooms?.current?.config.title ?? t('progress.title'))}</h2>
+      ${bilan.total ? `<ul role="list">${lignes}</ul>`
+    : `<p class="pl-astuce">${esc(t('progress.vide'))}</p>`}
       ${reste > 0 ? `<p class="pl-astuce">${esc(t('progress.hint', { n: reste }))}</p>` : ''}
-      ${jetonsAstuce}`;
+      ${jetonsAstuce}
+      ${inconnues > 0
+    ? `<p class="pl-ailleurs">${esc(t('progress.ailleurs', { n: inconnues }))}</p>` : ''}`;
 
     for (const b of this._panneau.querySelectorAll('[data-work]')) {
       b.addEventListener('click', () => {
