@@ -13,6 +13,7 @@ import { mountProgression, pointDeVue } from './core/Progression.js';
 import { mountBoussole } from './ui/Boussole.js';
 import { mountDerive } from './core/Derive.js';
 import { mountJetons } from './core/Jetons.js';
+import { mountJetonsSon } from './core/JetonsSon.js';
 import { mountMemoire } from './core/Memoire.js';
 import { mountMinimap, minimapActive } from './ui/Carte.js';
 
@@ -147,6 +148,7 @@ async function boot() {
     app.ui.maybeShowTouchHint(app.quality.isMobile);
     mountProgression(app).montrerBadge();
     mountJetons(app);     // avant la dérive : elle lit le porte-monnaie
+    mountJetonsSon(app);  // ils scintillent : on peut les pister à l'oreille
     mountBoussole(app);
     mountDerive(app);
     if (minimapActive()) mountMinimap(app);
@@ -161,6 +163,7 @@ async function boot() {
       // de badge en revanche : le panneau couvre l'écran.
       mountProgression(app);
       mountJetons(app);
+      mountJetonsSon(app);
       await startAudioTour(app);
     } else {
       app.ui.maybeShowTouchHint(app.quality.isMobile);
@@ -168,6 +171,7 @@ async function boot() {
       // les jetons ◈, la boussole d'écran, la dérive guidée.
       mountProgression(app).montrerBadge();
       mountJetons(app);   // avant la dérive : elle lit le porte-monnaie
+      mountJetonsSon(app);
       mountBoussole(app);
       mountDerive(app);
       if (minimapActive()) mountMinimap(app);
@@ -287,6 +291,8 @@ function bootHeadless() {
         app.audio.unlock(); // le geste utilisateur est encore actif
         app.rooms.onAudioUnlocked();
         mountProgression(app);   // le catalogue se gagne ici aussi
+        mountJetons(app);
+        mountJetonsSon(app);
         headlessApp = app;
         window.__galerie = app;
       }

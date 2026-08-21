@@ -320,6 +320,9 @@ html, body {
   outline: 3px solid var(--accent); outline-offset: 2px;
 }
 .at-empty { color: var(--dim); }
+/* curseur de réglage (menu) : le libellé au-dessus, la glissière pleine largeur */
+.vm-range { display: block; margin: 0.4rem 0 0.8rem; font-size: 0.85rem; color: var(--dim); }
+.vm-range input { display: block; width: 100%; margin-top: 0.3rem; accent-color: var(--accent); }
 /* les passages ferment la liste : un filet les sépare des œuvres */
 #at-doors { margin-top: 0.8rem; padding-top: 0.8rem; border-top: 1px solid rgba(255, 255, 255, 0.1); }
 #at-doors button { color: var(--dim); }
