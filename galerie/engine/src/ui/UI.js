@@ -1,6 +1,7 @@
 import { collectCredits, collectSources } from '../core/credits.js';
 import { t, traduireDom, onLangChange } from '../core/i18n.js';
 import { peindreLibelles } from '../core/clavier.js';
+import { pisteAD, LecteurAD, mountLecteurAD } from '../core/audiodescription.js';
 
 /**
  * Repli des touches de marche, tant que la disposition réelle n'est pas
@@ -232,6 +233,7 @@ export class UI {
   showFocus(artwork, onClose) {
     this._onCloseFocus = onClose;
     const cfg = artwork.config;
+    this._focusConfig = cfg;
     this.focusTitle.textContent = cfg.title ?? cfg.id;
     this.focusDesc.textContent = cfg.description ?? '';
 
@@ -254,6 +256,29 @@ export class UI {
         imgBtn.onclick = () => this.showImageViewer(
           artwork.app.resolveAsset(cfg.image), cfg.title ?? cfg.id);
       }
+      // Audiodescription : la voix qui dit ce que l'image montre. Le bouton
+      // n'existe que si un enregistrement existe pour la langue courante ;
+      // il porte SA langue, pour que le lecteur d'écran l'annonce juste.
+      const adBtn = this.focusActions.querySelector('#focus-ad');
+      if (adBtn) {
+        const piste = pisteAD(cfg);
+        adBtn.hidden = !piste;
+        if (piste) {
+          const lecteur = mountLecteurAD(artwork.app);
+          this._lecteurAD = lecteur;
+          adBtn.lang = piste.lang;
+          adBtn.textContent = LecteurAD.libelle(lecteur.enCours === cfg);
+          adBtn.setAttribute('aria-pressed', String(lecteur.enCours === cfg));
+          adBtn.onclick = () => lecteur.basculer(cfg);
+          // Une seule inscription : le libellé suit le lecteur, y compris
+          // quand la description se termine d'elle-même.
+          if (!this._adAbonne) {
+            this._adAbonne = true;
+            lecteur.onChange((l) => this._peindreAD(l));
+          }
+        }
+      }
+
       const aLien = typeof cfg.link === 'string' && /^https?:\/\//.test(cfg.link);
       lien.hidden = !aLien;
       if (aLien) {
@@ -265,7 +290,19 @@ export class UI {
     this.focusOverlay.hidden = false;
   }
 
+  /** Le bouton d'audiodescription suit l'état du lecteur (fin, arrêt). */
+  _peindreAD(lecteur) {
+    const b = this.focusActions?.querySelector('#focus-ad');
+    if (!b || b.hidden) return;
+    const parle = Boolean(lecteur.enCours) && lecteur.enCours === this._focusConfig;
+    b.textContent = LecteurAD.libelle(parle);
+    b.setAttribute('aria-pressed', String(parle));
+  }
+
   hideFocus() {
+    // Reculer, c'est quitter l'œuvre : sa description s'arrête avec elle.
+    this._focusConfig = null;
+    this._lecteurAD?.arreter();
     this.focusOverlay.hidden = true;
     this._onCloseFocus = null;
   }

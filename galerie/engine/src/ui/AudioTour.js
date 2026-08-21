@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { registry } from '../core/ModuleRegistry.js';
 import { t, onLangChange } from '../core/i18n.js';
 import { easeInOutCubic } from '../core/utils.js';
+import { pisteAD, LecteurAD, mountLecteurAD } from '../core/audiodescription.js';
 
 /** Titre prononçable, avec le repli traduit (a11y.js reste côté auteur). */
 const titre = (config) => {
@@ -81,6 +82,11 @@ export class AudioTour {
     // découvertes, qu'elles viennent d'une approche ou du temps passé tout
     // près — c'est la même règle que dans la visite 3D, au même endroit.
     app.progression?.onChange(() => this._onDecouverte());
+    mountLecteurAD(app).onChange((l) => {
+      if (!this.active) return;
+      this._peindreAD();
+      if (!l.enCours) this._announce(t('ad.done'));
+    });
     app.jetons?.onChange((j) => {
       if (!this.active) return;
       // Le bouton du jeton disparaît avec lui : sans quoi le focus tombe
@@ -157,6 +163,10 @@ export class AudioTour {
              flèche. C'est aussi la seule navigation praticable dans un
              carrefour comme le Belvédère (treize passages). -->
         <ul id="at-doors" role="list" aria-label="${t('tour.doors')}"></ul>
+        <!-- Audiodescription de l'œuvre approchée : la voix qui dit ce que
+             l'image montre. Elle n'apparaît que lorsqu'on est devant une
+             œuvre qui en déclare une — jamais un bouton sans contenu. -->
+        <button id="at-ad" hidden aria-pressed="false"></button>
         <button id="at-auto" aria-pressed="false">${t('tour.auto')}</button>
         <button id="at-quit">${t('tour.quit')}</button>
         <div id="at-live" aria-live="polite" class="at-sr-only"></div>
@@ -167,6 +177,10 @@ export class AudioTour {
 
     el.querySelector('#at-quit').addEventListener('click', () => this.stop());
     el.querySelector('#at-auto').addEventListener('click', () => this._basculerAuto());
+    el.querySelector('#at-ad').addEventListener('click', () => {
+      const art = this.app.activeFocus?.artwork;
+      if (art) mountLecteurAD(this.app).basculer(art.config);
+    });
 
     // Dialogue modal : le focus boucle aux extrémités du panneau. `inert`
     // (posé dans start) empêche déjà d'atteindre la page derrière ; sans ce
@@ -634,6 +648,24 @@ export class AudioTour {
     focus?.focus();
   }
 
+  /**
+   * Le bouton d'audiodescription vit au rythme des approches : il paraît
+   * devant une œuvre qui en déclare une, disparaît quand on recule.
+   */
+  _peindreAD() {
+    const b = this.el.querySelector('#at-ad');
+    if (!b) return;
+    const cfg = this.app.activeFocus?.artwork.config;
+    const piste = cfg ? pisteAD(cfg) : null;
+    b.hidden = !piste;
+    if (!piste) return;
+    const lecteur = mountLecteurAD(this.app);
+    const parle = lecteur.enCours === cfg;
+    b.lang = piste.lang;
+    b.textContent = LecteurAD.libelle(parle);
+    b.setAttribute('aria-pressed', String(parle));
+  }
+
   /* --------------------------------------------------------- autopilote --- */
 
   /**
@@ -745,6 +777,7 @@ export class AudioTour {
     } else if (state === 'out' && (this._lastFocusState === 'focused' || this._lastFocusState === 'in')) {
       this._announce(t('tour.back'));
     }
+    if (state !== this._lastFocusState) this._peindreAD();
     this._lastFocusState = state;
   }
 }

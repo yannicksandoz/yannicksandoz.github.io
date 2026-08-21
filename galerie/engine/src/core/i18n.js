@@ -111,6 +111,9 @@ const FR = {
 
   'focus.tip': 'Échap ou × pour reculer',
   'focus.close': 'Fermer',
+  'ad.play': "Écouter la description de l'image",
+  'ad.stop': 'Arrêter la description',
+  'ad.done': 'Description terminée.',
   'focus.image': "Voir l'image",
   'focus.link': 'En savoir plus',
   'viewer.close': "Fermer l'image",
@@ -224,6 +227,9 @@ const EN = {
 
   'focus.tip': 'Escape or × to step back',
   'focus.close': 'Close',
+  'ad.play': 'Listen to the image description',
+  'ad.stop': 'Stop the description',
+  'ad.done': 'Description finished.',
   'focus.image': 'View the image',
   'focus.link': 'Learn more',
   'viewer.close': 'Close the image',
