@@ -1,14 +1,21 @@
 #!/usr/bin/env node
 /**
- * Vue LISTE 2D — `liste.html`, généré au build depuis les mêmes JSON que la
- * scène (rooms/ + works/). Une page STATIQUE, sans JavaScript :
+ * Les deux pages STATIQUES de la galerie, générées au build depuis les
+ * mêmes JSON que la scène (rooms/ + works/). Ni l'une ni l'autre n'a
+ * besoin de JavaScript.
  *
- *  - le repli quand WebGL2 manque (l'écran d'accueil y mène) ;
- *  - la voie accessible : texte, images, lecteurs audio natifs ;
- *  - la face indexable de la galerie (les robots ne visitent pas la 3D).
+ *  - `liste.html` — LE SEUIL. Ce qu'il y a à visiter : les pièces, le
+ *    nombre d'œuvres de chacune. Pas les titres : le catalogue se gagne en
+ *    visitant, et une page qui publierait tout d'avance déflorerait la
+ *    visite pour qui arrive par un moteur de recherche. C'est aussi le
+ *    repli quand WebGL2 manque, et la porte que l'écran d'accueil propose.
  *
- * Chaque œuvre garde un pont vers la 3D (`./?work=id`) : la liste n'est pas
- * une impasse, c'est une autre porte.
+ *  - `catalogue.html` — LE CATALOGUE DE L'EXPOSITION. Complet : images,
+ *    textes, extraits sonores, crédits obligatoires. Un lien visible y
+ *    mène depuis le seuil, sans détour ni culpabilisation : l'expérience
+ *    est le chemin par défaut, jamais une prison. Un catalogue s'est
+ *    toujours acheté à la boutique — il ne remplace pas la salle, il la
+ *    documente, et il rend le travail trouvable et citable.
  *
  * Usage : node scripts/genere-liste.mjs <dossier-de-sortie> (défaut dist)
  */
@@ -19,6 +26,7 @@ import { fileURLToPath } from 'node:url';
 // comme le fait le panneau de la visite audio. Une seule vérité sur ce
 // qu'est une œuvre et sur ce que dit sa carte.
 import { esc, oeuvresDe, sectionHtml } from '../engine/src/core/catalogue.js';
+import { collectCredits, collectSources } from '../engine/src/core/credits.js';
 
 const RACINE = join(dirname(fileURLToPath(import.meta.url)), '..');
 const CONTENU = process.env.GALERIE_CONTENT || join(RACINE, 'content');
@@ -38,27 +46,23 @@ for (const nom of await lireJson(join(CONTENU, 'works', 'index.json'))) {
   works.set(w.id, w);
 }
 
-/** Cette page est écrite en français : elle porte ses libellés en dur. */
+/** Ces pages sont écrites en français : elles portent leurs libellés en dur. */
 const LIBELLES = {
   voir3d: 'Voir en 3D',
   enSavoirPlus: 'En savoir plus',
   visiter3d: 'visiter en 3D'
 };
 
-const sections = rooms.map((r) => sectionHtml(
-  r, oeuvresDe((r.works ?? []).map((id) => works.get(id))), LIBELLES
-)).filter(Boolean).join('\n');
+const habitees = rooms
+  .map((r) => ({ room: r, oeuvres: oeuvresDe((r.works ?? []).map((id) => works.get(id))) }))
+  .filter(({ oeuvres }) => oeuvres.length);
 
-const html = `<!doctype html>
-<html lang="fr">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="description" content="Les œuvres de la galerie d'art sonore, en liste : textes, images et extraits audio — la même collection que la visite 3D.">
-  <meta name="theme-color" content="#05050a">
-  <title>Galerie — les œuvres en liste</title>
-  <style>
-    :root { --fg: #e8e6f2; --dim: #a09cb8; --accent: #b8a8ff; --bg: #08080f; }
+const toutes = habitees.flatMap(({ oeuvres }) => oeuvres);
+const compte = (n) => `${n} œuvre${n > 1 ? 's' : ''}`;
+
+/* --------------------------------------------------------------- style --- */
+
+const STYLE = `    :root { --fg: #e8e6f2; --dim: #a09cb8; --accent: #b8a8ff; --bg: #08080f; }
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body {
       background: var(--bg); color: var(--fg);
@@ -84,23 +88,124 @@ const html = `<!doctype html>
     .oeuvre p { color: var(--dim); font-size: 0.9rem; margin-top: 0.3rem; }
     audio { width: 100%; margin-top: 0.6rem; }
     .liens { font-size: 0.85rem; }
-    footer { color: var(--dim); font-size: 0.8rem; margin-top: 3rem; }
+    .salles { list-style: none; }
+    .salles li { margin: 0.5rem 0; }
+    .salles .nb { color: var(--dim); font-size: 0.85rem; margin-left: 0.5rem; }
+    .tout {
+      display: inline-block; margin-top: 1.4rem; padding: 0.55rem 1.2rem;
+      border: 1px solid rgba(184,168,255,0.4); border-radius: 2rem;
+      font-size: 0.9rem;
+    }
+    .credits { color: var(--dim); font-size: 0.85rem; }
+    .credits p { margin: 0.5rem 0; }
+    footer { color: var(--dim); font-size: 0.8rem; margin-top: 3rem; }`;
+
+const page = ({ titre, description, corps }) => `<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="${esc(description)}">
+  <meta name="theme-color" content="#05050a">
+  <title>${esc(titre)}</title>
+  <style>
+${STYLE}
   </style>
 </head>
 <body>
-  <h1>Galerie</h1>
-  <p>Une galerie d'art sonore : en 3D, vos déplacements composent le mixage.
-  Cette page en est la version liste — les mêmes œuvres, à lire et à écouter.</p>
-  <a class="retour" href="./">← Entrer dans la galerie 3D (casque recommandé)</a>
-  <main>
-${sections}
-  </main>
-  <footer>Les extraits audio s'écoutent au casque. La visite 3D propose aussi
-  une visite audio guidée, accessible au clavier et au lecteur d'écran.</footer>
+${corps}
 </body>
 </html>
 `;
 
-await writeFile(join(SORTIE, 'liste.html'), html);
-const nb = [...works.values()].filter((w) => w.role !== 'decor').length;
-console.log(`liste.html : ${nb} œuvres, ${rooms.length} pièces → ${SORTIE}`);
+/* ------------------------------------------------------------ le seuil --- */
+
+const sallesListe = habitees.map(({ room, oeuvres }) =>
+  `      <li><a href="./?room=${encodeURIComponent(room.id)}">${esc(room.title ?? room.id)}</a>
+        <span class="nb">${compte(oeuvres.length)}</span></li>`).join('\n');
+
+const seuil = page({
+  titre: "Galerie — ce qu'il y a à visiter",
+  description: "Une galerie d'art sonore : les pièces à visiter, en 3D ou "
+    + "à l'oreille. Les œuvres se découvrent sur place.",
+  corps: `  <h1>Galerie</h1>
+  <p>Une galerie d'art sonore : en 3D, vos déplacements composent le mixage.
+  Une visite audio, entièrement au clavier, en propose l'équivalent à l'oreille.</p>
+  <a class="retour" href="./">← Entrer dans la galerie (casque recommandé)</a>
+  <main>
+    <section aria-labelledby="salles">
+      <h2 id="salles">${habitees.length} pièces, ${compte(toutes.length)}</h2>
+      <ul class="salles">
+${sallesListe}
+      </ul>
+    </section>
+    <p>Les œuvres ne sont pas nommées ici : elles se découvrent en visitant,
+    et c'est une part du plaisir. Si vous préférez tout lire d'un coup —
+    presse, recherche, ou simple curiosité — le catalogue complet est là.</p>
+    <a class="tout" href="catalogue.html">Afficher le catalogue complet</a>
+  </main>
+  <footer>Les extraits audio s'écoutent au casque. La visite audio est
+  accessible au clavier et au lecteur d'écran.</footer>`
+});
+
+/* -------------------------------------------------------- le catalogue --- */
+
+const sections = habitees
+  .map(({ room, oeuvres }) => sectionHtml(room, oeuvres, LIBELLES))
+  .join('\n');
+
+// Sur TOUTES les configurations, décor compris : une pierre empruntée se
+// cite comme une œuvre empruntée. L'obligation suit l'objet, pas son rôle
+// — et l'écran de crédits de la visite 3D compte pareil.
+const tousLesObjets = [...works.values()];
+const credits = collectCredits(tousLesObjets);
+const sources = collectSources(tousLesObjets);
+const MENTIONS = {
+  polypizza: { label: 'Modèles fournis par Poly Pizza', url: 'https://poly.pizza' }
+};
+
+// Citer est une obligation, pas une politesse : les crédits figurent aussi
+// dans le catalogue statique, sans quoi une consultation sans JavaScript
+// montrerait des œuvres empruntées sans nommer personne.
+const lignesSources = sources.map((s) => {
+  const m = MENTIONS[s];
+  return m
+    ? `      <p><a href="${esc(m.url)}" target="_blank" rel="noopener noreferrer">${esc(m.label)}</a></p>`
+    : '';
+}).filter(Boolean).join('\n');
+
+const lignesCredits = credits.map((c) => {
+  const qui = esc(c.author || 'auteur non précisé');
+  const nom = c.sourceUrl
+    ? `<a href="${esc(c.sourceUrl)}" target="_blank" rel="noopener noreferrer">${qui}</a>`
+    : qui;
+  return `      <p><b>${nom}</b>${c.license ? ` — ${esc(c.license)}` : ''}`
+    + `<br>${esc(c.titles.join(', '))}</p>`;
+}).join('\n');
+
+const blocCredits = (credits.length || sources.length)
+  ? `\n    <section class="credits" aria-labelledby="credits">
+      <h2 id="credits">Crédits</h2>
+${[lignesSources, lignesCredits].filter(Boolean).join('\n')}
+    </section>`
+  : '';
+
+const catalogue = page({
+  titre: "Galerie — catalogue de l'exposition",
+  description: "Le catalogue complet de la galerie d'art sonore : textes, "
+    + 'images et extraits audio de toutes les œuvres.',
+  corps: `  <h1>Catalogue</h1>
+  <p>Toutes les œuvres de la galerie, à lire et à écouter. La visite, elle,
+  se fait sur place — chaque œuvre y renvoie.</p>
+  <a class="retour" href="./">← Entrer dans la galerie (casque recommandé)</a>
+  <main>
+${sections}${blocCredits}
+  </main>
+  <footer>Les extraits audio s'écoutent au casque. La visite audio est
+  accessible au clavier et au lecteur d'écran.</footer>`
+});
+
+await writeFile(join(SORTIE, 'liste.html'), seuil);
+await writeFile(join(SORTIE, 'catalogue.html'), catalogue);
+console.log(`liste.html (seuil) + catalogue.html : ${toutes.length} œuvres, `
+  + `${habitees.length} pièces habitées sur ${rooms.length} → ${SORTIE}`);
