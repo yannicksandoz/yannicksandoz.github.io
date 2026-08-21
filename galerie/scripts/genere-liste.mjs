@@ -15,16 +15,16 @@
 import { readFile, writeFile } from 'node:fs/promises';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
+// La règle du catalogue vit dans le moteur, pas ici : ce script la lit,
+// comme le fait le panneau de la visite audio. Une seule vérité sur ce
+// qu'est une œuvre et sur ce que dit sa carte.
+import { esc, oeuvresDe, sectionHtml } from '../engine/src/core/catalogue.js';
 
 const RACINE = join(dirname(fileURLToPath(import.meta.url)), '..');
 const CONTENU = process.env.GALERIE_CONTENT || join(RACINE, 'content');
 const SORTIE = join(RACINE, process.argv[2] || 'dist');
 
 const lireJson = async (p) => JSON.parse(await readFile(p, 'utf8'));
-
-const esc = (s) => String(s ?? '')
-  .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
-  .replace(/"/g, '&quot;');
 
 const roomsIndex = await lireJson(join(CONTENU, 'rooms', 'index.json'));
 const rooms = [];
@@ -38,36 +38,16 @@ for (const nom of await lireJson(join(CONTENU, 'works', 'index.json'))) {
   works.set(w.id, w);
 }
 
-/** Premier fichier audio d'une œuvre (stem principal), ou null. */
-const audioDe = (w) => w.stems?.find((s) => s.file)?.file ?? null;
-
-const carte = (w) => {
-  const meta = [w.year, w.technique].filter(Boolean).join(' · ');
-  const audio = audioDe(w);
-  return `      <article class="oeuvre">
-        ${w.image ? `<img src="${esc(w.image)}" alt="${esc(w.title ?? w.id)}" loading="lazy">` : ''}
-        <h3>${esc(w.title ?? w.id)}</h3>
-        ${meta ? `<p class="meta">${esc(meta)}</p>` : ''}
-        ${w.description ? `<p>${esc(w.description)}</p>` : ''}
-        ${audio ? `<audio controls preload="none" src="${esc(audio)}"></audio>` : ''}
-        <p class="liens">
-          <a href="./?work=${encodeURIComponent(w.id)}">Voir en 3D</a>
-          ${w.link ? ` · <a href="${esc(w.link)}" target="_blank" rel="noopener noreferrer">En savoir plus</a>` : ''}
-        </p>
-      </article>`;
+/** Cette page est écrite en français : elle porte ses libellés en dur. */
+const LIBELLES = {
+  voir3d: 'Voir en 3D',
+  enSavoirPlus: 'En savoir plus',
+  visiter3d: 'visiter en 3D'
 };
 
-const sections = rooms.map((r) => {
-  const oeuvres = (r.works ?? [])
-    .map((id) => works.get(id))
-    .filter((w) => w && w.role !== 'decor' && !w.partOf);
-  if (!oeuvres.length) return '';
-  return `    <section aria-labelledby="salle-${esc(r.id)}">
-      <h2 id="salle-${esc(r.id)}">${esc(r.title ?? r.id)}
-        <a class="salle-3d" href="./?room=${encodeURIComponent(r.id)}">visiter en 3D</a></h2>
-${oeuvres.map(carte).join('\n')}
-    </section>`;
-}).filter(Boolean).join('\n');
+const sections = rooms.map((r) => sectionHtml(
+  r, oeuvresDe((r.works ?? []).map((id) => works.get(id))), LIBELLES
+)).filter(Boolean).join('\n');
 
 const html = `<!doctype html>
 <html lang="fr">

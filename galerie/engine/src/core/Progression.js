@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { t, onLangChange } from './i18n.js';
+import { estOeuvre } from './catalogue.js';
 
 /**
  * Progression de la visite — et INDEX des œuvres.
@@ -46,8 +47,7 @@ export class Progression {
 
   /** Toutes les œuvres au sens fort — ni décor, ni membre d'un ensemble. */
   get oeuvres() {
-    return this.app.artworks.filter(
-      (a) => a.config.role !== 'decor' && !a.config.partOf);
+    return this.app.artworks.filter((a) => estOeuvre(a.config));
   }
 
   /** Les œuvres dans l'ordre de la galerie (pièce par pièce). */

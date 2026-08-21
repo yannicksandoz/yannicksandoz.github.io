@@ -526,5 +526,39 @@ if (!fs) {
   }
 }
 
+console.log('\ncatalogue — une seule règle pour tous ses hôtes');
+{
+  const { estOeuvre, oeuvresDe, audioPrincipal, carteHtml, sectionHtml, esc } =
+    await import('../engine/src/core/catalogue.js');
+
+  check('une œuvre ordinaire compte', estOeuvre({ id: 'a' }), true);
+  check('le décor ne compte pas', estOeuvre({ id: 'a', role: 'decor' }), false);
+  check('un membre d’ensemble ne compte pas', estOeuvre({ id: 'a', partOf: 'b' }), false);
+  check('rien du tout ne compte pas', estOeuvre(null), false);
+  check('le filtre garde l’ordre reçu',
+    oeuvresDe([{ id: 'a' }, { id: 'd', role: 'decor' }, { id: 'b' }]).map((w) => w.id),
+    ['a', 'b']);
+
+  check('stem principal', audioPrincipal({ stems: [{ file: 'a.wav' }, { file: 'b.wav' }] }), 'a.wav');
+  check('aucun stem', audioPrincipal({ id: 'x' }), null);
+
+  // l'échappement protège le texte ET les attributs : un titre hostile ne
+  // doit jamais devenir du balisage dans la page publiée
+  check('échappement strict', esc('<a href="x">&</a>'),
+    '&lt;a href=&quot;x&quot;&gt;&amp;&lt;/a&gt;');
+  const piege = carteHtml({ id: 'x"y', title: '<script>', description: '&' },
+    { voir3d: 'Voir' });
+  check('un titre hostile est neutralisé', /&lt;script&gt;/.test(piege), true);
+  check('aucune balise ouverte par le contenu', /<script>/.test(piege), false);
+  check('l’identifiant est encodé dans le lien', /\?work=x%22y/.test(piege), true);
+
+  check('une pièce sans œuvre ne produit rien', sectionHtml({ id: 'v' }, [], {}), '');
+  const section = sectionHtml({ id: 'hall', title: 'Hall' },
+    [{ id: 'a', title: 'A' }], { voir3d: 'Voir en 3D', visiter3d: 'visiter en 3D' });
+  check('la section porte son titre et son lien',
+    /id="salle-hall"/.test(section) && /\?room=hall/.test(section), true);
+  check('la section contient la carte', /<article class="oeuvre">/.test(section), true);
+}
+
 console.log(`\n${passed} réussis, ${failed} échoués\n`);
 process.exit(failed ? 1 : 0);

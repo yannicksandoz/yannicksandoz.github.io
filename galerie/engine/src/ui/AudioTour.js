@@ -3,6 +3,7 @@ import { registry } from '../core/ModuleRegistry.js';
 import { t, onLangChange } from '../core/i18n.js';
 import { easeInOutCubic } from '../core/utils.js';
 import { pisteAD, LecteurAD, mountLecteurAD } from '../core/audiodescription.js';
+import { estOeuvre } from '../core/catalogue.js';
 
 /** Titre prononçable, avec le repli traduit (a11y.js reste côté auteur). */
 const titre = (config) => {
@@ -13,11 +14,11 @@ const titre = (config) => {
 /**
  * La visite ne parcourt que les œuvres : le décor s'écarte, et les membres
  * d'un ensemble (`partOf`) aussi — la margelle n'est pas une œuvre, le
- * bassin l'est. Même règle que `Progression.oeuvres`, sans quoi une liste
- * annoncerait des objets que le catalogue ne compte pas.
+ * bassin l'est. La règle vient du catalogue, partagée avec la page
+ * `liste.html` : une liste ne peut pas annoncer ce que le catalogue ne
+ * compte pas.
  */
-const oeuvres = (artworks) => artworks.filter(
-  (a) => a.config.role !== 'decor' && !a.config.partOf);
+const oeuvres = (artworks) => (artworks ?? []).filter((a) => estOeuvre(a.config));
 
 /** Temps d'écoute devant chaque œuvre en visite guidée (secondes). */
 const PAUSE_AUTO = 8;
