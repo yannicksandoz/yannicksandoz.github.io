@@ -21,7 +21,6 @@ import { t, lang, setLang, onLangChange } from '../core/i18n.js';
 import { fpsMeterEnabled, setFpsMeter } from './FpsMeter.js';
 import { dessinerPlan, minimapActive, setMinimap } from './Carte.js';
 import { recommencerLaVisite } from '../core/Memoire.js';
-import { jetonsVolume, setJetonsVolume } from '../core/JetonsSon.js';
 
 export class VisitMenu {
   constructor(app) {
@@ -110,13 +109,6 @@ export class VisitMenu {
                 <input type="checkbox" id="vm-minimap" ${minimapActive() ? 'checked' : ''}>
                 ${t('menu.settings.minimap')}
               </label>
-              <p class="vm-subhead">${t('menu.settings.tokens')}</p>
-              <p class="vm-note">${t('menu.settings.tokens.note')}</p>
-              <label class="vm-range">
-                <span>${t('menu.settings.tokens')}</span>
-                <input type="range" id="vm-jetons-vol" min="0" max="1" step="0.05"
-                       value="${jetonsVolume()}">
-              </label>
               <p class="vm-subhead">${t('menu.settings.memory')}</p>
               <p class="vm-note">${t('menu.settings.memory.note')}</p>
               <button id="vm-forget" class="vm-danger">${t('menu.settings.forget')}</button>
@@ -160,10 +152,6 @@ export class VisitMenu {
         help.hidden = expanded;
       });
     }
-    // le volume s'entend en le réglant : on l'applique au fil du curseur
-    el.querySelector('#vm-jetons-vol').addEventListener('input', (e) => {
-      setJetonsVolume(this.app, e.currentTarget.value);
-    });
     el.querySelector('#vm-fps').addEventListener('change', (e) => {
       setFpsMeter(this.app, e.currentTarget.checked);
     });

@@ -40,9 +40,6 @@ const FR = {
   'menu.lang': 'Langue',
   'menu.settings': 'Réglages',
   'menu.settings.minimap': 'Minimap dans le coin de l\'écran',
-  'menu.settings.tokens': 'Scintillement des jetons ◈',
-  'menu.settings.tokens.note': 'Les jetons cachés tintent doucement : on les '
-    + 'suit à l\'oreille. Zéro les rend muets.',
   'menu.settings.memory': 'Mémoire de visite',
   'menu.settings.memory.note': 'La galerie garde vos pièces visitées, vos œuvres '
     + 'rencontrées et vos jetons ◈ d\'une visite à l\'autre, sur cet appareil.',
@@ -151,9 +148,6 @@ const EN = {
   'menu.lang': 'Language',
   'menu.settings': 'Settings',
   'menu.settings.minimap': 'Minimap in the corner',
-  'menu.settings.tokens': '◈ token shimmer',
-  'menu.settings.tokens.note': 'Hidden tokens chime softly, so you can follow '
-    + 'them by ear. Zero silences them.',
   'menu.settings.memory': 'Visit memory',
   'menu.settings.memory.note': 'The gallery remembers the rooms you have walked, '
     + 'the works you have met and your ◈ tokens from one visit to the next, on this device.',
