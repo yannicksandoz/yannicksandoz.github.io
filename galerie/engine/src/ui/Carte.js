@@ -202,6 +202,10 @@ export function dessinerPlan(app, { noms = true, autour = 0, centreSur = null } 
 
 /* ------------------------------------------------------------ minimap --- */
 
+// Le répit accordé à la porte dont on vient de sortir avant de l'annoncer
+// bloquée : le temps de se retourner, pas davantage.
+const REPIT_ROUGE = 2500;
+
 export function minimapActive() {
   try { return localStorage.getItem(CLE_MINIMAP) !== '0'; } catch { return true; }
 }
@@ -331,11 +335,15 @@ export class Minimap {
       const mesh = room.portalMeshes[Number(g.dataset.porte)];
       if (!mesh) continue;
       const vers = mesh.userData.portal?.cfg?.to;
-      // La porte par laquelle on vient d'entrer est fermée derrière soi :
-      // elle ne rougit pas, ce serait annoncer un mur là où l'on a marché.
-      // Sa marque tombe d'elle-même quand le passage se rouvre.
-      if (mesh.userData.arrivee && !estFerme(mesh)) mesh.userData.arrivee = false;
-      const fermee = estFerme(mesh) && !mesh.userData.arrivee;
+      // La porte par laquelle on vient d'entrer se ferme derrière soi : on
+      // lui laisse un répit avant de l'annoncer en rouge — le temps de trois
+      // pas — puis on le dit. Une porte fermée qu'on ne montrerait pas
+      // fermée serait pire que le clignotement qu'on voulait éviter.
+      // `arriveeA` vaut Infinity pendant la traversée (répit en cours), un
+      // instant après l'atterrissage, et rien du tout pour une porte par
+      // laquelle on n'est pas entré — les trois cas se lisent d'un trait.
+      const repit = performance.now() - (mesh.userData.arriveeA ?? -Infinity) < REPIT_ROUGE;
+      const fermee = estFerme(mesh) && !repit;
       const prise = memoire ? memoire.aPris(ici, vers) : true;
       const classe = `ca-porte${fermee ? ' ca-fermee' : ''}${prise ? ' ca-prise' : ''}`;
       if (g.getAttribute('class') !== classe) g.setAttribute('class', classe);

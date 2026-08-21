@@ -219,7 +219,19 @@ gardes des portails : marcher, la voir, aller vers elle. Format :
 interdit et **décompte** ce qui reste — jamais une porte muette qui refuse
 sans dire pourquoi. Une porte et **sa jumelle** (la même ouverture vue de
 l'autre côté) se ferment **ensemble** : un passage ne peut pas être ouvert
-d'un bord et fermé de l'autre. Et l'on ne voit jamais le décompte du
+d'un bord et fermé de l'autre.
+
+**Sauf la seule issue d'une salle** — et l'exception vaut la règle. Sept
+salles de cette galerie n'ont qu'une porte : l'annexe, et les six faces du
+belvédère. Y refermer le passage derrière soi ne donnait pas « le temps de
+regarder où l'on est », mais dix secondes de cellule devant un panneau
+rouge, sans rien d'autre à tenter. Le délai n'a de sens que lorsqu'il reste
+un ailleurs ; sinon il n'empêche plus le rebond, il empêche de sortir. La
+porte de retour ne se referme donc que si la salle offre **un autre
+passage**. Le rebond immédiat, lui, reste écarté par le désarmement : on ne
+repart pas dans une porte tant qu'on ne s'en est pas éloigné.
+
+Et l'on ne voit jamais le décompte du
 passage dans lequel on **se tient** : en débouchant d'une porte, on l'aurait
 en plein cadre à l'instant même où l'on découvre la pièce. Il compte en
 silence et ne se signale qu'une fois la porte quittée — quand on pourrait

@@ -1004,14 +1004,29 @@ export class RoomManager {
     const depuis = portal.room?.config.id ?? this.current?.config.id;
     const jumelle = (target.portalMeshes ?? []).find(
       (m) => (m.userData.portal?.cfg ?? {}).to === depuis);
-    for (const m of [portal.mesh, jumelle]) {
+
+    // ON NE FERME JAMAIS LA SEULE ISSUE.
+    //
+    // Sept salles de cette galerie n'ont qu'une porte — l'annexe, et les six
+    // faces du belvédère. Y refermer le passage derrière soi ne donnait pas
+    // « le temps de regarder où l'on est » : ça donnait dix secondes de
+    // cellule, devant une porte rouge, sans rien d'autre à tenter. Le délai
+    // n'a de sens que lorsqu'il reste un ailleurs — sinon il n'empêche pas
+    // le rebond, il empêche de sortir. Le désarmement (`disarmed`) suffit
+    // d'ailleurs à éviter le rebond immédiat : on ne repart pas dans une
+    // porte tant qu'on ne s'en est pas éloigné.
+    const ailleurs = (target.config.portals ?? []).some(
+      (p) => p.to && p.to !== depuis && p.to !== target.config.id);
+    const aFermer = ailleurs ? [portal.mesh, jumelle] : [portal.mesh];
+    for (const m of aFermer) {
       if (m && fermer(m, duree)) this._refroidis.add(m);
     }
-    // La porte de RETOUR se ferme derrière soi : c'est la règle du passage,
-    // pas un obstacle. La marquer permet à la minimap de ne pas l'annoncer
-    // en rouge à la seconde où l'on débarque — signaler « bloqué » là où
-    // l'on vient de passer, c'est faire peur pour rien.
-    if (jumelle) jumelle.userData.arrivee = true;
+    // Le répit de la porte de retour commence TOUT DE SUITE — la traversée
+    // dure près d'une seconde, et sans cette marque la minimap l'aurait
+    // déjà peinte en rouge avant même qu'on ait atterri. `Infinity` dit
+    // « répit en cours, durée pas encore connue » ; l'arrivée le remplace
+    // par un vrai instant, et le décompte commence alors.
+    if (jumelle && ailleurs) jumelle.userData.arriveeA = Infinity;
     // Le trait sur la carte se gagne en FRANCHISSANT le passage : sauter
     // d'une pièce à l'autre par le menu montre les deux salles, jamais le
     // lien — c'est bien en marchant qu'on apprend comment tout se tient.
@@ -1019,7 +1034,13 @@ export class RoomManager {
     const arrival = portal.cfg.arrival ?? target.config.spawn ?? [0, 2.2, 10];
     // `plane` : sur quel plan de la pièce cible on débarque (Escher).
     // La cible peut être LA MÊME pièce — on en ressort sur un autre mur.
-    this.setCurrent(target.config.id, { arrival, plane: portal.cfg.plane ?? 'sol' });
+    this.setCurrent(target.config.id, { arrival, plane: portal.cfg.plane ?? 'sol' })
+      .then(() => {
+        // On date l'ARRIVÉE, pas le départ : compter depuis le début aurait
+        // laissé le fondu manger la moitié du répit. Passé ce court instant,
+        // la minimap le dit — une porte fermée doit se voir fermée.
+        if (jumelle && ailleurs) jumelle.userData.arriveeA = performance.now();
+      });
   }
 
   /** L'ambiance démarre après le déblocage audio : à rappeler à ce moment. */
