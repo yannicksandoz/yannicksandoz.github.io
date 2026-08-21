@@ -76,6 +76,22 @@ export class AudioTour {
     // découvertes, qu'elles viennent d'une approche ou du temps passé tout
     // près — c'est la même règle que dans la visite 3D, au même endroit.
     app.progression?.onChange(() => this._onDecouverte());
+    app.jetons?.onChange((j) => {
+      if (!this.active) return;
+      // Le bouton du jeton disparaît avec lui : sans quoi le focus tombe
+      // dans le vide et les flèches ne répondent plus. On le repose sur le
+      // repère de pièce — le même point d'appui qu'en arrivant quelque part.
+      const perdu = !this.el.contains(document.activeElement);
+      this._renderTokens();
+      if (!this._items().some((b) => b.tabIndex === 0)) {
+        const premier = this._items()[0];
+        if (premier) premier.tabIndex = 0;
+      }
+      if (perdu || !this.el.contains(document.activeElement)) {
+        this.el.querySelector('#at-room').focus();
+      }
+      this._announce(t('tour.token.taken', { n: j.compte }));
+    });
   }
 
   /**
@@ -125,6 +141,11 @@ export class AudioTour {
              à dessein — chaque mot en plus est du temps volé au son. -->
         <p id="at-help">${t('tour.help')}</p>
         <ul id="at-works" role="list" aria-label="${t('tour.works')}"></ul>
+        <!-- Les jetons ◈ sont des octaèdres SILENCIEUX cachés dans les
+             pièces : rien, à l'oreille, ne permet de les chercher. Les
+             annoncer est le seul équivalent honnête de les voir briller —
+             sans quoi la visite guidée qu'ils débloquent serait fermée. -->
+        <ul id="at-tokens" role="list" aria-label="${t('tour.tokens')}"></ul>
         <!-- Les passages font partie de la MÊME liste verticale que les
              œuvres : on descend des œuvres vers les sorties. Une pièce sans
              œuvre n'est donc jamais une impasse — ses portes sont là, à une
@@ -206,7 +227,8 @@ export class AudioTour {
 
   /** La liste verticale complète : les œuvres, puis les passages. */
   _items() {
-    return [...this.el.querySelectorAll('#at-works button, #at-doors button')];
+    return [...this.el.querySelectorAll(
+      '#at-works button, #at-tokens button, #at-doors button')];
   }
 
   _moveFocus(items, target) {
@@ -236,6 +258,7 @@ export class AudioTour {
     this.el.hidden = false;
     this._noterConnues();
     this._renderWorks();
+    this._renderTokens();
     this._renderDoors();
     this._updateRoomLabel();
     // Le focus se pose sur l'en-tête : le lecteur d'écran lit « Visite
@@ -398,6 +421,37 @@ export class AudioTour {
     }
   }
 
+  _renderTokens() {
+    const ul = this.el.querySelector('#at-tokens');
+    ul.innerHTML = '';
+    const id = this.app.rooms.current?.config.id;
+    const restants = id ? (this.app.jetons?.restants(id) ?? []) : [];
+    restants.forEach((mesh) => {
+      const li = document.createElement('li');
+      const b = document.createElement('button');
+      b.textContent = t('tour.token');
+      b.tabIndex = -1;
+      b.addEventListener('click', () => this._allerAuJeton(mesh));
+      li.appendChild(b);
+      ul.appendChild(li);
+    });
+  }
+
+  /**
+   * Se rendre au jeton : on y glisse comme vers une œuvre, et c'est la
+   * proximité qui le ramasse — exactement comme un visiteur qui marche
+   * dessus. Aucune règle en double.
+   */
+  _allerAuJeton(mesh) {
+    const cible = mesh.getWorldPosition(new THREE.Vector3());
+    this._glide = {
+      pts: [this.app.camera.position.clone(), cible.clone()],
+      tgts: [this.app.controls.orbit.target.clone(), cible.clone()],
+      t: 0,
+      dur: this.app.quality.reducedMotion ? 0.4 : 1.6
+    };
+  }
+
   /** Les pièces où mènent les passages de la pièce courante, sans doublon. */
   _passages() {
     const cur = this.app.rooms.current;
@@ -497,6 +551,7 @@ export class AudioTour {
     this._glide = null; // la caméra vient d'être replacée dans la pièce
     this._noterConnues();
     this._renderWorks();
+    this._renderTokens();
     this._renderDoors();
     this._updateRoomLabel();
     // Ordre d'annonce voulu : pièce — nombre d'œuvres — puis ce qu'on y

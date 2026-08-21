@@ -82,6 +82,17 @@ export class Jetons {
     if (roomId) this._meshes.delete(roomId); else this._meshes.clear();
   }
 
+  /**
+   * Les jetons encore posés dans une pièce. Un octaèdre doré ne fait aucun
+   * bruit : la visite audio n'a aucun moyen de le chercher à l'oreille, et
+   * sans cette liste la visite guidée qu'ils débloquent resterait fermée à
+   * qui ne voit pas. Elle les annonce donc, et s'y rend — le ramassage,
+   * lui, reste celui de tout le monde : la proximité (voir `_tick`).
+   */
+  restants(roomId) {
+    return (this._meshes.get(roomId) ?? []).map((j) => j.mesh);
+  }
+
   /** Pose (une fois) les jetons restants de la pièce dans son groupe. */
   _poser(room) {
     const id = room.config.id;
