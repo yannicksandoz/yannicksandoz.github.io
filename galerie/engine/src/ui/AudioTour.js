@@ -18,6 +18,9 @@ const titre = (config) => {
 const oeuvres = (artworks) => artworks.filter(
   (a) => a.config.role !== 'decor' && !a.config.partOf);
 
+/** Temps d'écoute devant chaque œuvre en visite guidée (secondes). */
+const PAUSE_AUTO = 8;
+
 /**
  * Visite audio — navigation accessible par-dessus le runtime Visiteur.
  *
@@ -55,6 +58,7 @@ export class AudioTour {
     this._historique = [];    // fil d'Ariane : les pièces d'où l'on vient
     this._visitees = new Set(); // pour qu'« avancer » cherche l'inédit
     this._connues = new Set();  // œuvres déjà nommées, pour n'annoncer que le neuf
+    this._auto = null;          // autopilote : { i, phase, attente }
 
     this._prepareArtworks();
     this._build();
@@ -71,6 +75,7 @@ export class AudioTour {
     app.onUpdate((dt) => {
       this._observeFocus();
       this._glideStep(dt);
+      this._autoStep(dt);
     });
     // Le catalogue se gagne aussi à l'oreille : les libellés suivent les
     // découvertes, qu'elles viennent d'une approche ou du temps passé tout
@@ -152,6 +157,7 @@ export class AudioTour {
              flèche. C'est aussi la seule navigation praticable dans un
              carrefour comme le Belvédère (treize passages). -->
         <ul id="at-doors" role="list" aria-label="${t('tour.doors')}"></ul>
+        <button id="at-auto" aria-pressed="false">${t('tour.auto')}</button>
         <button id="at-quit">${t('tour.quit')}</button>
         <div id="at-live" aria-live="polite" class="at-sr-only"></div>
       </div>`;
@@ -160,6 +166,7 @@ export class AudioTour {
     this.liveEl = el.querySelector('#at-live');
 
     el.querySelector('#at-quit').addEventListener('click', () => this.stop());
+    el.querySelector('#at-auto').addEventListener('click', () => this._basculerAuto());
 
     // Dialogue modal : le focus boucle aux extrémités du panneau. `inert`
     // (posé dans start) empêche déjà d'atteindre la page derrière ; sans ce
@@ -188,6 +195,13 @@ export class AudioTour {
     // FocusCamera, au niveau window) ; liste → en-tête d'accueil de la
     // visite (l'explication est relue) ; en-tête ou ailleurs → sortie de
     // la visite, retour à l'accueil.
+    // Reprendre la main : n'importe quelle flèche suffit — on n'apprend pas
+    // une touche pour arrêter ce qu'on a lancé d'un bouton.
+    el.addEventListener('keydown', (e) => {
+      if (!this._auto) return;
+      if (e.key.startsWith('Arrow') || e.key === 'Escape') this._arreterAuto();
+    });
+
     el.addEventListener('keydown', (e) => {
       if (e.key !== 'Escape' || this.app.activeFocus) return;
       if (el.querySelector('#at-works').contains(document.activeElement)) {
@@ -275,6 +289,7 @@ export class AudioTour {
   /** Rend au document ce que la visite lui avait pris (inertie, focus). */
   _releaseDom() {
     this.active = false;
+    this._auto = null;
     this._glide = null;
     this.app.controls.suspended = false;
     for (const el of this._inerted ?? []) el.inert = false;
@@ -540,6 +555,8 @@ export class AudioTour {
    * entré fausserait le modèle mental de l'utilisateur.
    */
   async _allerVers(roomId, { retour = false } = {}) {
+    this._auto = null;          // la visite guidée ne suit pas hors de la pièce
+    this._peindreAuto();
     const depart = this.app.rooms.current?.config.id;
     const entered = await this.app.rooms.setCurrent(roomId);
     if (!entered) return false;
@@ -615,6 +632,72 @@ export class AudioTour {
     this.app.activeFocus?.release();
     const focus = art.modules.find((m) => m.moduleType === 'FocusCamera');
     focus?.focus();
+  }
+
+  /* --------------------------------------------------------- autopilote --- */
+
+  /**
+   * Passer les œuvres de la pièce en revue, une à une : on approche, on
+   * laisse le temps d'écouter, on repart. C'est la dérive de la visite 3D
+   * transposée à l'oreille — sauf qu'ici elle n'a pas besoin de voler : la
+   * même approche que d'habitude fait le travail, avec ses annonces et ses
+   * découvertes. Elle ne sort jamais de la pièce : la galerie se parcourt
+   * pièce après pièce, l'autopilote aussi.
+   */
+  _basculerAuto() {
+    if (this._auto) { this._arreterAuto(); return; }
+    const liste = oeuvres(this.app.rooms.current?.artworks ?? []);
+    if (!liste.length) { this._announce(t('tour.empty')); return; }
+    // on reprend là où le focus se trouve, sinon au début
+    const courante = this.app.activeFocus?.artwork;
+    const depart = Math.max(0, liste.indexOf(courante));
+    this._auto = { i: depart, phase: 'depart', attente: 0 };
+    this._peindreAuto();
+    this._announce(t('tour.auto.on'));
+  }
+
+  _arreterAuto() {
+    if (!this._auto) return;
+    this._auto = null;
+    this._peindreAuto();
+    this._announce(t('tour.auto.off'));
+  }
+
+  _peindreAuto() {
+    const b = this.el.querySelector('#at-auto');
+    if (!b) return;
+    b.textContent = this._auto ? t('tour.auto.stop') : t('tour.auto');
+    b.setAttribute('aria-pressed', String(Boolean(this._auto)));
+  }
+
+  _autoStep(dt) {
+    if (!this.active || !this._auto) return;
+    const liste = oeuvres(this.app.rooms.current?.artworks ?? []);
+    const a = this._auto;
+    if (a.i >= liste.length) {
+      this._auto = null;
+      this._peindreAuto();
+      this._announce(t('tour.auto.end'));
+      return;
+    }
+    if (a.phase === 'depart') {
+      a.phase = 'vol';
+      this._approach(liste[a.i]);
+      return;
+    }
+    if (a.phase === 'vol') {
+      // on n'attend pas un chronomètre mais l'arrivée réelle : un
+      // travelling plus long ne raccourcit pas l'écoute.
+      if (this.app.activeFocus?.state === 'focused') {
+        a.phase = 'pause';
+        a.attente = PAUSE_AUTO;
+      }
+      return;
+    }
+    a.attente -= dt;
+    if (a.attente > 0) return;
+    a.i += 1;
+    a.phase = 'depart';
   }
 
   /* ----------------------------------------------------------- annonces --- */
