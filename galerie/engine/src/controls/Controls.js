@@ -36,6 +36,7 @@ export class Controls {
   constructor(app) {
     this.app = app;
     this.locked = false;   // verrouillé par FocusCamera pendant les travellings
+    this.planant = false;  // rendu en l'air : on y reste, on vole au regard
     this.suspended = false; // visite audio : le clavier appartient aux listes HTML
     this.dragging = false; // vrai pendant un drag de gizmo (mode édition)
 
@@ -186,9 +187,18 @@ export class Controls {
         const cam = this.app.camera;
         const fwd = new THREE.Vector3();
         cam.getWorldDirection(fwd);
-        fwd.y = 0;
+        // En vol plané, « devant » c'est LE REGARD, tangage compris : on
+        // descend en regardant vers le bas, on monte en levant la tête. Au
+        // sol, la marche reste horizontale — sans quoi regarder ses pieds
+        // enfoncerait la caméra dans le plancher.
+        if (!this.planant) fwd.y = 0;
         fwd.normalize();
-        const right = new THREE.Vector3().crossVectors(fwd, new THREE.Vector3(0, 1, 0));
+        // Le pas de côté reste horizontal, et de longueur pleine : le
+        // produit vectoriel raccourcit quand on regarde le sol, et sans
+        // cette remise à l'unité on se traînerait en planant vers le bas.
+        const right = new THREE.Vector3().crossVectors(fwd, UP);
+        if (right.lengthSq() > 1e-8) right.normalize();
+        else right.set(0, 0, 0);   // regard au zénith ou au nadir : pas de côté
         const boost = this._keys.has('ShiftLeft') || this._keys.has('ShiftRight') ? 2.2 : 1;
         const move = new THREE.Vector3()
           .addScaledVector(fwd, z)
@@ -315,6 +325,41 @@ export class Controls {
     this._lastTarget.copy(this.orbit.target);
     this.walking = false;
     this._groundY = null;
+    // Un portail, une bascule, un point d'arrivée : on repose les pieds.
+    // Seul `planer()` remet le visiteur en l'air, et il le fait après.
+    if (this.planant) { this.planant = false; this.app.ui?.planer?.(false); }
+  }
+
+  /**
+   * Rend la main EN L'AIR — et l'on y reste.
+   *
+   * La visite guidée survole : le tore de « Gravité » flotte au centre du
+   * belvédère, et la quitter reposait le visiteur au sol quelques secondes
+   * plus tard (le suivi de sol le rappelait, quelle que soit la hauteur).
+   * On ne redescend plus malgré lui : il garde son altitude et vole au
+   * regard, jusqu'à ce qu'un sol repasse à portée de pas — alors il se pose,
+   * et la marche reprend d'elle-même (voir `_followGround`).
+   */
+  planer() {
+    this.resyncCollision();
+    this.locked = false;
+    // Déjà à hauteur d'homme : rien à planer, la marche reprend tout court.
+    const sol = this._solSous();
+    if (sol !== null && this.app.camera.position.y - sol <= EYE + CHUTE_MAX) return;
+    this.planant = true;
+    this.app.ui?.planer?.(true);
+  }
+
+  /** Altitude du sol foulable sous la caméra, ou null s'il n'y en a pas. */
+  _solSous() {
+    const cibles = this._targets(GROUND_REACH);
+    if (!cibles.length) return null;
+    const cam = this.app.camera.position;
+    _rayOrigin.set(cam.x, cam.y + 0.6, cam.z);
+    this._groundRay.set(_rayOrigin, DOWN);
+    this._groundRay.far = GROUND_REACH;
+    const hit = this._groundRay.intersectObjects(cibles, true)[0];
+    return hit ? hit.point.y : null;
   }
 
   /**
@@ -410,6 +455,10 @@ export class Controls {
     if (this.locked || this.suspended || this.dragging) return;
     if (app.editor?.enabled) return;          // en édition, on vole
     if (app.rooms?._transitioning) return;    // une bascule pilote la caméra
+    // En vol plané, plus de référence de sol tant qu'on n'est pas posé :
+    // l'anti-chute de `_collide` s'efface alors (il ne refuse un pas que
+    // depuis un sol connu) et l'on peut voler au-dessus du vide.
+    if (this.planant) this._groundY = null;
     const targets = this._targets(GROUND_REACH);
     if (!targets.length) return;
     const cam = app.camera.position;
@@ -420,6 +469,16 @@ export class Controls {
                                           // réglé par quelqu'un d'autre
     const hit = this._groundRay.intersectObjects(targets, true)[0];
     if (!hit) return; // hors de tout : on garde l'altitude
+    // VOL PLANÉ : tant que le sol est loin dessous, on n'y est pas rappelé.
+    // Le suivi de sol tire la caméra vers la hauteur d'yeux quelle que soit
+    // la distance — c'est lui qui faisait redescendre le visiteur laissé en
+    // l'air par la visite guidée. Il ne reprend la main qu'à portée de pas ;
+    // et sans référence de sol, l'anti-chute laisse voler (voir `_collide`).
+    if (this.planant) {
+      if (cam.y - hit.point.y > EYE + CHUTE_MAX) return;
+      this.planant = false;                    // un sol sous les pieds : on se pose
+      this.app.ui?.planer?.(false);
+    }
     this._groundY = hit.point.y;               // référence de la collision
     const eye = hit.point.y + EYE;
     const y = damp(cam.y, eye, eye > cam.y ? 22 : 9, dt);

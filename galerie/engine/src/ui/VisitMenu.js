@@ -19,7 +19,7 @@
 import { peindreLibelles } from '../core/clavier.js';
 import { t, lang, setLang, onLangChange } from '../core/i18n.js';
 import { fpsMeterEnabled, setFpsMeter } from './FpsMeter.js';
-import { dessinerPlan, minimapActive, setMinimap } from './Carte.js';
+import { minimapActive, setMinimap, mountCartePleine } from './Carte.js';
 import { recommencerLaVisite } from '../core/Memoire.js';
 
 export class VisitMenu {
@@ -74,7 +74,9 @@ export class VisitMenu {
     }).join('') + (reste > 0
       ? `<li><span class="vm-inconnue">${t('menu.rooms.left', { n: reste })}</span></li>`
       : '');
-    const carte = dessinerPlan(this.app, { noms: true });
+    // Le plan ne tient plus ici : il s'ouvre en grand, sur toute la page
+    // (voir `CartePleine`). Le menu garde la LISTE — c'est elle le chemin
+    // clavier et lecteur d'écran, et elle dit la même mémoire.
     const pleinEcranDispo = Boolean(document.fullscreenEnabled);
     el.innerHTML = `
       <div class="vm-panel" role="dialog" aria-modal="true" aria-label="${t('menu.label')}">
@@ -85,8 +87,8 @@ export class VisitMenu {
           <li>
             <button id="vm-rooms" aria-expanded="false" aria-controls="vm-rooms-list">${t('menu.rooms')}</button>
             <div id="vm-rooms-list" hidden>
-              ${carte ? `<div class="vm-carte">${carte}</div>
-              <p class="vm-carte-note">${t('menu.map.note')}</p>` : ''}
+              <button id="vm-plan" class="vm-plan">${t('carte.ouvrir')}</button>
+              <p class="vm-carte-note">${t('menu.map.note')}</p>
               <ul class="vm-rooms" role="list">${pieces}</ul>
             </div>
           </li>
@@ -180,11 +182,11 @@ export class VisitMenu {
       bouton.disabled = true;
     });
 
-    // Cliquer une pièce SUR LA CARTE fait la même chose que la liste : le
-    // plan n'est pas qu'une image, mais la liste reste le chemin accessible.
-    for (const g of el.querySelectorAll('[data-carte-room]')) {
-      g.addEventListener('click', () => this._allerA(g.dataset.carteRoom));
-    }
+    // « Voir le plan en grand » : le menu s'efface, le plan prend la page.
+    el.querySelector('#vm-plan')?.addEventListener('click', () => {
+      this.hide();
+      mountCartePleine(this.app).ouvrir();
+    });
 
     // sauter dans une pièce : fondu de transition habituel, menu refermé
     for (const b of el.querySelectorAll('[data-room]')) {

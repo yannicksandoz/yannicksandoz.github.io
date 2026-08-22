@@ -177,11 +177,13 @@ async function boot() {
     }
   }
 
-  // La minimap n'a pas de panneau à elle : cliquer dessus ouvre le menu de
-  // visite, section « Pièces » dépliée — c'est là que vit la grande carte.
+  // La minimap n'a pas de panneau à elle : cliquer dessus ouvre LE PLAN,
+  // en grand et sur toute la page. Il a longtemps vécu en vignette au fond
+  // du menu de visite — trop petit pour être lu, et doublé par la liste
+  // juste dessous.
   app.ouvrirCarte = async () => {
-    const { mountVisitMenu } = await import('./ui/VisitMenu.js');
-    mountVisitMenu(app).ouvrirPieces();
+    const { mountCartePleine } = await import('./ui/Carte.js');
+    mountCartePleine(app).ouvrir();
   };
 
   // Échap remonte, partout : en 3D sans œuvre approchée, il ouvre le MENU

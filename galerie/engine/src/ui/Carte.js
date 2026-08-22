@@ -15,14 +15,18 @@
  * tiennent de coordonnées de carte, elles se déduisent du graphe des
  * portails. Ici, on ne fait que le montrer.
  *
- * **Accessibilité** — le SVG est décoratif (`aria-hidden`). La vérité
- * accessible est la LISTE des pièces du menu, qui suit exactement la même
- * mémoire : ce que la carte cache, la liste le cache aussi. Un plan qui
- * ménage la surprise à côté d'une liste qui la vend n'aurait ménagé rien.
+ * **Accessibilité** — dans le plan en grand, chaque salle est un vrai
+ * bouton : atteignable au clavier, nommée, et qui mène où elle dit. La
+ * minimap, elle, reste décorative (`aria-hidden`) : elle ne montre rien que
+ * le plan ne dise mieux. Et la liste des pièces du menu suit exactement la
+ * même mémoire — ce que la carte cache, la liste le cache aussi. Un plan
+ * qui ménage la surprise à côté d'une liste qui la vend n'aurait rien
+ * ménagé du tout.
  */
 import * as THREE from 'three';
 import { planGalerie } from '../core/planGalerie.js';
 import { estFerme } from '../core/Cooldown.js';
+import { t, onLangChange } from '../core/i18n.js';
 
 const CLE_MINIMAP = 'galerie-minimap';
 const MARGE = 14;      // mètres laissés autour du tracé
@@ -109,105 +113,293 @@ export function vu(app) {
 const esc = (s) => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;')
   .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 
+/* ------------------------------------------------------- carte en grand --- */
+
 /**
- * Le tracé, en SVG. `noms` écrit les titres, `autour` ne montre que les
- * abords de la pièce courante (la minimap ne cadre pas toute la galerie —
- * on n'y verrait plus où l'on est).
+ * Le PLAN EN GRAND — l'autre moitié du travail.
+ *
+ * La minimap dit « où suis-je tourné, où sont les portes » ; le plan dit
+ * « qu'ai-je parcouru, comment cela tient ensemble, où reste-t-il à aller ».
+ * Longtemps il a vécu en vignette dans le menu de visite, sous une liste
+ * des mêmes pièces : trois cent quatre-vingts pixels pour quinze salles,
+ * des noms qui se chevauchaient, des traits qui se croisaient, et juste
+ * dessous la même information en clair. Illisible et redondant à la fois.
+ * Il prend donc toute la page, et il porte enfin ce qu'on vient y chercher.
+ *
+ * Deux principes de tracé :
+ *
+ *   • **les traits d'abord, les pièces ensuite** — un lien qui passe sous
+ *     une salle se lit ; un lien qui passe dessus la barre ;
+ *   • **le texte se mesure en PIXELS, pas en mètres.** Le SVG travaille en
+ *     mètres (c'est le repère du plan) ; un `font-size` en mètres donne des
+ *     noms minuscules sur une grande galerie et énormes sur une petite. On
+ *     règle donc les tailles après coup, à l'échelle réelle du dessin —
+ *     c'est `_ajusterEchelle`. Même raison pour `vector-effect`, qui garde
+ *     les traits à leur épaisseur quel que soit le zoom.
  */
-export function dessinerPlan(app, { noms = true, autour = 0, centreSur = null } = {}) {
+export function dessinerPlanGrand(app) {
   const etat = vu(app);
   const ici = position(app);
-  let pieces = etat.pieces;
-  let pressenties = etat.pressenties;
-
-  if (autour > 0 && ici) {
-    // Ce que montre une minimap : où l'on est, et où mènent les portes. Une
-    // voisine se garde donc même LOIN du cadre — le trait qui y file dit
-    // « c'est par là », et c'est précisément ce qu'on vient y lire. Filtrer
-    // sur la seule distance laissait la salle courante seule au milieu.
-    const attachee = (id) => etat.plan.portes.some(
-      (l) => (l.a === etat.courante && l.b === id) || (l.b === etat.courante && l.a === id));
-    const proche = (p) => Math.abs(p.x - ici.x) < autour * 1.6
-      && Math.abs(p.z - ici.z) < autour * 1.6;
-    const garder = (p) => p.id === etat.courante || attachee(p.id) || proche(p);
-    pieces = pieces.filter(garder);
-    pressenties = pressenties.filter(garder);
-  }
+  const pieces = etat.pieces;
+  if (!pieces.length) return '';
   const vues = new Set(pieces.map((p) => p.id));
-  const centre = new Map([...pieces, ...pressenties].map((p) => [p.id, p]));
+  const centre = new Map([...pieces, ...etat.pressenties].map((p) => [p.id, p]));
   const liens = etat.liens.filter((l) => centre.has(l.a) && centre.has(l.b));
 
-  if (!pieces.length) return '';
+  // Sortir d'une pièce par le bord, dans une direction donnée : le point où
+  // la demi-droite quitte le rectangle. Les traits partent de là et non du
+  // centre — un lien qui traverse la salle qu'il relie ne se lit pas, et
+  // douze liens partant d'un même centre font une étoile illisible.
+  const bord = (p, vx, vz) => {
+    const ax = Math.abs(vx) / (p.w / 2 || 1), az = Math.abs(vz) / (p.d / 2 || 1);
+    const k = 1 / Math.max(ax, az, 1e-6);
+    return { x: p.x + vx * k, z: p.z + vz * k };
+  };
 
-  // Une porte non franchie : un point d'interrogation posé VERS la pièce
-  // inconnue mais tout près de celle qu'on connaît — sa distance réelle est
-  // justement ce qu'on ne sait pas encore. On calcule ces points d'abord :
-  // c'est de l'encre, et le cadre se règle sur l'encre, pas sur des pièces
-  // qu'on ne dessine pas (sinon le tracé flotte au milieu d'un grand vide).
-  const inconnues = pressenties.map((p) => {
+  // Une porte non franchie : un « ? » posé AU BORD de la pièce connue, du
+  // côté où mène la porte. Sa vraie distance est justement ce qu'on ignore
+  // encore — mais sa direction, elle, se sait.
+  const inconnues = etat.pressenties.map((p) => {
     const voisin = etat.plan.portes.find(
       (l) => (l.a === p.id && vues.has(l.b)) || (l.b === p.id && vues.has(l.a)));
     const depuis = voisin ? centre.get(voisin.a === p.id ? voisin.b : voisin.a) : null;
-    return {
-      depuis,
-      x: depuis ? depuis.x + (p.x - depuis.x) * 0.42 : p.x,
-      z: depuis ? depuis.z + (p.z - depuis.z) * 0.42 : p.z
-    };
+    if (!depuis) return { depuis: null, x: p.x, z: p.z, ux: 0, uz: 1 };
+    const vx = p.x - depuis.x, vz = p.z - depuis.z;
+    const long = Math.hypot(vx, vz) || 1;
+    const b = bord(depuis, vx, vz);
+    return { depuis, x: b.x, z: b.z, ux: vx / long, uz: vz / long };
   });
 
-  // La minimap garde une ÉCHELLE CONSTANTE, cadrée sur LA PIÈCE et non sur
-  // le visiteur : un cadre qui s'ajuste au contenu ferait rétrécir la salle
-  // à chaque porte découverte, et un cadre qui suit les pas ferait glisser
-  // les murs sous une aiguille immobile — c'est l'aiguille qui doit bouger.
-  // La grande carte, elle, cadre tout ce qu'on connaît.
-  const cadre = autour > 0 ? (centreSur ?? ici) : null;
   const bords = [
     ...pieces.flatMap((p) => [
       { x: p.x - p.w / 2, z: p.z - p.d / 2 }, { x: p.x + p.w / 2, z: p.z + p.d / 2 }]),
     ...inconnues.map((m) => ({ x: m.x, z: m.z }))
   ];
-  const x0 = cadre ? cadre.x - autour : Math.min(...bords.map((b) => b.x)) - MARGE;
-  const z0 = cadre ? cadre.z - autour : Math.min(...bords.map((b) => b.z)) - MARGE;
-  const x1 = cadre ? cadre.x + autour : Math.max(...bords.map((b) => b.x)) + MARGE;
-  const z1 = cadre ? cadre.z + autour : Math.max(...bords.map((b) => b.z)) + MARGE;
+  const x0 = Math.min(...bords.map((b) => b.x)) - MARGE;
+  const z0 = Math.min(...bords.map((b) => b.z)) - MARGE;
+  const x1 = Math.max(...bords.map((b) => b.x)) + MARGE;
+  const z1 = Math.max(...bords.map((b) => b.z)) + MARGE;
 
-  // Le texte est tracé dans le repère des mètres : sa taille doit suivre
-  // l'échelle du cadre, sinon un plan large rend les noms illisibles et un
-  // plan serré les fait déborder de leur pièce.
-  const corps = Math.max(2.6, Math.min(x1 - x0, z1 - z0) / 26);
-
+  // Les liens bombent légèrement, du même côté : deux salles reliées par
+  // deux portes ne donnent plus un seul trait, et un trait qui frôle une
+  // troisième salle la contourne au lieu de la traverser.
   const traits = liens.map((l) => {
     const a = centre.get(l.a), b = centre.get(l.b);
-    return `<line class="ca-lien" x1="${a.x}" y1="${a.z}" x2="${b.x}" y2="${b.z}"/>`;
+    const dx = b.x - a.x, dz = b.z - a.z;
+    const long = Math.hypot(dx, dz) || 1;
+    const da = bord(a, dx, dz), db = bord(b, -dx, -dz);
+    const mx = (da.x + db.x) / 2, mz = (da.z + db.z) / 2;
+    const fleche = long * 0.08;
+    return `<path class="ca-lien" vector-effect="non-scaling-stroke"
+      d="M${da.x.toFixed(1)} ${da.z.toFixed(1)} Q${(mx - (dz / long) * fleche).toFixed(1)}
+      ${(mz + (dx / long) * fleche).toFixed(1)} ${db.x.toFixed(1)} ${db.z.toFixed(1)}"/>`;
   }).join('');
 
-  const salles = pieces.map((p) => {
-    const classe = p.id === etat.courante ? 'ca-piece ca-ici' : 'ca-piece';
-    const titre = noms
-      ? `<text class="ca-nom" x="${p.x}" y="${p.z + corps * 0.36}"
-          font-size="${corps}">${esc(p.titre)}</text>` : '';
-    return `<g class="${classe}" data-carte-room="${esc(p.id)}">
-      <rect x="${p.x - p.w / 2}" y="${p.z - p.d / 2}" width="${p.w}" height="${p.d}"
-        rx="${Math.min(3, Math.min(p.w, p.d) / 6)}"/>${titre}</g>`;
-  }).join('');
-
-  const r = Math.max(2.5, Math.min(x1 - x0, z1 - z0) / 34);
   const mysteres = inconnues.map((m) => {
-    const amorce = m.depuis
-      ? `<line class="ca-amorce" x1="${m.depuis.x}" y1="${m.depuis.z}"
-          x2="${m.x}" y2="${m.z}"/>` : '';
-    return `${amorce}<g class="ca-inconnue"><circle cx="${m.x}" cy="${m.z}" r="${r}"/>
-      <text x="${m.x}" y="${m.z + r * 0.52}" font-size="${r * 1.5}">?</text></g>`;
+    const amorce = '';   // le « ? » touche le bord : plus rien à amorcer
+    return `${amorce}<g class="ca-inconnue" data-echelle="1"
+      data-x="${m.x.toFixed(1)}" data-z="${m.z.toFixed(1)}"
+      data-ux="${m.ux.toFixed(3)}" data-uz="${m.uz.toFixed(3)}">
+      <circle cx="0" cy="0" r="1" vector-effect="non-scaling-stroke"/>
+      <text x="0" y="0" dy="0.34em" font-size="1.5">?</text></g>`;
+  }).join('');
+
+  const prog = app.progression;
+  const salles = pieces.map((p) => {
+    const bilan = prog?.bilanDe?.(p.id) ?? { total: 0, vues: 0 };
+    const ariaOeuvres = bilan.total
+      ? ` — ${t('carte.oeuvres', { vues: bilan.vues, total: bilan.total,
+        sv: bilan.vues > 1 ? 's' : '', st: bilan.total > 1 ? 's' : '' })}` : '';
+    const courante = p.id === etat.courante;
+    return `<g class="ca-piece${courante ? ' ca-ici' : ''}${bilan.total && bilan.vues >= bilan.total ? ' ca-complete' : ''}"
+      data-carte-room="${esc(p.id)}" tabindex="0" role="button"
+      aria-label="${esc(courante ? `${p.titre} — ${t('carte.ici')}${ariaOeuvres}`
+        : t('carte.aller', { piece: p.titre }) + ariaOeuvres)}">
+      <rect x="${p.x - p.w / 2}" y="${p.z - p.d / 2}" width="${p.w}" height="${p.d}"
+        vector-effect="non-scaling-stroke"
+        rx="${Math.min(3, Math.min(p.w, p.d) / 6)}"/></g>`;
+  }).join('');
+
+  // Les noms VIVENT À PART, au-dessus de tout, et sous la pièce qu'ils
+  // nomment : écrits dedans, ils débordaient des petites salles et se
+  // marchaient dessus dès que deux voisines se serraient.
+  const etiquettes = pieces.map((p) => {
+    const bilan = prog?.bilanDe?.(p.id) ?? { total: 0, vues: 0 };
+    const compteur = bilan.total
+      ? `<text class="ca-compteur${bilan.vues >= bilan.total ? ' ca-plein' : ''}"
+          x="${p.x}" y="${p.z + p.d / 2}" dy="2.35em">◆ ${bilan.vues}/${bilan.total}</text>` : '';
+    // `data-*` porte les deux places possibles : DANS la salle si le nom y
+    // tient, SOUS elle sinon. Le choix se fait à l'écran, dans
+    // `_ajusterEchelle` — c'est là seulement qu'on connaît la largeur du
+    // texte et la taille réelle du rectangle.
+    return `<g class="ca-etiquette${p.id === etat.courante ? ' ca-ici' : ''}"
+      data-cx="${p.x}" data-cz="${p.z}" data-bas="${p.z + p.d / 2}"
+      data-w="${p.w}" data-d="${p.d}">
+      <text class="ca-nom" x="${p.x}" y="${p.z + p.d / 2}" dy="1.15em"
+        >${esc(p.titre)}</text>${compteur}</g>`;
   }).join('');
 
   const moi = ici && vues.has(etat.courante)
-    ? `<g class="ca-vous" transform="translate(${ici.x} ${ici.z}) rotate(${ici.cap.toFixed(1)})">
-        <path d="M0,-${corps * 0.9} L${corps * 0.62},${corps * 0.72}
-          L0,${corps * 0.28} L-${corps * 0.62},${corps * 0.72} Z"/></g>` : '';
+    ? `<g class="ca-vous" data-echelle="1" data-x="${ici.x.toFixed(1)}"
+        data-z="${ici.z.toFixed(1)}" data-cap="${ici.cap.toFixed(1)}">
+        <path d="M0,-1 L0.68,0.8 L0,0.3 L-0.68,0.8 Z"/></g>` : '';
 
-  return `<svg class="ca-svg" viewBox="${x0} ${z0} ${x1 - x0} ${z1 - z0}"
-    preserveAspectRatio="xMidYMid meet" aria-hidden="true" focusable="false"
-    >${traits}${mysteres}${salles}${moi}</svg>`;
+  return `<svg class="ca-svg ca-grand" viewBox="${x0} ${z0} ${x1 - x0} ${z1 - z0}"
+    preserveAspectRatio="xMidYMid meet" role="group"
+    aria-label="${esc(t('carte.titre'))}"
+    >${traits}${mysteres}${salles}<g class="ca-etiquettes">${etiquettes}</g>${moi}</svg>`;
+}
+
+/**
+ * Le plan en grand, sur toute la page.
+ *
+ * Ouvert depuis la minimap (un clic) ou depuis le menu de visite. Il se
+ * ferme par Échap, par le ×, ou dès qu'on choisit une pièce — car chaque
+ * salle du plan est un bouton : on clique, on y est.
+ */
+export class CartePleine {
+  constructor(app) {
+    this.app = app;
+    this.el = document.createElement('div');
+    this.el.id = 'carte-pleine';
+    this.el.hidden = true;
+    document.body.appendChild(this.el);
+    this._onTouche = (e) => {
+      if (!this.ouverte) return;
+      if (e.code === 'Escape') { e.preventDefault(); e.stopPropagation(); this.fermer(); }
+    };
+    this._onRedim = () => this._ajusterEchelle();
+    window.addEventListener('keydown', this._onTouche, true);
+    window.addEventListener('resize', this._onRedim);
+    this._offLangue = onLangChange(() => { if (this.ouverte) this._peindre(); });
+    this.ouverte = false;
+  }
+
+  ouvrir() {
+    if (this.ouverte) return;
+    this._peindre();
+    this.ouverte = true;
+    this.el.hidden = false;
+    // le clavier appartient au plan : on ne marche pas en le lisant
+    this.app.controls.suspended = true;
+    this._inertes = [];
+    for (const el of document.body.children) {
+      if (el !== this.el && !el.inert) { el.inert = true; this._inertes.push(el); }
+    }
+    this._ajusterEchelle();
+    (this.el.querySelector('.ca-ici') ?? this.el.querySelector('#cp-fermer'))?.focus();
+  }
+
+  fermer() {
+    if (!this.ouverte) return;
+    this.ouverte = false;
+    this.el.hidden = true;
+    this.app.controls.suspended = false;
+    this.app.controls.resyncCollision?.();
+    for (const el of this._inertes ?? []) el.inert = false;
+    this._inertes = [];
+  }
+
+  basculer() { if (this.ouverte) this.fermer(); else this.ouvrir(); }
+
+  _peindre() {
+    const plan = dessinerPlanGrand(this.app);
+    const total = this.app.rooms?.rooms?.size ?? 0;
+    const connues = vu(this.app).pieces.length;
+    const reste = Math.max(0, total - connues);
+    const compte = reste
+      ? t('carte.compte', { connues, reste, sc: connues > 1 ? 's' : '',
+        sr: reste > 1 ? 's' : '' })
+      : t('carte.complet', { connues });
+    this.el.innerHTML = `
+      <div class="cp-barre">
+        <h2>${esc(t('carte.titre'))}</h2>
+        <p class="cp-compte">${esc(compte)}</p>
+        <button id="cp-fermer" type="button" aria-label="${esc(t('carte.fermer'))}">×</button>
+      </div>
+      <div class="cp-plan">${plan}</div>
+      <p class="cp-legende">${esc(t('carte.legende'))}</p>`;
+    this.el.querySelector('#cp-fermer')?.addEventListener('click', () => this.fermer());
+    for (const g of this.el.querySelectorAll('[data-carte-room]')) {
+      const aller = () => this._allerA(g.dataset.carteRoom);
+      g.addEventListener('click', aller);
+      g.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); aller(); }
+      });
+    }
+  }
+
+  _allerA(id) {
+    if (!id) return;
+    this.fermer();
+    if (id === this.app.rooms?.current?.config.id) return;
+    this.app.derive?.arreter?.();
+    this.app.activeFocus?.release?.();
+    this.app.rooms?.setCurrent(id);
+  }
+
+  /**
+   * Textes et symboles à taille CONSTANTE À L'ÉCRAN. Le SVG est en mètres :
+   * on mesure l'échelle réellement appliquée (`preserveAspectRatio` retient
+   * la plus petite des deux) et l'on convertit des pixels en mètres. Sans
+   * cela, une galerie de deux cents mètres écrit ses noms en poussière.
+   */
+  _ajusterEchelle() {
+    const svg = this.el.querySelector('.ca-grand');
+    if (!svg) return;
+    const vb = svg.viewBox.baseVal;
+    const r = svg.getBoundingClientRect();
+    if (!vb.width || !vb.height || !r.width || !r.height) return;
+    const k = Math.min(r.width / vb.width, r.height / vb.height);
+    if (!(k > 0)) return;
+    const px = (n) => n / k;
+    const corps = px(13);
+    svg.querySelector('.ca-etiquettes')?.setAttribute('font-size', corps.toFixed(3));
+    for (const g of svg.querySelectorAll('[data-echelle]')) {
+      const s = px(g.classList.contains('ca-vous') ? 11 : 9);
+      // le « ? » se pose AU BORD de la salle : on le décale de son propre
+      // rayon vers le dehors, sinon il mord sur le rectangle
+      const dx = Number(g.dataset.ux ?? 0) * s * 1.3;
+      const dz = Number(g.dataset.uz ?? 0) * s * 1.3;
+      g.setAttribute('transform',
+        `translate(${(Number(g.dataset.x) + dx).toFixed(2)} ${(Number(g.dataset.z) + dz).toFixed(2)})`
+        + (g.dataset.cap !== undefined ? ` rotate(${g.dataset.cap})` : '')
+        + ` scale(${s.toFixed(3)})`);
+    }
+    // Le nom rentre DANS la salle quand elle est assez grande pour lui :
+    // écrit dessous, il allait se poser sur la voisine du dessous dès que
+    // deux salles se serraient, et le plan se mettait à mentir sur qui
+    // s'appelle comment.
+    for (const g of svg.querySelectorAll('.ca-etiquette')) {
+      const nom = g.querySelector('.ca-nom');
+      const compteur = g.querySelector('.ca-compteur');
+      if (!nom) continue;
+      const large = nom.getComputedTextLength() + corps * 0.8;
+      const lignes = compteur ? 2.1 : 1.2;
+      const dedans = Number(g.dataset.w) > large
+        && Number(g.dataset.d) > corps * lignes * 1.9;
+      g.classList.toggle('ca-dedans', dedans);
+      const y = dedans
+        ? Number(g.dataset.cz) - (compteur ? corps * 0.5 : 0)
+        : Number(g.dataset.bas);
+      nom.setAttribute('y', y.toFixed(2));
+      nom.setAttribute('dy', dedans ? '0.34em' : '1.15em');
+      compteur?.setAttribute('y', y.toFixed(2));
+      compteur?.setAttribute('dy', dedans ? '1.9em' : '2.35em');
+    }
+  }
+
+  dispose() {
+    window.removeEventListener('keydown', this._onTouche, true);
+    window.removeEventListener('resize', this._onRedim);
+    this._offLangue?.();
+    this.el.remove();
+  }
+}
+
+export function mountCartePleine(app) {
+  if (!app._cartePleine) app._cartePleine = new CartePleine(app);
+  return app._cartePleine;
 }
 
 /* ------------------------------------------------------------ minimap --- */

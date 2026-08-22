@@ -96,6 +96,8 @@ html, body {
   background: rgba(10, 10, 18, 0.6); color: var(--dim);
   font-size: 0.72rem; letter-spacing: 0.05em; pointer-events: none;
 }
+/* en vol plané : l'aide change de ton, on ne marche plus */
+#hint.en-vol { color: #cfe4ff; background: rgba(24, 44, 78, 0.72); }
 
 /* --------------------------------------------- transition entre pièces --- */
 #room-fade {
@@ -580,16 +582,55 @@ html, body {
 .ca-inconnue text { fill: rgba(232, 230, 240, 0.55); text-anchor: middle; }
 .ca-vous { fill: #ffd97a; }
 
-/* La carte du menu : cliquable à la souris (la liste sous elle reste le
-   chemin clavier et lecteur d'écran). */
-.vm-carte {
-  margin: 0.6rem 0 0.4rem; padding: 0.6rem;
-  height: min(38vh, 18rem);
-  border-radius: 0.6rem; background: rgba(8, 8, 16, 0.5);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+/* ——— Le plan en grand : toute la page ———
+   Il a longtemps tenu en vignette au fond du menu, sous la liste des mêmes
+   pièces. Trop petit pour être lu, et redondant. */
+#carte-pleine {
+  position: fixed; inset: 0; z-index: 40;
+  display: flex; flex-direction: column;
+  background: radial-gradient(120% 90% at 50% 0%, #14142a 0%, #07070f 70%);
+  color: var(--fg);
 }
-.vm-carte .ca-piece { cursor: pointer; }
-.vm-carte .ca-piece:hover rect { fill: rgba(159, 140, 255, 0.3); }
+#carte-pleine[hidden] { display: none; }
+.cp-barre {
+  display: flex; align-items: baseline; gap: 1rem;
+  padding: 1rem 1.4rem 0.5rem;
+}
+.cp-barre h2 { margin: 0; font-size: 1.1rem; font-weight: 500; letter-spacing: 0.04em; }
+.cp-compte { margin: 0; flex: 1; font-size: 0.82rem; color: var(--dim); }
+#cp-fermer {
+  border: 0; background: none; color: var(--dim); cursor: pointer;
+  font-size: 1.6rem; line-height: 1; padding: 0 0.3rem;
+}
+#cp-fermer:hover, #cp-fermer:focus-visible { color: var(--fg); }
+.cp-plan { flex: 1; min-height: 0; padding: 0 1.4rem; }
+.cp-legende {
+  margin: 0; padding: 0.6rem 1.4rem 1.1rem;
+  font-size: 0.78rem; color: var(--dim); text-align: center;
+}
+/* Chaque salle est un bouton : on clique, on y est. */
+.ca-grand .ca-piece { cursor: pointer; outline: none; }
+.ca-grand .ca-piece:hover rect { fill: rgba(159, 140, 255, 0.30); }
+.ca-grand .ca-piece:focus-visible rect {
+  fill: rgba(159, 140, 255, 0.30); stroke: var(--fg); stroke-width: 2.5;
+}
+.ca-grand .ca-piece rect { stroke-width: 1.4; transition: fill 0.15s ease; }
+.ca-grand .ca-complete rect { fill: rgba(255, 217, 122, 0.13); }
+.ca-grand .ca-ici rect { stroke-width: 2.4; }
+.ca-grand .ca-lien { fill: none; stroke-width: 1.4; }
+.ca-grand .ca-etiquettes { pointer-events: none; }
+.ca-grand .ca-nom {
+  fill: rgba(232, 230, 240, 0.9); text-anchor: middle;
+  paint-order: stroke; stroke: rgba(6, 6, 14, 0.85); stroke-width: 2px;
+  stroke-linejoin: round;
+}
+.ca-grand .ca-compteur {
+  fill: rgba(232, 230, 240, 0.5); text-anchor: middle; font-size: 0.78em;
+  paint-order: stroke; stroke: rgba(6, 6, 14, 0.85); stroke-width: 2px;
+  stroke-linejoin: round;
+}
+.ca-grand .ca-compteur.ca-plein { fill: #ffd97a; }
+.ca-grand .ca-etiquette.ca-ici .ca-nom { fill: #fff; }
 .vm-carte-note, .vm-note {
   margin: 0.2rem 0 0.6rem; font-size: 0.78rem; color: var(--dim);
 }

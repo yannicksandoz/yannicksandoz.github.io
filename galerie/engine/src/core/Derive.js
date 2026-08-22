@@ -25,12 +25,6 @@ import { pointDeVue } from './Progression.js';
 
 const PAUSE = 8;         // secondes devant chaque œuvre
 const VITESSE = 4.5;     // m/s de croisière
-const EYE = 2.2;         // hauteur des yeux (même valeur que Controls)
-
-// rayon de sol, réutilisé : on ne crée pas un objet par atterrissage
-const _rayon = new THREE.Raycaster();
-const _origine = new THREE.Vector3();
-const _bas = new THREE.Vector3(0, -1, 0);
 
 export class Derive {
   constructor(app) {
@@ -164,10 +158,11 @@ export class Derive {
     const n = this.parcours.length;
     if (n === 0 && !((this.app.jetons?.compte ?? 0) > 0 && this.inconnues.length)) return;
     this.active = true;
-    this._chute = null;                   // une descente en cours s'annule
-    this._aPoser = false;                 // et celle qui attendait son tour
+    this._aRendre = false;                // une remise des commandes en attente
     this.app.activeFocus?.release?.();
     this.app.controls.locked = true;      // la caméra appartient à la dérive
+    // un vol plané en cours s'efface : c'est la visite qui porte, désormais
+    this.app.controls.resyncCollision?.();
     // La visite suit l'ORDRE du catalogue, du premier au dernier. Partir de
     // l'œuvre la plus proche semblait malin, mais on tombait au milieu du
     // fil (« pourquoi la n° 4 d'abord ? ») : une visite guidée commence au
@@ -202,53 +197,17 @@ export class Derive {
     this.active = false;
     this._phase = 'idle';
     this._peindre();
-    // On ne rend pas la main EN L'AIR. Certaines œuvres se contemplent en
-    // vol — le tore flotte au centre du cube de 80 m — et le visiteur qui
-    // reprenait la main là-haut restait suspendu, marchant dans le vide :
-    // la visite se terminait par un bug. On le repose d'abord au sol.
+    // On rend la main LÀ OÙ L'ON EST, en l'air s'il le faut. Le tore de
+    // « Gravité » flotte au centre du belvédère : y reposer le visiteur au
+    // sol, c'était lui retirer la vue qu'il venait de gagner — « je devrais
+    // y rester ». `Controls.planer()` le laisse donc suspendu ; il vole au
+    // regard et se pose de lui-même dès qu'un sol repasse à portée de pas.
     //
     // Mais sans se précipiter : le geste qui arrête la visite est le plus
-    // souvent un CLIC SUR L'ŒUVRE qu'on vient d'atteindre, et celle-là
-    // flotte peut-être. Redescendre pour laisser aussitôt le travelling
-    // d'approche remonter donnait le mal de mer — et les deux animations,
-    // tirant la même caméra, se marchaient dessus. La descente attend donc
-    // son heure : elle se fera à la sortie de la fiche, quand la main
-    // revient pour de bon (voir `_tick`).
-    this._aPoser = true;
-  }
-
-  /**
-   * Descente douce jusqu'au sol sous les pieds. Renvoie false s'il n'y a
-   * rien à descendre (on était déjà posé) — l'appelant rend alors la main
-   * tout de suite. La caméra reste verrouillée le temps du vol plané.
-   */
-  _poser() {
-    const app = this.app;
-    const sol = this._solSous(app.camera.position);
-    if (sol === null) return false;
-    const cible = sol + EYE;
-    const chute = app.camera.position.y - cible;
-    if (chute < 0.6) return false;          // déjà à hauteur d'homme
-    this._chute = {
-      de: app.camera.position.clone(),
-      cible,
-      // la cible du regard descend d'autant : l'assiette est préservée,
-      // on se pose sans piquer du nez
-      cibleRegard: app.controls.orbit.target.clone(),
-      t: 0,
-      duree: app.quality.reducedMotion ? 0.25 : Math.min(2.2, 0.5 + chute / 30)
-    };
-    return true;
-  }
-
-  /** Hauteur du sol foulable sous un point, ou null s'il n'y en a pas. */
-  _solSous(point) {
-    const cibles = this.app.rooms?.walkables?.() ?? [];
-    if (!cibles.length) return null;
-    _rayon.set(_origine.copy(point).setY(point.y + 0.2), _bas);
-    _rayon.far = 400;                       // un cube de 80 m se traverse
-    const touche = _rayon.intersectObjects(cibles, true);
-    return touche.length ? touche[0].point.y : null;
+    // souvent un CLIC SUR L'ŒUVRE qu'on vient d'atteindre. Le travelling
+    // d'approche tire la même caméra ; on attend sa fin, sinon les deux se
+    // marchent dessus (voir `_tick`).
+    this._aRendre = true;
   }
 
   suivante() {
@@ -287,39 +246,15 @@ export class Derive {
   /* ------------------------------------------------------------ tick --- */
 
   _tick(dt) {
-    // La descente survit à l'arrêt de la visite : c'est elle qui repose le
-    // visiteur avant de lui rendre les commandes.
-    if (this._chute) {
-      const c = this._chute;
-      c.t = Math.min(1, c.t + dt / c.duree);
-      const k = easeInOutCubic(c.t);
-      const cam = this.app.camera;
-      const y = c.de.y + (c.cible - c.de.y) * k;
-      const dy = y - cam.position.y;
-      cam.position.y = y;
-      this.app.controls.orbit.target.y += dy; // l'assiette du regard suit
-      if (c.t >= 1) {
-        this._chute = null;
-        this.app.controls.locked = false;
-        this.app.controls.resyncCollision?.();
-      }
-      return;
-    }
-    // Descente en attente : elle patiente tant qu'une œuvre tient la main
-    // (approche, fiche ouverte, recul en cours). Le visiteur reste donc en
-    // l'air aussi longtemps qu'il contemple — c'est là-haut que l'œuvre se
-    // regarde — et ne redescend qu'au moment où il se retrouve vraiment
-    // libre de marcher.
-    if (this._aPoser) {
+    // Remise des commandes en attente : elle patiente tant qu'une œuvre
+    // tient la main (approche, fiche ouverte, recul en cours). Le visiteur
+    // reste en l'air aussi longtemps qu'il contemple — c'est là-haut que
+    // l'œuvre se regarde — et la main lui revient au moment où il est
+    // vraiment libre de bouger, à l'altitude où la visite l'a laissé.
+    if (this._aRendre) {
       if (this.app.activeFocus) return;
-      this._aPoser = false;
-      if (this._poser()) {
-        // la descente pilote la caméra : elle la garde jusqu'au sol
-        this.app.controls.locked = true;
-      } else {
-        this.app.controls.locked = false;
-        this.app.controls.resyncCollision?.();
-      }
+      this._aRendre = false;
+      this.app.controls.planer();
       return;
     }
     if (!this.active) return;

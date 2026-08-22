@@ -23,6 +23,7 @@ const FR = {
 
   'hint.line': '{move} · {pivot} : pivoter · clic ou Espace : découvrir',
   'hint.touch': '1 doigt : regarder · 2 doigts : se déplacer · joystick : marcher · toucher : découvrir',
+  'hint.fly': 'Vous planez · avancez en regardant vers le bas pour vous poser',
 
   'nogl.sub': "Votre navigateur ne prend pas en charge WebGL2, nécessaire à l'affichage 3D. La galerie reste entièrement visitable à l'oreille : navigation au clavier, sons spatialisés — casque recommandé.",
   'nogl.start': 'Visite audio',
@@ -50,6 +51,16 @@ const FR = {
   'menu.settings.fps': 'Compteur d\'images (FPS)',
   'menu.map.note': 'La carte se dessine en marchant : « ? » marque un passage '
     + 'que vous n\'avez pas encore pris.',
+  'carte.titre': 'Plan de la galerie',
+  'carte.ouvrir': 'Voir le plan en grand',
+  'carte.fermer': 'Fermer le plan',
+  'carte.compte': '{connues} pièce{sc} parcourue{sc} · {reste} encore inconnue{sr}',
+  'carte.complet': '{connues} pièces parcourues · la galerie entière',
+  'carte.aller': 'Aller dans « {piece} »',
+  'carte.ici': 'Vous êtes ici',
+  'carte.oeuvres': '{vues} œuvre{sv} vue{sv} sur {total}',
+  'carte.legende': '◆ œuvres vues · « ? » un passage jamais pris · '
+    + 'cliquez une pièce pour vous y rendre',
   'menu.open': 'Ouvrir le menu de la visite',
   'menu.resume': 'Reprendre la visite',
   'menu.label': 'Menu de la visite',
@@ -141,6 +152,7 @@ const EN = {
 
   'hint.line': '{move} · {pivot}: turn · click or Space: discover',
   'hint.touch': '1 finger: look · 2 fingers: move · joystick: walk · tap: discover',
+  'hint.fly': 'You are gliding · look down and move forward to land',
 
   'nogl.sub': 'Your browser does not support WebGL2, which the 3D display requires. The gallery remains fully visitable by ear: keyboard navigation, spatialised sound — headphones recommended.',
   'nogl.start': 'Audio tour',
@@ -168,6 +180,16 @@ const EN = {
   'menu.settings.fps': 'Frame counter (FPS)',
   'menu.map.note': 'The map draws itself as you walk: “?” marks a passage you '
     + 'have not taken yet.',
+  'carte.titre': 'Map of the gallery',
+  'carte.ouvrir': 'Open the full map',
+  'carte.fermer': 'Close the map',
+  'carte.compte': '{connues} room{sc} walked · {reste} still unknown',
+  'carte.complet': '{connues} rooms walked · the whole gallery',
+  'carte.aller': 'Go to “{piece}”',
+  'carte.ici': 'You are here',
+  'carte.oeuvres': '{vues} of {total} work{st} seen',
+  'carte.legende': '◆ works seen · “?” a passage never taken · '
+    + 'click a room to travel there',
   'menu.open': 'Open the visit menu',
   'menu.resume': 'Resume the visit',
   'menu.label': 'Visit menu',

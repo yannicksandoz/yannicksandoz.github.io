@@ -50,6 +50,9 @@ export class UI {
       enterBtn.textContent = t(enterBtn.disabled ? 'enter.loading' : 'enter.enter');
     }
     this._renderKeyTexts();
+    // en plein vol, l'aide parle du vol : la traduction ne la ramène pas
+    // aux touches de marche
+    if (this._planant && this.hint) this.hint.textContent = t('hint.fly');
     this._refineKeyLabels();
     this._credits?.();  // les crédits contiennent des libellés traduits
   }
@@ -214,6 +217,19 @@ export class UI {
     this.enterScreen.classList.add('leaving');
     setTimeout(() => { this.enterScreen.remove(); }, 1300);
     this.hint.hidden = false;
+  }
+
+  /**
+   * On plane : l'aide le dit, et dit comment se poser. La visite guidée
+   * laisse le visiteur en l'air (c'est là que l'œuvre se regarde) ; sans un
+   * mot, se retrouver à voler passerait pour une panne.
+   */
+  planer(actif) {
+    if (!this.hint || this._planant === actif) return;
+    this._planant = actif;
+    this.hint.classList.toggle('en-vol', actif);
+    if (actif) this.hint.textContent = t('hint.fly');
+    else this._renderKeyTexts();
   }
 
   /** Aide tactile éphémère, montrée une seule fois par appareil. */

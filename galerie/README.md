@@ -95,13 +95,27 @@ la prochaine œuvre du parcours, où qu'elle soit.
 **« Laisse-toi porter »** (barre `◂ ▸` en bas de l'écran, ou le menu) : la
 visite guidée **rejoue les œuvres découvertes**, dans l'ordre du catalogue,
 du n° 1 au dernier — la caméra vole de l'une à l'autre et se pose devant
-chacune. Certaines se contemplent en vol (le tore flotte au centre du cube
-du belvédère) : reprendre la main là-haut **repose d'abord le visiteur au sol**,
-en une descente douce, plutôt que de le laisser marcher dans le vide. Pendant la
-pause, `◂` / `▸` (boutons, ou flèches gauche/droite du clavier) vont à la
-précédente ou à la suivante ; **tout autre geste rend la main**. Avec
-`prefers-reduced-motion`, les travellings deviennent des déplacements
-quasi instantanés.
+chacune. Pendant la pause, `◂` / `▸` (boutons, ou flèches gauche/droite du
+clavier) vont à la précédente ou à la suivante ; **tout autre geste rend la
+main**. Avec `prefers-reduced-motion`, les travellings deviennent des
+déplacements quasi instantanés.
+
+**Le vol plané.** Certaines œuvres se contemplent en l'air — le tore de
+« Gravité » flotte au centre du cube du belvédère. Reprendre la main là-haut
+reposait le visiteur au sol quelques secondes plus tard : le suivi de sol le
+rappelait, quelle que soit la hauteur, et l'on perdait la vue qu'on venait de
+gagner. Il **y reste** désormais. `Controls.planer()` le laisse suspendu ;
+tant qu'aucun sol n'est à portée de pas sous ses pieds (`EYE + CHUTE_MAX`),
+le suivi de sol ne le réclame pas et l'anti-chute s'efface — il n'y a plus de
+sol de référence, donc plus de vide à refuser. **Il vole alors au regard** :
+avancer en regardant vers le bas fait descendre, lever la tête fait monter,
+et l'on **se pose de soi-même** dès qu'un plancher repasse à portée — la
+marche reprend sans que rien ne soit à faire. L'aide, en bas de l'écran, le
+dit le temps du vol. La remise des commandes attend d'ailleurs son heure :
+le geste qui arrête la visite est le plus souvent un clic sur l'œuvre qu'on
+vient d'atteindre, et le travelling d'approche tire la même caméra. Un
+portail, une bascule, un point d'arrivée reposent les pieds
+(`resyncCollision`).
 
 **Les jetons ◈.** De petits octaèdres dorés sont **cachés dans les
 pièces** ; on les ramasse en marchant dessus (compteur sur le badge).
@@ -157,13 +171,30 @@ La porte par laquelle on vient d'entrer ne rougit jamais : elle se referme
 derrière soi par règle, et l'afficher comme un obstacle là où l'on vient de
 marcher ferait peur pour rien.
 
-La **carte** du menu, section « Pièces », montre le reste : le graphe des
-salles connues, les passages franchis, et un « ? » là où une porte n'a pas
-encore été prise. On y saute d'un clic dans une salle déjà connue. La liste
-sous elle suit exactement la même mémoire : elle nomme les pièces visitées
-et compte les autres sans les nommer (« 11 pièces encore inconnues »). Une
-carte qui ménage la surprise à côté d'une liste qui la vend n'aurait rien
-ménagé du tout.
+Le **plan en grand** (clic sur la minimap, ou menu → Pièces → « Voir le
+plan en grand ») montre le reste, et **prend toute la page**. Il a d'abord
+vécu en vignette de 380 pixels au fond du menu, sous la liste des mêmes
+salles : quinze pièces dans un timbre-poste, des noms qui se chevauchaient,
+des traits qui se croisaient, et juste dessous la même chose en clair.
+Aujourd'hui il porte le graphe des salles connues, les passages franchis, un
+« ? » posé **au bord** de la salle du côté où mène une porte jamais prise,
+et, sous chaque pièce, son **compte d'œuvres** (`◆ 2/3`, doré quand la salle
+est épuisée). Deux règles de tracé le rendent lisible :
+
+- les **traits partent du bord** des salles, pas de leur centre, et bombent
+  légèrement — douze liens quittant un même centre faisaient une étoile ;
+- **le texte se mesure en pixels, pas en mètres.** Le SVG travaille en
+  mètres (c'est le repère du plan) ; un `font-size` en mètres donne des noms
+  minuscules sur une grande galerie et énormes sur une petite. Les tailles
+  se règlent donc après coup, à l'échelle réellement appliquée — et le nom
+  se pose **dans** la salle quand il y tient, **sous** elle sinon.
+
+Chaque salle du plan est un **vrai bouton** : atteignable au clavier, nommée
+(« Aller dans “Jardin zen” — 1 œuvre vue sur 3 »), et qui mène où elle dit.
+La liste du menu suit exactement la même mémoire : elle nomme les pièces
+visitées et compte les autres sans les nommer (« 11 pièces encore
+inconnues »). Une carte qui ménage la surprise à côté d'une liste qui la
+vend n'aurait rien ménagé du tout.
 
 **D'où viennent les coordonnées.** De nulle part : aucune pièce n'en porte,
 et en tenir un jeu à jour à la main aurait été une seconde vérité, la
@@ -197,22 +228,26 @@ mêmes réglages.
 description, un lien externe optionnel (`link`) et, pour les œuvres qui ont
 une image, une **vue détail** plein écran.
 
-**Menu de la visite** (Échap ou ☰) : la **carte** et la liste des pièces
-visitées, pour sauter directement dans l'une d'elles, visite audio, **partage** (Web Share sur
+**Menu de la visite** (Échap ou ☰) : le **plan en grand** et la liste des
+pièces visitées, pour sauter directement dans l'une d'elles, visite audio, **partage** (Web Share sur
 mobile, copie du lien sinon) avec **lien profond** `?room=pièce` /
 `?work=œuvre` — celui qui l'ouvre arrive au même endroit, **sans écran
 d'accueil** (l'audio se débloque au premier geste, règle des navigateurs) —,
 **plein écran**, vue liste, raccourcis, langue, « Terminer la visite ».
 
-**Après une bascule, on regarde devant soi.** Le regard suit la pièce — le
-mur qu'on avait en face reste en face — puis se repose sur l'horizon. La
-règle d'avant (« le regard garde sa direction, c'est le monde qui tourne »)
-était élégante et désorientante : on arrivait le nez dans ses chaussures ou
-dans le plafond selon ce qu'on regardait en entrant dans l'anneau, et le cap
-semblait tourner au hasard. Il tournait en fait d'exactement ce dont la
-pièce avait tourné — ce qui ne se devine pas de l'intérieur. Le calcul part
-donc du **cap** et non du regard : l'inclinaison du menton ne doit rien
-décider.
+**Après une bascule, on regarde devant soi.** Une bascule de gravité fait
+une seule chose au regard : elle le **couche sur le nouvel horizon**. Le
+**cap du monde ne bouge pas d'un degré** — on arrive tourné exactement là où
+l'on regardait. Deux règles ont été essayées avant celle-là, et toutes deux
+donnaient l'impression que la caméra « tourne à gauche » sans raison : garder
+le regard tel quel plantait le nez dans les chaussures ou le plafond selon
+ce qu'on regardait en entrant dans l'anneau, et faire *suivre la pièce* au
+regard lui ajoutait exactement la rotation de la pièce — invisible dans le
+code, très visible dans les jambes. Les caps cardinaux y survivaient par
+hasard (les axes de bascule les laissent invariants), les autres viraient de
+45°, ce qui rendait le défaut capricieux et long à voir. Le balayage de
+`verif-belv-cap` mesure aujourd'hui huit caps × trois inclinaisons : l'écart
+doit être nul partout.
 
 **Sphères de transfert de gravité.** Un seul objet par passage : une
 sphère de verre où **flotte le sablier de la gravité** (deux cônes pointe

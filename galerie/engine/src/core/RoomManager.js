@@ -31,25 +31,15 @@ const _cap = new THREE.Vector3();
  *   • il se repose sur L'HORIZON — après une bascule on veut voir devant
  *     soi, jamais ses pieds.
  */
-function capApresBascule(dir, q0, q1) {
-  // On part du CAP, pas du regard : le regard porte une inclinaison (on
-  // levait la tête vers le mur qui va devenir sol), et la faire voyager
-  // dans la rotation la transforme en virage — c'est de là que venait le
-  // « des fois ça tourne à gauche, des fois non ». Le cap, lui, est ce
-  // qu'on entend par « devant », et il ne doit rien devoir au menton.
-  const cap = _cap.set(dir.x, 0, dir.z);
-  if (cap.lengthSq() < 1e-8) cap.set(0, 0, -1);  // regard vertical : cap par défaut
-  cap.normalize();
-  // ce cap, exprimé dans le repère de la pièce puis relu dans son nouveau
-  // repère : c'est ce que « suivre la pièce » veut dire
-  const fin = _regard.copy(cap)
-    .applyQuaternion(_qTour.copy(q0).invert())
-    .applyQuaternion(q1);
-  fin.y = 0;                                     // et l'on se repose sur l'horizon
-  // le cap d'avant pointait vers ce qui devient le haut ou le bas : à plat,
-  // il ne reste rien. Mieux vaut alors garder le cap qu'un vecteur nul, qui
-  // ferait disparaître le regard.
-  if (fin.lengthSq() < 1e-8) fin.copy(cap);
+function capApresBascule(dir) {
+  // « Toujours sur le nouvel horizon, et droit devant » : le cap du monde ne
+  // bouge pas d'un degré, seule l'inclinaison se couche. Faire voyager le
+  // regard dans la rotation de la pièce — ce que faisait la version d'avant —
+  // ajoutait un virage que rien ne demandait : c'est de là que venait le
+  // « des fois ça tourne à gauche ». Les caps cardinaux y survivaient par
+  // hasard, les autres non.
+  const fin = _cap.set(dir.x, 0, dir.z);
+  if (fin.lengthSq() < 1e-8) fin.set(0, 0, -1);  // regard vertical : cap par défaut
   return new THREE.Quaternion().setFromUnitVectors(dir, fin.normalize());
 }
 const _worldUp = new THREE.Vector3();
@@ -328,7 +318,7 @@ export class RoomManager {
       room, q0, q1, p0, p1,
       c0: cam.position.clone(),
       c1: new THREE.Vector3(...(cfg.arrival ?? [0, 2.2, 0])),
-      dir, tourner: capApresBascule(dir, q0, q1), t: 0, dur: cfg.duration ?? 1.6
+      dir, tourner: capApresBascule(dir), t: 0, dur: cfg.duration ?? 1.6
     };
   }
 
