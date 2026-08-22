@@ -431,9 +431,8 @@ html, body {
    tient son rang sous un « ??? ». */
 #progress-list {
   position: fixed;
-  /* sous la minimap quand elle est là (elle occupe le haut-droit), sinon
-     juste sous le badge : la variable porte la hauteur du hublot */
-  top: calc(3.9rem + var(--minimap) + env(safe-area-inset-top, 0px));
+  /* juste sous le badge… */
+  top: calc(2.9rem + env(safe-area-inset-top, 0px));
   right: calc(1rem + env(safe-area-inset-right, 0px));
   z-index: 16; width: min(19rem, 88vw);
   max-height: min(60vh, 30rem); overflow-y: auto;
@@ -469,7 +468,6 @@ html, body {
 }
 /* dévoilée : nommée mais pas encore rencontrée — en retrait, marquée ◈ */
 #progress-list .revelee .pl-t { font-style: italic; }
-#progress-list .pl-s { color: var(--dim); font-size: 0.7rem; }
 #progress-list .pl-astuce {
   margin-top: 0.7rem; padding-top: 0.6rem; font-size: 0.75rem; color: var(--dim);
   border-top: 1px solid rgba(255, 255, 255, 0.1);
@@ -619,6 +617,12 @@ html, body {
   background: rgba(6, 6, 13, 0.9);
   border: 1px solid rgba(255, 255, 255, 0.12);
   transition: border-color 0.3s;
+}
+/* …et sous le hublot quand il est là : la classe est posée par la minimap
+   elle-même, car un réglage peut l'éteindre et le panneau ne doit pas
+   rester suspendu au-dessus d'un vide. */
+body.avec-minimap #progress-list {
+  top: calc(3.9rem + var(--minimap) + env(safe-area-inset-top, 0px));
 }
 #minimap:hover { border-color: rgba(159, 140, 255, 0.45); }
 #minimap[hidden] { display: none; }

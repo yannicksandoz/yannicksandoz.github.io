@@ -47,22 +47,32 @@ export function planDe(app) {
 }
 
 /**
- * Où se tient le visiteur, en coordonnées de plan, et vers où il regarde.
- * Null hors d'une pièce connue. Le passage par le repère de la pièce est
- * obligatoire : au belvédère, une pièce est basculée, et lire la caméra en
- * coordonnées monde placerait le point n'importe où.
+ * Où se tient le visiteur sur le PLAN, et vers où il regarde.
+ * Null hors d'une pièce connue.
+ *
+ * On mesure l'écart entre le visiteur et le centre de sa salle EN MONDE,
+ * puis on reporte cet écart sur la salle telle qu'elle est dessinée. Passer
+ * par le repère de la pièce serait faux dès qu'elle bascule : on marche
+ * alors sur ce qui était un mur, et deux des trois coordonnées locales
+ * cessent de décrire le sol. Le monde, lui, garde toujours le même bas.
+ *
+ * L'écart est borné à l'emprise dessinée : sur un plan de métro, mieux vaut
+ * un point plaqué au bord de la bonne salle qu'un point juste au milieu de
+ * la mauvaise.
  */
 export function position(app) {
   const room = app.rooms?.current;
   if (!room) return null;
   const piece = planDe(app).pieces.find((p) => p.id === room.config.id);
   if (!piece) return null;
-  const local = room.group.worldToLocal(_v.copy(app.camera.position));
+  room.group.updateMatrixWorld();
+  const centre = _v2.setFromMatrixPosition(room.group.matrixWorld);
+  const cam = app.camera.position;
+  const borne = (v, demi) => Math.max(-demi, Math.min(demi, v));
   app.camera.getWorldDirection(_d);
-  const cap = room.group.getWorldQuaternion(_q).invert();
-  _d.applyQuaternion(cap);
   return {
-    x: piece.x + local.x, z: piece.z + local.z,
+    x: piece.x + borne(cam.x - centre.x, piece.w / 2),
+    z: piece.z + borne(cam.z - centre.z, piece.d / 2),
     // l'aiguille pointe vers (dx, dz) ; en SVG, un `rotate` va dans le sens
     // des aiguilles depuis le haut de l'écran, d'où l'atan2 inversé
     cap: (Math.atan2(_d.x, -_d.z) * 180) / Math.PI
@@ -232,6 +242,15 @@ export function setMinimap(app, on) {
  *   • pleine        — passage déjà emprunté, on sait ce qu'il y a derrière ;
  *   • évidée        — jamais franchie, la salle d'après reste à découvrir ;
  *   • rouge         — fermée pour l'instant (délai de réarmement).
+ *
+ * **Tout se dessine en coordonnées MONDE, et c'est essentiel.** Une pièce
+ * d'Escher bascule : le mur est devient le sol, et l'on marche dessus. En
+ * repère de pièce, la position du visiteur cessait alors de bouger sur les
+ * deux axes tracés — dix mètres de marche déplaçaient l'aiguille de neuf
+ * centimètres, plaquée contre un bord. Or `orientRoom` fait exactement ce
+ * qu'il faut : il tourne la pièce pour que la surface qu'on foule REPOSE
+ * À PLAT dans le monde. Le monde est donc le seul repère où « le sol » veut
+ * toujours dire la même chose, quelle que soit la gravité du moment.
  */
 export class Minimap {
   constructor(app) {
@@ -241,6 +260,8 @@ export class Minimap {
     this.el.setAttribute('aria-hidden', 'true');
     this.el.title = 'Carte de la visite (Échap → Pièces)';
     document.body.appendChild(this.el);
+    // le catalogue s'ouvre SOUS le hublot : il doit savoir qu'il est là
+    document.body.classList.add('avec-minimap');
     this.el.addEventListener('click', () => this.app.ouvrirCarte?.());
 
     this.redessiner();
@@ -260,34 +281,72 @@ export class Minimap {
     this.el.hidden = !this.el.firstChild;
   }
 
-  /** Ce qui, en changeant, oblige à refaire le tracé (et non à le bouger). */
+  /**
+   * Ce qui, en changeant, oblige à refaire le tracé (et non à le bouger).
+   * Le PLAN en fait partie : basculer la gravité retourne la pièce, donc
+   * l'emprise, donc les portes qui tiennent debout.
+   */
   _sig() {
     const m = this.app.memoire;
-    return `${this._id}:${m?.pieces.size ?? 0}:${m?.portes.size ?? 0}`
+    return `${this._id}:${this.piece?.plane ?? 'sol'}`
+      + `:${m?.pieces.size ?? 0}:${m?.portes.size ?? 0}`
       + `:${(this.piece?.portalMeshes ?? []).length}`;
+  }
+
+  /**
+   * L'emprise de la salle, en MONDE : les huit coins de sa coque passés par
+   * la matrice du groupe, projetés au sol. Basculée ou non, on obtient le
+   * rectangle qu'occupe vraiment la salle sous les pieds du visiteur — et
+   * c'est ce rectangle qu'il faut dessiner, pas la largeur × profondeur du
+   * JSON, qui ne décrit que la pièce à plat.
+   */
+  _emprise(room) {
+    const shell = room.config.shell && room.config.shell !== true ? room.config.shell : {};
+    const plan = planDe(this.app).pieces.find((p) => p.id === this._id);
+    const w = Number(shell.width) > 0 ? shell.width : (plan?.w ?? 26);
+    const d = Number(shell.depth) > 0 ? shell.depth : (plan?.d ?? 20);
+    const h = Number(shell.height) > 0 ? shell.height : 5;
+    room.group.updateMatrixWorld();
+    let x0 = Infinity, z0 = Infinity, x1 = -Infinity, z1 = -Infinity;
+    for (const sx of [-w / 2, w / 2]) {
+      for (const sy of [0, h]) {
+        for (const sz of [-d / 2, d / 2]) {
+          _v.set(sx, sy, sz).applyMatrix4(room.group.matrixWorld);
+          x0 = Math.min(x0, _v.x); x1 = Math.max(x1, _v.x);
+          z0 = Math.min(z0, _v.z); z1 = Math.max(z1, _v.z);
+        }
+      }
+    }
+    return { x0, z0, x1, z1, cx: (x0 + x1) / 2, cz: (z0 + z1) / 2,
+      w: x1 - x0, d: z1 - z0 };
   }
 
   _svg() {
     const room = this.piece;
     if (!room) return '';
-    const plan = planDe(this.app).pieces.find((p) => p.id === this._id);
-    const w = plan?.w ?? 26;
-    const d = plan?.d ?? 20;
+    const e = this._emprise(room);
     // Cadre carré, dont le CSS ne montre que le disque inscrit : une salle
     // carrée de côté s n'y tient qu'à partir d'un diamètre s√2. On prend un
     // peu plus, pour que les murs ne frôlent pas le bord du hublot.
-    const cote = Math.max(w, d) * 1.62;
+    const cote = Math.max(e.w, e.d) * 1.62;
     const demi = cote / 2;
+    const t = Math.max(2.2, cote / 16);
 
+    // On ne dessine que les portes QU'ON PEUT PRENDRE d'ici : dans une pièce
+    // basculée, celles des autres plans sont couchées sur ce qui est devenu
+    // un mur — le moteur refuse déjà de les franchir à la marche (voir le
+    // test « portail DEBOUT » de RoomManager.update). Les montrer serait
+    // promettre des passages qui n'en sont pas d'ici.
     const portes = (room.portalMeshes ?? []).map((mesh, i) => {
-      const cfg = mesh.userData.portal?.cfg;
-      if (!Array.isArray(cfg?.position)) return '';
-      const [x, , z] = cfg.position;
-      // la porte regarde vers l'intérieur : on la couche le long du mur
-      const deg = Array.isArray(cfg.rotation) ? Number(cfg.rotation[1]) || 0 : 0;
-      const t = Math.max(2.2, cote / 16);
+      mesh.updateMatrixWorld();
+      _d.set(0, 1, 0).transformDirection(mesh.matrixWorld);
+      if (_d.y < 0.7) return '';
+      mesh.getWorldPosition(_v);
+      // le cap de la porte, à plat : son axe local X couché dans le monde
+      _d2.set(1, 0, 0).transformDirection(mesh.matrixWorld);
+      const deg = (Math.atan2(_d2.x, -_d2.z) * 180) / Math.PI;
       return `<g class="ca-porte" data-porte="${i}"
-        transform="translate(${x} ${z}) rotate(${-deg})">
+        transform="translate(${_v.x.toFixed(2)} ${_v.z.toFixed(2)}) rotate(${deg.toFixed(1)})">
         <rect x="${-t * 0.62}" y="${-t * 0.22}" width="${t * 1.24}" height="${t * 0.44}"
           rx="${t * 0.14}"/></g>`;
     }).join('');
@@ -297,10 +356,12 @@ export class Minimap {
       <path d="M0,-${corps * 0.62} L${corps * 0.42},${corps * 0.5}
         L0,${corps * 0.16} L-${corps * 0.42},${corps * 0.5} Z"/></g>`;
 
-    return `<svg class="ca-svg" viewBox="${-demi} ${-demi} ${cote} ${cote}"
+    return `<svg class="ca-svg"
+      viewBox="${(e.cx - demi).toFixed(2)} ${(e.cz - demi).toFixed(2)} ${cote.toFixed(2)} ${cote.toFixed(2)}"
       preserveAspectRatio="xMidYMid meet" aria-hidden="true" focusable="false">
-      <rect class="ca-salle" x="${-w / 2}" y="${-d / 2}" width="${w}" height="${d}"
-        rx="${Math.min(2.5, Math.min(w, d) / 8)}"/>${portes}${moi}</svg>`;
+      <rect class="ca-salle" x="${e.x0.toFixed(2)}" y="${e.z0.toFixed(2)}"
+        width="${e.w.toFixed(2)}" height="${e.d.toFixed(2)}"
+        rx="${Math.min(2.5, Math.min(e.w, e.d) / 8)}"/>${portes}${moi}</svg>`;
   }
 
   /**
@@ -308,7 +369,7 @@ export class Minimap {
    * pas un luxe — à quatre rafraîchissements par seconde elle sautait, et
    * une carte qui saute pendant qu'on tourne la tête est pire que pas de
    * carte. Le coût est d'un attribut `transform` par frame ; le tracé, lui,
-   * ne se refait qu'en changeant de salle.
+   * ne se refait qu'en changeant de salle ou de gravité.
    */
   _tick() {
     if (this._id !== (this.piece?.config.id ?? null)
@@ -317,15 +378,15 @@ export class Minimap {
     if (!room) return;
 
     if (this._aiguille) {
-      // position DANS LA PIÈCE : le tracé est en coordonnées locales, et la
-      // pièce peut être basculée (Escher) — lire la caméra en monde
-      // poserait l'aiguille n'importe où
-      const local = room.group.worldToLocal(_v.copy(this.app.camera.position));
-      this.app.camera.getWorldDirection(_d);
-      _d.applyQuaternion(room.group.getWorldQuaternion(_q).invert());
-      const cap = (Math.atan2(_d.x, -_d.z) * 180) / Math.PI;
+      // En MONDE, sans détour : après une bascule, c'est la pièce qui a
+      // tourné, pas le visiteur — sa position au sol se lit donc toujours
+      // sur les mêmes deux axes.
+      const cam = this.app.camera;
+      cam.getWorldDirection(_d);
+      const capDeg = (Math.atan2(_d.x, -_d.z) * 180) / Math.PI;
       this._aiguille.setAttribute('transform',
-        `translate(${local.x.toFixed(2)} ${local.z.toFixed(2)}) rotate(${cap.toFixed(1)})`);
+        `translate(${cam.position.x.toFixed(2)} ${cam.position.z.toFixed(2)})`
+        + ` rotate(${capDeg.toFixed(1)})`);
     }
 
     // l'état des portes : franchie, inconnue, ou fermée pour l'instant
@@ -339,6 +400,7 @@ export class Minimap {
       // lui laisse un répit avant de l'annoncer en rouge — le temps de trois
       // pas — puis on le dit. Une porte fermée qu'on ne montrerait pas
       // fermée serait pire que le clignotement qu'on voulait éviter.
+      //
       // `arriveeA` vaut Infinity pendant la traversée (répit en cours), un
       // instant après l'atterrissage, et rien du tout pour une porte par
       // laquelle on n'est pas entré — les trois cas se lisent d'un trait.
@@ -354,6 +416,7 @@ export class Minimap {
     this._off?.();
     this._offMemoire?.();
     this.el.remove();
+    document.body.classList.remove('avec-minimap');
     this.app._minimap = null;
   }
 }
@@ -366,4 +429,5 @@ export function mountMinimap(app) {
 
 const _v = new THREE.Vector3();
 const _d = new THREE.Vector3();
-const _q = new THREE.Quaternion();
+const _d2 = new THREE.Vector3();
+const _v2 = new THREE.Vector3();

@@ -261,15 +261,20 @@ export class Progression {
     const jetons = this.app.jetons?.compte ?? 0;
     const salle = this.app.rooms?.current?.config.id ?? null;
     const bilan = salle ? this.bilanDe(salle) : { total: 0, vues: 0 };
-    const texte = t('progress.label', { n: bilan.vues, total: bilan.total })
-      + (jetons > 0 ? ` · ${t('progress.jetons', { n: jetons })}` : '');
-    this._badge.textContent = `◆ ${bilan.vues} / ${bilan.total}`
+    // Neuf salles sur quinze n'abritent aucune œuvre — l'entrée la première.
+    // Leur afficher « ◆ 0 / 0 » donnait un compteur qui ne compte rien, et
+    // c'est le tout premier chiffre que voit un visiteur en arrivant. Un
+    // tiret dit la même chose sans faire croire à un score : il n'y a rien
+    // à trouver ICI. Le bouton reste, car c'est par lui qu'on ouvre le
+    // panneau — lequel dit justement où aller.
+    const compte = bilan.total > 0 ? `${bilan.vues} / ${bilan.total}` : '—';
+    const texte = bilan.total > 0
+      ? t('progress.label', { n: bilan.vues, total: bilan.total })
+      : t('progress.vide');
+    this._badge.textContent = `◆ ${compte}`
       + (jetons > 0 ? `  ·  ◈ ${jetons}` : '');
-    this._badge.title = texte;
-    this._badge.setAttribute('aria-label', texte);
-    // Une salle sans œuvre affiche « ◆ 0 / 0 » plutôt que de disparaître :
-    // c'est une information (il n'y a rien à chercher ici), et c'est par ce
-    // bouton qu'on ouvre le panneau — lequel dit justement où aller.
+    this._badge.title = texte + (jetons > 0 ? ` · ${t('progress.jetons', { n: jetons })}` : '');
+    this._badge.setAttribute('aria-label', this._badge.title);
     if (this._panneau.hidden) return;
 
     const reste = bilan.total - bilan.vues;

@@ -63,7 +63,10 @@ une œuvre lointaine reste faiblement perceptible et attire.
 
 **Le catalogue se gagne — et il parle de la salle où l'on est.** Une œuvre
 n'est nommée qu'une fois rencontrée : le compteur « ◆ 2 / 4 » (haut-droite)
-se déplie d'un clic et montre les œuvres **de cette salle** — les trouvées
+se déplie d'un clic et montre les œuvres **de cette salle** (et « ◆ — »
+là où il n'y en a aucune : neuf salles sur quinze, l'entrée la première —
+un compteur qui ne compte rien serait le premier chiffre que voit un
+visiteur, et il ne dirait rien) — les trouvées
 portent leur titre et s'y rejoignent d'un clic, les autres tiennent leur
 rang sous un « ??? ». Un total global (« 3 / 47 ») écrasait le visiteur dès
 le premier pas : le chiffre ne bougeait presque jamais, et la liste dépliée
@@ -135,7 +138,16 @@ Elle vit à deux endroits, et ils ne racontent pas la même chose.
 
 La **minimap** — un hublot rond, en haut à droite, sous le compteur — ne
 montre que **la salle où l'on est** : son emprise, ses portes, et l'aiguille
-du regard, qui bouge à chaque image. Elle a d'abord affiché un fragment du
+du regard, qui bouge à chaque image. Tout y est tracé en coordonnées
+**monde**, et ce n'est pas un détail : une pièce d'Escher bascule, le mur
+devient le sol, et l'on marche dessus. En repère de pièce, la position du
+visiteur cessait alors de bouger sur les deux axes dessinés — dix mètres de
+marche déplaçaient l'aiguille de neuf centimètres, plaquée contre un bord.
+Or `orientRoom` fait exactement ce qu'il faut : il tourne la pièce pour que
+la surface qu'on foule repose À PLAT dans le monde. Le monde est donc le
+seul repère où « le sol » veut toujours dire la même chose. Corollaire :
+seules les portes **qu'on peut prendre d'ici** sont dessinées — au
+belvédère, deux ou trois sur treize selon la gravité du moment. Elle a d'abord affiché un fragment du
 plan général ; c'était illisible, un morceau de plan de métro dans un rond
 de huit centimètres. Une minimap répond à deux questions et à deux
 seulement : *où suis-je tourné*, et *où sont les portes*. Chaque porte y
