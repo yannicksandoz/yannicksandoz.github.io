@@ -11,6 +11,7 @@
  */
 import { Limiteur } from './Limiteur.js';
 import { Console, normaliserConsole } from './Console.js';
+import { Ecoute } from './Ecoute.js';
 
 export class AudioEngine {
   constructor() {
@@ -18,6 +19,7 @@ export class AudioEngine {
     this.master = null;
     this.limiteur = new Limiteur();
     this.console = new Console();
+    this.ecoute = new Ecoute();
     this.unlocked = false;
     this._cache = new Map();
     // url → nombre d'œuvres et d'ambiances qui s'en servent (voir load)
@@ -44,8 +46,13 @@ export class AudioEngine {
       const sortieConsole = this.console.installer(this.ctx, this.master);
       this.master.disconnect(this.ctx.destination);
       sortieConsole.connect(this.ctx.destination);
+      // …puis l'écoute de contrôle, tout au bout : c'est là que se pose un
+      // casque. Elle attend le limiteur, sans quoi les deux se disputeraient
+      // le fil qui va à la sortie.
       this.limiteur.installer(this.ctx, sortieConsole, this.ctx.destination)
-        .catch((e) => console.warn('[galerie] limiteur non installé :', e?.message ?? e));
+        .then(() => this.ecoute.installer(
+          this.ctx, this.limiteur._sortie ?? sortieConsole, this.ctx.destination))
+        .catch((e) => console.warn('[galerie] chaîne du maître :', e?.message ?? e));
 
       // Filet de sécurité iOS : à chaque tap, si le contexte n'est pas
       // « running », on le relance depuis le geste.
