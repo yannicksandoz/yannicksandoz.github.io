@@ -7,7 +7,6 @@
     2.4,
     -4
   ],
-  "rotationY": 0,
   "model": {
     "shape": "monolith",
     "height": 3.6,
@@ -42,5 +41,15 @@
         "distance": 6
       }
     }
+  ],
+  "rotation": [
+    0,
+    0,
+    0
+  ],
+  "scale": [
+    1,
+    1,
+    1
   ]
 }

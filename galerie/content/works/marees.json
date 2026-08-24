@@ -7,7 +7,6 @@
     2.6,
     -16
   ],
-  "rotationY": 0,
   "image": "textures/marees.png",
   "size": [
     9,
@@ -52,5 +51,15 @@
         "distance": 9
       }
     }
+  ],
+  "rotation": [
+    0,
+    0,
+    0
+  ],
+  "scale": [
+    1,
+    1,
+    1
   ]
 }

@@ -21,13 +21,13 @@
   "role": "decor",
   "model": {
     "shape": "lucioles",
-    "size": 11.0,
+    "size": 11,
     "count": 24,
     "seed": 23,
     "color": "#ffd97a",
     "emissive": 0.95,
     "dotSize": 0.2
   },
-  "lightIntensity": 0.0,
+  "lightIntensity": 0,
   "loadDistance": 240
 }

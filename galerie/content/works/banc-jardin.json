@@ -1,11 +1,11 @@
 {
   "id": "banc-jardin",
   "title": "Banc",
-  "description": "",
+  "description": "Zen",
   "position": [
-    3,
+    12.09,
     0,
-    9
+    12.56
   ],
   "rotation": [
     0,
@@ -17,8 +17,27 @@
     1,
     1
   ],
-  "modules": [],
-  "role": "decor",
+  "modules": [
+    {
+      "type": "SpatialCrossfade",
+      "params": {
+        "radius": 30,
+        "inner": 0.5
+      }
+    },
+    {
+      "type": "FocusCamera",
+      "params": {
+        "distance": 6
+      }
+    },
+    {
+      "type": "AudioReactive",
+      "params": {
+        "band": "all"
+      }
+    }
+  ],
   "model": {
     "type": "gltf",
     "url": "library/models/banc.glb",
@@ -31,5 +50,19 @@
     "sourceUrl": "https://github.com/yannicksandoz/yannicksandoz.github.io"
   },
   "lightColor": "#cfd0e0",
-  "lightIntensity": 1.2
+  "lightIntensity": 1.2,
+  "stems": [
+    {
+      "file": "assets/freesound/waterfall-nan-lian-garden-zen-848184.mp3",
+      "radius": 12,
+      "gain": 0.95,
+      "source": "freesound",
+      "credit": {
+        "author": "ivolipa",
+        "license": "CC0",
+        "sourceUrl": "https://freesound.org/s/848184/"
+      }
+    }
+  ],
+  "baseGain": 0.65
 }

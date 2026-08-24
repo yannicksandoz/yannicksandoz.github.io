@@ -3,14 +3,14 @@
   "title": "Escalier",
   "description": "",
   "position": [
-    -12.0,
-    0.0,
+    -12,
+    0,
     16.52
   ],
   "rotation": [
-    -0.0,
-    0.0,
-    0.0
+    0,
+    0,
+    0
   ],
   "scale": [
     1,

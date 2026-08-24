@@ -4,7 +4,7 @@
   "description": "Un tore suspendu au centre d'un cube qui n'a pas décidé où est le bas. Six faces, douze arêtes, une volée par arête : montez, et au sommet l'espace pivote autour de vous — le mur devient sol, la pièce se relit entière. Le labyrinthe n'a pas de plan : il a six.",
   "position": [
     0,
-    25.0,
+    25,
     0
   ],
   "rotation": [

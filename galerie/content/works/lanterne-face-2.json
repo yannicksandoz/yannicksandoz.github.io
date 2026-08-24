@@ -3,9 +3,9 @@
   "title": "Lanterne",
   "description": "",
   "position": [
-    6.0,
+    6,
     1.1,
-    -6.0
+    -6
   ],
   "rotation": [
     0,
@@ -24,7 +24,7 @@
     "color": "#20432e",
     "emissiveColor": "#75f6a7",
     "roughness": 0.55,
-    "metalness": 0.0,
+    "metalness": 0,
     "emissive": 0.6
   },
   "lightColor": "#75f6a7",

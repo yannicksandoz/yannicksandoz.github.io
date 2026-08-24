@@ -3,13 +3,13 @@
   "title": "Décor",
   "description": "",
   "position": [
-    14.0,
-    19.0,
-    -6.0
+    14,
+    19,
+    -6
   ],
   "rotation": [
     0.3,
-    0.0,
+    0,
     0.3
   ],
   "scale": [
@@ -21,10 +21,10 @@
   "role": "decor",
   "model": {
     "shape": "faisceau",
-    "size": 5.0,
+    "size": 5,
     "color": "#cbb4ff",
     "emissive": 0.45
   },
-  "lightIntensity": 0.0,
+  "lightIntensity": 0,
   "loadDistance": 240
 }

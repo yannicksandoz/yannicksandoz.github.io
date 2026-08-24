@@ -17,8 +17,26 @@
     1,
     1
   ],
-  "modules": [],
-  "role": "decor",
+  "modules": [
+    {
+      "type": "SpatialCrossfade",
+      "params": {
+        "radius": 15
+      }
+    },
+    {
+      "type": "FocusCamera",
+      "params": {
+        "distance": 6
+      }
+    },
+    {
+      "type": "AudioReactive",
+      "params": {
+        "band": "all"
+      }
+    }
+  ],
   "model": {
     "type": "gltf",
     "url": "library/models/banc.glb",
@@ -31,5 +49,25 @@
     "sourceUrl": "https://github.com/yannicksandoz/yannicksandoz.github.io"
   },
   "lightColor": "#cfd0e0",
-  "lightIntensity": 1.2
+  "lightIntensity": 2.8,
+  "stems": [
+    {
+      "file": "assets/freesound/ethereal-ambient-sound-for-film-797831.mp3",
+      "radius": 12,
+      "gain": 1,
+      "source": "freesound",
+      "credit": {
+        "author": "Matio888",
+        "license": "CC-BY",
+        "sourceUrl": "https://freesound.org/s/797831/"
+      },
+      "spatial": {
+        "rolloff": 2,
+        "maxDistance": 100,
+        "refDistance": 1
+      }
+    }
+  ],
+  "lightDecay": 0.75,
+  "baseGain": 0.85
 }

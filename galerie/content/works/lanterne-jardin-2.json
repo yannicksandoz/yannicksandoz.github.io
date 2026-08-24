@@ -3,7 +3,7 @@
   "title": "Lanterne",
   "description": "",
   "position": [
-    -5.0,
+    -5,
     0.88,
     3.5
   ],
@@ -23,7 +23,7 @@
     "shape": "cylinder",
     "color": "#4a4266",
     "roughness": 0.6,
-    "metalness": 0.0,
+    "metalness": 0,
     "emissive": 0.6,
     "emissiveColor": "#cbb4ff"
   },

@@ -22,8 +22,8 @@
   "model": {
     "shape": "sphere",
     "color": "#2a5232",
-    "roughness": 1.0,
-    "metalness": 0.0,
+    "roughness": 1,
+    "metalness": 0,
     "emissive": 0.04
   },
   "lightIntensity": 0

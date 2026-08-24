@@ -3,14 +3,14 @@
   "title": "Lanterne",
   "description": "",
   "position": [
-    -16.0,
+    -16,
     48.9,
-    -5.0
+    -5
   ],
   "rotation": [
-    -180.0,
-    0.0,
-    0.0
+    -180,
+    0,
+    0
   ],
   "scale": [
     0.5,
@@ -24,10 +24,10 @@
     "color": "#4a4266",
     "emissiveColor": "#cbb4ff",
     "roughness": 0.55,
-    "metalness": 0.0,
+    "metalness": 0,
     "emissive": 0.6
   },
-  "lightIntensity": 0.0,
+  "lightIntensity": 0,
   "loadDistance": 240,
   "lightColor": "#cbb4ff",
   "selfLit": true

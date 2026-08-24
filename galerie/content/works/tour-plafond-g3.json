@@ -3,14 +3,14 @@
   "title": "Palier",
   "description": "",
   "position": [
-    -15.0,
+    -15,
     33.94,
     -3.25
   ],
   "rotation": [
-    -180.0,
-    0.0,
-    0.0
+    -180,
+    0,
+    0
   ],
   "scale": [
     1,

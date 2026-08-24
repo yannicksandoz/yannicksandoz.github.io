@@ -7,7 +7,6 @@
     3.2,
     -5
   ],
-  "rotationY": 38,
   "image": "textures/nebuleuse.png",
   "size": [
     6,
@@ -43,5 +42,15 @@
         "distance": 7.5
       }
     }
+  ],
+  "rotation": [
+    0,
+    38,
+    0
+  ],
+  "scale": [
+    1,
+    1,
+    1
   ]
 }

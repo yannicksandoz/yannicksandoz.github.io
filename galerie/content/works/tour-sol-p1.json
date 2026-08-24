@@ -3,14 +3,14 @@
   "title": "Pilier",
   "description": "",
   "position": [
-    0.0,
+    0,
     2.7,
     -11.25
   ],
   "rotation": [
-    -0.0,
-    0.0,
-    0.0
+    0,
+    0,
+    0
   ],
   "scale": [
     1.2,

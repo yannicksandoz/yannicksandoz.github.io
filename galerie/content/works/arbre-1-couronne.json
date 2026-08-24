@@ -23,7 +23,7 @@
     "shape": "sphere",
     "color": "#2e5a34",
     "roughness": 1,
-    "metalness": 0.0,
+    "metalness": 0,
     "emissive": 0.03
   },
   "lightIntensity": 0
