@@ -16,7 +16,7 @@
     "check": "node scripts/check-visitor-build.mjs",
     "assets": "node scripts/generate-assets.mjs",
     "library": "node scripts/generate-library.mjs",
-    "test": "node scripts/test-commands.mjs && node scripts/test-schema.mjs && node scripts/test-voxel.mjs && node scripts/test-library.mjs && node scripts/test-carte.mjs && node scripts/test-enligne.mjs"
+    "test": "node scripts/test-commands.mjs && node scripts/test-schema.mjs && node scripts/test-voxel.mjs && node scripts/test-library.mjs && node scripts/test-carte.mjs && node scripts/test-enligne.mjs && node scripts/test-archive.mjs && node scripts/test-limiteur.mjs"
   },
   "dependencies": {
     "three": "0.166.1"

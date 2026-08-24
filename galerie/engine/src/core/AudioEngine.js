@@ -9,10 +9,13 @@
  * resume() + un buffer silencieux au premier tap suivant — le buffer muet
  * force la réouverture du canal audio quand resume() seul ne suffit pas.
  */
+import { Limiteur } from './Limiteur.js';
+
 export class AudioEngine {
   constructor() {
     this.ctx = null;
     this.master = null;
+    this.limiteur = new Limiteur();
     this.unlocked = false;
     this._cache = new Map();
     // url → nombre d'œuvres et d'ambiances qui s'en servent (voir load)
@@ -31,6 +34,12 @@ export class AudioEngine {
       this.master.gain.value = 1;
       this.master.connect(this.ctx.destination);
       this.unlocked = true;
+
+      // Le limiteur s'installe ENTRE le maître et la sortie, dès qu'il est
+      // prêt : `addModule` est asynchrone, et attendre le worklet pour
+      // laisser passer le son ferait un trou juste après « Entrer ».
+      this.limiteur.installer(this.ctx, this.master, this.ctx.destination)
+        .catch((e) => console.warn('[galerie] limiteur non installé :', e?.message ?? e));
 
       // Filet de sécurité iOS : à chaque tap, si le contexte n'est pas
       // « running », on le relance depuis le geste.
@@ -57,6 +66,24 @@ export class AudioEngine {
       src.connect(this.ctx.destination);
       src.start(0);
     } catch { /* sans gravité */ }
+  }
+
+  /**
+   * Pousse les réglages du limiteur, et SEULEMENT s'ils ont changé.
+   *
+   * Appelé à chaque frame : c'est le seul endroit qui voit à la fois le
+   * moteur audio et `reglages.json`, et c'est ce qui permet à un curseur de
+   * l'éditeur de s'entendre pendant qu'on le traîne. Comparer le texte coûte
+   * moins que d'écrire cinq AudioParams soixante fois par seconde — et
+   * surtout, cela ne réancre pas d'automation pour rien.
+   */
+  appliquerLimiteur(reglages) {
+    if (!this.limiteur) return;
+    let signature;
+    try { signature = JSON.stringify(reglages ?? null); } catch { return; }
+    if (signature === this._signatureLimiteur) return;
+    this._signatureLimiteur = signature;
+    this.limiteur.regler(reglages ?? undefined);
   }
 
   suspend() {

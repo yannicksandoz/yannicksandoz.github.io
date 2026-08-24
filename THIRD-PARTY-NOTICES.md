@@ -4,9 +4,10 @@ Ce dépôt intègre ou charge les composants tiers listés ci-dessous. Leurs
 licences respectives s'appliquent à eux, indépendamment des licences de ce
 dépôt (voir `LICENSE.txt`).
 
-Aucun de ces composants n'est vendoré : ils sont soit installés par `npm` ou
-`bundler`, soit chargés depuis un CDN. Les inventaires ci-dessous sont donc à
-relire après toute mise à jour de dépendance.
+Aucun de ces composants n'est vendoré — **à une exception près, signalée
+comme telle** (le limiteur Airwindows, plus bas) : les autres sont soit
+installés par `npm` ou `bundler`, soit chargés depuis un CDN. Les inventaires
+ci-dessous sont donc à relire après toute mise à jour de dépendance.
 
 Dernière vérification : 12 août 2026.
 
@@ -19,6 +20,16 @@ Dernière vérification : 12 août 2026.
 | Composant | Version | Licence | Copyright |
 |---|---|---|---|
 | [three.js](https://threejs.org) | 0.166.1 | MIT | © 2010-2024 three.js authors |
+| [Airwindows](https://github.com/airwindows/airwindows) — `Pressure4`, `ClipOnly2` | portage 2026 | MIT | © 2016, 2018 airwindows (Chris Johnson) |
+
+**Airwindows est VENDORÉ, et porté.** `engine/src/core/limiteur-worklet.js`
+réécrit en JavaScript, pour AudioWorklet, deux plugins de Chris Johnson : le
+compresseur vari-µ *Pressure4* et l'écrêteur *ClipOnly2*. L'algorithme, les
+coefficients et les constantes sont les siens ; l'en-tête du fichier porte le
+copyright et la licence, et la console de mixage l'affiche à l'auteur. La
+licence MIT n'exige rien de plus que cette mention — la respecter est le
+minimum, et ce dépôt refuse de publier une œuvre dont l'attribution est
+incomplète : la règle vaut d'abord pour lui.
 
 Le moteur importe également des **modules d'exemple** de three.js
 (`three/addons/…`, dossier `examples/jsm` du dépôt three.js). Ils sont publiés

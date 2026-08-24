@@ -679,6 +679,46 @@ source. Les voies les plus proches l'obtiennent ; les autres retombent sur
 se fait sous un court voile de gain — changer `panningModel` en pleine onde
 claque. Cohérent avec le budget de stems : mêmes distances, même cadence.
 
+**Le limiteur du maître — approcher, ce n'est pas « plus fort ».**
+Le bus maître allait droit à la sortie. Quinze sources qui s'additionnent y
+saturent, et l'approche d'une œuvre ne s'entendait que comme un volume qui
+monte. Un **limiteur** est posé entre le maître et la sortie
+(`engine/src/core/Limiteur.js`) : le plafond tient, et le son dont on
+s'approche prend la place — tout le reste recule d'exactement ce qu'il gagne.
+La proximité devient une **présence**, pas un niveau. C'est le vieux réflexe
+du mixage : ce qui compresse le bus est ce qui commande le bus.
+
+Deux étages, portés des plugins **Airwindows** de Chris Johnson (MIT, voir
+[`../THIRD-PARTY-NOTICES.md`](../THIRD-PARTY-NOTICES.md)) dans un
+AudioWorklet :
+
+1. **Pressure4**, un compresseur *vari-µ* : sa constante de temps dépend du
+   signal lui-même, ce qui lui donne une respiration qu'aucun couple
+   attaque/relâchement fixe n'a. C'est lui qui fait le mixage proche/lointain.
+   Son relâchement est **long** — environ deux secondes au réglage par défaut :
+   la pièce se rouvre au lieu de pomper ;
+2. **ClipOnly2**, un écrêteur qui **ne fait rien** tant que rien ne dépasse ;
+   quand un échantillon passe le plafond, il adoucit ses voisins au lieu de le
+   trancher.
+
+Quatre réglages, dans `reglages.json` → `audio.limiteur`, et sous la main dans
+l'onglet **🎧 Mixage** de l'éditeur (avec un **voyant de réduction** sur la
+tranche Maître : c'est exactement de cela que tout le reste recule) :
+
+| Réglage | Défaut | Effet |
+|---|---|---|
+| `actif` | `true` | couper pour comparer — le geste le plus instructif |
+| `pression` | `0.35` | combien il serre (le seuil de Pressure4) |
+| `vitesse` | `0.5` | vitesse de relâchement |
+| `douceur` | `0.5` | le grain : 0,5 neutre, ↓ ça s'étale, ↑ ça tient |
+| `sortie` | `1` | niveau de sortie |
+
+Le limiteur tourne **aussi pour le visiteur** — ce n'est pas un outil
+d'auteur. Si l'AudioWorklet manque (contexte non sécurisé, navigateur
+ancien), un `DynamicsCompressorNode` suivi de la même saturation sinus prend
+le relais : moins fin, mais la galerie n'est jamais sans plafond, et la
+console dit lequel des deux tourne.
+
 **Une œuvre suspendue rejoue en revenant.** Le budget de voix fond le gain
 de chaque piste à zéro en suspendant (s'éloigner, changer de pièce) ; la
 réactivation **rend ce gain** en recréant les sources. Longtemps elle ne l'a
@@ -1136,16 +1176,34 @@ plus que deux raccourcis, **⤓ Importer** et **⤒ Exporter**.
 
 #### 1 · Garder un fichier
 
-**⤒ Exporter** télécharge `galerie.json` : **toute la galerie en un fichier**
-— œuvres, pièces, réglages généraux. C'est la sauvegarde qu'on range sur une
-clé, qu'on envoie par courriel, qu'on rouvre sur un autre ordinateur.
-**⤓ Importer** le relit (et accepte aussi un ancien `works.json` /
-`rooms.json`, ou les deux, comme avant).
+**⤒ Exporter** télécharge `galerie.zip` : **toute la galerie, rangée au plan
+du dépôt**. On la décompresse à la racine de sa galerie et tout se met en
+place — *rien à trier*. Ce qu'elle contient :
 
-Les **médias importés** (images, sons, modèles déposés à la main) n'y sont
-pas : ce sont des dizaines de mégaoctets, et un fichier de sauvegarde qui
-prétend tout contenir sans le faire est pire que pas de sauvegarde. L'export
-le dit. Ils partent à la publication.
+```
+content/works/<id>.json      un fichier par objet, + works/index.json
+content/rooms/<id>.json      un par pièce, + rooms/index.json
+content/reglages.json        les réglages généraux
+content/assets/…             VOS MÉDIAS IMPORTÉS, à leur place
+content/….attribution.json   un crédit par modèle et par son emprunté
+galerie.json                 la même galerie en un seul fichier
+LISEZ-MOI.txt                où la décompresser
+```
+
+C'est la sauvegarde qu'on range sur une clé, qu'on envoie, qu'on rouvre sur
+un autre ordinateur — et c'est aussi ce qui rend **Firefox et Safari
+équivalents à Chrome** : ils n'ont pas l'écriture directe dans un dossier,
+mais une archive se décompresse partout.
+
+**⤓ Importer** relit l'archive **médias compris** — les images et les sons
+reviennent sous leur chemin de contenu, rien à redéposer. Il accepte aussi un
+`galerie.json` seul, un ancien `works.json` / `rooms.json`, ou un `content/`
+que quelqu'un a zippé à la main.
+
+Le zip est écrit sans bibliothèque tierce (`state/Archive.js`, ~150 lignes) :
+les fichiers de moins de 8 ko partent en clair, deflate est gardé pour ce qui
+pèse — cent soixante allers-retours de compression pour trente kilo-octets
+gagnés faisaient de l'export une attente d'une minute.
 
 Une **attribution incomplète refuse l'export**, comme partout ailleurs :
 c'est une condition de licence, pas une préférence.
@@ -1184,8 +1242,8 @@ laisseraient parcourir par qui connaît le chemin. Git reste l'historique
 long ; ces sauvegardes servent quand git n'est pas à portée de main.
 
 Firefox et Safari n'ont pas l'API d'écriture dans un dossier : le bouton y
-retombe sur un téléchargement des mêmes fichiers, à ranger dans
-`content/works/`, `content/rooms/` et `content/assets/`.
+retombe sur un téléchargement. Le chemin complet pour eux, c'est
+**⤒ Exporter** — l'archive porte les mêmes fichiers, déjà rangés.
 
 #### 3 · Mettre en ligne
 
@@ -1395,7 +1453,11 @@ c'est nécessaire à l'exécution, rien de plus.
 
 Les composants tiers — Three.js et ses modules d'exemple, Vite, le thème
 Jekyll du site, Primer — gardent leurs propres licences, listées dans
-[`../THIRD-PARTY-NOTICES.md`](../THIRD-PARTY-NOTICES.md).
+[`../THIRD-PARTY-NOTICES.md`](../THIRD-PARTY-NOTICES.md). **Un seul est
+vendoré** : le limiteur du bus maître (`engine/src/core/limiteur-worklet.js`)
+porte en JavaScript les plugins *Pressure4* et *ClipOnly2* d'**Airwindows**
+(Chris Johnson), sous licence MIT — le fichier porte le copyright, et la
+console de mixage l'affiche.
 
 Le dossier `content/` contient des créations personnelles, également tous
 droits réservés : déployez le moteur avec votre propre contenu. Seule
