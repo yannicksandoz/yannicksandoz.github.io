@@ -253,12 +253,14 @@ export class Spatialisation {
       const lat = _v.dot(_r), av = _v.dot(_f), haut = _v.dot(_u);
       const az = Math.atan2(lat, av);
       voie.azimut = az;
+      voie.azimutRendu = az; // ce que le panner entend (largeur comprise)
       voie.distance = art._distance ?? _v.length();
       const largeur = num(spa.largeur, num(cfgAudio.largeur, glob.largeur));
       if (largeur !== 1 && (lat || av)) {
         // l'angle s'élargit, l'élévation et la distance restent : la source
         // glisse sur son cercle autour de la tête, elle ne s'éloigne pas
         const az2 = Math.max(-Math.PI, Math.min(Math.PI, az * largeur));
+        voie.azimutRendu = az2;
         const h = Math.hypot(lat, av);
         _pos.copy(cam.position)
           .addScaledVector(_f, h * Math.cos(az2))
@@ -342,6 +344,7 @@ export class Spatialisation {
       modele: v.modele,
       distance: v.distance,
       azimut: (v.azimut * 180) / Math.PI,
+      azimutRendu: ((v.azimutRendu ?? v.azimut) * 180) / Math.PI,
       gainDistance: v.gainDistance ?? 1
     }));
   }

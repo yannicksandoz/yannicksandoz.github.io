@@ -861,23 +861,36 @@ La **hiérarchie** (volet gauche) ne déroule que la pièce courante — cliquer
 une autre pièce y va, et la déplie. La recherche rouvre tout : on cherche
 partout, c'est son objet.
 
-### 🎧 L'onglet Mixage
+### 🎧 L'onglet Mixage — la console
 
-Un mixage ne se règle ni à l'œil ni au JSON : il se règle **au casque, en
-marchant**, pendant que les chiffres disent ce que l'oreille croit entendre.
+Le son est l'essence du projet : son atelier est **graphique**, dessiné en
+continu (une frame d'écran = une frame de console). Un mixage ne se règle ni
+à l'œil ni au JSON — il se règle **au casque, en marchant**, pendant que les
+instruments disent ce que l'oreille croit entendre.
 
-- **La console** — une tranche par œuvre sonore de la pièce courante :
-  **VU-mètre** en direct, **fader de volume** (`baseGain`) et faders par
-  piste — écrits au document par le chemin rapide, le son ne coupe jamais
-  sous le doigt — et **M / S** (muet / solo). Muet et solo sont des gestes
-  de travail : ils débranchent le bus de l'œuvre du maître, rien n'est
-  écrit nulle part, et tout se rebranche en quittant l'onglet — comme on
-  relâche les solos en quittant une vraie console ;
+- **Le radar d'écoute** — vous au centre, le regard vers le haut, le cône du
+  champ de vision en clair. Chaque source est posée à son **azimut rendu**
+  (largeur comprise : on voit ce que le panner entend) et à sa distance —
+  anneaux à 5, 10, 20, 40 m. Son **halo pulse à son niveau réel**, sa
+  couleur dit son modèle (vert HRTF, gris equalpower), et une œuvre toute en
+  nappes s'affiche en **anneau autour de la tête** : elle est partout, elle
+  n'a pas d'azimut. **Cliquer une source la sélectionne** dans la scène ;
+- **Les tranches** — une par œuvre sonore de la pièce : **VU vertical
+  segmenté à crête tenue**, **fader vertical** (`baseGain`) et, dans le
+  tiroir **≡**, un fader par piste — écrits au document par le chemin
+  rapide, le son ne coupe jamais sous le doigt. **M / S** (muet / solo) sont
+  des gestes de travail : ils débranchent le bus de l'œuvre du maître, rien
+  n'est écrit nulle part, et tout se rebranche en quittant l'onglet — comme
+  on relâche les solos en quittant une vraie console. Sous chaque tranche :
+  la distance et le modèle appliqué (`HRTF ×3`, `equalpower`, `∿ nappe`) ;
+- **La tranche maître** — VU de la sortie, **spectre en bandes
+  logarithmiques** (comme l'oreille : en linéaire, un sub-grave de 55 Hz
+  n'allumait qu'une barre sur seize), et le compte des voies HRTF en cours ;
 - **l'œuvre sélectionnée** — ses réglages spatiaux par piste (distance de
   référence, décroissance, portée maximale, largeur) ;
 - **la galerie** — largeur stéréo, pondérations, budget HRTF, rangés dans
   `reglages.json` à la publication ; **⧉ Copier le JSON** en prime ;
-- **les voies en direct** — azimut, distance, modèle de panning, gain.
+- **le détail des voies** (replié) — azimut, distance, modèle, gain.
 
 Le placement d'une piste (**ponctuelle** binaurale / **nappe stéréo**) se
 choisit dans l'onglet Œuvre, section Son. Rien de tout cela n'existe dans le
