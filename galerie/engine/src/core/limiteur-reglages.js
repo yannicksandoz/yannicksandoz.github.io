@@ -9,6 +9,15 @@
 
 export const LIMITEUR_DEFAUTS = {
   actif: true,
+  // LA MARGE, avant tout le reste : de combien on baisse la somme AVANT de
+  // la limiter. Ce n'est pas un goût, c'est une mesure — trois œuvres du
+  // labo somment à 1,27 en approchant, et le second étage passait son temps
+  // à raboter les crêtes à son plafond (0,955), ce qui s'entend comme une
+  // saturation permanente dès qu'on est proche. Une table de mixage ne
+  // répare pas cela en serrant davantage : elle baisse l'entrée. 0,75 laisse
+  // deux décibels et demi de marge, assez pour que le limiteur ne travaille
+  // plus que sur les vraies crêtes.
+  marge: 0.75,
   pression: 0.25,   // A — combien le limiteur serre
   // Rendre le gain de rattrapage de Pressure4 : sans cela, brancher le
   // limiteur monte TOUTE la galerie de +3,5 dB et pousse le moindre son
@@ -32,6 +41,9 @@ export function normaliserLimiteur(brut) {
   };
   return {
     actif: c.actif !== false,
+    // jamais zéro : une marge nulle rendrait la galerie muette, et un JSON
+    // qui se trompe de champ ne doit pas pouvoir couper le son
+    marge: borne(c.marge, 0.05, 2, LIMITEUR_DEFAUTS.marge),
     compenser: c.compenser !== false,
     caractere: borne(c.caractere, 0, 1, LIMITEUR_DEFAUTS.caractere),
     pression: borne(c.pression, 0, 1, LIMITEUR_DEFAUTS.pression),

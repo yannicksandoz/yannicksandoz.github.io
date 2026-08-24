@@ -61,6 +61,22 @@
         2.2,
         0
       ]
+    },
+    {
+      "to": "belvedere",
+      "position": [
+        3.5,
+        0,
+        9
+      ],
+      "rotationY": -90,
+      "label": "Belvédère",
+      "plane": "plafond",
+      "arrival": [
+        -11,
+        2.2,
+        -8
+      ]
     }
   ],
   "jetons": [

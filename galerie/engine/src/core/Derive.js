@@ -69,15 +69,86 @@ export class Derive {
 
   /* --------------------------------------------------------- surface --- */
 
+  /**
+   * La barre, et les deux BORDS.
+   *
+   * Le bouton de lecture reste au centre, en bas, avec les autres commandes.
+   * Les deux flèches, elles, ne sont plus des pastilles collées à lui : ce
+   * sont les bords gauche et droit de l'écran, sur toute la hauteur. Deux
+   * raisons, et la première suffit : côte à côte, à cinq millimètres l'une
+   * de l'autre, rien ne disait laquelle reculait et laquelle avançait — on
+   * lisait deux petits triangles, pas une direction. Aux bords, la direction
+   * EST la position : on va vers la gauche en poussant le bord gauche.
+   *
+   * La seconde raison est la main : c'est la zone que le pouce atteint sans
+   * regarder, sur un téléphone comme sur un portable.
+   */
   _construireBarre() {
     const barre = document.createElement('div');
     barre.id = 'derive-barre';
 
-    const prec = document.createElement('button');
-    prec.id = 'derive-prec';
-    prec.type = 'button';
-    prec.textContent = '◂';
-    prec.addEventListener('click', () => this.precedente());
+    const bord = (id, action) => {
+      const b = document.createElement('button');
+      b.id = id;
+      b.className = 'derive-bord';
+      b.type = 'button';
+      b.hidden = true;
+      // UN CHEVRON DESSINÉ, pas un caractère. Un glyphe ne s'étire pas :
+      // grossir « ‹ » donne un trait épais au milieu d'un grand vide, et le
+      // forcer au scaleY épaissit le trait autant que la flèche. Le tracé
+      // SVG, lui, se déforme exactement à la boîte (`preserveAspectRatio`
+      // désactivé) pendant que le trait garde son épaisseur
+      // (`non-scaling-stroke`) : une flèche haute comme l'écran, fine comme
+      // au premier jour.
+      const NS = 'http://www.w3.org/2000/svg';
+      const svg = document.createElementNS(NS, 'svg');
+      svg.setAttribute('class', 'derive-chevron');
+      svg.setAttribute('viewBox', '0 0 100 260');
+      svg.setAttribute('preserveAspectRatio', 'none');
+      svg.setAttribute('aria-hidden', 'true');
+      // …et le trait S'ÉTEINT vers ses deux bouts. Une flèche qui tiendrait
+      // vraiment les huit cents pixels de haut ne ferait plus d'angle du
+      // tout — cent pixels de large contre huit cents, c'est une ligne, pas
+      // une pointe. La BANDE tient donc toute la hauteur (c'est elle qu'on
+      // pousse, et le pouce la trouve les yeux fermés) ; la flèche, elle,
+      // reste haute — un bon quart de l'écran — mais garde assez d'angle
+      // pour se lire d'un coup d'œil, et s'évanouit vers ses extrémités.
+      const defs = document.createElementNS(NS, 'defs');
+      const grad = document.createElementNS(NS, 'linearGradient');
+      const idGrad = `${id}-fondu`;
+      grad.setAttribute('id', idGrad);
+      grad.setAttribute('x1', '0'); grad.setAttribute('y1', '0');
+      grad.setAttribute('x2', '0'); grad.setAttribute('y2', '1');
+      for (const [offset, opacite] of [['0', '0'], ['0.35', '0.55'],
+        ['0.5', '1'], ['0.65', '0.55'], ['1', '0']]) {
+        const stop = document.createElementNS(NS, 'stop');
+        stop.setAttribute('offset', offset);
+        stop.setAttribute('stop-color', 'currentColor');
+        stop.setAttribute('stop-opacity', opacite);
+        grad.appendChild(stop);
+      }
+      defs.appendChild(grad);
+      svg.appendChild(defs);
+      const trait = document.createElementNS(NS, 'path');
+      trait.setAttribute('d', 'M86 6 L16 130 L86 254');
+      trait.setAttribute('fill', 'none');
+      trait.setAttribute('stroke', `url(#${idGrad})`);
+      trait.setAttribute('stroke-width', '5');
+      trait.setAttribute('stroke-linecap', 'round');
+      trait.setAttribute('stroke-linejoin', 'round');
+      trait.setAttribute('vector-effect', 'non-scaling-stroke');
+      svg.appendChild(trait);
+      const prix = document.createElement('span');
+      prix.className = 'derive-prix';
+      prix.hidden = true;
+      b.append(svg, prix);
+      b.addEventListener('click', action);
+      document.body.appendChild(b);
+      b._prix = prix;
+      return b;
+    };
+    const prec = bord('derive-prec', () => this.precedente());
+    const suiv = bord('derive-suiv', () => this.suivante());
 
     const lecture = document.createElement('button');
     lecture.id = 'derive-btn';
@@ -85,13 +156,7 @@ export class Derive {
     lecture.setAttribute('aria-pressed', 'false');
     lecture.addEventListener('click', () => (this.active ? this.arreter() : this.demarrer()));
 
-    const suiv = document.createElement('button');
-    suiv.id = 'derive-suiv';
-    suiv.type = 'button';
-    suiv.textContent = '▸';
-    suiv.addEventListener('click', () => this.suivante());
-
-    barre.append(prec, lecture, suiv);
+    barre.append(lecture);
     document.body.appendChild(barre);
     this._prec = prec;
     this._lecture = lecture;
@@ -137,13 +202,16 @@ export class Derive {
     const prochainEstInconnue = this.active && resteInconnues
       && (n === 0 || this._i >= n - 1);
     if (prochainEstInconnue) {
-      this._suiv.textContent = '▸ ◈';
+      // le prix s'affiche SOUS le chevron, pas à la place : la flèche reste
+      // une flèche, et l'on voit ce qu'on dépense avant de la pousser
+      this._suiv._prix.textContent = '◈';
+      this._suiv._prix.hidden = false;
       this._suiv.disabled = jetons === 0;
       this._suiv.title = jetons === 0
         ? t('derive.needToken') : t('derive.unlock', { n: jetons });
       this._suiv.setAttribute('aria-label', this._suiv.title);
     } else {
-      this._suiv.textContent = '▸';
+      this._suiv._prix.hidden = true;
       this._suiv.disabled = false;
       this._suiv.title = '';
       this._suiv.setAttribute('aria-label', t('derive.next'));

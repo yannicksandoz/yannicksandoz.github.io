@@ -214,6 +214,22 @@ console.log('\nréglages');
   check('l’arrêt se demande explicitement',
     [normaliserLimiteur({ actif: false }).actif, normaliserLimiteur({}).actif],
     [false, true]);
+
+  // LA MARGE. Elle décide de tout ce qui suit : le limiteur ne peut que
+  // raboter ce qui lui arrive déjà au-dessus de un. Elle doit laisser de la
+  // marge par défaut, se régler des deux côtés, et ne JAMAIS pouvoir
+  // atteindre zéro — un champ mal orthographié ne doit pas rendre une
+  // galerie muette.
+  vrai('par défaut, il reste de la marge',
+    LIMITEUR_DEFAUTS.marge > 0.5 && LIMITEUR_DEFAUTS.marge < 1,
+    String(LIMITEUR_DEFAUTS.marge));
+  check('elle se borne sans jamais couper le son',
+    [normaliserLimiteur({ marge: 0 }).marge, normaliserLimiteur({ marge: -4 }).marge,
+      normaliserLimiteur({ marge: 99 }).marge], [0.05, 0.05, 2]);
+  check('une marge illisible retombe sur le défaut',
+    normaliserLimiteur({ marge: 'fort' }).marge, LIMITEUR_DEFAUTS.marge);
+  check('et on peut la remonter au-delà de l’unité',
+    normaliserLimiteur({ marge: 1.2 }).marge, 1.2);
 }
 
 console.log('\nréduction en décibels');

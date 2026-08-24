@@ -85,9 +85,18 @@ export class Limiteur {
       if (this._url) { URL.revokeObjectURL(this._url); this._url = null; }
     }
 
-    // On rebranche seulement maintenant : source → limiteur → destination.
+    // LA MARGE, en tête de chaîne : un simple gain, mais c'est lui qui décide
+    // de tout ce qui suit. Le limiteur est un plafond, pas un correcteur de
+    // niveau ; s'il reçoit une somme déjà au-dessus de un, il ne peut plus que
+    // raboter, et raboter s'entend. Voir limiteur-reglages.js pour la mesure.
+    this.marge = ctx.createGain();
+    this.marge.gain.value = this.reglages.marge;
+    this.entree = this.marge;
+
+    // On rebranche seulement maintenant : source → marge → limiteur → sortie.
     try { source.disconnect(destination); } catch { /* pas encore branché */ }
-    source.connect(this._entree);
+    source.connect(this.marge);
+    this.marge.connect(this._entree);
     this._sortie.connect(destination);
     this.regler(this.reglages);
     return this.mode;
@@ -122,6 +131,11 @@ export class Limiteur {
   regler(reglages) {
     this.reglages = normaliserLimiteur(reglages);
     const r = this.reglages;
+    if (this.marge) {
+      // en glissant : l'auteur traîne ce curseur en écoutant, et un saut de
+      // gain sur le maître se remarque plus que le réglage lui-même
+      this.marge.gain.setTargetAtTime(r.marge, this.ctx.currentTime, 0.05);
+    }
     if (this.mode === 'worklet' && this.noeud?.parameters) {
       const p = (nom, v) => {
         const param = this.noeud.parameters.get(nom);

@@ -507,7 +507,58 @@ html, body {
   transition: color 0.25s ease, border-color 0.25s ease;
 }
 #derive-btn { padding: 0.45rem 1.1rem; }
-#derive-prec, #derive-suiv { padding: 0.45rem 0.75rem; font-size: 0.95rem; }
+
+/* ——— Les deux bords de la visite : reculer à gauche, avancer à droite ———
+   Deux pastilles côte à côte ne disaient pas la direction ; deux BORDS, si.
+   La flèche tient toute la hauteur de l'écran, le fond reste presque
+   invisible tant qu'on ne la vise pas — c'est une commande, pas un cadre. */
+.derive-bord {
+  position: fixed; top: 0; bottom: 0; z-index: 16;
+  width: clamp(4rem, 8vw, 7rem);
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center; gap: 0.6rem;
+  padding: 0; border: 0; cursor: pointer;
+  color: rgba(232, 230, 240, 0.72);
+  transition: color 0.25s ease, background 0.25s ease;
+  -webkit-tap-highlight-color: transparent;
+}
+.derive-bord[hidden] { display: none; }
+#derive-prec {
+  left: 0;
+  background: linear-gradient(to right, rgba(159, 140, 255, 0.07), transparent);
+}
+#derive-suiv {
+  right: 0;
+  background: linear-gradient(to left, rgba(159, 140, 255, 0.07), transparent);
+}
+#derive-prec:hover, #derive-prec:focus-visible {
+  background: linear-gradient(to right, rgba(159, 140, 255, 0.2), transparent);
+}
+#derive-suiv:hover, #derive-suiv:focus-visible {
+  background: linear-gradient(to left, rgba(159, 140, 255, 0.2), transparent);
+}
+.derive-bord:hover, .derive-bord:focus-visible { color: var(--fg); outline: none; }
+.derive-bord[disabled] { color: rgba(232, 230, 240, 0.2); cursor: default; }
+.derive-chevron {
+  /* La BANDE fait toute la hauteur (c'est la zone qu'on pousse) ; la flèche
+     en prend un bon quart. Au-delà, elle n'a plus d'angle : sur une bande
+     de cent pixels, une pointe étalée sur huit cents ne se lit plus comme
+     une flèche mais comme un trait vertical. */
+  width: 100%; height: clamp(9rem, 30vh, 20rem);
+  pointer-events: none;
+}
+#derive-suiv .derive-chevron { transform: scaleX(-1); }
+.derive-prix {
+  position: absolute; bottom: 12vh;
+  font-size: 1.1rem; color: var(--accent);
+  pointer-events: none;
+}
+.derive-prix[hidden] { display: none; }
+/* Sur un écran étroit, la bande mange la vue : on l'affine et on la décale
+   du bas, là où vivent la barre et le pouce. */
+@media (max-width: 640px) {
+  .derive-bord { width: 2.8rem; bottom: 7rem; }
+}
 #derive-barre button:hover:not([disabled]),
 #derive-barre button:focus-visible:not([disabled]) {
   color: var(--fg); border-color: var(--accent);

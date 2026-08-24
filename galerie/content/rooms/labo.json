@@ -46,6 +46,22 @@
         2.2,
         -9.5
       ]
+    },
+    {
+      "to": "belvedere",
+      "position": [
+        7,
+        0,
+        19.5
+      ],
+      "rotationY": 180,
+      "label": "Belvédère",
+      "plane": "est",
+      "arrival": [
+        16,
+        2.2,
+        -11
+      ]
     }
   ],
   "floor": {

@@ -84,6 +84,22 @@
         2.2,
         -11
       ]
+    },
+    {
+      "to": "belvedere",
+      "position": [
+        9,
+        0,
+        9.5
+      ],
+      "rotationY": 180,
+      "label": "Belvédère",
+      "plane": "sud",
+      "arrival": [
+        12,
+        2.2,
+        37.5
+      ]
     }
   ],
   "vistas": [

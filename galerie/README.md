@@ -822,6 +822,17 @@ AudioWorklet :
    quand un échantillon passe le plafond, il adoucit ses voisins au lieu de le
    trancher.
 
+**Et d'abord la MARGE, parce qu'un limiteur n'est pas un correcteur de
+niveau.** Mesuré au labo : trois œuvres proches somment à 1,27 — au-dessus du
+plein niveau. Le premier étage ne s'en émouvait guère (0,5 dB de réduction) et
+c'est le second qui passait son temps à raboter les crêtes à son plafond
+(0,955), ce qui s'entend comme une saturation permanente dès qu'on approche.
+Aucun réglage de limiteur ne répare cela : une table de mixage, devant une
+somme trop forte, **baisse l'entrée**. `marge` est ce fader, en tête de
+chaîne — à `0.75`, la sortie crête à 0,81 au lieu de coller au plafond, et le
+limiteur ne travaille plus que sur les vraies crêtes. La galerie sort deux
+décibels et demi plus bas ; c'est le prix, et c'était le prix de l'honnêteté.
+
 Quatre réglages, dans `reglages.json` → `audio.limiteur`, et sous la main dans
 l'onglet **🎧 Mixage** de l'éditeur (avec un **voyant de réduction** sur la
 tranche Maître : c'est exactement de cela que tout le reste recule) :
@@ -829,6 +840,7 @@ tranche Maître : c'est exactement de cela que tout le reste recule) :
 | Réglage | Défaut | Effet |
 |---|---|---|
 | `actif` | `true` | couper pour comparer — le geste le plus instructif |
+| `marge` | `0.75` | de combien on baisse la somme AVANT de limiter |
 | `pression` | `0.25` | combien il serre (le seuil de Pressure4) |
 | `vitesse` | `0.5` | vitesse de relâchement |
 | `douceur` | `0.5` | le grain : 0,5 neutre, ↓ ça s'étale, ↑ ça tient |
@@ -1301,6 +1313,16 @@ et y bascule ; « ＋ Portail » relie la pièce courante à la pièce choisie (
 portail de retour est créé automatiquement, déplaçable ensuite comme
 n'importe quel objet — clic dessus pour le sélectionner, cible/étiquette
 modifiables).
+
+**Un aller a toujours son retour, et c'est vérifié.** L'éditeur pose les deux
+portes d'un coup, mais une galerie s'écrit aussi à la main ou par script — et
+c'est ce qui était arrivé : le belvédère ouvrait sur six pièces qui n'avaient
+aucune porte pour y revenir. On y tombait, et l'on n'en ressortait que par le
+couloir, si on le trouvait. `scripts/test-portails.mjs` lit le contenu à
+chaque `npm test` et refuse trois choses : une porte qui ne mène nulle part,
+un passage à sens unique (les portails d'Escher exceptés — une pièce vers
+elle-même est son propre retour), et une pièce qu'aucun chemin ne relie à
+l'entrée.
 
 ### Sauvegarder, publier, mettre en ligne
 
