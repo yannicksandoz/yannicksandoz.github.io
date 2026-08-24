@@ -20,7 +20,7 @@ Dernière vérification : 12 août 2026.
 | Composant | Version | Licence | Copyright |
 |---|---|---|---|
 | [three.js](https://threejs.org) | 0.166.1 | MIT | © 2010-2024 three.js authors |
-| [Airwindows](https://github.com/airwindows/airwindows) — `Pressure4`, `ClipOnly2`, `Console6` | portage 2026 | MIT | © 2016, 2018 airwindows (Chris Johnson) |
+| [Airwindows](https://github.com/airwindows/airwindows) — `Pressure4`, `ClipOnly2`, `Console6`, `Monitoring`, `Verbity` | portage 2026 | MIT | © 2016, 2018 airwindows (Chris Johnson) |
 
 **Airwindows est VENDORÉ, et porté.** Trois plugins de Chris Johnson sont
 réécrits en JavaScript :
@@ -30,7 +30,13 @@ réécrits en JavaScript :
 - `engine/src/core/Console.js` — la table de mixage *Console6* (encodage de
   tranche, décodage de bus), en `WaveShaperNode` natifs. Son encodage/décodage
   vient lui-même de **torridgristle**, également sous licence MIT, comme le
-  note le code d'origine.
+  note le code d'origine ;
+- `engine/src/core/monitoring-worklet.js` — *Monitoring*, l'écoute de contrôle
+  de l'auteur : mono, côté, graves (SubsOnly), crêtes (PeaksOnly) et la
+  diaphonie de casque (Cans C), longueurs d'allpass comprises ;
+- `engine/src/core/reverb-worklet.js` — *Verbity*, la réverbération des
+  pièces : trois blocs de quatre lignes de retard et leurs matrices de
+  Householder, avec les longueurs de Chris.
 
 L'algorithme, les coefficients et les constantes sont les siens ; les en-têtes
 portent le copyright et la licence, et la console de mixage l'affiche à

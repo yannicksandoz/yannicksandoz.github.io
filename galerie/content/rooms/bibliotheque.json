@@ -128,5 +128,12 @@
       1.0,
       8
     ]
-  ]
+  ],
+  "reverb": {
+    "actif": true,
+    "taille": 0.25,
+    "duree": 0.35,
+    "sombre": 0.8,
+    "envoi": 0.12
+  }
 }

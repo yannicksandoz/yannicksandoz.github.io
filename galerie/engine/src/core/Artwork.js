@@ -593,7 +593,11 @@ export class Artwork {
       this.bus.gain.value = this.config.baseGain ?? 1;
       // Une TRANCHE de la table : le bus n'arrive pas nu à la somme, il
       // passe par l'encodage Console (voir Console.js).
-      engine.brancherCanal(this.bus);
+      // …et son départ vers la pièce. `audio.envoi` la garde sèche si elle
+      // doit l'être : une voix intime ne veut pas de la salle autour.
+      engine.brancherCanal(this.bus, {
+        envoi: Number.isFinite(this.config.audio?.envoi) ? this.config.audio.envoi : 1
+      });
 
       this.stems = stemCfgs.map((cfg, i) => {
         const gain = ctx.createGain();

@@ -3,6 +3,7 @@ import { assetUrl, isWalkable } from './utils.js';
 import { buildSky, disposeSky, updateSkyUniforms } from './Sky.js';
 import { styleTexture, scaleBoxUV, scalePlaneUV, scaleWorldUV, TILE } from './textures.js';
 import { delaiDe, fermer, estFerme, tick as tickCooldown } from './Cooldown.js';
+import { reverbDePiece } from './reverb-reglages.js';
 
 const PORTAL_COLOR = 0x9f8cff;
 /** Densité de brouillard par défaut — celle d'une salle d'exposition. */
@@ -590,6 +591,11 @@ export class RoomManager {
     }
 
     this.current = room;
+    // La pièce qu'on ENTEND change avec celle qu'on voit : le départ vers la
+    // réverbération se fond en 0,6 s, la queue de l'ancienne s'éteint pendant
+    // que la nouvelle s'installe. C'est ce qu'on entend en passant une porte.
+    this.app.audio?.appliquerReverb?.(
+      reverbDePiece(room.config, this.app.reglages), { instant });
     this.orientRoom(room, plane);
     this._applyPolicy();
     this._placeCamera(arrival ?? room.config.spawn ?? [0, 2.2, 10]);

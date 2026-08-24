@@ -679,6 +679,48 @@ source. Les voies les plus proches l'obtiennent ; les autres retombent sur
 se fait sous un court voile de gain — changer `panningModel` en pleine onde
 claque. Cohérent avec le budget de stems : mêmes distances, même cadence.
 
+**La pièce qu'on entend — Verbity** (`engine/src/core/Reverb.js`, d'après
+*Verbity* de Chris Johnson, MIT). La spatialisation dit OÙ est une source ;
+la réverbération dit DANS QUOI. Sans elle, quinze pièces — un labo, un
+jardin à ciel ouvert, une bibliothèque, un belvédère de cinquante mètres —
+sonnaient toutes pareil, c'est-à-dire nulle part, et franchir une porte ne
+s'entendait pas.
+
+Un **départ / retour**, pas un effet par œuvre : une pièce est un lieu
+COMMUN, et c'est ce qui fait qu'on entend ses œuvres ensemble. Chaque bus
+d'œuvre envoie une part dans la réverbe ; le retour rentre par sa propre
+tranche de console, sans départ (l'y renvoyer ferait une boucle qui monterait
+jusqu'à saturer). Une seule instance : le visiteur n'est que dans une pièce
+à la fois, et la queue de l'ancienne s'éteint pendant que la nouvelle
+s'installe — c'est ce qu'on entend en passant une porte, et c'est gratuit.
+
+Quatre réglages, dans `rooms/<pièce>.json` → `reverb`, et sous la main dans
+l'onglet **Pièce** de l'éditeur :
+
+| Réglage | Effet |
+|---|---|
+| `envoi` | combien la pièce reçoit. **0 = pièce sèche**, et c'est le défaut |
+| `taille` | l'ampleur du lieu |
+| `duree` | combien la queue s'attarde |
+| `sombre` | la matière : 0 pierre nue, 1 tenture |
+
+Six **lieux tout faits** (`sec`, `salle`, `bibliotheque`, `couloir`,
+`jardin`, `belvedere`) servent de point de départ ; choisir l'un d'eux écrit
+ses quatre valeurs DÉPLIÉES, pour qu'on puisse les retoucher sans avoir à
+deviner ce que le nom cachait. Une œuvre peut rester sèche dans une salle qui
+résonne : `audio.envoi` la multiplie, `0` la coupe du lieu.
+
+**L'écoute de contrôle — Monitoring** (mode auteur, onglet Mixage). Six
+loupes posées APRÈS le limiteur, là où se pose un casque, et chacune nomme
+ce qu'elle apprend : **mono** (ce qui disparaît s'annulera sur un
+haut-parleur de téléphone), **côté** (exactement ce que la spatialisation a
+fabriqué), **graves** (vingt-six passe-bas en cascade — les ronflements que
+le casque flatte), **crêtes** (clics et coupures de boucle, sans le corps),
+et **casque ouvert** (la diaphonie de Chris : chaque oreille entend un peu
+de l'autre, avec le retard d'une vraie tête — le binaural y tient-il ?). Un
+geste de travail : rien n'est écrit, et la loupe se relâche en quittant
+l'onglet.
+
 **La table de mixage — Console6** (`engine/src/core/Console.js`, d'après
 *Console6Channel* et *Console6Buss* de Chris Johnson, MIT ; son
 encodage/décodage vient de torridgristle, MIT aussi). Chaque œuvre encode son

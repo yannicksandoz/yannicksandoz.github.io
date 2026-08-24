@@ -12,6 +12,7 @@
 import { Limiteur } from './Limiteur.js';
 import { Console, normaliserConsole } from './Console.js';
 import { Ecoute } from './Ecoute.js';
+import { Reverb } from './Reverb.js';
 
 export class AudioEngine {
   constructor() {
@@ -20,6 +21,7 @@ export class AudioEngine {
     this.limiteur = new Limiteur();
     this.console = new Console();
     this.ecoute = new Ecoute();
+    this.reverb = new Reverb();
     this.unlocked = false;
     this._cache = new Map();
     // url → nombre d'œuvres et d'ambiances qui s'en servent (voir load)
@@ -52,6 +54,10 @@ export class AudioEngine {
       this.limiteur.installer(this.ctx, sortieConsole, this.ctx.destination)
         .then(() => this.ecoute.installer(
           this.ctx, this.limiteur._sortie ?? sortieConsole, this.ctx.destination))
+        // La réverbération entre par sa propre TRANCHE, sans départ : lui en
+        // donner un ferait une boucle qui monterait jusqu'à saturer.
+        .then(() => this.reverb.installer(this.ctx))
+        .then((retour) => { if (retour) this.console.brancher(retour); })
         .catch((e) => console.warn('[galerie] chaîne du maître :', e?.message ?? e));
 
       // Filet de sécurité iOS : à chaque tap, si le contexte n'est pas
@@ -104,14 +110,30 @@ export class AudioEngine {
    * `bus.connect(engine.master)` : la somme se fait encodée, et le bus
    * décode (voir Console.js).
    */
-  brancherCanal(bus) {
+  brancherCanal(bus, { envoi = 1 } = {}) {
     if (!this.ctx) return bus;
+    // …et un DÉPART vers la pièce, en plus du direct. Une œuvre peut
+    // demander à rester sèche (`audio.envoi: 0`) dans une salle qui résonne.
+    this.reverb.brancherDepart(bus, envoi);
     if (!this.console.somme) { bus.connect(this.master); return bus; }
     return this.console.brancher(bus);
   }
 
   /** Ferme la tranche — sans quoi son encodeur resterait dans le graphe. */
-  debrancherCanal(bus) { this.console.debrancher(bus); }
+  debrancherCanal(bus) {
+    this.reverb.debrancherDepart(bus);
+    this.console.debrancher(bus);
+  }
+
+  /** Réglages de la pièce entendue, poussés seulement s'ils ont changé. */
+  appliquerReverb(reglages, options) {
+    if (!this.reverb) return;
+    let signature;
+    try { signature = JSON.stringify(reglages ?? null); } catch { return; }
+    if (signature === this._signatureReverb) return;
+    this._signatureReverb = signature;
+    this.reverb.regler(reglages ?? undefined, options);
+  }
 
   /** Muet de travail : couper / rétablir une tranche sans rien écrire. */
   couperCanal(bus) { this.console.couper(bus); }

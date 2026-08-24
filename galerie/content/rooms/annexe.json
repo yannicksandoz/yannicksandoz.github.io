@@ -50,5 +50,12 @@
       1.0,
       2
     ]
-  ]
+  ],
+  "reverb": {
+    "actif": true,
+    "taille": 0.4,
+    "duree": 0.5,
+    "sombre": 0.45,
+    "envoi": 0.18
+  }
 }
