@@ -135,10 +135,37 @@ export class Reverb {
     for (const depart of this.departs.values()) {
       if (!depart.gain) continue;
       const valeur = cible * depart.facteur;
+      // la compensation de distance repartira de cette valeur : on efface sa
+      // mémoire, sinon un changement de pièce ne se verrait qu'au prochain
+      // mouvement du visiteur
+      depart._pose = valeur;
       if (instant) depart.gain.gain.value = valeur;
       else depart.gain.gain.setTargetAtTime(valeur, t, FONDU / 3);
     }
     return r;
+  }
+
+  /**
+   * Rattrape la distance sur le départ d'un bus.
+   *
+   * Le départ est pris APRÈS l'atténuation de distance — c'est ce qui permet
+   * au fader et au muet de la console d'agir aussi sur la réverbe. Mais du
+   * coup il tombait avec le direct, et le rapport direct/réverbe restait
+   * figé : on s'éloignait sans que la pièce se referme sur le son. La
+   * spatialisation appelle donc ceci à chaque frame avec le facteur calculé
+   * par `compensationReverb` (voir air-reglages.js).
+   */
+  compenser(bus, facteurDistance, t) {
+    const depart = this.departs.get(bus);
+    if (!depart?.gain) return;
+    const cible = (this.reglages.actif ? this.reglages.envoi : 0)
+      * depart.facteur * facteurDistance;
+    // On ne réécrit que si ça bouge vraiment : soixante automations par
+    // seconde et par œuvre pour un millième de gain, c'est du fil audio
+    // dépensé pour rien.
+    if (Math.abs(cible - (depart._pose ?? -1)) < 1e-3) return;
+    depart._pose = cible;
+    depart.gain.gain.setTargetAtTime(cible, t ?? this.ctx.currentTime, 0.12);
   }
 
   /** Coupe la queue net — utile en édition, jamais en visite. */

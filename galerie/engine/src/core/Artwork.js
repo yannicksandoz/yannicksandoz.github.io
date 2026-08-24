@@ -125,8 +125,11 @@ export class Artwork {
     this.baseScale = 1;        // échelle du mesh (la pulsation la module)
     this.audioLevel = 0;       // alimenté par AudioReactive
 
-    // état audio : source → gainStem → voie spatiale (ou direct) → bus → master
+    // état audio : source → gainStem → voie spatiale (ou direct) → entrée
+    //              (lointain) → bus → master
     this.bus = null;
+    this.entreeSon = null;    // là où les voies arrivent (voir Lointain.js)
+    this._lointain = 0;
     this.stems = [];           // [{ cfg, gain, source, buffer, voie }]
     this._spatialOverride = null; // module HRTFPanner : distances d'œuvre
     this.audioReady = false;
@@ -471,7 +474,8 @@ export class Artwork {
     if (!this.bus || !this.app.audio.unlocked) return;
     try {
       this._mediaSrc = this.app.audio.ctx.createMediaElementSource(this._video);
-      this._mediaSrc.connect(this.bus);
+      // par l'entrée, comme les pistes : une vidéo lointaine l'est aussi
+      this._mediaSrc.connect(this.entreeSon ?? this.bus);
       this._video.muted = false;
     } catch (err) {
       console.warn(`[galerie] Son vidéo de « ${this.config.id} » indisponible :`, err);
@@ -598,6 +602,12 @@ export class Artwork {
       engine.brancherCanal(this.bus, {
         envoi: Number.isFinite(this.config.audio?.envoi) ? this.config.audio.envoi : 1
       });
+      // …et, en amont du bus, l'insertion du LOINTAIN : `audio.lointain` dit
+      // qu'une œuvre doit sonner comme si on ne pouvait jamais l'atteindre
+      // (voir Lointain.js). Les voies s'y branchent au lieu du bus ; le bus
+      // reste la clé de la console et le départ de réverbe.
+      this._lointain = this.config.audio?.lointain ?? 0;
+      this.entreeSon = engine.lointain?.inserer(this.bus, this._lointain) ?? this.bus;
 
       this.stems = stemCfgs.map((cfg, i) => {
         const gain = ctx.createGain();
@@ -605,8 +615,8 @@ export class Artwork {
         // Chaque piste passe par sa VOIE spatiale (panner HRTF + gain de
         // distance, voir Spatialisation.js) — sauf les nappes stéréo
         // (`"spatial": false`), branchées en direct, canaux intacts.
-        const voie = this.app.spatial?.creerVoie(this, cfg, gain, this.bus) ?? null;
-        if (!voie) gain.connect(this.bus);
+        const voie = this.app.spatial?.creerVoie(this, cfg, gain, this.entreeSon) ?? null;
+        if (!voie) gain.connect(this.entreeSon);
         return { cfg, gain, source: null, buffer: buffers[i], voie };
       });
 
@@ -677,9 +687,13 @@ export class Artwork {
       this.app.spatial?.libererVoie(s.voie);
       this.app.audio.release(this._resolve(s.cfg.file));
     }
-    if (this.bus) this.app.audio.debrancherCanal(this.bus);
+    if (this.bus) {
+      this.app.audio.debrancherCanal(this.bus);
+      this.app.audio.lointain?.liberer(this.bus);
+    }
     this.bus?.disconnect();
     this.bus = null;
+    this.entreeSon = null;
     this.stems = [];
     this.audioReady = false;
     this._audioRequested = false;
@@ -751,6 +765,18 @@ export class Artwork {
       if (this.audioReady) this._unloadAudio();
     }
 
+    // Le curseur « lointain » de l'inspecteur doit s'entendre pendant qu'on
+    // le traîne : deux nombres comparés par frame, et rien d'autre tant qu'il
+    // ne bouge pas.
+    if (this.audioReady) {
+      const l = this.config.audio?.lointain ?? 0;
+      if (l !== this._lointain) {
+        this._lointain = l;
+        this.app.audio.lointain?.regler(this.bus, l);
+      }
+      if (l > 0 && this.bus) this._tenirLointain();
+    }
+
     if (roomState !== 'current') {
       if (this._beacon) this._beacon.visible = false;
       return; // pièce adjacente : préchargée, inactive
@@ -771,6 +797,38 @@ export class Artwork {
     if (this._mixer && !this.app.quality.reducedMotion) this._mixer.update(dt);
 
     for (const m of this.modules) m.update(dt, { ...ctx, distance: this._distance });
+  }
+
+  /**
+   * Tient le point de fonctionnement du lointain (voir Lointain.js).
+   *
+   * Distance2 n'est pas linéaire : ses seuils sont absolus, et il faut donc
+   * lui présenter la source à son niveau d'écriture, pas au niveau où la
+   * distance l'a laissée. Reste à savoir de combien la distance l'a
+   * atténuée — et la réponse ne se trouve pas à un seul endroit : selon
+   * l'œuvre, elle vit dans le gain de distance de la voie (pistes qui
+   * portent leurs distances) OU dans le gain de la piste, écrit par
+   * SpatialCrossfade ou StemMixer. On la lit donc là où elle est vraiment :
+   * sur les nœuds, en rapportant le gain courant au gain d'écriture.
+   *
+   * C'est la piste la MOINS atténuée qui décide, comme pour la réverbe :
+   * c'est elle qui donne à l'œuvre sa présence.
+   */
+  _tenirLointain() {
+    // Une œuvre suspendue (budget de voix, pièce quittée) a ses gains fondus
+    // à zéro : suivre CE niveau ferait monter le rattrapage à son maximum
+    // pendant l'extinction, et le worklet recevrait vingt fois la queue du
+    // fondu. On laisse le dernier point posé, il sera juste au retour.
+    if (!this._stemsActive) return;
+    let attenuation = 0;
+    for (const s of this.stems) {
+      const nominal = s.cfg.gain ?? 1;
+      const relatif = nominal > 0 ? (s.gain.gain.value / nominal) : 0;
+      attenuation = Math.max(attenuation, relatif * (s.voie?.gainDistance ?? 1));
+    }
+    if (!Number.isFinite(attenuation) || attenuation <= 0) return;
+    this.app.audio.lointain?.compenser(this.bus, attenuation,
+      this.app.audio.ctx.currentTime);
   }
 
   get distance() {

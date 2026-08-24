@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { coupureAir, compensationReverb, normaliserAir, PLANCHER } from './air-reglages.js';
 
 /**
  * Spatialisation binaurale — une VOIE par piste, au cœur du moteur.
@@ -109,7 +110,10 @@ export class Spatialisation {
       largeur: n(a.largeur, 1),
       poidsDistance: n(a.poidsDistance, 1),
       poidsDirection: n(a.poidsDirection, 1),
-      maxHRTF: n(a.maxHRTF, this.app.quality?.profile?.maxHRTF ?? 8)
+      maxHRTF: n(a.maxHRTF, this.app.quality?.profile?.maxHRTF ?? 8),
+      // l'air se déclare par pièce d'abord (un jardin n'a pas l'air d'une
+      // bibliothèque), à défaut pour la galerie entière
+      air: normaliserAir(this.app.rooms?.current?.config?.air ?? a.air)
     };
   }
 
@@ -138,22 +142,36 @@ export class Spatialisation {
     const dry = ctx.createGain();
     dry.gain.value = 0;
     const distGain = ctx.createGain();
+    // L'AIR : un passe-bas dont la coupure tombe avec la distance. Il est
+    // posé APRÈS le panner et AVANT le gain de distance, donc sur le signal
+    // déjà placé — c'est bien l'air traversé qu'on filtre, pas la source.
+    // Un biquad natif, pas un worklet : une quinzaine de worklets pour un
+    // passe-bas serait payer très cher ce que le navigateur fait en natif.
+    const air = ctx.createBiquadFilter();
+    air.type = 'lowpass';
+    air.frequency.value = 20000;   // transparent tant qu'on n'a rien demandé
+    air.Q.value = 0.6;             // pente douce, sans bosse à la coupure
 
     gainStem.connect(entree);
     entree.connect(panner);
     panner.connect(wet);
     entree.connect(dry);
-    wet.connect(distGain);
-    dry.connect(distGain);
+    wet.connect(air);
+    dry.connect(air);
+    air.connect(distGain);
     distGain.connect(bus);
 
     const voie = {
-      artwork, stemCfg, entree, panner, wet, dry, distGain,
+      artwork, stemCfg, entree, panner, wet, dry, air, distGain,
       modele: panner.panningModel,
       _bascule: false,       // un voile est en cours : on ne rebascule pas
       // Infinity, pas NaN : toute comparaison avec NaN rend false, et la
       // première frame aurait « déjà écrit » des valeurs jamais posées.
-      _last: { x: Infinity, y: Infinity, z: Infinity, wet: Infinity, dist: Infinity },
+      // `air` part de la vraie valeur du nœud (20 kHz), et non d'Infinity :
+      // le seuil de réécriture est RELATIF, et `|fc − Infinity| > Infinity`
+      // est faux — le filtre n'aurait jamais reçu sa première coupure.
+      _last: { x: Infinity, y: Infinity, z: Infinity, wet: Infinity, dist: Infinity,
+        air: 20000 },
       azimut: 0, distance: 0 // exposés à la table d'écoute de l'éditeur
     };
     this.voies.add(voie);
@@ -164,7 +182,8 @@ export class Spatialisation {
     if (!voie || !this.voies.has(voie)) return;
     this.voies.delete(voie);
     if (voie.modele === 'HRTF') this._hrtfActives--;
-    for (const n of [voie.entree, voie.panner, voie.wet, voie.dry, voie.distGain]) {
+    for (const n of [voie.entree, voie.panner, voie.wet, voie.dry, voie.air,
+      voie.distGain]) {
       try { n.disconnect(); } catch { /* déjà libéré */ }
     }
   }
@@ -236,6 +255,9 @@ export class Spatialisation {
     _r.crossVectors(_f, _u);                    // droite
     const glob = this.reglages;
     const t = this.app.audio.ctx.currentTime;
+    // œuvre → la plus forte atténuation de ses pistes, pour le départ réverbe
+    const compensations = this._compensations ??= new Map();
+    compensations.clear();
 
     for (const voie of this.voies) {
       const art = voie.artwork;
@@ -312,6 +334,30 @@ export class Spatialisation {
       if (Math.abs(g - last.dist) > 1e-3) {
         last.dist = g;
         voie.distGain.gain.setTargetAtTime(g, t, 0.08);
+      }
+
+      /* ---- l'air : la distance dans le TIMBRE ------------------------ */
+      const fc = coupureAir(voie.distance, glob.air);
+      // 2 % d'écart : sous ce seuil personne n'entend rien, et l'on cesse
+      // d'entretenir une automation pour un demi-hertz
+      if (Math.abs(fc - last.air) > Math.max(20, last.air * 0.02)) {
+        last.air = fc;
+        voie.air.frequency.setTargetAtTime(fc, t, 0.09);
+      }
+
+      /* ---- le rapport direct/réverbe suit la distance ---------------- */
+      // On garde la PLUS FORTE atténuation de l'œuvre : c'est la piste la
+      // plus proche qui décide de sa distance, comme pour le budget.
+      const dejaVu = compensations.get(art);
+      if (dejaVu === undefined || g > dejaVu) compensations.set(art, g);
+    }
+
+    /* — le départ vers la pièce rattrape ce que la distance a ôté — */
+    const reverb = this.app.audio?.reverb;
+    if (reverb?.disponible) {
+      for (const [art, gainDistance] of compensations) {
+        if (!art.bus) continue;
+        reverb.compenser(art.bus, compensationReverb(gainDistance, glob.air), t);
       }
     }
   }

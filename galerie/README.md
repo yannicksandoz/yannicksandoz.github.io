@@ -710,6 +710,64 @@ ses quatre valeurs DÉPLIÉES, pour qu'on puisse les retoucher sans avoir à
 deviner ce que le nom cachait. Une œuvre peut rester sèche dans une salle qui
 résonne : `audio.envoi` la multiplie, `0` la coupe du lieu.
 
+**La distance — s'éloigner, ce n'est pas seulement « moins fort ».**
+Jusqu'ici, quitter une œuvre ne faisait que baisser son volume. Or l'oreille
+ne juge pas une distance au volume : elle la juge au TIMBRE (l'air absorbe
+les aigus, d'autant plus qu'il y en a à traverser) et au rapport
+direct/réverbération (la part réfléchie, elle, ne faiblit presque pas). Deux
+lois, une par indice, dans `engine/src/core/air-reglages.js` — c'est de la
+physique, pas du DSP emprunté :
+
+1. **la coupure**, `fc = 20 000 / (1 + d / dRef)`, portée par un passe-bas
+   par voie (un biquad natif, pas un worklet : quinze worklets pour un
+   passe-bas serait payer très cher ce que le navigateur fait en natif) ;
+2. **le départ de réverbe remonte** de ce que la distance a ôté. Il est pris
+   APRÈS l'atténuation — c'est ce qui permet au fader et au muet de la
+   console d'agir aussi sur la réverbe — donc il tombait avec le direct et le
+   rapport restait figé : on s'éloignait sans que la pièce se referme sur le
+   son.
+
+Quatre réglages, dans `reglages.json` → `audio.air` (une pièce peut les
+redéfinir dans son propre `air`), et sous la main dans la **table d'écoute**
+de l'éditeur :
+
+| Réglage | Défaut | Effet |
+|---|---|---|
+| `actif` | `true` | couper pour comparer |
+| `distance` | `12` | mètres où l'aigu tombe à 10 kHz |
+| `intensite` | `1` | dose la loi, en octaves : 0 aucun air, 1 la loi entière |
+| `reverbDistance` | `0.75` | combien le départ rattrape : 0 = rapport figé (l'ancien comportement) |
+
+**L'œuvre qu'on n'atteindra pas — Distance2** (`engine/src/core/Lointain.js`,
+d'après *Distance2* de Chris Johnson, MIT — lui-même l'hybride de ses
+*Distance* et *Atmosphere*). L'air ci-dessus modèle la distance PARCOURUE, et
+ça suffit pour une œuvre qu'on approche. Ceci est autre chose : une voix au
+fond d'un couloir, un orage derrière une colline — quelque chose qui doit
+rester hors d'atteinte même quand le visiteur est devant. Une cascade de
+**treize limiteurs de pente**, chacun un peu plus lent que le précédent (les
+seuils du nombre d'or, montés par pas de dix pour cent) : ils n'atténuent pas
+l'aigu, ils empêchent le signal de MONTER vite — ce que l'air fait à un son
+qui a traversé cent mètres, il en émousse les fronts.
+
+Un seul réglage, `audio.lointain` d'une œuvre (0 à 1), avec son curseur dans
+la section **Son** de l'inspecteur. À zéro — le défaut, et le cas de presque
+toutes les œuvres — **aucun worklet n'est monté** : l'insertion n'existe que
+si on la demande. Trois choses à savoir avant de s'en servir :
+
+- il monte l'*atmosphère* et l'*assombrissement* de Chris ensemble : son
+  avertissement est que l'atmosphère seule, poussée, ne fait pas un son
+  lointain mais « le bruit d'une pression si forte qu'elle romprait l'air et
+  vos tympans » ;
+- **ça coûte du niveau**, et beaucoup : à mi-course, un son riche perd une
+  quinzaine de décibels — les limiteurs n'attaquent que ce qui monte vite,
+  donc un souffle perd tout et un bourdon grave presque rien. C'est l'effet
+  lui-même ; une œuvre qu'on veut lointaine ET présente se remonte au
+  **volume de l'objet**, qui est en aval et ne change pas son grain ;
+- l'insertion est encadrée de deux gains inverses (`1/g` puis `g`) : Distance2
+  n'est pas linéaire, ses seuils sont absolus, et il doit voir la source au
+  niveau où elle a été écrite. Sans cela l'effet se retournait en s'éloignant
+  — l'œuvre devenait plus CLAIRE à mesure qu'on la quittait.
+
 **L'écoute de contrôle — Monitoring** (mode auteur, onglet Mixage). Six
 loupes posées APRÈS le limiteur, là où se pose un casque, et chacune nomme
 ce qu'elle apprend : **mono** (ce qui disparaît s'annulera sur un
@@ -1530,10 +1588,11 @@ c'est nécessaire à l'exécution, rien de plus.
 Les composants tiers — Three.js et ses modules d'exemple, Vite, le thème
 Jekyll du site, Primer — gardent leurs propres licences, listées dans
 [`../THIRD-PARTY-NOTICES.md`](../THIRD-PARTY-NOTICES.md). **Un seul est
-vendoré** : le limiteur du bus maître (`engine/src/core/limiteur-worklet.js`)
-porte en JavaScript les plugins *Pressure4* et *ClipOnly2* d'**Airwindows**
-(Chris Johnson), sous licence MIT — le fichier porte le copyright, et la
-console de mixage l'affiche.
+vendoré** : les plugins d'**Airwindows** (Chris Johnson), sous licence MIT,
+portés en JavaScript — *Pressure4* et *ClipOnly2* au limiteur du maître,
+*Console6* à la table de mixage, *Monitoring* à l'écoute de contrôle,
+*Verbity* aux pièces et *Distance2* au lointain. Chaque fichier porte le
+copyright, et la console de mixage l'affiche.
 
 Le dossier `content/` contient des créations personnelles, également tous
 droits réservés : déployez le moteur avec votre propre contenu. Seule

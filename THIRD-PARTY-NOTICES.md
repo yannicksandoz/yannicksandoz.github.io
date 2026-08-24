@@ -20,9 +20,9 @@ Dernière vérification : 12 août 2026.
 | Composant | Version | Licence | Copyright |
 |---|---|---|---|
 | [three.js](https://threejs.org) | 0.166.1 | MIT | © 2010-2024 three.js authors |
-| [Airwindows](https://github.com/airwindows/airwindows) — `Pressure4`, `ClipOnly2`, `Console6`, `Monitoring`, `Verbity` | portage 2026 | MIT | © 2016, 2018 airwindows (Chris Johnson) |
+| [Airwindows](https://github.com/airwindows/airwindows) — `Pressure4`, `ClipOnly2`, `Console6`, `Monitoring`, `Verbity`, `Distance2` | portage 2026 | MIT | © 2016, 2018 airwindows (Chris Johnson) |
 
-**Airwindows est VENDORÉ, et porté.** Trois plugins de Chris Johnson sont
+**Airwindows est VENDORÉ, et porté.** Plusieurs plugins de Chris Johnson sont
 réécrits en JavaScript :
 
 - `engine/src/core/limiteur-worklet.js` — le compresseur vari-µ *Pressure4* et
@@ -36,7 +36,11 @@ réécrits en JavaScript :
   diaphonie de casque (Cans C), longueurs d'allpass comprises ;
 - `engine/src/core/reverb-worklet.js` — *Verbity*, la réverbération des
   pièces : trois blocs de quatre lignes de retard et leurs matrices de
-  Householder, avec les longueurs de Chris.
+  Householder, avec les longueurs de Chris ;
+- `engine/src/core/lointain-worklet.js` — *Distance2* (lui-même l'hybride de
+  ses plugins *Distance* et *Atmosphere*) : la cascade de treize limiteurs de
+  pente aux seuils du nombre d'or, l'étage d'*offset air compression* et
+  l'IIR qui « écrase ce qui est très lointain ».
 
 L'algorithme, les coefficients et les constantes sont les siens ; les en-têtes
 portent le copyright et la licence, et la console de mixage l'affiche à
@@ -44,11 +48,15 @@ l'auteur. La licence MIT n'exige rien de plus que cette mention — la
 respecter est le minimum, et ce dépôt refuse de publier une œuvre dont
 l'attribution est incomplète : la règle vaut d'abord pour lui.
 
-**Deux écarts assumés au réglage d'origine**, documentés dans le code : le
+**Trois écarts assumés au réglage d'origine**, documentés dans le code : le
 limiteur *rend* le gain de rattrapage de Pressure4 (sans quoi le brancher
 monte toute la galerie de +3 dB) et dose sa saturation sinus par un réglage
-`caractere`, à zéro par défaut. L'algorithme n'est pas modifié ; ce sont deux
-robinets posés autour de lui, et ils se remettent à la valeur de Chris.
+`caractere`, à zéro par défaut ; le lointain coupe le CONTINU que pose
+l'*offset air compression* de Distance2 (0,12 mesuré à fond de course, même
+sur du silence — quinze œuvres l'additionneraient dans le limiteur du
+maître), sous 10 Hz et sur la seule part traitée. Les algorithmes ne sont pas
+modifiés ; ce sont des robinets posés autour d'eux, et ils se remettent à la
+valeur de Chris.
 
 Le moteur importe également des **modules d'exemple** de three.js
 (`three/addons/…`, dossier `examples/jsm` du dépôt three.js). Ils sont publiés

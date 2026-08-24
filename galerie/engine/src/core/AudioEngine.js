@@ -13,6 +13,7 @@ import { Limiteur } from './Limiteur.js';
 import { Console, normaliserConsole } from './Console.js';
 import { Ecoute } from './Ecoute.js';
 import { Reverb } from './Reverb.js';
+import { Lointain } from './Lointain.js';
 
 export class AudioEngine {
   constructor() {
@@ -22,6 +23,7 @@ export class AudioEngine {
     this.console = new Console();
     this.ecoute = new Ecoute();
     this.reverb = new Reverb();
+    this.lointain = new Lointain();
     this.unlocked = false;
     this._cache = new Map();
     // url → nombre d'œuvres et d'ambiances qui s'en servent (voir load)
@@ -45,6 +47,10 @@ export class AudioEngine {
       //   tranches → somme → décodage console → limiteur → sortie
       // La console s'installe tout de suite (des WaveShaper, rien d'async) ;
       // le limiteur la suit dès que son worklet est prêt.
+      // Le lointain prend son contexte TOUT DE SUITE, sans attendre son
+      // worklet : les œuvres de la première pièce demandent leur insertion
+      // dans la foulée de ce geste-ci (voir Lointain.attacher).
+      this.lointain.attacher(this.ctx);
       const sortieConsole = this.console.installer(this.ctx, this.master);
       this.master.disconnect(this.ctx.destination);
       sortieConsole.connect(this.ctx.destination);
@@ -58,6 +64,9 @@ export class AudioEngine {
         // donner un ferait une boucle qui monterait jusqu'à saturer.
         .then(() => this.reverb.installer(this.ctx))
         .then((retour) => { if (retour) this.console.brancher(retour); })
+        // …et le lointain, qui n'est ni un départ ni un étage du maître :
+        // une insertion posée dans l'œuvre qui le demande (voir Lointain.js).
+        .then(() => this.lointain.installer(this.ctx))
         .catch((e) => console.warn('[galerie] chaîne du maître :', e?.message ?? e));
 
       // Filet de sécurité iOS : à chaque tap, si le contexte n'est pas
