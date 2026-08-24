@@ -52,7 +52,12 @@ export class SpatialCrossfade extends Module {
     }
     const radius = this.params.radius ?? 15;
     const inner = this.params.inner ?? radius * 0.25;
-    const g = maxGain * smoothstep(radius, inner, ctx.distance);
+    // `poidsDistance` aplatit la courbe SANS déplacer son zéro : à 0,5 une
+    // source encore lointaine s'entend déjà bien — sa direction (portée par
+    // la voie spatiale) redevient l'information dominante, au lieu que tout
+    // se joue au volume. À 1, rien ne change.
+    const poids = this.app.spatial?.poidsDistanceDe(this.artwork) ?? 1;
+    const g = maxGain * Math.pow(smoothstep(radius, inner, ctx.distance), Math.max(0, poids));
     bus.gain.setTargetAtTime(g, t, 0.08);
   }
 }

@@ -600,7 +600,19 @@ au code du moteur** :
   // — audio : autant de pistes que voulu, lues en boucle —
   "baseGain": 1,                   // volume de référence de l'objet
   "stems": [
-    { "file": "audio/nappe.wav", "radius": 20, "gain": 0.9 },
+    // par DÉFAUT une piste est PONCTUELLE : placée dans l'espace en
+    // binaural (HRTF), elle tourne autour de la tête quand on pivote
+    { "file": "audio/goutte.wav", "radius": 20, "gain": 0.9 },
+    // une piste peut porter SON modèle de distance (courbe « inverse »),
+    // sa largeur et ses pondérations — elle prend alors le pas sur le
+    // module HRTFPanner de l'œuvre :
+    { "file": "audio/cloche.wav", "gain": 0.8,
+      "spatial": { "refDistance": 3, "rolloff": 1.2, "maxDistance": 50,
+                   "largeur": 1.4, "poidsDistance": 0.8, "poidsDirection": 1 } },
+    // une NAPPE garde ses canaux d'origine (aucun panner — un PannerNode
+    // replie son entrée en mono, la stéréo native y mourrait) :
+    { "file": "audio/nappe-stereo.wav", "radius": 30, "gain": 0.7,
+      "spatial": false },
     // un son EMPRUNTÉ porte sa source et son crédit, comme un modèle :
     // sans eux, la publication est refusée (voir « Attribution »)
     { "file": "assets/freesound/vent-42.mp3", "gain": 0.6,
@@ -608,6 +620,8 @@ au code du moteur** :
       "credit": { "author": "A. Vento", "license": "Attribution",
                   "sourceUrl": "https://freesound.org/s/42" } }
   ],
+  // — surcharges spatiales de L'ŒUVRE (chaque piste peut surcharger) —
+  "audio": { "largeur": 1.2, "poidsDistance": 1, "poidsDirection": 1 },
 
   // — comportements —
   "modules": [
@@ -624,6 +638,63 @@ piste → `SpatialCrossfade` ; plusieurs → `StemMixer`, dont c'est justement
 l'objet. Le moteur se protège des scènes qui portent les deux (le mélangeur
 l'emporte sur la distance, le fondu se réduit alors à `baseGain`), et
 l'éditeur n'en pose plus qu'un.
+
+**La spatialisation binaurale est la règle, pas un module**
+(`engine/src/core/Spatialisation.js`). Chaque piste ponctuelle traverse une
+VOIE : un `PannerNode` HRTF à **direction pure** (`rolloffFactor` 0 — il ne
+fait qu'orienter) suivi d'un gain de **distance** séparé (modèle « inverse »,
+élevé à la puissance `poidsDistance`). Deux contributions, deux nœuds :
+l'histoire du projet a déjà montré ce que donnent deux courbes de distance
+dans le même chemin. L'écoutant, lui, suit la caméra à chaque frame —
+position ET orientation, via les AudioParams modernes (`positionX…upZ`,
+lissés par `setTargetAtTime` : pas de craquement en pivotant vite). Trois
+réglages, résolus piste → œuvre → galerie (`reglages.json`, bloc `audio`) :
+
+- `largeur` — **exagération d'azimut** : à 1,5, une source à 20° du nez
+  s'entend à 30°. Au-delà du réalisme, mais l'image s'élargit et se lit ;
+  1 = neutre, l'élévation et la distance ne bougent pas ;
+- `poidsDistance` — force des courbes de distance (toutes : voies, fondu
+  spatial, mélangeur de couches). 1 = physique ; plus bas, l'atténuation
+  s'aplatit et la **direction** redevient l'information dominante — une
+  source proche mais de côté est nettement latéralisée, pas juste forte ;
+- `poidsDirection` — part du signal qui passe par le panner (fondu wet/dry
+  à puissance constante) ; 0 rend la voie omnidirective.
+
+**Préparer ses fichiers.** Sources ponctuelles (gouttes, cloches, voix,
+mécaniques) : **mono** — un panner replie de toute façon son entrée en mono,
+autant maîtriser le repli soi-même. Nappes et ambiances (drones larges,
+field recordings stéréo) : **stéréo + `"spatial": false`** — la piste va au
+bus en direct, canaux intacts, gain par distance seulement. Les ambiances de
+pièce (`ambience` des rooms) sont toujours des nappes. Le son d'une vidéo
+(`videoSound`) suit le bus de l'œuvre, sans panner.
+
+**Budget HRTF** (`maxHRTF` : 16 desktop, 6 GPU modeste, 4 mobile —
+surchargeable dans `reglages.json`) : la convolution HRTF coûte cher par
+source. Les voies les plus proches l'obtiennent ; les autres retombent sur
+`equalpower` (gauche/droite correct, devant/derrière perdu), et la bascule
+se fait sous un court voile de gain — changer `panningModel` en pleine onde
+claque. Cohérent avec le budget de stems : mêmes distances, même cadence.
+
+**Vérifier au casque — le protocole de trois minutes.** Casque OBLIGATOIRE
+(et posé dans le bon sens : la plupart marquent L/R) — sur haut-parleur de
+téléphone, le binaural s'effondre, c'est pour cela que l'écran d'accueil le
+dit. Puis :
+
+1. **Gauche/droite** — face au monolithe (labo), faites trois pas de côté
+   vers la gauche : sa pulsation doit glisser franchement vers votre oreille
+   DROITE (la source est maintenant à votre droite). Revenez, pas de côté à
+   droite : elle passe à gauche. Si c'est inversé, le casque est à l'envers ;
+2. **La traversée du champ** — immobile devant une œuvre sonore, pivotez
+   lentement de 360° (Q/E ou souris). La source doit faire le tour complet
+   de votre tête — gauche, derrière (son plus mat, c'est l'HRTF), droite,
+   devant — sans saut ni craquement ;
+3. **Devant/derrière** — dos à l'œuvre, elle doit sonner plus sourde et
+   « hors champ » que de face, à volume comparable ;
+4. **Distance vs direction** — approchez-vous par le côté : le son doit
+   rester clairement latéralisé en devenant plus fort — s'il ne fait que
+   monter, la direction est cassée (c'était le bogue d'origine) ;
+5. **Les nappes** — une ambiance de pièce reste large et stable pendant
+   toute la rotation : elle ne tourne PAS avec la tête, c'est voulu.
 
 Ajout pas à pas : déposer les médias → créer le JSON → l'ajouter à
 `works/index.json` → recharger. Ou plus simple : composer directement dans
@@ -731,10 +802,30 @@ champs numériques pour le placement précis, barre d'outils défilante.
 
 **Barre d'outils** : ◻ Objets / ▦ Voxel (**V**) / ✂ Découpe (**C**),
 📁 Médias (import de fichiers), 🔗 URL (média distant),
-⤒ JSON (réimport d'un export), ＋ Objet, gizmos ↔ / ⟳ / ⤢ (raccourcis
+⤒ JSON (réimport d'un export), 🎧 Écoute (table d'écoute, ci-dessous),
+＋ Objet, gizmos ↔ / ⟳ / ⤢ (raccourcis
 1 / 2 / 3), ⧉ dupliquer, 🗑 supprimer (Suppr), ⇪ Publier (écriture directe
 dans `content/`), ⟲ Revenir (version précédente), 💾 Exporter (repli par
 téléchargement), ✕ quitter.
+
+### 🎧 La table d'écoute
+
+Un son spatialisé ne se règle ni à l'œil ni au JSON : il se règle **au
+casque, en marchant**, pendant que les chiffres disent ce que l'oreille
+croit entendre. Le panneau 🎧 montre en direct chaque voie vivante — œuvre,
+piste, **azimut**, **distance**, **modèle de panning** (HRTF ou equalpower
+selon le budget), gain de distance — et met sous les doigts :
+
+- les réglages **galerie** (largeur stéréo, pondérations, budget HRTF),
+  écrits dans `reglages.json` à la publication ;
+- les réglages **par piste** de l'œuvre sélectionnée (distance de
+  référence, décroissance, portée maximale, largeur), écrits dans le
+  document de scène **sans couper le son** (chemin rapide, comme le gain) ;
+- **⧉ Copier le JSON** — galerie ou œuvre, prêt à coller.
+
+Le placement d'une piste (**ponctuelle** binaurale / **nappe stéréo**) se
+choisit dans l'inspecteur, section Son. Rien de tout cela n'existe dans le
+build visiteur — le garde-fou y veille, comme pour le reste de l'éditeur.
 
 ### Importer des médias
 
@@ -1024,7 +1115,7 @@ survivent pas au rechargement (re-glissez les fichiers ou déployez-les).
 |---|---|---|
 | `SpatialCrossfade` | Volume global de l'œuvre selon la distance (smoothstep) | `radius`, `inner`, `maxGain` |
 | `StemMixer` | Mixe chaque stem selon **son propre** rayon — les couches se révèlent en approchant | `innerRatio` |
-| `HRTFPanner` | Spatialisation binaurale (PannerNode HRTF), son localisé au casque | `refDistance`, `maxDistance`, `rolloff`, `distanceModel` |
+| `HRTFPanner` | Distances binaurales de l'ŒUVRE (déclaratif : les voies des pistes les appliquent — le binaural lui-même est natif, voir « Sonorisation ») | `refDistance`, `maxDistance`, `rolloff` |
 | `AudioReactive` | AnalyserNode → pulsation, émission, uniform `uAudio`, lumière | `band`, `pulseScale`, `emissiveBoost`, `lightBoost`, `smoothing`, `gate` |
 | `FocusCamera` | Travelling doux vers l'œuvre au clic + fiche (titre, cartel année/technique, description, lien, vue détail de l'image) | `distance`, `height`, `duration` |
 | `TipJar` | Chapeau de fin d'expérience (voir ci-dessous) | `enabled`, `message`, `buttonLabel`, `url`, `minutes`, `delay` |
@@ -1111,7 +1202,9 @@ lancement puis l'ajuste en continu :
   résolution et textures ≤ 1024 px sur mobile, **6 stems audio simultanés
   max sur mobile** (24 sur desktop) avec *voice stealing* par distance : les
   œuvres les plus proches gardent leurs pistes, les plus lointaines sont
-  suspendues ;
+  suspendues — et parmi les pistes qui jouent, seules les `maxHRTF` plus
+  proches gardent la convolution HRTF, les autres passent en `equalpower`
+  (voir « Sonorisation ») ;
 - **anticrénelage** : le rendu passe par un `EffectComposer` (AO, bloom,
   grain), donc **hors écran** — et l'`antialias` du renderer, qui ne vaut que
   pour le canevas, n'agit sur rien. Le MSAA vit dans une **passe de scène

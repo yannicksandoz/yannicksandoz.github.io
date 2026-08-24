@@ -125,9 +125,10 @@ export class Artwork {
     this.baseScale = 1;        // échelle du mesh (la pulsation la module)
     this.audioLevel = 0;       // alimenté par AudioReactive
 
-    // état audio : bus → (modules peuvent insérer un panner) → master
+    // état audio : source → gainStem → voie spatiale (ou direct) → bus → master
     this.bus = null;
-    this.stems = [];           // [{ cfg, gain, source, buffer }]
+    this.stems = [];           // [{ cfg, gain, source, buffer, voie }]
+    this._spatialOverride = null; // module HRTFPanner : distances d'œuvre
     this.audioReady = false;
     this._stemsActive = false;
     // Position MONDE, réévaluée chaque frame : c'est la seule qui vaille
@@ -584,8 +585,12 @@ export class Artwork {
       this.stems = stemCfgs.map((cfg, i) => {
         const gain = ctx.createGain();
         gain.gain.value = cfg.gain ?? 1;
-        gain.connect(this.bus);
-        return { cfg, gain, source: null, buffer: buffers[i] };
+        // Chaque piste passe par sa VOIE spatiale (panner HRTF + gain de
+        // distance, voir Spatialisation.js) — sauf les nappes stéréo
+        // (`"spatial": false`), branchées en direct, canaux intacts.
+        const voie = this.app.spatial?.creerVoie(this, cfg, gain, this.bus) ?? null;
+        if (!voie) gain.connect(this.bus);
+        return { cfg, gain, source: null, buffer: buffers[i], voie };
       });
 
       // Les modules branchent panner/analyser et prennent la main sur les
@@ -644,6 +649,7 @@ export class Artwork {
     for (const m of this.modules) m.onAudioReleased?.();
     for (const s of this.stems) {
       s.gain.disconnect();
+      this.app.spatial?.libererVoie(s.voie);
       this.app.audio.release(this._resolve(s.cfg.file));
     }
     this.bus?.disconnect();
@@ -662,7 +668,15 @@ export class Artwork {
   /** Rayon au-delà duquel l'œuvre est inaudible (pour le budget de stems). */
   get maxAudibleRadius() {
     let r = 0;
-    for (const s of this.config.stems ?? []) r = Math.max(r, s.radius ?? 12);
+    for (const s of this.config.stems ?? []) {
+      r = Math.max(r, s.radius ?? 12);
+      // une piste qui déclare SES distances spatiales porte loin
+      const spa = s.spatial;
+      if (spa && typeof spa === 'object'
+        && [spa.refDistance, spa.rolloff, spa.maxDistance].some(Number.isFinite)) {
+        r = Math.max(r, spa.maxDistance ?? 60);
+      }
+    }
     for (const m of this.config.modules ?? []) {
       if (m.type === 'SpatialCrossfade') r = Math.max(r, m.params?.radius ?? 15);
       if (m.type === 'HRTFPanner') r = Math.max(r, m.params?.maxDistance ?? 60);

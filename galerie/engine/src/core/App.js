@@ -10,6 +10,7 @@ import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { VistaManager } from './Vista.js';
 import { FOG_DENSITY } from './RoomManager.js';
 import { AudioEngine } from './AudioEngine.js';
+import { Spatialisation } from './Spatialisation.js';
 import { QualityManager } from './Quality.js';
 import { LoadingTracker, assetUrl } from './utils.js';
 import { setDefaultAnisotropy } from './textures.js';
@@ -253,6 +254,7 @@ export class App {
     this.headless = headless;
     this.audio = new AudioEngine();
     this.quality = new QualityManager();
+    this.spatial = new Spatialisation(this);
     this.loading = new LoadingTracker();
     this.artworks = [];
     // Fichiers importés dans l'éditeur : chemin de config → URL blob
@@ -679,6 +681,7 @@ export class App {
           this._stemBudgetAcc = 0;
           this._updateStemBudget();
         }
+        this.spatial.update(dt);
         this.audio.updateListener(this.camera);
       };
       tick();
@@ -701,6 +704,7 @@ export class App {
         this._updateStemBudget();
       }
 
+      this.spatial.update(dt);
       this.audio.updateListener(this.camera);
 
       // Visite audio ouverte : le panneau opaque couvre tout — rendre des

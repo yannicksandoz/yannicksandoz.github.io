@@ -33,6 +33,22 @@ export function migrateWork(work) {
   }
 
   if (!Array.isArray(w.position)) w.position = [0, 1.8, 0];
+
+  // Pistes : le champ `spatial` accepte plusieurs écritures, on les ramène
+  // à deux formes canoniques — false (nappe stéréo, canaux intacts) ou un
+  // objet de réglages (source ponctuelle). ABSENT reste absent : le défaut
+  // (ponctuelle) est celui du moteur, et l'écrire partout ferait dériver
+  // tous les JSON existants au premier export.
+  if (Array.isArray(w.stems)) {
+    w.stems = w.stems.map((s) => {
+      if (!s || s.spatial === undefined) return s;
+      const t = { ...s };
+      if (t.spatial === false || t.spatial === 'stereo') t.spatial = false;
+      else if (t.spatial === true || t.spatial === 'spatial') t.spatial = {};
+      else if (typeof t.spatial !== 'object' || t.spatial === null) delete t.spatial;
+      return t;
+    });
+  }
   return w;
 }
 

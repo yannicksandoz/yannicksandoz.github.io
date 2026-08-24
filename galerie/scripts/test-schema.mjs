@@ -55,6 +55,23 @@ console.log('\nmigration des pièces (portails)');
   check('pièce sans portails', migrateRoom({ id: 'x' }).portals, []);
 }
 
+console.log('\nplacement des pistes (champ spatial)');
+{
+  const stems = (v) => migrateWork({ id: 'a', stems: [{ file: 'x.wav', spatial: v }] }).stems[0];
+  check('« stereo » → false (nappe)', stems('stereo').spatial, false);
+  check('false reste false', stems(false).spatial, false);
+  check('« spatial » → objet de réglages', stems('spatial').spatial, {});
+  check('true → objet de réglages', stems(true).spatial, {});
+  check('un objet passe tel quel', stems({ refDistance: 3 }).spatial, { refDistance: 3 });
+  check('une valeur insensée disparaît', 'spatial' in stems(42), false);
+  const nu = migrateWork({ id: 'a', stems: [{ file: 'x.wav' }] }).stems[0];
+  check('ABSENT reste absent — le défaut appartient au moteur',
+    'spatial' in nu, false);
+  const src = { id: 'a', stems: [{ file: 'x.wav', spatial: 'stereo' }] };
+  migrateWork(src);
+  check('la migration ne touche pas l’entrée', src.stems[0].spatial, 'stereo');
+}
+
 console.log('\nmigration d’une scène complète');
 {
   const { works, rooms } = migrateScene(

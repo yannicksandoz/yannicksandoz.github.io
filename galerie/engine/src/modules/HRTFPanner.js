@@ -1,63 +1,39 @@
 import { Module } from './Module.js';
 
 /**
- * Spatialisation binaurale : insère un PannerNode HRTF entre le bus de
- * l'œuvre et le bus maître. Le son est localisé dans l'espace (gauche/droite,
- * devant/derrière au casque) et atténué par le modèle de distance du panner.
+ * Réglage binaural D'ŒUVRE — déclaratif, depuis que la spatialisation vit
+ * au cœur du moteur (voir core/Spatialisation.js : une voie HRTF par piste,
+ * pour toutes les œuvres).
+ *
+ * Ce module a longtemps ÉTÉ la spatialisation : il insérait son propre
+ * PannerNode entre le bus de l'œuvre et le maître. En garder un ici
+ * empilerait deux panners en série — deux convolutions HRTF l'une dans
+ * l'autre, un son doublement filtré qui ne vient plus de nulle part. Il ne
+ * crée donc plus aucun nœud : il PRÊTE ses paramètres de distance aux voies
+ * de l'œuvre, qui les appliquent à leur gain de distance (modèle
+ * « inverse », comme avant — mêmes clés, mêmes défauts, mêmes JSON).
  *
  * params :
- *  - refDistance (défaut 2)    : distance de référence (plein volume)
- *  - maxDistance (défaut 60)   : distance au-delà de laquelle l'atténuation plafonne
- *  - rolloff     (défaut 1.0)  : vitesse d'atténuation
- *  - distanceModel (défaut 'inverse')
+ *  - refDistance (défaut 2)  : distance de référence (plein volume)
+ *  - maxDistance (défaut 60) : l'atténuation plafonne au-delà
+ *  - rolloff     (défaut 1)  : vitesse d'atténuation
  *
  * Les défauts sont larges à dessein : le son sert de BOUSSOLE — une œuvre
  * lointaine doit rester faiblement perceptible et attirer le visiteur,
- * plutôt que d'apparaître brutalement à dix mètres.
+ * plutôt que d'apparaître brutalement à dix mètres. Une piste qui déclare
+ * ses propres distances (`spatial: { refDistance… }`) passe devant.
+ * La visite audio sans WebGL continue d'injecter ce module : c'est par lui
+ * qu'une œuvre reste audible et localisable de loin, à l'oreille seule.
  */
 export class HRTFPanner extends Module {
   onAudioReady() {
-    const ctx = this.app.audio.ctx;
-    const p = ctx.createPanner();
-    p.panningModel = 'HRTF';
-    p.distanceModel = this.params.distanceModel ?? 'inverse';
-    p.refDistance = this.params.refDistance ?? 2;
-    p.maxDistance = this.params.maxDistance ?? 60;
-    p.rolloffFactor = this.params.rolloff ?? 1.0;
-    this.panner = p;
-
-    // re-routage : bus → panner → master
-    const bus = this.artwork.bus;
-    bus.disconnect();
-    bus.connect(p);
-    p.connect(this.app.audio.master);
-    this._syncPosition(0);
-  }
-
-  update(_dt, _ctx) {
-    // position mise à jour en continu : suit les déplacements en mode édition
-    if (this.panner) this._syncPosition(0.05);
-  }
-
-  _syncPosition(smoothing) {
-    // MONDE, pas local : l'auditeur, lui, est placé depuis la matrice
-    // monde de la caméra. Dans une pièce pivotée (belvédère), une position
-    // locale plaçait la source ailleurs que ce que l'on voit.
-    const pos = this.artwork.worldPosition;
-    const p = this.panner;
-    if (p.positionX) {
-      const t = this.app.audio.ctx.currentTime;
-      p.positionX.setTargetAtTime(pos.x, t, smoothing);
-      p.positionY.setTargetAtTime(pos.y, t, smoothing);
-      p.positionZ.setTargetAtTime(pos.z, t, smoothing);
-    } else {
-      p.setPosition(pos.x, pos.y, pos.z);
-    }
+    // l'instance, pas ses params : l'éditeur règle les curseurs en direct,
+    // et les voies relisent `params` à chaque frame
+    this.artwork._spatialOverride = this;
   }
 
   onAudioReleased() {
-    this.panner?.disconnect();
-    this.panner = null;
+    if (this.artwork._spatialOverride === this) this.artwork._spatialOverride = null;
   }
 
   dispose() {

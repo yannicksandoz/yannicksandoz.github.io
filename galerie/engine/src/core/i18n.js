@@ -11,7 +11,7 @@
  */
 
 const FR = {
-  'enter.sub': 'Une galerie d’art sonore : vos déplacements composent le mixage — casque recommandé.',
+  'enter.sub': 'Une galerie d’art sonore, mixée en binaural : vos déplacements composent le mixage. Écoutez au casque — sur haut-parleur, le relief du son disparaît.',
   'enter.loading': 'Chargement…',
   'enter.enter': 'Entrer',
   'enter.audio': 'Visite audio',
@@ -140,7 +140,7 @@ const FR = {
 };
 
 const EN = {
-  'enter.sub': 'A sound-art gallery: your movements compose the mix — headphones recommended.',
+  'enter.sub': 'A sound-art gallery, mixed binaurally: your movements compose the mix. Listen on headphones — on a speaker, the sound loses its relief.',
   'enter.loading': 'Loading…',
   'enter.enter': 'Enter',
   'enter.audio': 'Audio tour',

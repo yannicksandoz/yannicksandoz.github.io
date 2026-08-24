@@ -22,11 +22,14 @@ export class StemMixer extends Module {
     const stems = this.artwork.stems;
     if (!stems.length || !this.artwork.audioReady) return;
     const innerRatio = this.params.innerRatio ?? 0.2;
+    // même pondération que SpatialCrossfade : toutes les courbes de
+    // distance obéissent au même réglage (voir Spatialisation)
+    const poids = Math.max(0, this.app.spatial?.poidsDistanceDe(this.artwork) ?? 1);
     const t = this.app.audio.ctx.currentTime;
     for (const s of stems) {
       const radius = s.cfg.radius ?? 12;
       const maxGain = s.cfg.gain ?? 1;
-      const g = maxGain * smoothstep(radius, radius * innerRatio, ctx.distance);
+      const g = maxGain * Math.pow(smoothstep(radius, radius * innerRatio, ctx.distance), poids);
       s.gain.gain.setTargetAtTime(g, t, 0.1);
     }
   }

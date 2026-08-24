@@ -29,6 +29,9 @@ export class QualityManager {
           bloomStrength: 0.8,
           grain: !this.reducedMotion,
           maxStems: 6,
+          // convolution HRTF : chère PAR SOURCE — au-delà, les voies
+          // retombent sur equalpower (voir Spatialisation)
+          maxHRTF: 4,
           dustCount: 180,
           maxTextureSize: 1024,
           shadows: false,
@@ -45,6 +48,7 @@ export class QualityManager {
           bloomStrength: 0.9,
           grain: !this.reducedMotion,
           maxStems: 24,
+          maxHRTF: 16,
           dustCount: 450,
           maxTextureSize: 2048,
           shadows: true,
@@ -78,6 +82,7 @@ export class QualityManager {
         anisotropy: 4,
         bloomResScale: 0.25,
         maxStems: 8,
+        maxHRTF: 6,
         dustCount: 200,
         shadows: false,
         shadowMapSize: 1024
