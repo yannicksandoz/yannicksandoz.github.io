@@ -836,11 +836,11 @@ champs numériques pour le placement précis, barre d'outils défilante.
 
 **Barre d'outils** : ◻ Objets / ▦ Voxel (**V**) / ✂ Découpe (**C**),
 📁 Médias (import de fichiers), 🔗 URL (média distant),
-⤒ JSON (réimport d'un export), 🎧 Mixage (l'onglet du même nom, ci-dessous),
+🎧 Mixage (l'onglet du même nom, ci-dessous),
 ＋ Objet, gizmos ↔ / ⟳ / ⤢ (raccourcis
-1 / 2 / 3), ⧉ dupliquer, 🗑 supprimer (Suppr), ⇪ Publier (écriture directe
-dans `content/`), ⟲ Revenir (version précédente), 💾 Exporter (repli par
-téléchargement), ✕ quitter.
+1 / 2 / 3), ⧉ dupliquer, 🗑 supprimer (Suppr), ⤓ Importer et ⤒ Exporter
+(`galerie.json`, toute la galerie en un fichier), ☁ Publier… (le panneau
+*Sauvegarde* : fichier, dossier `content/`, mise en ligne), ✕ quitter.
 
 ### Le volet droit : trois onglets
 
@@ -924,7 +924,8 @@ comme ambiance de la pièce courante.
 Un média référencé par URL **persiste d'une session à l'autre** : c'est la
 voie la plus rapide pour composer une scène sans rien copier dans le dépôt.
 Un fichier importé, lui, vit en URL blob le temps de la session — il faut le
-déposer dans `content/assets/` pour la version déployée (voir « Publier »).
+déposer dans `content/assets/` pour la version déployée (voir
+« Sauvegarder, publier, mettre en ligne »).
 
 **Contrainte CORS.** Un média distant est chargé en `crossOrigin="anonymous"`
 (obligatoire : WebGL doit pouvoir lire ses pixels, et l'audio son buffer).
@@ -1127,32 +1128,47 @@ portail de retour est créé automatiquement, déplaçable ensuite comme
 n'importe quel objet — clic dessus pour le sélectionner, cible/étiquette
 modifiables).
 
-### Publier (site 100 % statique, sans backend)
+### Sauvegarder, publier, mettre en ligne
 
-**⇪ Publier** écrit la galerie **directement dans `content/`**. Au premier
-clic, le navigateur demande de désigner le dossier ; ensuite le bouton porte
-son nom (`⇪ Publier → content/`) et un clic suffit. **Maj+clic** pour changer
-de dossier.
+Trois questions, dans l'ordre où on se les pose — et un seul endroit pour y
+répondre : **☁ Publier…** ouvre le panneau *Sauvegarde*. La barre ne porte
+plus que deux raccourcis, **⤓ Importer** et **⤒ Exporter**.
 
-Ce qui est écrit — le format déjà en place dans le dépôt, celui qui donne des
-diffs lisibles dans git :
+#### 1 · Garder un fichier
+
+**⤒ Exporter** télécharge `galerie.json` : **toute la galerie en un fichier**
+— œuvres, pièces, réglages généraux. C'est la sauvegarde qu'on range sur une
+clé, qu'on envoie par courriel, qu'on rouvre sur un autre ordinateur.
+**⤓ Importer** le relit (et accepte aussi un ancien `works.json` /
+`rooms.json`, ou les deux, comme avant).
+
+Les **médias importés** (images, sons, modèles déposés à la main) n'y sont
+pas : ce sont des dizaines de mégaoctets, et un fichier de sauvegarde qui
+prétend tout contenir sans le faire est pire que pas de sauvegarde. L'export
+le dit. Ils partent à la publication.
+
+Une **attribution incomplète refuse l'export**, comme partout ailleurs :
+c'est une condition de licence, pas une préférence.
+
+#### 2 · Écrire dans le dépôt local
+
+Écrit la galerie **directement dans `content/`**, au format déjà en place
+dans le dépôt — celui qui donne des diffs lisibles dans git :
 
 - `works/<id>.json`, un fichier par objet, plus `works/index.json` ;
 - `rooms/<id>.json`, un par pièce, plus `rooms/index.json` ;
 - `reglages.json` (réglages généraux) ;
-- un `<modèle>.attribution.json` par modèle importé ;
-- les médias importés en fichier, déposés dans `content/assets/` — plus rien
-  à copier à la main.
+- un `<modèle>.attribution.json` par modèle et par son importé ;
+- les médias importés en fichier, déposés dans `content/assets/`.
 
-Avant d'écrire, un récapitulatif **nomme tout** : combien d'objets et de
-pièces, combien de fichiers, et surtout **ce qui va être effacé** — les
-fichiers d'objets supprimés depuis la dernière publication, et le fichier
-combiné `works.json`/`rooms.json` s'il traîne encore (le chargeur lui donne
-la priorité : laissé en place, il masquerait toute la publication). Rien ne
-part en ligne : `git add … && git commit && git push` reste votre geste.
-
-Une **attribution incomplète refuse la publication**, exactement comme
-l'export : c'est une condition de licence, pas une préférence.
+Au premier clic, le navigateur demande de désigner le dossier ; ensuite le
+bouton porte son nom et un clic suffit. Avant d'écrire, un récapitulatif
+**nomme tout** : combien d'objets et de pièces, combien de fichiers, et
+surtout **ce qui va être effacé** — les fichiers d'objets supprimés depuis la
+dernière publication, et le fichier combiné `works.json`/`rooms.json` s'il
+traîne encore (le chargeur lui donne la priorité : laissé en place, il
+masquerait toute la publication). Rien ne part en ligne : `git commit` reste
+votre geste.
 
 **⟲ Revenir** — avant d'écrire, la publication archive l'état précédent dans
 `content/.sauvegardes/<date>/` (works, rooms, réglages ; pas les médias, ce
@@ -1167,16 +1183,53 @@ reste la moindre trace — ce sont des copies entières de la galerie, elles se
 laisseraient parcourir par qui connaît le chemin. Git reste l'historique
 long ; ces sauvegardes servent quand git n'est pas à portée de main.
 
-**Repli** — Firefox et Safari n'ont pas l'API d'écriture dans un dossier.
-**💾 Exporter** y télécharge alors `works.json` + `rooms.json` + les fichiers
-d'attribution, à déposer dans `content/works/`, `content/rooms/` et
-`content/assets/` (les noms des médias à copier sont listés après l'export).
+Firefox et Safari n'ont pas l'API d'écriture dans un dossier : le bouton y
+retombe sur un téléchargement des mêmes fichiers, à ranger dans
+`content/works/`, `content/rooms/` et `content/assets/`.
 
-**Réimport** : ⤒ JSON (ou glisser un `.json` sur la fenêtre) recharge un
-export — works.json, rooms.json ou les deux — pour reprendre l'édition plus
-tard. Les médias déjà déployés dans `content/` et **ceux référencés par URL**
-se rechargent normalement ; seuls les blobs d'une session précédente ne
-survivent pas au rechargement (re-glissez les fichiers ou déployez-les).
+#### 3 · Mettre en ligne
+
+**☁ Mettre en ligne** pousse la galerie sur le dépôt du site, **en un
+commit**, sans terminal : lecture de la branche, arbre construit par-dessus
+l'arbre courant, commit, référence avancée. Cinq requêtes pour toute la
+galerie. Le site statique se reconstruit ensuite tout seul (GitHub Pages,
+une minute ou deux).
+
+**Chacun son compte.** Rien n'est câblé sur un dépôt particulier — quatre
+réglages, gardés dans le navigateur :
+
+| Réglage | Exemple | À quoi il sert |
+|---|---|---|
+| Dépôt | `auteur/depot` | l'adresse complète collée depuis GitHub est acceptée |
+| Branche | *(vide)* | vide = branche par défaut du dépôt |
+| Dossier de contenu | `galerie/content` | où vivent `works/` et `rooms/` dans le dépôt |
+| Adresse du site | `https://auteur.github.io/galerie` | pour le lien « Voir le site » ; proposée d'après les deux premiers |
+
+**Le jeton d'accès.** Un jeton GitHub *fine-grained* avec la seule permission
+**Contents : Read and write** sur ce dépôt suffit — il se crée dans
+*Settings → Developer settings → Personal access tokens*, et se révoque à
+tout moment.
+
+> Il est rangé **dans le navigateur seulement** (IndexedDB, sous sa propre
+> clé), n'est jamais réaffiché en clair, et n'entre ni dans l'export, ni dans
+> le brouillon, ni dans aucun fichier. **Aucune clé d'API n'a sa place dans
+> un dépôt** — celle-ci pas davantage que les autres. Tout le module vit dans
+> l'éditeur, absent du build visiteur : `api.github.com` est un hôte interdit
+> pour `scripts/check-visitor-build.mjs`, qui échoue si la moindre trace en
+> reste.
+
+**Vérifier l'accès** lit — et ne fait que lire : le compte reconnu, le dépôt,
+la branche, le droit d'écriture. Un jeton mal collé, expiré ou pris sur le
+mauvais compte se voit là, et non au moment d'envoyer.
+
+Avant d'envoyer, le même récapitulatif que la publication locale, **ce qui
+sera effacé compris**. Ne partent que les `.json` orphelins de `works/` et
+`rooms/` : un média, une page, un dossier voisin ne sont **jamais** touchés,
+et si l'arbre distant est trop grand pour être listé entièrement, **rien**
+n'est effacé. La référence avance **sans `force`** : si quelqu'un a poussé
+pendant que vous composiez, l'envoi échoue au lieu d'écraser son travail.
+
+Une attribution incomplète refuse la mise en ligne, avant tout appel réseau.
 
 ## Modules fournis
 

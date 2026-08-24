@@ -59,8 +59,13 @@ console.log('\npatch — portée déduite');
   const doc = makeDoc();
   check('transform → transformOnly',
     patch(doc, ['works', 0, 'position'], [1, 1, 1]).scope, { transformOnly: true, works: ['a'] });
-  check('propriété → œuvre ciblée',
-    patch(doc, ['works', 0, 'title'], 'x').scope, { works: ['a'] });
+  // Le titre s'écrit lettre à lettre : reconstruire l'œuvre à chaque frappe
+  // faisait disparaître le champ de saisie, le focus retombait sur la page,
+  // et la lettre suivante devenait un raccourci. Il est relu, pas rebâti.
+  check('titre → relu sans reconstruire',
+    patch(doc, ['works', 0, 'title'], 'x').scope, { uiOnly: true, works: ['a'] });
+  check('propriété d’affichage → œuvre ciblée',
+    patch(doc, ['works', 0, 'image'], 'x.jpg').scope, { works: ['a'] });
   check('portail → structurel',
     patch(doc, ['rooms', 0, 'portals', 0, 'to'], 'x').scope, { structural: true });
   check('rotation v2 → transformOnly',

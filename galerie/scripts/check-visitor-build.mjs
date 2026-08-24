@@ -25,7 +25,8 @@ const EMPREINTES_EDITEUR = [
   'data-vx-', 'data-lib-add', 'data-a-prim',
   'polypizza-panel', 'data-pp-', 'X-Auth-Token',
   'sons-panel', 'data-son-',
-  'freesound-panel', 'data-fs-', 'freesound.org/apiv2'
+  'freesound-panel', 'data-fs-', 'freesound.org/apiv2',
+  'sauvegarde-panel', 'data-sv-'
 ];
 
 /**
@@ -44,14 +45,19 @@ const EMPREINTES_EDITEUR = [
  * — la page d'un son reste citable en lien dans les crédits, son API non.
  */
 const HOTES_INTERDITS = [
-  'api.poly.pizza', 'freesound.org/apiv2', 'unpkg.com', 'cdn.jsdelivr', 'googleapis.com'
+  'api.poly.pizza', 'freesound.org/apiv2', 'unpkg.com', 'cdn.jsdelivr', 'googleapis.com',
+  // La mise en ligne écrit un commit sur le dépôt de l'auteur : c'est le
+  // geste le plus puissant de l'éditeur, et il n'a rien à faire dans les
+  // mains d'un visiteur.
+  'api.github.com'
 ];
 
 /** Motifs de clé d'API : aucune ne doit jamais être commitée ni publiée. */
 const MOTIFS_CLE = [
   /\bAIza[0-9A-Za-z_-]{35}\b/,              // Google
   /\bsk-[A-Za-z0-9]{32,}\b/,                 // style OpenAI
-  /\bghp_[A-Za-z0-9]{36}\b/,                 // jeton GitHub
+  /\bghp_[A-Za-z0-9]{36}\b/,                 // jeton GitHub (classique)
+  /\bgithub_pat_[A-Za-z0-9_]{40,}\b/,        // jeton GitHub (fine-grained)
   /["']?(api[_-]?key|apikey)["']?\s*[:=]\s*["'][A-Za-z0-9_-]{16,}["']/i
 ];
 
