@@ -544,7 +544,7 @@ html, body {
      en prend un bon quart. Au-delà, elle n'a plus d'angle : sur une bande
      de cent pixels, une pointe étalée sur huit cents ne se lit plus comme
      une flèche mais comme un trait vertical. */
-  width: 100%; height: clamp(9rem, 30vh, 20rem);
+  width: 100%; height: clamp(6rem, 20vh, 13.4rem);
   pointer-events: none;
 }
 #derive-suiv .derive-chevron { transform: scaleX(-1); }
