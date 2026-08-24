@@ -679,6 +679,27 @@ source. Les voies les plus proches l'obtiennent ; les autres retombent sur
 se fait sous un court voile de gain — changer `panningModel` en pleine onde
 claque. Cohérent avec le budget de stems : mêmes distances, même cadence.
 
+**La table de mixage — Console6** (`engine/src/core/Console.js`, d'après
+*Console6Channel* et *Console6Buss* de Chris Johnson, MIT ; son
+encodage/décodage vient de torridgristle, MIT aussi). Chaque œuvre encode son
+signal (`f(x) = x·(2−x)`), la somme se fait encodée, le maître décode
+(`g(x) = x/(1+√(1−x))`, la réciproque exacte). Mesuré plutôt que supposé :
+
+| scène | addition pure | par la table |
+|---|---|---|
+| une œuvre proche, seule | 0,70 | **0,70** — intacte |
+| 1 proche + 4 lointaines | 0,90 | 1,00 |
+| 6 œuvres à mi-distance | 0,90 | 1,00 |
+| 15 audibles à la fois | 3,00 | **1,00** |
+
+Une source seule traverse la table sans être touchée ; à plusieurs, la somme
+s'ouvre un peu et surtout **plafonne**. C'est là que les sources « se font de
+la place » : au plafond, et nulle part ailleurs. C'est donc une **couleur de
+sommation**, pas un correcteur de niveau, et elle est livrée **éteinte** —
+`audio.console.actif` dans `reglages.json`, ou la case dans l'onglet Mixage.
+`audio.console.attaque` dose combien on la pousse : 0 la table s'efface et la
+somme redevient une addition, 1 c'est le réglage de Chris.
+
 **Le limiteur du maître — approcher, ce n'est pas « plus fort ».**
 Le bus maître allait droit à la sortie. Quinze sources qui s'additionnent y
 saturent, et l'approche d'une œuvre ne s'entendait que comme un volume qui
@@ -708,10 +729,23 @@ tranche Maître : c'est exactement de cela que tout le reste recule) :
 | Réglage | Défaut | Effet |
 |---|---|---|
 | `actif` | `true` | couper pour comparer — le geste le plus instructif |
-| `pression` | `0.35` | combien il serre (le seuil de Pressure4) |
+| `pression` | `0.25` | combien il serre (le seuil de Pressure4) |
 | `vitesse` | `0.5` | vitesse de relâchement |
 | `douceur` | `0.5` | le grain : 0,5 neutre, ↓ ça s'étale, ↑ ça tient |
 | `sortie` | `1` | niveau de sortie |
+| `compenser` | `true` | rend le gain de rattrapage de Pressure4 |
+| `caractere` | `0` | dose sa saturation sinus : 0 transparent, 1 le grain de Chris |
+
+**Deux robinets autour de l'algorithme, et pourquoi.** Pressure4 multiplie
+d'abord tout par `1/seuil` : c'est une partie de son son (on cherche la
+densité), mais posé sur un bus qui allait bien, cela montait la galerie
+entière de +3,5 dB et poussait le moindre passage dans la sinusoïde du second
+étage — une saturation douce permanente, mesurée à 2 % de distorsion à
+mi-échelle. `compenser` rend ce gain avant la sinusoïde ; `caractere` dose la
+sinusoïde elle-même. Aux valeurs par défaut, un signal sous le seuil ressort
+à **0,00 dB et 0,00 % de distorsion** : brancher le limiteur ne s'entend
+plus, et l'on peut le couper pour comparer. À `caractere: 1` on retrouve
+exactement le plugin de Chris.
 
 Le limiteur tourne **aussi pour le visiteur** — ce n'est pas un outil
 d'auteur. Si l'AudioWorklet manque (contexte non sécurisé, navigateur

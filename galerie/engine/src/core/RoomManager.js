@@ -761,7 +761,7 @@ export class RoomManager {
         const ctx = engine.ctx;
         const bus = ctx.createGain();
         bus.gain.value = 0;
-        bus.connect(engine.master);
+        engine.brancherCanal(bus);   // l'ambiance est une tranche comme une autre
         room.ambience.bus = bus;
         const t0 = ctx.currentTime + 0.05;
         room.ambience.sources = buffers.map((buffer, i) => {
@@ -796,6 +796,9 @@ export class RoomManager {
       s.src.disconnect();
       s.gain.disconnect();
     }
+    // La tranche de console de l'ambiance se ferme avec elle : sans cela,
+    // son encodeur resterait branché à la somme, pour toujours.
+    if (room.ambience.bus) this.app.audio.debrancherCanal(room.ambience.bus);
     room.ambience.bus?.disconnect();
     for (const c of room.config.ambience ?? []) {
       this.app.audio.release(this.app.resolveAsset(c.file));

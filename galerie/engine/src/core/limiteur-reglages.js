@@ -9,7 +9,15 @@
 
 export const LIMITEUR_DEFAUTS = {
   actif: true,
-  pression: 0.35,   // A — combien le limiteur serre
+  pression: 0.25,   // A — combien le limiteur serre
+  // Rendre le gain de rattrapage de Pressure4 : sans cela, brancher le
+  // limiteur monte TOUTE la galerie de +3,5 dB et pousse le moindre son
+  // dans la saturation du second étage. On veut un plafond, pas une
+  // couleur permanente — et l'on veut pouvoir comparer en le coupant.
+  compenser: true,
+  // Dose de la saturation sinus de Pressure4 : 0 = plafond transparent
+  // (ClipOnly2 tient déjà les crêtes), 1 = le grain du plugin d'origine.
+  caractere: 0,
   vitesse: 0.5,     // B — la vitesse de relâchement
   douceur: 0.5,     // C — 0,5 neutre ; en dessous ça s'étale, au-dessus ça tient
   sortie: 1         // D — le niveau de sortie
@@ -24,6 +32,8 @@ export function normaliserLimiteur(brut) {
   };
   return {
     actif: c.actif !== false,
+    compenser: c.compenser !== false,
+    caractere: borne(c.caractere, 0, 1, LIMITEUR_DEFAUTS.caractere),
     pression: borne(c.pression, 0, 1, LIMITEUR_DEFAUTS.pression),
     vitesse: borne(c.vitesse, 0, 1, LIMITEUR_DEFAUTS.vitesse),
     douceur: borne(c.douceur, 0, 1, LIMITEUR_DEFAUTS.douceur),

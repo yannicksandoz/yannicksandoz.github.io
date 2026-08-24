@@ -591,7 +591,9 @@ export class Artwork {
 
       this.bus = ctx.createGain();
       this.bus.gain.value = this.config.baseGain ?? 1;
-      this.bus.connect(engine.master);
+      // Une TRANCHE de la table : le bus n'arrive pas nu à la somme, il
+      // passe par l'encodage Console (voir Console.js).
+      engine.brancherCanal(this.bus);
 
       this.stems = stemCfgs.map((cfg, i) => {
         const gain = ctx.createGain();
@@ -671,6 +673,7 @@ export class Artwork {
       this.app.spatial?.libererVoie(s.voie);
       this.app.audio.release(this._resolve(s.cfg.file));
     }
+    if (this.bus) this.app.audio.debrancherCanal(this.bus);
     this.bus?.disconnect();
     this.bus = null;
     this.stems = [];

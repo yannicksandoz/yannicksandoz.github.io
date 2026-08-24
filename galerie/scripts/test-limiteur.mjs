@@ -29,76 +29,138 @@ function check(name, actual, expected) {
   }
 }
 
+/** Assertion booléenne : la condition, et ce qu'on a mesuré si elle tombe. */
+function vrai(name, condition, detail = '') {
+  if (condition) { passed++; console.log(`  ✓ ${name}`); }
+  else { failed++; console.error(`  ✗ ${name}${detail ? ` — ${detail}` : ''}`); }
+}
+
 const TAUX = 48000;
 const N = 128;
 
-/** Un sinus d'amplitude donnée, joué pendant `blocs` blocs de 128. */
-function jouer(traiter, amplitude, blocs = 200, frequence = 220) {
+/** La CHAÎNE complète, comme dans le fil audio : vari-µ puis écrêteur. */
+function chaine(A, caractere = 0, compenser = true, C = 0.5) {
+  const p = new Pressure4(TAUX);
+  const c = new ClipOnly2(TAUX);
+  return (g, d) => {
+    p.traiter(g, d, A, 0.5, C, 1, compenser, caractere);
+    c.traiter(g, 0); c.traiter(d, 1);
+    return p;
+  };
+}
+
+/**
+ * Gain linéaire (dB) et distorsion résiduelle (%) sur un sinus entretenu.
+ *
+ * `retard` : ClipOnly2 rend le signal avec UN échantillon de retard. Sans
+ * en tenir compte, le résidu mesuré vaut sin(2π·220/48000) ≈ 2,9 % — un
+ * déphasage pris pour de la distorsion, et l'on « corrigerait » un défaut
+ * qui n'existe pas.
+ */
+function mesurer(traiter, amplitude, { blocs = 400, retard = 0 } = {}) {
   let phase = 0;
-  const pas = (2 * Math.PI * frequence) / TAUX;
-  let crete = 0, nan = false, moindre = 1;
+  const pas = (2 * Math.PI * 220) / TAUX;
   const g = new Float32Array(N);
   const d = new Float32Array(N);
+  const entree = [], sortie = [];
+  let crete = 0, nan = false;
   for (let b = 0; b < blocs; b++) {
     for (let i = 0; i < N; i++) {
       const v = Math.sin(phase) * amplitude;
       phase += pas;
       g[i] = v; d[i] = v;
     }
-    const info = traiter(g, d);
-    if (info?.moindre < moindre) moindre = info.moindre;
-    // on laisse passer les vingt premiers blocs : le limiteur s'installe
-    if (b < 20) continue;
+    const copie = Float32Array.from(g);
+    traiter(g, d);
+    if (b < blocs / 2) continue;   // le limiteur s'installe
     for (let i = 0; i < N; i++) {
       if (!Number.isFinite(g[i]) || !Number.isFinite(d[i])) nan = true;
-      const a = Math.abs(g[i]);
-      if (a > crete) crete = a;
+      crete = Math.max(crete, Math.abs(g[i]));
+      entree.push(copie[i]); sortie.push(g[i]);
     }
   }
-  return { crete, nan, moindre };
+  // le meilleur gain linéaire, puis ce qui reste : la distorsion
+  let num = 0, den = 0;
+  for (let i = retard; i < entree.length; i++) {
+    num += entree[i - retard] * sortie[i];
+    den += entree[i - retard] * entree[i - retard];
+  }
+  const k = den ? num / den : 0;
+  let residu = 0, puissance = 0;
+  for (let i = retard; i < entree.length; i++) {
+    const e = sortie[i] - k * entree[i - retard];
+    residu += e * e; puissance += sortie[i] * sortie[i];
+  }
+  return { db: 20 * Math.log10(k || 1e-9), crete, nan,
+    distorsion: puissance ? 100 * Math.sqrt(residu / puissance) : 0 };
 }
 
-console.log('\nPressure4 — le plafond tient');
+console.log('\nbrancher le limiteur ne doit rien changer tant qu’il ne travaille pas');
 {
-  const chaine = (A) => {
-    const p = new Pressure4(TAUX);
-    return (g, d) => { p.traiter(g, d, A, 0.5, 0.5, 1); return p; };
-  };
+  // C'était le défaut entendu : Pressure4 multiplie tout par 1/seuil, et la
+  // galerie entière prenait +3,5 dB — donc une saturation douce permanente
+  // dans la sinusoïde du second étage.
+  const nu = mesurer(chaine(0.25, 1, false), 0.3, { retard: 1 });
+  vrai('sans compensation, le limiteur MONTE le niveau', nu.db > 2, `${nu.db.toFixed(2)} dB`);
 
-  const doux = jouer(chaine(0.35), 0.3);
-  check('un signal discret ressort sans NaN', doux.nan, false);
-  check('…et sous le plafond', doux.crete <= 1.0001, true);
+  const propre = mesurer(chaine(0.25), 0.3, { retard: 1 });
+  vrai('compensé, un signal discret ressort au même niveau',
+    Math.abs(propre.db) < 0.05, `${propre.db.toFixed(3)} dB`);
+  vrai('…et sans distorsion mesurable',
+    propre.distorsion < 0.01, `${propre.distorsion.toFixed(3)} %`);
 
-  // quatre fois trop fort : c'est le cas « quinze œuvres qui s'additionnent »
-  const fort = jouer(chaine(0.35), 4.0);
-  check('un signal quatre fois trop fort ne dépasse jamais 1', fort.crete <= 1.0001,
-    true);
-  check('…sans jamais produire de NaN', fort.nan, false);
-  // −3,5 dB de réduction sur un signal quatre fois trop fort : le vari-µ
-  // rattrape, et l'étage sinus de Chris finit le travail. C'est ce partage
-  // qui fait que la surcharge s'entend comme une densité, pas comme un mur.
-  check('…et la réduction se voit', fort.moindre < 0.75, true);
-  const serre = jouer(chaine(0.8), 4.0);
-  check('plus on met de pression, plus il serre', serre.moindre < fort.moindre, true);
-
-  // Le cœur de la demande : APPROCHER doit faire reculer le reste. Plus le
-  // signal est fort, plus la réduction est profonde — c'est cette réduction
-  // que subissent aussi toutes les autres sources du bus.
-  const loin = jouer(chaine(0.5), 0.5);
-  const pres = jouer(chaine(0.5), 3.0);
-  check('plus la source est proche, plus le bus est tenu',
-    pres.moindre < loin.moindre, true);
-
-  // pression à 0 : le seuil vaut 1, rien ne se passe (ou presque)
-  const dormant = jouer(chaine(0), 0.2);
-  check('pression à zéro : le limiteur dort', dormant.moindre > 0.99, true);
+  const mi = mesurer(chaine(0.25), 0.5, { retard: 1 });
+  vrai('à mi-échelle non plus', mi.distorsion < 0.05 && Math.abs(mi.db) < 0.05,
+    JSON.stringify({ db: mi.db.toFixed(3), dist: mi.distorsion.toFixed(3) }));
 }
 
-console.log('\nPressure4 — la douceur change le grain, pas le plafond');
+console.log('\nle plafond tient quand même');
+{
+  for (const amplitude of [0.8, 2, 4, 12]) {
+    const r = mesurer(chaine(0.25), amplitude, { retard: 1 });
+    vrai(`amplitude ${amplitude} : rien ne dépasse 1`, r.crete <= 1.0001,
+      r.crete.toFixed(4));
+    check(`amplitude ${amplitude} : aucun NaN`, r.nan, false);
+  }
+  const fort = mesurer(chaine(0.25), 4, { retard: 1 });
+  vrai('…et le limiteur retient', fort.db < -1, `${fort.db.toFixed(2)} dB`);
+}
+
+console.log('\nPressure4 — la réduction, et le proche qui prend la place');
+{
+  const reduction = (A, amplitude) => {
+    const p = new Pressure4(TAUX);
+    let moindre = 1;
+    const t = (g, d) => { p.traiter(g, d, A, 0.5, 0.5, 1, true, 0);
+      if (p.moindre < moindre) moindre = p.moindre; return p; };
+    mesurer(t, amplitude, { blocs: 200 });
+    return moindre;
+  };
+  const loin = reduction(0.5, 0.5);
+  const pres = reduction(0.5, 3.0);
+  vrai('plus la source est proche, plus le bus est tenu', pres < loin,
+    `${pres.toFixed(3)} vs ${loin.toFixed(3)}`);
+  vrai('plus on met de pression, plus il serre',
+    reduction(0.8, 3.0) < reduction(0.3, 3.0));
+  vrai('pression à zéro : le limiteur dort', reduction(0, 0.2) > 0.99);
+}
+
+console.log('\nle caractère se dose');
+{
+  const propre = mesurer(chaine(0.25, 0), 0.5, { retard: 1 });
+  const chris = mesurer(chaine(0.25, 1), 0.5, { retard: 1 });
+  vrai('à 0, le second étage de Chris est absent', propre.distorsion < 0.01,
+    `${propre.distorsion.toFixed(3)} %`);
+  vrai('à 1, on retrouve son grain', chris.distorsion > 0.5,
+    `${chris.distorsion.toFixed(2)} %`);
+  check('…et le plafond tient dans les deux cas',
+    [propre.crete <= 1.0001, chris.crete <= 1.0001], [true, true]);
+}
+
+console.log('\nla douceur change le grain, pas le plafond');
 {
   for (const C of [0, 0.5, 1]) {
-    const p = new Pressure4(TAUX);
-    const r = jouer((g, d) => { p.traiter(g, d, 0.6, 0.5, C, 1); return p; }, 3.0);
+    const r = mesurer(chaine(0.6, 0, true, C), 3.0, { retard: 1 });
     check(`douceur ${C} : plafond tenu, aucun NaN`,
       [r.crete <= 1.0001, r.nan], [true, false]);
   }
@@ -141,7 +203,9 @@ console.log('\nClipOnly2 — transparent tant que rien ne dépasse');
 
 console.log('\nréglages');
 {
-  check('les défauts se relisent', normaliserLimiteur(undefined), LIMITEUR_DEFAUTS);
+  const trie = (o) => Object.fromEntries(Object.entries(o).sort());
+  check('les défauts se relisent',
+    trie(normaliserLimiteur(undefined)), trie(LIMITEUR_DEFAUTS));
   check('une valeur absurde retombe sur le défaut',
     normaliserLimiteur({ pression: 'beaucoup' }).pression, LIMITEUR_DEFAUTS.pression);
   check('une valeur hors bornes est ramenée',

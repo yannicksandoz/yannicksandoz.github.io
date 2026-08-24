@@ -132,6 +132,8 @@ export class Limiteur {
       p('douceur', r.douceur);
       p('sortie', r.sortie);
       p('actif', r.actif ? 1 : 0);
+      p('compenser', r.compenser ? 1 : 0);
+      p('caractere', r.caractere);
     } else if (this.mode === 'repli' && this._compresseur) {
       // La pression déplace le seuil : 0 → -1 dB (le limiteur dort),
       // 1 → -30 dB (il tient tout).

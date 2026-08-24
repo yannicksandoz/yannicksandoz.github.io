@@ -20,16 +20,29 @@ Dernière vérification : 12 août 2026.
 | Composant | Version | Licence | Copyright |
 |---|---|---|---|
 | [three.js](https://threejs.org) | 0.166.1 | MIT | © 2010-2024 three.js authors |
-| [Airwindows](https://github.com/airwindows/airwindows) — `Pressure4`, `ClipOnly2` | portage 2026 | MIT | © 2016, 2018 airwindows (Chris Johnson) |
+| [Airwindows](https://github.com/airwindows/airwindows) — `Pressure4`, `ClipOnly2`, `Console6` | portage 2026 | MIT | © 2016, 2018 airwindows (Chris Johnson) |
 
-**Airwindows est VENDORÉ, et porté.** `engine/src/core/limiteur-worklet.js`
-réécrit en JavaScript, pour AudioWorklet, deux plugins de Chris Johnson : le
-compresseur vari-µ *Pressure4* et l'écrêteur *ClipOnly2*. L'algorithme, les
-coefficients et les constantes sont les siens ; l'en-tête du fichier porte le
-copyright et la licence, et la console de mixage l'affiche à l'auteur. La
-licence MIT n'exige rien de plus que cette mention — la respecter est le
-minimum, et ce dépôt refuse de publier une œuvre dont l'attribution est
-incomplète : la règle vaut d'abord pour lui.
+**Airwindows est VENDORÉ, et porté.** Trois plugins de Chris Johnson sont
+réécrits en JavaScript :
+
+- `engine/src/core/limiteur-worklet.js` — le compresseur vari-µ *Pressure4* et
+  l'écrêteur *ClipOnly2*, dans un AudioWorklet ;
+- `engine/src/core/Console.js` — la table de mixage *Console6* (encodage de
+  tranche, décodage de bus), en `WaveShaperNode` natifs. Son encodage/décodage
+  vient lui-même de **torridgristle**, également sous licence MIT, comme le
+  note le code d'origine.
+
+L'algorithme, les coefficients et les constantes sont les siens ; les en-têtes
+portent le copyright et la licence, et la console de mixage l'affiche à
+l'auteur. La licence MIT n'exige rien de plus que cette mention — la
+respecter est le minimum, et ce dépôt refuse de publier une œuvre dont
+l'attribution est incomplète : la règle vaut d'abord pour lui.
+
+**Deux écarts assumés au réglage d'origine**, documentés dans le code : le
+limiteur *rend* le gain de rattrapage de Pressure4 (sans quoi le brancher
+monte toute la galerie de +3 dB) et dose sa saturation sinus par un réglage
+`caractere`, à zéro par défaut. L'algorithme n'est pas modifié ; ce sont deux
+robinets posés autour de lui, et ils se remettent à la valeur de Chris.
 
 Le moteur importe également des **modules d'exemple** de three.js
 (`three/addons/…`, dossier `examples/jsm` du dépôt three.js). Ils sont publiés

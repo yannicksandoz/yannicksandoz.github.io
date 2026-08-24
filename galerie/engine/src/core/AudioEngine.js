@@ -10,12 +10,14 @@
  * force la réouverture du canal audio quand resume() seul ne suffit pas.
  */
 import { Limiteur } from './Limiteur.js';
+import { Console, normaliserConsole } from './Console.js';
 
 export class AudioEngine {
   constructor() {
     this.ctx = null;
     this.master = null;
     this.limiteur = new Limiteur();
+    this.console = new Console();
     this.unlocked = false;
     this._cache = new Map();
     // url → nombre d'œuvres et d'ambiances qui s'en servent (voir load)
@@ -35,10 +37,14 @@ export class AudioEngine {
       this.master.connect(this.ctx.destination);
       this.unlocked = true;
 
-      // Le limiteur s'installe ENTRE le maître et la sortie, dès qu'il est
-      // prêt : `addModule` est asynchrone, et attendre le worklet pour
-      // laisser passer le son ferait un trou juste après « Entrer ».
-      this.limiteur.installer(this.ctx, this.master, this.ctx.destination)
+      // La chaîne du maître, dans l'ordre d'une vraie table :
+      //   tranches → somme → décodage console → limiteur → sortie
+      // La console s'installe tout de suite (des WaveShaper, rien d'async) ;
+      // le limiteur la suit dès que son worklet est prêt.
+      const sortieConsole = this.console.installer(this.ctx, this.master);
+      this.master.disconnect(this.ctx.destination);
+      sortieConsole.connect(this.ctx.destination);
+      this.limiteur.installer(this.ctx, sortieConsole, this.ctx.destination)
         .catch((e) => console.warn('[galerie] limiteur non installé :', e?.message ?? e));
 
       // Filet de sécurité iOS : à chaque tap, si le contexte n'est pas
@@ -84,6 +90,35 @@ export class AudioEngine {
     if (signature === this._signatureLimiteur) return;
     this._signatureLimiteur = signature;
     this.limiteur.regler(reglages ?? undefined);
+  }
+
+  /**
+   * Ouvre une TRANCHE de console pour ce bus. À appeler au lieu de
+   * `bus.connect(engine.master)` : la somme se fait encodée, et le bus
+   * décode (voir Console.js).
+   */
+  brancherCanal(bus) {
+    if (!this.ctx) return bus;
+    if (!this.console.somme) { bus.connect(this.master); return bus; }
+    return this.console.brancher(bus);
+  }
+
+  /** Ferme la tranche — sans quoi son encodeur resterait dans le graphe. */
+  debrancherCanal(bus) { this.console.debrancher(bus); }
+
+  /** Muet de travail : couper / rétablir une tranche sans rien écrire. */
+  couperCanal(bus) { this.console.couper(bus); }
+  retablirCanal(bus) { this.console.retablir(bus); }
+  canalCoupe(bus) { return this.console.estCoupe(bus); }
+
+  /** Réglages de la console, poussés seulement s'ils ont changé. */
+  appliquerConsole(reglages) {
+    if (!this.console) return;
+    let signature;
+    try { signature = JSON.stringify(reglages ?? null); } catch { return; }
+    if (signature === this._signatureConsole) return;
+    this._signatureConsole = signature;
+    this.console.regler(normaliserConsole(reglages));
   }
 
   suspend() {

@@ -684,6 +684,7 @@ export class App {
         this.spatial.update(dt);
         this.audio.updateListener(this.camera);
         this.audio.appliquerLimiteur(this.reglages?.audio?.limiteur);
+        this.audio.appliquerConsole(this.reglages?.audio?.console);
       };
       tick();
       return;
@@ -708,6 +709,7 @@ export class App {
       this.spatial.update(dt);
       this.audio.updateListener(this.camera);
       this.audio.appliquerLimiteur(this.reglages?.audio?.limiteur);
+      this.audio.appliquerConsole(this.reglages?.audio?.console);
 
       // Visite audio ouverte : le panneau opaque couvre tout — rendre des
       // images derrière ne ferait que chauffer la machine (et le lecteur

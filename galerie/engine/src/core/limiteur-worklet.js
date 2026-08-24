@@ -58,10 +58,24 @@ export class Pressure4 {
    * A = pression (seuil), B = vitesse (relâchement), C = douceur (mewiness),
    * D = sortie. Traitement lié : les deux canaux subissent la MÊME réduction,
    * sans quoi l'image stéréo se déplacerait à chaque crête.
+   *
+   * `compenser` REND le gain de rattrapage avant l'étage de surcharge.
+   *
+   * Pressure4 multiplie d'abord tout par `1/seuil` — à pression 0,35, c'est
+   * +3,5 dB sur la galerie entière. Ce gain-là fait partie du son du plugin
+   * (on cherche la densité), mais posé sur un bus qui allait bien, il
+   * pousse TOUT dans la sinusoïde du second étage, et l'on entend une
+   * saturation douce en permanence au lieu d'un limiteur qui ne travaille
+   * qu'aux crêtes. En rendant le gain avant la sinusoïde (D × seuil), un
+   * signal sous le seuil ressort exactement comme il est entré : brancher
+   * le limiteur ne change plus le volume, et l'on peut comparer à l'oreille
+   * en le coupant. C'est le seul écart au réglage d'origine, et il est ici
+   * pour que le limiteur soit un plafond, pas une couleur.
    */
-  traiter(gauche, droite, A, B, C, D) {
+  traiter(gauche, droite, A, B, C, D, compenser = true, caractere = 0) {
     const seuil = 1.0 - (A * 0.95);
     const gainMakeup = 1.0 / seuil;
+    const gainSortie = compenser ? D * seuil : D;
     const release = Math.pow(1.28 - B, 5) * 32768.0 / this.echelle;
     const plusRapide = Math.sqrt(release);
 
@@ -129,15 +143,26 @@ export class Pressure4 {
       if (coefficient < this.moindre) this.moindre = coefficient;
       g *= coefficient;
       d *= coefficient;
-      if (D !== 1.0) { g *= D; d *= D; }
+      if (gainSortie !== 1.0) { g *= gainSortie; d *= gainSortie; }
 
-      // second étage de surcharge : au-delà de π/2 la sinusoïde plafonne à 1
-      let redresse = Math.abs(g);
-      redresse = redresse > 1.57079633 ? 1.0 : Math.sin(redresse);
-      g = g > 0 ? redresse : -redresse;
-      redresse = Math.abs(d);
-      redresse = redresse > 1.57079633 ? 1.0 : Math.sin(redresse);
-      d = d > 0 ? redresse : -redresse;
+      // Second étage de surcharge : au-delà de π/2 la sinusoïde plafonne à 1.
+      //
+      // Chez Chris il est toujours là — c'est une partie du SON de Pressure4,
+      // qui est un compresseur de caractère. Mais sin() courbe dès le premier
+      // dixième : sur un bus de galerie, cela met une saturation douce sur
+      // TOUT, en permanence (2 % de distorsion à mi-échelle), et c'est ce
+      // qu'on entendait. `caractere` le dose : à 0 le limiteur est
+      // transparent — ClipOnly2, juste après, tient le plafond de toute façon
+      // et lui ne travaille QUE sur ce qui dépasse ; à 1 on retrouve le
+      // plugin d'origine.
+      if (caractere > 0) {
+        let redresse = Math.abs(g);
+        redresse = redresse > 1.57079633 ? 1.0 : Math.sin(redresse);
+        g = (g > 0 ? redresse : -redresse) * caractere + g * (1 - caractere);
+        redresse = Math.abs(d);
+        redresse = redresse > 1.57079633 ? 1.0 : Math.sin(redresse);
+        d = (d > 0 ? redresse : -redresse) * caractere + d * (1 - caractere);
+      }
 
       gauche[i] = g;
       droite[i] = d;
@@ -205,11 +230,17 @@ class LimiteurProcessor extends AudioWorkletProcessor {
       // Les quatre réglages de Pressure4, plus l'interrupteur. En k-rate :
       // ils se règlent à la main, pas au sample près, et les coefficients se
       // recalculent une fois par bloc comme dans l'original.
-      { name: 'pression', defaultValue: 0.35, minValue: 0, maxValue: 1, automationRate: 'k-rate' },
+      { name: 'pression', defaultValue: 0.25, minValue: 0, maxValue: 1, automationRate: 'k-rate' },
       { name: 'vitesse', defaultValue: 0.5, minValue: 0, maxValue: 1, automationRate: 'k-rate' },
       { name: 'douceur', defaultValue: 0.5, minValue: 0, maxValue: 1, automationRate: 'k-rate' },
       { name: 'sortie', defaultValue: 1, minValue: 0, maxValue: 2, automationRate: 'k-rate' },
-      { name: 'actif', defaultValue: 1, minValue: 0, maxValue: 1, automationRate: 'k-rate' }
+      { name: 'actif', defaultValue: 1, minValue: 0, maxValue: 1, automationRate: 'k-rate' },
+      // Rendre le gain de rattrapage : brancher le limiteur ne doit pas
+      // monter le volume de la galerie (voir Pressure4.traiter).
+      { name: 'compenser', defaultValue: 1, minValue: 0, maxValue: 1, automationRate: 'k-rate' },
+      // Dose la saturation sinus du second étage de Pressure4. 0 = plafond
+      // transparent (ClipOnly2 suffit), 1 = le plugin d'origine.
+      { name: 'caractere', defaultValue: 0, minValue: 0, maxValue: 1, automationRate: 'k-rate' }
     ];
   }
 
@@ -247,7 +278,8 @@ class LimiteurProcessor extends AudioWorkletProcessor {
 
     if (parametres.actif[0] >= 0.5) {
       this.pression.traiter(g, d, parametres.pression[0], parametres.vitesse[0],
-        parametres.douceur[0], parametres.sortie[0]);
+        parametres.douceur[0], parametres.sortie[0], parametres.compenser[0] >= 0.5,
+        parametres.caractere[0]);
       this.ecreteur.traiter(g, 0);
       if (sortie.length > 1) this.ecreteur.traiter(d, 1);
       if (this.pression.moindre < this.moindre) this.moindre = this.pression.moindre;
