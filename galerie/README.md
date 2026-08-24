@@ -542,6 +542,10 @@ au code du moteur** :
   "rotation": [0, 0, 0],           // degrés, trois axes
   "loadDistance": 50,              // distance de chargement paresseux (optionnel)
   "lightColor": "#7a6cff",         // lumière d'appoint de l'œuvre (optionnel)
+  "lightIntensity": 4,             // 0 = pas de lumière du tout (économie GPU)
+  "lightDistance": 14,             // portée en mètres (0 = infinie)
+  "lightDecay": 1.8,               // vitesse d'extinction avec la distance
+  "lightOffset": [0, 0.4, 1.6],    // position de la lampe, relative à l'objet
   "lightIntensity": 4,             // idem — 1.5 environ pour du mobilier
   "selfLit": true,                 // l'objet ÉCLAIRE sans être éclairé : sa
                                    // propre lampe le lavait à bout portant
@@ -675,6 +679,13 @@ source. Les voies les plus proches l'obtiennent ; les autres retombent sur
 se fait sous un court voile de gain — changer `panningModel` en pleine onde
 claque. Cohérent avec le budget de stems : mêmes distances, même cadence.
 
+**Une œuvre suspendue rejoue en revenant.** Le budget de voix fond le gain
+de chaque piste à zéro en suspendant (s'éloigner, changer de pièce) ; la
+réactivation **rend ce gain** en recréant les sources. Longtemps elle ne l'a
+pas fait : le monolithe quitté puis retrouvé restait muet pour toujours —
+seules les œuvres à mélangeur de couches, qui reconduisent leurs gains
+chaque frame, masquaient le défaut.
+
 **Vérifier au casque — le protocole de trois minutes.** Casque OBLIGATOIRE
 (et posé dans le bon sens : la plupart marquent L/R) — sur haut-parleur de
 téléphone, le binaural s'effondre, c'est pour cela que l'écran d'accueil le
@@ -707,6 +718,29 @@ l'éditeur. Vos anciens JSON n'ont rien à changer ; l'export, lui, écrit
 toujours du v2.
 
 ### Décrire une pièce (rooms/*.json)
+
+Lumière et matière d'une pièce (tout optionnel, réglable à l'œil dans
+l'onglet **Pièce** de l'éditeur) :
+
+```jsonc
+{
+  "keyLight": { "color": "#fff2e0", "intensity": 2.2,
+                "azimuth": 210, "elevation": 55,
+                "shadows": false },        // couper les ombres de CETTE pièce
+  "envIntensity": 1,                       // ambiance IBL (image d'environnement)
+  "ambient": { "color": "#404050", "intensity": 0.6 }, // lavis uniforme
+  "floor": { "size": 40, "color": "#141420", "texture": "dalles",
+             "textureRepeat": 2, "roughness": 0.4, "metalness": 0.1 },
+  "shell": { "width": 26, "depth": 20, "height": 6.5, "texture": "pierre",
+             "textureRepeat": 1.5, "roughness": 0.9, "metalness": 0 }
+}
+```
+
+L'**ambiante** relève tout d'un même ton — l'outil des pièces trop sombres
+qu'on ne veut pas récrire lampe à lampe (l'IBL, lui, éclaire par l'image et
+teinte selon les normales). `textureRepeat` resserre le motif procédural ;
+rugosité et métal font la matière — un sol ciré n'est pas un sable, même
+sous la même texture.
 
 ```jsonc
 {
@@ -802,29 +836,51 @@ champs numériques pour le placement précis, barre d'outils défilante.
 
 **Barre d'outils** : ◻ Objets / ▦ Voxel (**V**) / ✂ Découpe (**C**),
 📁 Médias (import de fichiers), 🔗 URL (média distant),
-⤒ JSON (réimport d'un export), 🎧 Écoute (table d'écoute, ci-dessous),
+⤒ JSON (réimport d'un export), 🎧 Mixage (l'onglet du même nom, ci-dessous),
 ＋ Objet, gizmos ↔ / ⟳ / ⤢ (raccourcis
 1 / 2 / 3), ⧉ dupliquer, 🗑 supprimer (Suppr), ⇪ Publier (écriture directe
 dans `content/`), ⟲ Revenir (version précédente), 💾 Exporter (repli par
 téléchargement), ✕ quitter.
 
-### 🎧 La table d'écoute
+### Le volet droit : trois onglets
 
-Un son spatialisé ne se règle ni à l'œil ni au JSON : il se règle **au
-casque, en marchant**, pendant que les chiffres disent ce que l'oreille
-croit entendre. Le panneau 🎧 montre en direct chaque voie vivante — œuvre,
-piste, **azimut**, **distance**, **modèle de panning** (HRTF ou equalpower
-selon le budget), gain de distance — et met sous les doigts :
+Le panneau de propriétés se lit en trois onglets — empilés, les réglages de
+pièce vivaient sous huit sections d'œuvre, introuvables :
 
-- les réglages **galerie** (largeur stéréo, pondérations, budget HRTF),
-  écrits dans `reglages.json` à la publication ;
-- les réglages **par piste** de l'œuvre sélectionnée (distance de
-  référence, décroissance, portée maximale, largeur), écrits dans le
-  document de scène **sans couper le son** (chemin rapide, comme le gain) ;
-- **⧉ Copier le JSON** — galerie ou œuvre, prêt à coller.
+- **Pièce** — l'endroit : brume, architecture, matière des surfaces
+  (texture, répétition, rugosité, métal — sol et murs), ciel, lumière clé
+  (couleur, azimut, hauteur, **ombres par pièce**), ambiance IBL, **lumière
+  ambiante**, arrivée, jetons, réglages généraux ;
+- **Œuvre** — la sélection : transform, apparence (dont la **lumière
+  d'appoint complète** : couleur, intensité, portée, décroissance, position
+  de la lampe), matière, son, modules, attribution. Sélectionner un objet
+  ouvre cet onglet ; tout désélectionner ramène à Pièce ;
+- **🎧 Mixage** — tout ce qui s'écoute (ci-dessous).
+
+La **hiérarchie** (volet gauche) ne déroule que la pièce courante — cliquer
+une autre pièce y va, et la déplie. La recherche rouvre tout : on cherche
+partout, c'est son objet.
+
+### 🎧 L'onglet Mixage
+
+Un mixage ne se règle ni à l'œil ni au JSON : il se règle **au casque, en
+marchant**, pendant que les chiffres disent ce que l'oreille croit entendre.
+
+- **La console** — une tranche par œuvre sonore de la pièce courante :
+  **VU-mètre** en direct, **fader de volume** (`baseGain`) et faders par
+  piste — écrits au document par le chemin rapide, le son ne coupe jamais
+  sous le doigt — et **M / S** (muet / solo). Muet et solo sont des gestes
+  de travail : ils débranchent le bus de l'œuvre du maître, rien n'est
+  écrit nulle part, et tout se rebranche en quittant l'onglet — comme on
+  relâche les solos en quittant une vraie console ;
+- **l'œuvre sélectionnée** — ses réglages spatiaux par piste (distance de
+  référence, décroissance, portée maximale, largeur) ;
+- **la galerie** — largeur stéréo, pondérations, budget HRTF, rangés dans
+  `reglages.json` à la publication ; **⧉ Copier le JSON** en prime ;
+- **les voies en direct** — azimut, distance, modèle de panning, gain.
 
 Le placement d'une piste (**ponctuelle** binaurale / **nappe stéréo**) se
-choisit dans l'inspecteur, section Son. Rien de tout cela n'existe dans le
+choisit dans l'onglet Œuvre, section Son. Rien de tout cela n'existe dans le
 build visiteur — le garde-fou y veille, comme pour le reste de l'éditeur.
 
 ### Importer des médias

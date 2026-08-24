@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { assetUrl, isWalkable } from './utils.js';
 import { buildSky, disposeSky, updateSkyUniforms } from './Sky.js';
-import { styleTexture, scaleBoxUV, scalePlaneUV, scaleWorldUV } from './textures.js';
+import { styleTexture, scaleBoxUV, scalePlaneUV, scaleWorldUV, TILE } from './textures.js';
 import { delaiDe, fermer, estFerme, tick as tickCooldown } from './Cooldown.js';
 
 const PORTAL_COLOR = 0x9f8cff;
@@ -102,6 +102,8 @@ export class RoomManager {
     if (room.shell) room.group.add(room.shell);
     room.keyLight = buildKeyLight(config, this.app.quality?.profile);
     if (room.keyLight) room.group.add(room.keyLight);
+    room.ambient = buildAmbient(config);
+    if (room.ambient) room.group.add(room.ambient);
     room.basculeMeshes = buildBascules(config);
     for (const m of room.basculeMeshes) room.group.add(m);
     room.sky = buildSky(config);
@@ -119,7 +121,17 @@ export class RoomManager {
    */
   applyKeyLight(room) {
     const cfg = room.config;
+    this.applyAmbient(room);
     const wanted = cfg.keyLight !== false;
+    // les ombres se décident par pièce (défaut : le profil) — les activer
+    // ou les couper alloue/libère une carte d'ombre : on reconstruit
+    const ombresVoulues = Boolean(this.app.quality?.profile?.shadows)
+      && cfg.keyLight?.shadows !== false;
+    if (room.keyLight && ombresVoulues !== room.keyLight.userData.ombres) {
+      room.group.remove(room.keyLight);
+      disposeKeyLight(room.keyLight);
+      room.keyLight = null;
+    }
     if (wanted !== Boolean(room.keyLight)) {
       if (room.keyLight) {
         room.group.remove(room.keyLight);
@@ -134,6 +146,22 @@ export class RoomManager {
     // reconstruction — le ciel et les ombres racontent la même heure
     if (room.sky) updateSkyUniforms(room.sky, cfg);
     if (room.isCurrent) this.applyEnvIntensity(room);
+  }
+
+  /** Règle la lumière ambiante d'une pièce sur place (création/retrait compris). */
+  applyAmbient(room) {
+    const a = room.config.ambient;
+    const voulue = Boolean(a) && Number(a.intensity) > 0;
+    if (voulue !== Boolean(room.ambient)) {
+      if (room.ambient) { room.group.remove(room.ambient); room.ambient.dispose(); }
+      room.ambient = buildAmbient(room.config);
+      if (room.ambient) room.group.add(room.ambient);
+      return;
+    }
+    if (room.ambient) {
+      room.ambient.color.set(a.color ?? '#ffffff');
+      room.ambient.intensity = a.intensity;
+    }
   }
 
   /**
@@ -1084,14 +1112,17 @@ export function buildFloor(config) {
   // pièce reste maîtresse, la texture n'apporte que la matière
   const map = styleTexture(opt.texture);
   const geometry = new THREE.PlaneGeometry(size, size);
-  if (map) scalePlaneUV(geometry, size, size);
+  // `textureRepeat` resserre ou étale le motif ; rugosité et métal donnent
+  // la matière — un sol ciré n'est pas un sable, même sous la même texture
+  const rep = Number(opt.textureRepeat) > 0 ? opt.textureRepeat : 1;
+  if (map) scalePlaneUV(geometry, size * rep, size * rep);
   const plane = new THREE.Mesh(
     geometry,
     new THREE.MeshStandardMaterial({
       color: new THREE.Color(opt.color ?? FLOOR_DEFAULTS.color),
       map,
-      roughness: 0.95,
-      metalness: 0.05
+      roughness: Number.isFinite(opt.roughness) ? opt.roughness : 0.95,
+      metalness: Number.isFinite(opt.metalness) ? opt.metalness : 0.05
     })
   );
   plane.rotation.x = -Math.PI / 2;
@@ -1324,7 +1355,8 @@ export function buildShell(config) {
     if (!materials.has(color)) {
       materials.set(color, new THREE.MeshStandardMaterial({
         color: new THREE.Color(color), map: wallMap,
-        roughness: 0.88, metalness: 0.04
+        roughness: Number.isFinite(opt.roughness) ? opt.roughness : 0.88,
+        metalness: Number.isFinite(opt.metalness) ? opt.metalness : 0.04
       }));
     }
     return materials.get(color);
@@ -1338,9 +1370,11 @@ export function buildShell(config) {
   // matériau des vitres invisibles : partagé, jamais rendu
   const invisibleMat = new THREE.MeshBasicMaterial({ visible: false });
 
+  // `textureRepeat` de la coque : resserre le motif des murs partout
+  const repMur = Number(opt.textureRepeat) > 0 ? opt.textureRepeat : 1;
   const box = (gw, gh, gd, x, y, z, mat) => {
     const g = new THREE.BoxGeometry(gw, gh, gd);
-    if (mat.map) scaleBoxUV(g, gw, gh, gd);
+    if (mat.map) scaleBoxUV(g, gw * repMur, gh * repMur, gd * repMur);
     const m = new THREE.Mesh(g, mat);
     m.position.set(x, y, z);
     m.receiveShadow = true;
@@ -1393,7 +1427,7 @@ export function buildShell(config) {
     const ouvertures = winsOf(wall)
       .map((o) => baie(o, length, h)).filter(Boolean);
     const geo = murPerce(length, h, ouvertures, SINK);
-    if (wallMap) scaleWorldUV(geo);
+    if (wallMap) scaleWorldUV(geo, TILE / repMur);
     const m = new THREE.Mesh(geo, matFor(wall));
     m.position.set(x, 0, z);
     m.rotation.y = rotY;
@@ -1508,7 +1542,7 @@ export function buildKeyLight(config, profile) {
   const light = new THREE.DirectionalLight(new THREE.Color(opt.color), opt.intensity);
   light.name = 'lumiere-cle';
 
-  if (profile?.shadows) {
+  if (profile?.shadows && opt.shadows !== false) {
     light.castShadow = true;
     light.shadow.mapSize.setScalar(profile.shadowMapSize ?? 1024);
     // le biais normal évite l'acné d'ombre sans décoller les contacts
@@ -1520,6 +1554,7 @@ export function buildKeyLight(config, profile) {
   group.name = 'lumiere-cle-groupe';
   group.add(light, light.target);
   group.userData.light = light;
+  group.userData.ombres = light.castShadow;
   orientKeyLight(group, config);
   frameKeyLightShadow(group, config);
   return group;
@@ -1560,6 +1595,25 @@ function disposeKeyLight(group) {
   const light = group.userData.light;
   light.shadow?.map?.dispose();
   light.dispose();
+}
+
+/* ---------------------------------------------------- lumière ambiante --- */
+
+/**
+ * Lumière AMBIANTE de pièce — un lavis uniforme, optionnel :
+ *   "ambient": { "color": "#404050", "intensity": 0.6 }
+ * L'environnement (IBL, `envIntensity`) éclaire déjà par l'image, mais il
+ * teinte selon les normales ; l'ambiante, elle, relève tout d'un même ton —
+ * c'est l'outil des pièces trop sombres qu'on ne veut pas récrire lampe à
+ * lampe. Absente (ou intensité 0), aucune lumière n'est créée.
+ */
+export function buildAmbient(config) {
+  const a = config?.ambient;
+  if (!a || !(Number(a.intensity) > 0)) return null;
+  const light = new THREE.AmbientLight(
+    new THREE.Color(a.color ?? '#ffffff'), a.intensity);
+  light.name = 'lumiere-ambiante';
+  return light;
 }
 
 /* ------------------------------------------------------ zones de bascule --- */

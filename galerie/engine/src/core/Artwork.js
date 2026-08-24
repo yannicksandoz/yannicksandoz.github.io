@@ -193,8 +193,18 @@ export class Artwork {
     this.light = new THREE.PointLight(
       new THREE.Color(this.config.lightColor ?? '#7a6cff'),
       this.lightBaseIntensity, 14, 1.8);
-    this.light.position.set(0, 0.4, 1.6);
     this.group.add(this.light);
+    this._poserLumiere();
+  }
+
+  /** Portée, décroissance et position de la lampe — relues de la config. */
+  _poserLumiere() {
+    const cfg = this.config;
+    const n = (v, repli) => (Number.isFinite(v) ? v : repli);
+    this.light.distance = Math.max(0, n(cfg.lightDistance, 14));
+    this.light.decay = Math.max(0, n(cfg.lightDecay, 1.8));
+    const off = Array.isArray(cfg.lightOffset) ? cfg.lightOffset : [];
+    this.light.position.set(n(off[0], 0), n(off[1], 0.4), n(off[2], 1.6));
   }
 
   /**
@@ -215,6 +225,7 @@ export class Artwork {
     }
     this.light.color.set(this.config.lightColor ?? '#7a6cff');
     this.light.intensity = this.lightBaseIntensity;
+    this._poserLumiere();
   }
 
   /** Chemin de config → URL réelle (les imports de l'éditeur sont des blobs). */
@@ -618,6 +629,14 @@ export class Artwork {
     if (active) {
       const t0 = ctx.currentTime + 0.05;
       for (const s of this.stems) {
+        // Le gain de la piste a été FONDU À ZÉRO à la suspension (voir
+        // l'arrêt en fondu, ci-dessous) : sans le rendre ici, une œuvre
+        // suspendue — budget de voix, pièce quittée — rejouait ses sources
+        // dans un gain mort et restait muette pour toujours. C'était le
+        // monolithe qui « ne revient pas » : seul un mélangeur de couches,
+        // qui reconduit les gains chaque frame, masquait le défaut.
+        s.gain.gain.cancelScheduledValues(t0);
+        s.gain.gain.setTargetAtTime(s.cfg.gain ?? 1, t0, 0.12);
         const src = ctx.createBufferSource();
         src.buffer = s.buffer;
         src.loop = true;
