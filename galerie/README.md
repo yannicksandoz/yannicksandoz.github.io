@@ -882,6 +882,43 @@ sommation**, pas un correcteur de niveau, et elle est livrée **éteinte** —
 `audio.console.attaque` dose combien on la pousse : 0 la table s'efface et la
 somme redevient une addition, 1 c'est le réglage de Chris.
 
+**Les deux bornes de l'audible — Ultrasonic et Infrasonic**
+(`engine/src/core/Hygiene.js`, d'après *Ultrasonic* et *Infrasonic* de Chris
+Johnson, MIT). Ce qu'ils enlèvent, personne ne l'entend — et c'est justement
+pour cela : ce qui s'y trouve n'est pas de la musique, c'est le déchet des
+étages d'avant, et il coûte.
+
+- **en bas**, chaque boucle de réverbe, chaque bloqueur de continu, chaque
+  enveloppe laisse un résidu sous vingt hertz. Il ne s'entend pas, il OCCUPE
+  — il mange de la marge et fait travailler le limiteur sur du vent ;
+- **en haut**, les mises en forme non linéaires de la chaîne (Console6, la
+  saturation sinus de Pressure4, l'écrêteur, le conditionnement de Galactic2)
+  fabriquent des harmoniques au-dessus de vingt kilohertz. Le convertisseur
+  d'un casque bon marché les replie en intermodulation, et cela, ça
+  s'entend — comme une aigreur qu'on croit venir du mixage.
+
+Un Butterworth d'**ordre dix** de chaque côté, en cinq biquads, avec les cinq
+facteurs de qualité de Chris. Mesuré sur le nœud réellement installé, en
+différentiel : **−3,01 dB pile** à 20 Hz et à 20 kHz, **−0,00 dB** à 100 Hz,
+1 kHz et 10 kHz, et rien qui sorte à 5 Hz (−117 dB). Les deux se coupent
+séparément, dans l'onglet *Mixage* — un filtre dont on n'entend pas l'effet
+doit pouvoir se couper, sans quoi on ne saura jamais s'il fait quelque chose.
+
+**AVANT LE LIMITEUR, jamais après**, et ce n'est pas un détail de goût : un
+filtre raide augmente le facteur de crête d'un signal (il ôte des partiels,
+ceux qui restent se réalignent). Mesuré sur du bruit blanc à ±0,9 — le pire
+cas concevable, et pas ce que porte la galerie — la sortie monte à **1,57**,
+du fait du coupe-haut ; sur un signal musical (un la à 0,9) elle ressort à
+0,9000 exactement. Un plafond doit être le DERNIER mot sur les crêtes :
+filtrer derrière l'écrêteur arrondirait ce qu'il vient d'écrêter et
+repousserait des échantillons au-dessus du plafond qu'on venait de garantir.
+
+Le worklet travaille en **double précision**, et c'est nécessaire : à vingt
+hertz, les pôles du dernier biquad sont à 0,9996 du cercle unité. Le repli
+natif — dix `BiquadFilterNode` — n'est pas une approximation : le navigateur
+applique la même forme (K = tan(π·f/taux), Q linéaire), ce sont les mêmes
+coefficients par un autre chemin.
+
 **Le limiteur du maître — approcher, ce n'est pas « plus fort ».**
 Le bus maître allait droit à la sortie. Quinze sources qui s'additionnent y
 saturent, et l'approche d'une œuvre ne s'entendait que comme un volume qui
@@ -1696,7 +1733,8 @@ vendoré** : les plugins d'**Airwindows** (Chris Johnson), sous licence MIT,
 portés en JavaScript — *Pressure4* et *ClipOnly2* au limiteur du maître,
 *Console6* à la table de mixage, *Monitoring* à l'écoute de contrôle,
 *Verbity* et *ClearCoat* aux pièces (la queue et ses premiers retours),
-*Galactic2* aux espaces qui n'en sont pas et
+*Galactic2* aux espaces qui n'en sont pas, *Ultrasonic* et *Infrasonic* aux
+bornes de l'audible, et
 *Distance2* au lointain. Chaque fichier porte le copyright, et la console de
 mixage l'affiche.
 

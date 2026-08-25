@@ -684,6 +684,7 @@ export class App {
         this.spatial.update(dt);
         this.audio.updateListener(this.camera);
         this.audio.appliquerLimiteur(this.reglages?.audio?.limiteur);
+        this.audio.appliquerHygiene(this.reglages?.audio?.hygiene);
         this.audio.appliquerConsole(this.reglages?.audio?.console);
       };
       tick();
@@ -709,6 +710,7 @@ export class App {
       this.spatial.update(dt);
       this.audio.updateListener(this.camera);
       this.audio.appliquerLimiteur(this.reglages?.audio?.limiteur);
+      this.audio.appliquerHygiene(this.reglages?.audio?.hygiene);
       this.audio.appliquerConsole(this.reglages?.audio?.console);
 
       // Visite audio ouverte : le panneau opaque couvre tout — rendre des

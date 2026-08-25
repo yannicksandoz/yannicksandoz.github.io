@@ -10,6 +10,7 @@
  * force la réouverture du canal audio quand resume() seul ne suffit pas.
  */
 import { Limiteur } from './Limiteur.js';
+import { Hygiene } from './Hygiene.js';
 import { Console, normaliserConsole } from './Console.js';
 import { Ecoute } from './Ecoute.js';
 import { Reverb } from './Reverb.js';
@@ -21,6 +22,7 @@ export class AudioEngine {
     this.ctx = null;
     this.master = null;
     this.limiteur = new Limiteur();
+    this.hygiene = new Hygiene();
     this.console = new Console();
     this.ecoute = new Ecoute();
     this.reverb = new Reverb();
@@ -60,6 +62,13 @@ export class AudioEngine {
       // casque. Elle attend le limiteur, sans quoi les deux se disputeraient
       // le fil qui va à la sortie.
       this.limiteur.installer(this.ctx, sortieConsole, this.ctx.destination)
+        // L'HYGIÈNE S'INSÈRE AVANT LE PLAFOND, jamais après : filtrer
+        // derrière un écrêteur arrondit ce qu'il vient d'écrêter et repousse
+        // des échantillons au-dessus du plafond qu'on venait de garantir.
+        // Elle se pose donc entre la sortie de la console et l'entrée du
+        // limiteur — c'est-à-dire devant sa marge (voir Limiteur.installer).
+        .then(() => this.hygiene.installer(
+          this.ctx, sortieConsole, this.limiteur.entree ?? this.ctx.destination))
         .then(() => this.ecoute.installer(
           this.ctx, this.limiteur._sortie ?? sortieConsole, this.ctx.destination))
         // La réverbération entre par sa propre TRANCHE, sans départ : lui en
@@ -119,6 +128,16 @@ export class AudioEngine {
     if (signature === this._signatureLimiteur) return;
     this._signatureLimiteur = signature;
     this.limiteur.regler(reglages ?? undefined);
+  }
+
+  /** Idem pour les deux bornes du maître (voir Hygiene.js). */
+  appliquerHygiene(reglages) {
+    if (!this.hygiene) return;
+    let signature;
+    try { signature = JSON.stringify(reglages ?? null); } catch { return; }
+    if (signature === this._signatureHygiene) return;
+    this._signatureHygiene = signature;
+    this.hygiene.regler(reglages ?? undefined);
   }
 
   /**

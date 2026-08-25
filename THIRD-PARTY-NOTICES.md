@@ -20,7 +20,7 @@ Dernière vérification : 12 août 2026.
 | Composant | Version | Licence | Copyright |
 |---|---|---|---|
 | [three.js](https://threejs.org) | 0.166.1 | MIT | © 2010-2024 three.js authors |
-| [Airwindows](https://github.com/airwindows/airwindows) — `Pressure4`, `ClipOnly2`, `Console6`, `Monitoring`, `Verbity`, `Galactic2`, `Distance2`, `ClearCoat` | portage 2026 | MIT | © 2016, 2018 airwindows (Chris Johnson) |
+| [Airwindows](https://github.com/airwindows/airwindows) — `Pressure4`, `ClipOnly2`, `Console6`, `Monitoring`, `Verbity`, `Galactic2`, `Distance2`, `ClearCoat`, `Ultrasonic`, `Infrasonic` | portage 2026 | MIT | © 2016, 2018 airwindows (Chris Johnson) |
 
 **Airwindows est VENDORÉ, et porté.** Plusieurs plugins de Chris Johnson sont
 réécrits en JavaScript :
@@ -48,6 +48,10 @@ réécrits en JavaScript :
   salle de 96 places au hall de 1541), leurs quatre étages de Householder et
   l'étage SubTight, avec les valeurs de Chris — qui ne les a pas réglées mais
   CHERCHÉES, une sur des centaines de milliers de tirages ;
+- `engine/src/core/hygiene-worklet.js` — *Ultrasonic* et *Infrasonic*, les
+  deux bornes de l'audible : un Butterworth d'ordre dix en cinq biquads de
+  chaque côté, avec les fréquences (20 kHz, 20 Hz) et les cinq facteurs de
+  qualité de Chris ;
 - `engine/src/core/lointain-worklet.js` — *Distance2* (lui-même l'hybride de
   ses plugins *Distance* et *Atmosphere*) : la cascade de treize limiteurs de
   pente aux seuils du nombre d'or, l'étage d'*offset air compression* et
@@ -59,15 +63,19 @@ l'auteur. La licence MIT n'exige rien de plus que cette mention — la
 respecter est le minimum, et ce dépôt refuse de publier une œuvre dont
 l'attribution est incomplète : la règle vaut d'abord pour lui.
 
-**Trois écarts assumés au réglage d'origine**, documentés dans le code : le
+**Quatre écarts assumés au réglage d'origine**, documentés dans le code : le
 limiteur *rend* le gain de rattrapage de Pressure4 (sans quoi le brancher
 monte toute la galerie de +3 dB) et dose sa saturation sinus par un réglage
 `caractere`, à zéro par défaut ; le lointain coupe le CONTINU que pose
 l'*offset air compression* de Distance2 (0,12 mesuré à fond de course, même
 sur du silence — quinze œuvres l'additionneraient dans le limiteur du
-maître), sous 10 Hz et sur la seule part traitée. Les algorithmes ne sont pas
-modifiés ; ce sont des robinets posés autour d'eux, et ils se remettent à la
-valeur de Chris.
+maître), sous 10 Hz et sur la seule part traitée. Enfin, l'hygiène BORNE ses
+coupures à 0,46 fois le taux d'échantillonnage : Chris pose 20 kHz sans
+condition, ce qui est juste dans une station, et le navigateur ouvre parfois
+un contexte à 22 050 Hz — 20 kHz passerait alors au-dessus de Nyquist et le
+biquad partirait en oscillation. À 44,1 et 48 kHz la borne ne mord pas. Les
+algorithmes ne sont pas modifiés ; ce sont des robinets posés autour d'eux,
+et ils se remettent à la valeur de Chris.
 
 Le moteur importe également des **modules d'exemple** de three.js
 (`three/addons/…`, dossier `examples/jsm` du dépôt three.js). Ils sont publiés
