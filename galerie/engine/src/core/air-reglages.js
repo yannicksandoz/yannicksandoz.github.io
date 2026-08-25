@@ -40,7 +40,12 @@ export const AIR_DEFAUTS = {
   // Combien le départ vers la réverbe rattrape la distance. 0 = le rapport
   // direct/réverbe reste figé (l'ancien comportement), 1 = la réverbe garde
   // son niveau quand on s'éloigne.
-  reverbDistance: 0.75
+  reverbDistance: 0.75,
+  // La DISTANCE CRITIQUE, en mètres : en deçà, le direct domine et la pièce
+  // se referme. C'est le pendant du rattrapage ci-dessus, et il manquait —
+  // sans lui, coller l'oreille à une œuvre laissait la salle aussi présente
+  // qu'à l'autre bout (3,8 dB sous le direct, mesuré). 0 = pas de loi.
+  proche: 10
 };
 
 /** La plus basse coupure qu'on s'autorise : en dessous, ce n'est plus un son. */
@@ -57,8 +62,38 @@ export function normaliserAir(brut) {
     actif: c.actif !== false,
     distance: borne(c.distance, 1, 200, AIR_DEFAUTS.distance),
     intensite: borne(c.intensite, 0, 1, AIR_DEFAUTS.intensite),
-    reverbDistance: borne(c.reverbDistance, 0, 1, AIR_DEFAUTS.reverbDistance)
+    reverbDistance: borne(c.reverbDistance, 0, 1, AIR_DEFAUTS.reverbDistance),
+    proche: borne(c.proche, 0, 60, AIR_DEFAUTS.proche)
   };
+}
+
+/**
+ * Le plus sec qu'on s'autorise en collant l'oreille à une œuvre.
+ *
+ * Pas zéro : une pièce qui disparaît complètement s'entend comme un défaut —
+ * même le nez sur une source, il reste des murs autour. −16 dB sous le
+ * départ nominal, c'est un rapport direct/réverbe de studio.
+ */
+export const PLANCHER_PROCHE = 0.15;
+
+/**
+ * Facteur à appliquer au départ de réverbe quand on est PRÈS.
+ *
+ * `compensationReverb` fait remonter la réverbe quand on s'éloigne ; celle-ci
+ * la fait tomber quand on approche, et les deux ensemble font enfin une loi
+ * complète. Sans elle, le rapport direct/réverbe mesuré à un mètre valait
+ * 3,8 dB — autant dire qu'on entendait la salle autant que l'œuvre — et il
+ * s'AMÉLIORAIT en s'éloignant, ce qui est l'inverse de ce que fait une pièce.
+ *
+ * La loi est linéaire jusqu'à la distance critique : à mi-chemin, moitié
+ * moins de départ. C'est plus simple que la vraie acoustique et cela suffit —
+ * ce qu'on cherche, c'est que s'approcher NETTOIE.
+ */
+export function proximiteReverb(distance, reglages) {
+  const r = normaliserAir(reglages);
+  if (r.proche <= 0) return 1;
+  const d = Math.max(0, Number(distance) || 0);
+  return Math.min(1, Math.max(PLANCHER_PROCHE, d / r.proche));
 }
 
 /**

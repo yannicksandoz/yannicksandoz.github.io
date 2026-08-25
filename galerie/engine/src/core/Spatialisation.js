@@ -1,5 +1,6 @@
 import * as THREE from 'three';
-import { coupureAir, compensationReverb, normaliserAir, PLANCHER } from './air-reglages.js';
+import { coupureAir, compensationReverb, proximiteReverb, normaliserAir, PLANCHER }
+  from './air-reglages.js';
 
 /**
  * Spatialisation binaurale — une VOIE par piste, au cœur du moteur.
@@ -255,7 +256,8 @@ export class Spatialisation {
     _r.crossVectors(_f, _u);                    // droite
     const glob = this.reglages;
     const t = this.app.audio.ctx.currentTime;
-    // œuvre → la plus forte atténuation de ses pistes, pour le départ réverbe
+    // œuvre → { g : la plus forte atténuation de ses pistes, d : la distance
+    // de la plus proche } — les deux décident du départ vers la pièce
     const compensations = this._compensations ??= new Map();
     compensations.clear();
 
@@ -349,15 +351,25 @@ export class Spatialisation {
       // On garde la PLUS FORTE atténuation de l'œuvre : c'est la piste la
       // plus proche qui décide de sa distance, comme pour le budget.
       const dejaVu = compensations.get(art);
-      if (dejaVu === undefined || g > dejaVu) compensations.set(art, g);
+      if (dejaVu === undefined) compensations.set(art, { g, d: voie.distance });
+      else {
+        if (g > dejaVu.g) dejaVu.g = g;
+        if (voie.distance < dejaVu.d) dejaVu.d = voie.distance;
+      }
     }
 
-    /* — le départ vers la pièce rattrape ce que la distance a ôté — */
+    /* — le départ vers la pièce suit la distance, dans les deux sens — */
+    // En s'éloignant, il REMONTE de ce que l'atténuation a ôté ; en
+    // approchant, il TOMBE, parce qu'à un mètre d'une source on est très en
+    // deçà de la distance critique et que le direct doit écraser la salle.
+    // Les premières réflexions partagent ce départ : approcher nettoie les
+    // deux étages d'un coup.
     const reverb = this.app.audio?.reverb;
     if (reverb?.disponible) {
-      for (const [art, gainDistance] of compensations) {
+      for (const [art, { g, d }] of compensations) {
         if (!art.bus) continue;
-        reverb.compenser(art.bus, compensationReverb(gainDistance, glob.air), t);
+        reverb.compenser(art.bus,
+          compensationReverb(g, glob.air) * proximiteReverb(d, glob.air), t);
       }
     }
   }

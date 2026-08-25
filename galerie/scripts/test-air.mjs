@@ -8,7 +8,8 @@
  *
  * Lancer avec : npm test
  */
-import { coupureAir, compensationReverb, normaliserAir, AIR_DEFAUTS, PLANCHER }
+import { coupureAir, compensationReverb, proximiteReverb, normaliserAir,
+  AIR_DEFAUTS, PLANCHER, PLANCHER_PROCHE }
   from '../engine/src/core/air-reglages.js';
 
 let passed = 0, failed = 0;
@@ -98,6 +99,44 @@ console.log('\nle rapport direct/réverbe suit la distance');
     compensationReverb(0.1, { reverbDistance: 0.5 })
       < compensationReverb(0.1, { reverbDistance: 1 }),
     `${compensationReverb(0.1, { reverbDistance: 0.5 }).toFixed(2)}`);
+}
+
+console.log('\napprocher NETTOIE');
+{
+  const d = AIR_DEFAUTS;
+  // La loi qui manquait : mesuré, le rapport direct/réverbe valait 3,8 dB à
+  // un mètre et s'AMÉLIORAIT en s'éloignant. Une pièce fait l'inverse.
+  vrai('tout près, la pièce se referme', proximiteReverb(1, d) <= 0.2,
+    `×${proximiteReverb(1, d).toFixed(2)}`);
+  vrai('à la distance critique, elle est entière',
+    proximiteReverb(d.proche, d) === 1);
+  vrai('…et au-delà, elle ne monte pas davantage',
+    proximiteReverb(d.proche * 5, d) === 1);
+
+  // MONOTONE, comme la coupure : s'éloigner ne doit jamais assécher.
+  let fautes = 0;
+  let precedent = proximiteReverb(0, d);
+  for (let m = 0.25; m <= 60; m += 0.25) {
+    const f = proximiteReverb(m, d);
+    if (f < precedent - 1e-9) fautes++;
+    precedent = f;
+  }
+  check('la pièce s’ouvre sans jamais se refermer en route', fautes, 0);
+
+  vrai('mais elle ne disparaît jamais tout à fait',
+    proximiteReverb(0, d) === PLANCHER_PROCHE && PLANCHER_PROCHE > 0,
+    String(PLANCHER_PROCHE));
+  check('on peut couper la loi et retrouver l’ancien comportement',
+    [proximiteReverb(0, { proche: 0 }), proximiteReverb(50, { proche: 0 })], [1, 1]);
+  vrai('une distance illisible ne casse rien',
+    proximiteReverb(NaN, d) === PLANCHER_PROCHE
+      && proximiteReverb(-4, d) === PLANCHER_PROCHE);
+
+  // les deux lois se composent : loin ET compensé, près ET sec
+  const loin = compensationReverb(0.25, d) * proximiteReverb(40, d);
+  const pres = compensationReverb(1, d) * proximiteReverb(1, d);
+  vrai('au total, s’éloigner mouille et approcher sèche', loin > 1 && pres < 0.25,
+    `×${loin.toFixed(2)} au loin, ×${pres.toFixed(2)} tout près`);
 }
 
 console.log('\nréglages');

@@ -753,7 +753,22 @@ physique, pas du DSP emprunté :
    APRÈS l'atténuation — c'est ce qui permet au fader et au muet de la
    console d'agir aussi sur la réverbe — donc il tombait avec le direct et le
    rapport restait figé : on s'éloignait sans que la pièce se referme sur le
-   son.
+   son ;
+3. **…et il TOMBE quand on approche.** L'autre moitié de la même loi, et
+   elle manquait. Mesuré sinusoïde à l'appui : à un mètre d'une œuvre, la
+   réverbe se tenait à **3,8 dB** sous le direct — on entendait la salle
+   autant que l'œuvre — et le rapport s'AMÉLIORAIT en s'éloignant, l'inverse
+   de ce que fait une pièce. En deçà de la distance critique (`proche`,
+   10 m), le départ décroît linéairement jusqu'à un plancher de −16 dB : on
+   ne supprime jamais la salle, il reste des murs. Après : **15,7 dB à un
+   mètre**, et la pièce s'ouvre à mesure qu'on recule. Les premières
+   réflexions partagent ce départ — approcher nettoie les deux étages d'un
+   coup.
+
+Ce que ce n'était PAS, mesuré aussi : de la saturation. La distorsion
+harmonique du chemin complet (panner, air, distance, bus, console, limiteur)
+tient entre **0,05 et 0,26 %** à toute distance — inaudible. Ce qu'on
+entendait comme « saturé » était la pièce collée à l'oreille.
 
 Quatre réglages, dans `reglages.json` → `audio.air` (une pièce peut les
 redéfinir dans son propre `air`), et sous la main dans la **table d'écoute**
@@ -765,6 +780,7 @@ de l'éditeur :
 | `distance` | `12` | mètres où l'aigu tombe à 10 kHz |
 | `intensite` | `1` | dose la loi, en octaves : 0 aucun air, 1 la loi entière |
 | `reverbDistance` | `0.75` | combien le départ rattrape : 0 = rapport figé (l'ancien comportement) |
+| `proche` | `10` | distance critique (m) : en deçà, la pièce se referme. 0 = pas de loi |
 
 **L'œuvre qu'on n'atteindra pas — Distance2** (`engine/src/core/Lointain.js`,
 d'après *Distance2* de Chris Johnson, MIT — lui-même l'hybride de ses
