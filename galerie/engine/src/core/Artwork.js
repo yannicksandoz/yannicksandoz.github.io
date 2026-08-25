@@ -279,7 +279,16 @@ export class Artwork {
   async _loadVisual() {
     const cfg = this.config;
     try {
-      if (cfg.image) {
+      if (cfg.scan) {
+        // un SCAN gaussien (splatting) : la bibliothèque de rendu vit dans
+        // son propre morceau et n'est téléchargée qu'ici, à la première
+        // œuvre qui en a besoin — voir `core/scans.js`
+        const { creerScan } = await import('./scans.js');
+        const holder = await this.app.loading.track(
+          creerScan(this._resolve(cfg.scan), { taille: cfg.scanTaille })
+        );
+        this._setMesh(holder);
+      } else if (cfg.image) {
         const tex = await this.app.loading.track(
           textureLoader.loadAsync(this._resolve(cfg.image))
         );
@@ -309,7 +318,7 @@ export class Artwork {
       } else if (isPrimitive(cfg.model?.shape)) {
         this._setMesh(buildPrimitive(cfg.model));
       } else {
-        console.warn(`[galerie] Œuvre ${cfg.id} : ni image, ni vidéo, ni modèle reconnu.`);
+        console.warn(`[galerie] Œuvre ${cfg.id} : ni image, ni vidéo, ni scan, ni modèle reconnu.`);
       }
       this._visualLoaded = true;
       this._clearMediaError();

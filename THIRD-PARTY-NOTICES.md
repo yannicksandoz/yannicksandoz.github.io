@@ -26,6 +26,7 @@ Dernière vérification : 12 août 2026.
 | [three-mesh-bvh](https://github.com/gkjohnson/three-mesh-bvh) | 0.9.14 | MIT | © 2018 Garrett Johnson |
 | Matières « hardwood2 » et « brick » *(rapatriées du dépôt three.js, tag r166, désaturées et réduites)* | r166 | MIT | © 2010-2024 three.js authors |
 | Panoramas « aube » et « appartement » *(via `@pmndrs/assets`, HDRI Poly Haven)* | 1.7.0 | **CC0-1.0** | domaine public |
+| [GaussianSplats3D](https://github.com/mkkellogg/GaussianSplats3D) — rendu des œuvres « scan » | 0.4.7 | MIT | © 2023 Mark Kellogg |
 
 **Le lettrage est un PORTAGE de Slug, et le crédit est une CONDITION.** Les
 shaders de référence d'Eric Lengyel (SlugPixelShader.hlsl,
