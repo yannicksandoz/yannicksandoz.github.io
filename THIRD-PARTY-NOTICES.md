@@ -187,12 +187,20 @@ qu'ils suivent le rythme de développement des exemples, pas celui du cœur :
 
 Le mode Auteur embarque en outre
 [three-gpu-pathtracer](https://github.com/gkjohnson/three-gpu-pathtracer)
-(0.0.23, MIT, © 2022 Garrett Johnson) : le bouton « 📸 Photo » de la barre
+(0.0.23, MIT, © 2022 Garrett Johnson) : le bouton « Photo » de la barre
 d'outils, un rendu de la vue courante par transport de lumière, pour tirer
 une image de presse de la vraie scène. La bibliothèque est chargée
 dynamiquement au premier clic et n'existe que dans le build Auteur — le
 garde-fou de publication refuse un build Visiteur qui en porterait la
 moindre trace.
+
+Les icônes de la barre d'outils de l'éditeur viennent de
+[Lucide](https://lucide.dev) (ISC, © 2026 Lucide Icons and Contributors ;
+certaines icônes dérivent de Feather, MIT, © Cole Bemis). Elles sont
+**vendorées** : `lucide-static` est une dépendance de développement, et
+`scripts/genere-icones.mjs` recopie les tracés des icônes utilisées dans un
+module généré (`engine/src/editor/icones.js`) qui porte le texte ISC et le
+crédit. Rien de Lucide n'atteint le build Visiteur.
 
 ### Outillage (jamais livré)
 

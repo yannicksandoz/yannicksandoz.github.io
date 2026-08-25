@@ -29,7 +29,11 @@ const EMPREINTES_EDITEUR = [
   'sauvegarde-panel', 'data-sv-',
   // la photo path-tracée est un outil d'AUTEUR : ni la bibliothèque ni son
   // bouton n'ont leur place dans le build visiteur
-  'WebGLPathTracer', 'photo-progres'
+  'WebGLPathTracer', 'photo-progres',
+  // les icônes Lucide n'habillent que l'éditeur ; « lucide.dev » est la
+  // chaîne du crédit, qui survit à la minification — le mot français
+  // « lucide » seul serait un faux positif possible dans du contenu
+  'lucide.dev'
 ];
 
 /**
