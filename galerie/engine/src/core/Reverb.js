@@ -104,7 +104,15 @@ export class Reverb {
    * rester sèche dans une salle qui résonne.
    */
   brancherDepart(bus, facteur = 1) {
-    if (!this.ctx || this.departs.has(bus)) return;
+    // ON NOTE TOUJOURS, MÊME SANS CONTEXTE. Refuser ici tant que `installer`
+    // n'a pas rendu la main laissait DÉFINITIVEMENT sèches les œuvres
+    // branchées pendant ce temps — et c'est justement le cas de la première
+    // pièce, qui se charge pendant que le worklet s'enregistre. Le bogue ne
+    // se voyait qu'au premier lancement, une fois sur deux, et la salle
+    // d'entrée était la seule touchée : le pire des bogues.
+    // La carte accepte un départ sans gain ; `_ouvrir` le posera, ici ou
+    // depuis `installer` qui rattrape tout ce qui attend.
+    if (this.departs.has(bus)) return;
     const depart = { facteur, gain: null };
     this.departs.set(bus, depart);
     this._ouvrir(bus, depart);
@@ -112,7 +120,7 @@ export class Reverb {
 
   /** Crée le gain de départ — dès que la réverbération est là, pas avant. */
   _ouvrir(bus, depart) {
-    if (!this.disponible || depart.gain) return;
+    if (!this.ctx || !this.disponible || depart.gain) return;
     const gain = this.ctx.createGain();
     gain.gain.value = (this.reglages.actif ? this.reglages.envoi : 0) * depart.facteur;
     bus.connect(gain);
