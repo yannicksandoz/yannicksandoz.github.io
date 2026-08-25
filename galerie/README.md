@@ -951,6 +951,38 @@ deux fois — ils concordent sur les deux cent soixante-quatre paires. Le seul
 cran par échantillon ; le test réimplémente sa version naïve et exige
 l'égalité **au bit près** sur les huit couleurs.
 
+**Ce qui empêche la galerie d'être parfaite — ToTape6**
+(`engine/src/core/Bande.js`, d'après *ToTape6* de Chris Johnson, MIT). Un
+mixage fait chez soi sonne numérique moins par sa COULEUR que par sa
+STABILITÉ : rien ne bouge, rien ne pèse, rien ne cède. La bande apporte les
+trois d'un coup.
+
+- **le pleurage.** La vitesse de défilement n'est pas constante, et le signal
+  est relu d'un tampon à une position qui oscille. C'est une modulation de
+  HAUTEUR, pas un effet posé dessus — et c'est le seul étage de toute la
+  chaîne qui en fasse une. Mesuré au navigateur sur un sinus à 1 kHz, par
+  l'écart de phase entre les deux moitiés d'un même tampon : **0,0016 rad**
+  sans pleurage, **0,83** avec ;
+- **la bosse de tête.** Une résonance dans le bas, non linéaire (l'état est
+  cubé puis passé au sinus), qui donne du poids à ce qui n'en a pas. Mesuré :
+  à 60 Hz, 0,431 → 0,660 ; à 4 kHz, 0,431 → 0,434, c'est-à-dire rien ;
+- **l'écrasement.** Le « mojo » de Chris, `sin(x·|x|^¼·π/2) / |x|^¼`, qui
+  aplatit très doucement bien avant d'écrêter. Relevé point par point, la
+  courbe d'entrée-sortie : 0,1 → 0,157 · 0,5 → 0,745 · 0,9 → 1,113 · 2,0 →
+  1,233. Elle se couche, elle ne casse pas, et rien ne sort au-dessus du
+  plafond de 0,99.
+
+Un détail qui n'en est pas un : le résidu. La bride que Chris pose sur la
+bosse de tête cesse d'agir dès que l'état est plus petit qu'elle, donc la
+bosse se GARE autour de 1,3·10⁻⁴ au lieu de rejoindre zéro — environ −105 dB
+de continu après un long silence. C'est l'algorithme d'origine, c'est
+inaudible, et l'Infrasonic de l'hygiène, juste derrière, l'ôte de toute
+façon. Un test vérifie que cela ne dérive pas.
+
+Le hasard du pleurage vient d'un générateur à nous et non du dither, qu'on
+ne porte pas : il est donc **reproductible** d'une visite à l'autre. Ce n'est
+pas un défaut ici, et cela rend le portage éprouvable.
+
 **Les deux bornes de l'audible — Ultrasonic et Infrasonic**
 (`engine/src/core/Hygiene.js`, d'après *Ultrasonic* et *Infrasonic* de Chris
 Johnson, MIT). Ce qu'ils enlèvent, personne ne l'entend — et c'est justement
@@ -1803,7 +1835,7 @@ portés en JavaScript — *Pressure4* et *ClipOnly2* au limiteur du maître,
 *Console6* à la table de mixage, *Monitoring* à l'écoute de contrôle,
 *Verbity* et *ClearCoat* aux pièces (la queue et ses premiers retours),
 *Galactic2* aux espaces qui n'en sont pas, *Ultrasonic* et *Infrasonic* aux
-bornes de l'audible, *Channel9* au pupitre, *BussColors4* à sa matière, et
+bornes de l'audible, *Channel9* au pupitre, *BussColors4* à sa matière, *ToTape6* à la bande, et
 *Distance2* au lointain. Chaque fichier porte le copyright, et la console de
 mixage l'affiche.
 

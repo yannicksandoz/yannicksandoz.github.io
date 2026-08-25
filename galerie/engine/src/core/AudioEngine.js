@@ -13,6 +13,7 @@ import { Limiteur } from './Limiteur.js';
 import { Hygiene } from './Hygiene.js';
 import { Pupitre } from './Pupitre.js';
 import { Couleurs } from './Couleurs.js';
+import { Bande } from './Bande.js';
 import { Console, normaliserConsole } from './Console.js';
 import { Ecoute } from './Ecoute.js';
 import { Reverb } from './Reverb.js';
@@ -27,6 +28,7 @@ export class AudioEngine {
     this.hygiene = new Hygiene();
     this.pupitre = new Pupitre();
     this.couleurs = new Couleurs();
+    this.bande = new Bande();
     this.console = new Console();
     this.ecoute = new Ecoute();
     this.reverb = new Reverb();
@@ -81,9 +83,17 @@ export class AudioEngine {
         // elle : d'abord ce que la table n'arrive pas à suivre, ensuite la
         // matière de son bus. On monte donc la couleur contre l'hygiène, puis
         // le pupitre contre la couleur.
-        .then(() => this.couleurs.installer(
+        // LA BANDE en dernier des étages de caractère : on la monte donc
+        // EN PREMIER, contre l'hygiène, et les autres se posent devant elle,
+        // chacun contre le précédent. L'ordre entendu est :
+        //   console → pupitre → couleur → bande → hygiène → marge → plafond
+        .then(() => this.bande.installer(
           this.ctx, sortieConsole,
           this.hygiene.entree ?? this.limiteur.entree ?? this.ctx.destination))
+        .then(() => this.couleurs.installer(
+          this.ctx, sortieConsole,
+          this.bande.entree ?? this.hygiene.entree
+          ?? this.limiteur.entree ?? this.ctx.destination))
         .then(() => this.pupitre.installer(
           this.ctx, sortieConsole,
           this.couleurs.entree ?? this.hygiene.entree
@@ -147,6 +157,16 @@ export class AudioEngine {
     if (signature === this._signatureLimiteur) return;
     this._signatureLimiteur = signature;
     this.limiteur.regler(reglages ?? undefined);
+  }
+
+  /** Idem pour la bande (voir Bande.js). */
+  appliquerBande(reglages) {
+    if (!this.bande) return;
+    let signature;
+    try { signature = JSON.stringify(reglages ?? null); } catch { return; }
+    if (signature === this._signatureBande) return;
+    this._signatureBande = signature;
+    this.bande.regler(reglages ?? undefined);
   }
 
   /** Idem pour la matière du bus (voir Couleurs.js). */

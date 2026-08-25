@@ -20,7 +20,7 @@ Dernière vérification : 12 août 2026.
 | Composant | Version | Licence | Copyright |
 |---|---|---|---|
 | [three.js](https://threejs.org) | 0.166.1 | MIT | © 2010-2024 three.js authors |
-| [Airwindows](https://github.com/airwindows/airwindows) — `Pressure4`, `ClipOnly2`, `Console6`, `Monitoring`, `Verbity`, `Galactic2`, `Distance2`, `ClearCoat`, `Ultrasonic`, `Infrasonic`, `Channel9`, `BussColors4` | portage 2026 | MIT | © 2016, 2018 airwindows (Chris Johnson) |
+| [Airwindows](https://github.com/airwindows/airwindows) — `Pressure4`, `ClipOnly2`, `Console6`, `Monitoring`, `Verbity`, `Galactic2`, `Distance2`, `ClearCoat`, `Ultrasonic`, `Infrasonic`, `Channel9`, `BussColors4`, `ToTape6` | portage 2026 | MIT | © 2016, 2018 airwindows (Chris Johnson) |
 
 **Airwindows est VENDORÉ, et porté.** Plusieurs plugins de Chris Johnson sont
 réécrits en JavaScript :
@@ -48,6 +48,10 @@ réécrits en JavaScript :
   salle de 96 places au hall de 1541), leurs quatre étages de Householder et
   l'étage SubTight, avec les valeurs de Chris — qui ne les a pas réglées mais
   CHERCHÉES, une sur des centaines de milliers de tirages ;
+- `engine/src/core/bande-worklet.js` — *ToTape6*, la bande : le pleurage
+  interpolé sur un tampon de cinq cents cases, la bosse de tête non linéaire
+  et son passe-bande, l'adoucissement des aigus, l'étage « mojo », l'UnBox et
+  l'écrêteur ADClip ;
 - `engine/src/core/couleurs-worklet.js` — *BussColors4*, les huit couleurs de
   bus (Dark, Rock, Lush, Vibe, Holo, Punch, Steel, Tube) : les huit jeux de
   trente-trois coefficients relevés par Chris sur du vrai matériel, leurs
@@ -87,7 +91,7 @@ copyright à la minification — l'invariant est vérifié sur le RÉSULTAT, com
 les autres. Ce dépôt refuse de publier une œuvre dont l'attribution est
 incomplète : la règle vaut d'abord pour lui.
 
-**Cinq écarts assumés au réglage d'origine**, documentés dans le code : le
+**Six écarts assumés au réglage d'origine**, documentés dans le code : le
 limiteur *rend* le gain de rattrapage de Pressure4 (sans quoi le brancher
 monte toute la galerie de +3 dB) et dose sa saturation sinus par un réglage
 `caractere`, à zéro par défaut ; le lointain coupe le CONTINU que pose
@@ -102,7 +106,11 @@ de bus utilisent un tampon CIRCULAIRE là où Chris décale le sien d'un cran à
 chaque échantillon : trente-quatre recopies par échantillon et par canal, ce
 qu'un moteur JavaScript n'a aucune raison de faire. L'arithmétique est
 identique, et le test compare les deux implémentations échantillon par
-échantillon sur les huit couleurs. Les
+échantillon sur les huit couleurs. Enfin, la bande
+tire le hasard de son pleurage d'un générateur À ELLE et non de l'état du
+dither, que l'on ne porte pas : le pleurage est donc reproductible d'une
+visite à l'autre, ce qui n'est pas un défaut ici et rend le portage
+éprouvable. Les
 algorithmes ne sont pas modifiés ; ce sont des robinets posés autour d'eux,
 et ils se remettent à la valeur de Chris.
 
