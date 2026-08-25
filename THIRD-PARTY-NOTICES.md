@@ -185,6 +185,15 @@ qu'ils suivent le rythme de développement des exemples, pas celui du cœur :
 - `exporters/GLTFExporter.js` — utilisé hors ligne par `npm run library`,
   jamais livré
 
+Le mode Auteur embarque en outre
+[three-gpu-pathtracer](https://github.com/gkjohnson/three-gpu-pathtracer)
+(0.0.23, MIT, © 2022 Garrett Johnson) : le bouton « 📸 Photo » de la barre
+d'outils, un rendu de la vue courante par transport de lumière, pour tirer
+une image de presse de la vraie scène. La bibliothèque est chargée
+dynamiquement au premier clic et n'existe que dans le build Auteur — le
+garde-fou de publication refuse un build Visiteur qui en porterait la
+moindre trace.
+
 ### Outillage (jamais livré)
 
 | Composant | Version | Licence |

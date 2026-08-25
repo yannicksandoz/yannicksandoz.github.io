@@ -26,7 +26,10 @@ const EMPREINTES_EDITEUR = [
   'polypizza-panel', 'data-pp-', 'X-Auth-Token',
   'sons-panel', 'data-son-',
   'freesound-panel', 'data-fs-', 'freesound.org/apiv2',
-  'sauvegarde-panel', 'data-sv-'
+  'sauvegarde-panel', 'data-sv-',
+  // la photo path-tracée est un outil d'AUTEUR : ni la bibliothèque ni son
+  // bouton n'ont leur place dans le build visiteur
+  'WebGLPathTracer', 'photo-progres'
 ];
 
 /**
