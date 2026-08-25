@@ -1779,6 +1779,12 @@ bornes de l'audible, *Channel9* au pupitre, et
 *Distance2* au lointain. Chaque fichier porte le copyright, et la console de
 mixage l'affiche.
 
+La licence MIT demande deux choses et non une : le nom ET le texte de la
+licence, *« included in all copies or substantial portions »*. Le texte
+complet part donc avec le build, en `LICENCES/airwindows-MIT.txt`, et le
+garde-fou de publication refuse un build où il manquerait — au même titre
+qu'un build qui contiendrait du code d'éditeur.
+
 Le dossier `content/` contient des créations personnelles, également tous
 droits réservés : déployez le moteur avec votre propre contenu. Seule
 exception, **`content/library/`**, le mobilier de galerie, est dans le

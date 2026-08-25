@@ -85,8 +85,17 @@ try {
 const tous = await fichiers(RACINE);
 const texte = tous.filter((f) => EXTENSIONS_TEXTE.has(extname(f)));
 
+// Les en-têtes de copyright d'Airwindows vivent DANS les sources de worklet,
+// chargées en `?raw` : ce sont des chaînes de caractères et non des
+// commentaires, et c'est pour cela qu'elles traversent la minification. Cela
+// tient à un détail de montage — donc on le vérifie.
+let creditAirwindows = false;
+
 for (const chemin of texte) {
   const contenu = await readFile(chemin, 'utf8');
+  if (extname(chemin) === '.js' && contenu.includes('airwindows')) {
+    creditAirwindows = true;
+  }
 
   // Le catalogue de la bibliothèque est du CONTENU, pas de l'éditeur : il
   // décrit du mobilier que le visiteur affiche. On ne l'inspecte que pour
@@ -126,6 +135,39 @@ const modelesHorsLibrairie = tous.filter(
 );
 if (modelesHorsLibrairie.length) {
   erreurs.push(`modèles 3D hors library/ : ${modelesHorsLibrairie.join(', ')}`);
+}
+
+// LA LICENCE D'AIRWINDOWS DOIT PARTIR AVEC LE BUILD.
+//
+// « The above copyright notice AND THIS PERMISSION NOTICE shall be included
+// in all copies or substantial portions of the Software » — ce sont les mots
+// du texte MIT, et ils demandent deux choses, pas une. Citer le nom de Chris
+// ne suffit pas : il faut que le texte de la licence voyage avec le code.
+// Neuf plugins d'Airwindows sont portés ici ; c'est une part substantielle,
+// et un portage est une œuvre dérivée.
+//
+// On le vérifie sur le BUILD et non sur le dépôt, comme tout le reste de ce
+// fichier : un fichier de licence oublié dans une recopie ne se voit jamais,
+// et c'est exactement le genre de manquement qui ne se découvre que quand
+// quelqu'un s'en plaint.
+const licence = tous.find((f) => f.endsWith('LICENCES/airwindows-MIT.txt'));
+if (!licence) {
+  erreurs.push('la licence d’Airwindows ne part pas avec le build '
+    + `(attendu ${RACINE}/LICENCES/airwindows-MIT.txt)`);
+} else {
+  const corps = await readFile(licence, 'utf8');
+  for (const attendu of ['Permission is hereby granted',
+    'this permission notice shall be included', 'Chris Johnson']) {
+    if (!corps.includes(attendu)) {
+      erreurs.push(`la licence d’Airwindows est incomplète : « ${attendu} » manque`);
+    }
+  }
+}
+
+// …et les lignes de copyright, elles, doivent survivre à la minification.
+if (!creditAirwindows) {
+  erreurs.push('aucune mention d’Airwindows dans le JS livré : les en-têtes '
+    + 'de copyright ont été perdus à la minification');
 }
 
 console.log(`${texte.length} fichiers texte inspectés dans ${RACINE}/`);

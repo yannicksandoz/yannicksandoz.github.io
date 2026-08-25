@@ -62,10 +62,24 @@ réécrits en JavaScript :
   l'IIR qui « écrase ce qui est très lointain ».
 
 L'algorithme, les coefficients et les constantes sont les siens ; les en-têtes
-portent le copyright et la licence, et la console de mixage l'affiche à
-l'auteur. La licence MIT n'exige rien de plus que cette mention — la
-respecter est le minimum, et ce dépôt refuse de publier une œuvre dont
-l'attribution est incomplète : la règle vaut d'abord pour lui.
+portent le copyright, et la console de mixage l'affiche à l'auteur.
+
+**La licence MIT demande DEUX choses, pas une** — et c'est un piège où l'on
+tombe volontiers, parce qu'on retient « MIT = il suffit de citer l'auteur ».
+Le texte dit exactement : *« The above copyright notice **and this permission
+notice** shall be included in all copies or substantial portions of the
+Software »*. Il faut donc que le TEXTE de la licence voyage avec le code, et
+pas seulement le nom. Neuf plugins portés, c'est une part substantielle, et
+un portage est une œuvre dérivée.
+
+Le texte complet est donc livré, à la racine du dépôt
+([`LICENSE-airwindows-MIT.txt`](LICENSE-airwindows-MIT.txt)) **et dans le
+build**, en `LICENCES/airwindows-MIT.txt`, avec la liste des fichiers qu'il
+couvre. `scripts/check-visitor-build.mjs` refuse de publier un build où il
+manquerait, serait tronqué, ou dont le JS aurait perdu les en-têtes de
+copyright à la minification — l'invariant est vérifié sur le RÉSULTAT, comme
+les autres. Ce dépôt refuse de publier une œuvre dont l'attribution est
+incomplète : la règle vaut d'abord pour lui.
 
 **Quatre écarts assumés au réglage d'origine**, documentés dans le code : le
 limiteur *rend* le gain de rattrapage de Pressure4 (sans quoi le brancher

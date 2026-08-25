@@ -1,0 +1,44 @@
+Airwindows — Chris Johnson
+https://github.com/airwindows/airwindows
+
+Les modules audio suivants de cette galerie sont des portages en JavaScript
+de plugins d'Airwindows. L'algorithme, les coefficients et les constantes
+sont ceux de Chris Johnson ; le portage est distribué sous la licence
+ci-dessous, comme l'original.
+
+  Pressure4, ClipOnly2   engine/src/core/limiteur-worklet.js
+  Console6               engine/src/core/Console.js
+  Monitoring             engine/src/core/monitoring-worklet.js
+  Verbity                engine/src/core/reverb-worklet.js
+  Galactic2              engine/src/core/galactique-worklet.js
+  ClearCoat              engine/src/core/premieres-worklet.js
+  Distance2              engine/src/core/lointain-worklet.js
+  Ultrasonic, Infrasonic engine/src/core/hygiene-worklet.js
+  Channel9               engine/src/core/pupitre-worklet.js
+
+Les en-têtes de Chris portent selon les plugins « (c) 2016 » ou « (c) 2018 » ;
+la licence du dépôt d'origine, reproduite telle quelle, porte 2018.
+
+--------------------------------------------------------------------------
+
+MIT License
+
+Copyright (c) 2018 Chris Johnson
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
