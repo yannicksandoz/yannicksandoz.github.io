@@ -9,9 +9,9 @@
   "fogColor": "#0a120a",
   "floor": {
     "size": 64,
-    "color": "#1a241a",
+    "color": "#61794a",
     "grid": false,
-    "texture": "herbe"
+    "texture": "herbe-vraie"
   },
   "keyLight": {
     "color": "#d8ffd8",

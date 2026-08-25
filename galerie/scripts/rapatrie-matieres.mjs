@@ -41,14 +41,46 @@ const ici = dirname(fileURLToPath(import.meta.url));
 const RACINE = join(ici, '..', 'engine', 'assets');
 const TROIS = 'https://raw.githubusercontent.com/mrdoob/three.js/r166/examples/textures';
 
-/** Les six cartes, et le nom qu'elles portent chez nous. */
+/**
+ * Les cartes, et le TRAITEMENT de chacune :
+ *
+ *   • `gris` — luminance, avec `moyenne` : l'albédo est NORMALISÉ vers cette
+ *     moyenne. La première livraison sortait les gris tels quels : multipliés
+ *     par la couleur sombre d'une salle, ils viraient au ciment — le veinage
+ *     ne survivait que dans le reflet, exactement l'effet « béton mouillé ».
+ *     Ramener la moyenne à 0,62 rend à la couleur de la pièce son autorité :
+ *     elle choisit la valeur, la carte ne fait que la moduler ;
+ *
+ *   • `gris` avec `plancher` — pour la RUGOSITÉ : le jeu three.js du parquet
+ *     descend très bas (un vernis), et sur un sol sombre chaque lanterne
+ *     devenait une flaque blanche. Le plancher relève le minimum — un
+ *     parquet de galerie est ciré, pas laqué ;
+ *
+ *   • `rgb` — les cartes NORMALES gardent leurs trois canaux : un vecteur
+ *     n'est pas une luminance.
+ */
 const CARTES = [
-  ['bois-matiere.jpg', `${TROIS}/hardwood2_diffuse.jpg`, true],
-  ['bois-relief.jpg', `${TROIS}/hardwood2_bump.jpg`, true],
-  ['bois-rugosite.jpg', `${TROIS}/hardwood2_roughness.jpg`, true],
-  ['brique-matiere.jpg', `${TROIS}/brick_diffuse.jpg`, true],
-  ['brique-relief.jpg', `${TROIS}/brick_bump.jpg`, true],
-  ['brique-rugosite.jpg', `${TROIS}/brick_roughness.jpg`, true]
+  ['bois-matiere.jpg', `${TROIS}/hardwood2_diffuse.jpg`, { mode: 'gris', moyenne: 0.62 }],
+  ['bois-relief.jpg', `${TROIS}/hardwood2_bump.jpg`, { mode: 'gris' }],
+  ['bois-rugosite.jpg', `${TROIS}/hardwood2_roughness.jpg`, { mode: 'gris', plancher: 0.42 }],
+  ['brique-matiere.jpg', `${TROIS}/brick_diffuse.jpg`, { mode: 'gris', moyenne: 0.62 }],
+  ['brique-relief.jpg', `${TROIS}/brick_bump.jpg`, { mode: 'gris' }],
+  ['brique-rugosite.jpg', `${TROIS}/brick_roughness.jpg`, { mode: 'gris', plancher: 0.35 }],
+  // le damier de sol des exemples three.js — un hall de galerie classique ;
+  // sa carte normale donne le joint entre les dalles
+  ['damier-matiere.jpg', `${TROIS}/floors/FloorsCheckerboard_S_Diffuse.jpg`,
+    { mode: 'gris', moyenne: 0.62 }],
+  // une carte normale se contente de la MOITIÉ de la finesse d'un albédo :
+  // elle module une orientation, pas un détail qu'on lit — et à 512 elle
+  // pesait plus lourd que la photo qu'elle accompagne
+  ['damier-normale.jpg', `${TROIS}/floors/FloorsCheckerboard_S_Normal.jpg`,
+    { mode: 'rgb', taille: 256 }],
+  // l'herbe du terrain — remplace la tuile « herbe » là où le sol est
+  // vraiment un pré ; la normale donne les brins en lumière rasante
+  ['herbe-matiere.jpg', `${TROIS}/terrain/grasslight-big.jpg`,
+    { mode: 'gris', moyenne: 0.55 }],
+  ['herbe-normale.jpg', `${TROIS}/terrain/grasslight-big-nm.jpg`,
+    { mode: 'rgb', taille: 256 }]
 ];
 
 /** Les deux environnements, depuis le paquet CC0 de pmndrs. */
@@ -59,27 +91,57 @@ const ENVIRONNEMENTS = [
 
 const CIBLE = 512;
 
-/** Luminance Rec.709, réduction en boîte vers CIBLE, JPEG gris qualité 82. */
-function transformer(octets) {
+/**
+ * Réduction en boîte vers CIBLE, puis selon le mode :
+ *   gris — luminance Rec.709, normalisation de moyenne, plancher éventuel ;
+ *   rgb  — les trois canaux, tels quels (cartes normales).
+ * JPEG qualité 82 dans les deux cas.
+ */
+function transformer(octets,
+  { mode = 'gris', moyenne = null, plancher = 0, taille = CIBLE } = {}) {
   const src = jpeg.decode(octets, { useTArray: true, maxMemoryUsageInMB: 1024 });
-  const facteur = Math.max(1, Math.round(Math.max(src.width, src.height) / CIBLE));
+  const facteur = Math.max(1, Math.round(Math.max(src.width, src.height) / taille));
   const w = Math.floor(src.width / facteur);
   const h = Math.floor(src.height / facteur);
   const sortie = new Uint8Array(w * h * 4);
   for (let y = 0; y < h; y++) {
     for (let x = 0; x < w; x++) {
-      let somme = 0;
+      let r = 0, g = 0, b = 0;
       for (let dy = 0; dy < facteur; dy++) {
         for (let dx = 0; dx < facteur; dx++) {
           const i = ((((y * facteur) + dy) * src.width) + (x * facteur) + dx) * 4;
-          somme += (0.2126 * src.data[i]) + (0.7152 * src.data[i + 1])
-            + (0.0722 * src.data[i + 2]);
+          r += src.data[i]; g += src.data[i + 1]; b += src.data[i + 2];
         }
       }
-      const v = Math.round(somme / (facteur * facteur));
+      const n = facteur * facteur;
       const o = ((y * w) + x) * 4;
-      sortie[o] = sortie[o + 1] = sortie[o + 2] = v;
+      if (mode === 'rgb') {
+        sortie[o] = Math.round(r / n);
+        sortie[o + 1] = Math.round(g / n);
+        sortie[o + 2] = Math.round(b / n);
+      } else {
+        const v = Math.round(((0.2126 * r) + (0.7152 * g) + (0.0722 * b)) / n);
+        sortie[o] = sortie[o + 1] = sortie[o + 2] = v;
+      }
       sortie[o + 3] = 255;
+    }
+  }
+  if (mode === 'gris' && moyenne !== null) {
+    // normalisation multiplicative : le CONTRASTE relatif de la carte reste,
+    // seule sa valeur moyenne rejoint la cible
+    let somme = 0;
+    for (let i = 0; i < w * h; i++) somme += sortie[i * 4];
+    const gain = (moyenne * 255) / Math.max(1, somme / (w * h));
+    for (let i = 0; i < w * h; i++) {
+      const v = Math.min(255, Math.round(sortie[i * 4] * gain));
+      sortie[i * 4] = sortie[(i * 4) + 1] = sortie[(i * 4) + 2] = v;
+    }
+  }
+  if (mode === 'gris' && plancher > 0) {
+    // r' = plancher + (1 − plancher) · r : le maximum ne bouge pas
+    for (let i = 0; i < w * h; i++) {
+      const v = Math.round((plancher * 255) + ((1 - plancher) * sortie[i * 4]));
+      sortie[i * 4] = sortie[(i * 4) + 1] = sortie[(i * 4) + 2] = v;
     }
   }
   return Buffer.from(jpeg.encode({ data: sortie, width: w, height: h }, 82).data);
@@ -99,9 +161,9 @@ if (executeDirectement) {
   mkdirSync(join(RACINE, 'environnements'), { recursive: true });
   const empreintes = {};
 
-  for (const [nom, url] of CARTES) {
+  for (const [nom, url, options] of CARTES) {
     const brut = await telecharger(url);
-    const fait = transformer(brut);
+    const fait = transformer(brut, options);
     const chemin = join(RACINE, 'matieres', nom);
     writeFileSync(chemin, fait);
     empreintes[`matieres/${nom}`] = {

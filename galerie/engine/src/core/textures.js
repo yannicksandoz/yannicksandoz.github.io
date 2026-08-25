@@ -202,6 +202,10 @@ import boisRugosite from '../../assets/matieres/bois-rugosite.jpg';
 import briqueMatiere from '../../assets/matieres/brique-matiere.jpg';
 import briqueRelief from '../../assets/matieres/brique-relief.jpg';
 import briqueRugosite from '../../assets/matieres/brique-rugosite.jpg';
+import damierMatiere from '../../assets/matieres/damier-matiere.jpg';
+import damierNormale from '../../assets/matieres/damier-normale.jpg';
+import herbeMatiere from '../../assets/matieres/herbe-matiere.jpg';
+import herbeNormale from '../../assets/matieres/herbe-normale.jpg';
 
 /**
  * Les MATIÈRES : des photographies, mais pliées au contrat des tuiles.
@@ -229,12 +233,26 @@ const MATIERES = {
   'brique-vraie': {
     matiere: briqueMatiere, relief: briqueRelief, rugosite: briqueRugosite,
     metres: 2.8, creux: 0.5
+  },
+  // le damier de sol des exemples three.js : un hall de galerie. Pas de
+  // carte de rugosité — `lisse` donne le scalaire (une pierre polie), et la
+  // carte NORMALE (les joints entre dalles) remplace le bump.
+  damier: {
+    matiere: damierMatiere, normale: damierNormale,
+    metres: 2, creux: 0.8, lisse: 0.55
+  },
+  // l'herbe du terrain : là où la tuile « herbe » disait un pré en huit
+  // texels, la photo dit les brins — surtout par sa normale, en lumière
+  // rasante. Mate, comme l'herbe.
+  'herbe-vraie': {
+    matiere: herbeMatiere, normale: herbeNormale,
+    metres: 2.4, creux: 0.7
   }
 };
 
 const _cacheMatieres = new Map();
 
-function chargerCarte(url, metres) {
+function chargerCarte(url, metres, albedo = false) {
   const tex = new THREE.TextureLoader().load(url);
   tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
   // une photo se filtre en linéaire — le NEAREST des tuiles pixel-art
@@ -243,7 +261,16 @@ function chargerCarte(url, metres) {
   tex.minFilter = THREE.LinearMipmapLinearFilter;
   tex.generateMipmaps = true;
   tex.anisotropy = _anisotropy;
-  tex.colorSpace = THREE.NoColorSpace;   // luminance et cartes de données
+  // L'ALBÉDO D'UNE PHOTO EST EN sRGB, ET LE DIRE CHANGE TOUT.
+  //
+  // Les tuiles procédurales sont peintes en valeurs linéaires : leur
+  // NoColorSpace est juste. Une photographie, elle, est encodée en sRGB —
+  // la lire comme linéaire éclaircit chaque texel d'environ 1,8, et c'est
+  // exactement ce qui délavait les parquets : un brun sombre déclaré par la
+  // pièce ressortait en ciment mouillé, la couleur perdait son autorité.
+  // Le relief, la rugosité et la normale, eux, sont des DONNÉES et non des
+  // couleurs : ils restent hors de tout espace colorimétrique.
+  tex.colorSpace = albedo ? THREE.SRGBColorSpace : THREE.NoColorSpace;
   tex.repeat.set(TILE / metres, TILE / metres);
   return tex;
 }
@@ -258,10 +285,17 @@ export function styleMatiere(style) {
   if (!m || typeof document === 'undefined') return null;
   if (_cacheMatieres.has(style)) return _cacheMatieres.get(style);
   const jeu = {
-    map: chargerCarte(m.matiere, m.metres),
-    bumpMap: chargerCarte(m.relief, m.metres),
-    roughnessMap: chargerCarte(m.rugosite, m.metres),
-    bumpScale: m.creux
+    map: chargerCarte(m.matiere, m.metres, true),
+    // le relief parle bump OU normale — jamais les deux : une matière
+    // photographiée vient avec l'un ou l'autre, et les mélanger doublerait
+    // le grain sans rien dire de plus
+    bumpMap: m.relief ? chargerCarte(m.relief, m.metres) : null,
+    bumpScale: m.creux,
+    normalMap: m.normale ? chargerCarte(m.normale, m.metres) : null,
+    normalScale: m.creux,
+    roughnessMap: m.rugosite ? chargerCarte(m.rugosite, m.metres) : null,
+    // sans carte de rugosité, `lisse` donne le scalaire (défaut : mate)
+    roughness: m.lisse ?? 1
   };
   _cacheMatieres.set(style, jeu);
   return jeu;

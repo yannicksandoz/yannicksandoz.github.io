@@ -67,16 +67,16 @@
   ],
   "floor": {
     "size": 48,
-    "color": "#13131f",
-    "grid": true,
-    "gridColor": "#39395c",
-    "texture": "dalles"
+    "color": "#3f4064",
+    "grid": false,
+    "texture": "damier",
+    "textureRepeat": 1
   },
   "shell": {
     "width": 36,
     "depth": 44,
     "height": 8,
-    "color": "#1c1c2b",
+    "color": "#2c2c44",
     "texture": "pierre"
   },
   "keyLight": {

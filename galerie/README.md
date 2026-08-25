@@ -1258,14 +1258,33 @@ teinte selon les normales). `textureRepeat` resserre le motif procédural ;
 rugosité et métal font la matière — un sol ciré n'est pas un sable, même
 sous la même texture.
 
-Aux styles procéduraux s'ajoutent deux **matières réelles** : `bois` (un
-parquet, veines et reflet satiné) et `brique-vraie` (l'appareillage et son
-joint creusé). Ce sont les textures du dépôt three.js (MIT), **désaturées à
-l'import** : la photographie n'apporte que la matière — grain, relief,
+Aux styles procéduraux s'ajoutent quatre **matières réelles** : `bois` (un
+parquet, veines et reflet satiné), `brique-vraie` (l'appareillage et son
+joint creusé), `damier` (les dalles d'un hall) et `herbe-vraie` (un pré,
+brins compris). Ce sont les textures du dépôt three.js (MIT), **désaturées
+à l'import** : la photographie n'apporte que la matière — grain, relief,
 rugosité —, la COULEUR reste celle de la pièce, comme pour tous les autres
-styles. Leur écart au motif procédural est le relief (bump) et la carte de
-rugosité, que 32 texels ne pouvaient pas porter. Elles se répètent en
-MÈTRES réels (3,6 m le parquet, 2,8 m la brique), pas en fraction de mur.
+styles. Leur écart au motif procédural est le relief (bump ou carte
+normale) et la rugosité, que 32 texels ne pouvaient pas porter. Elles se
+répètent en MÈTRES réels (3,6 m le parquet, 2,8 m la brique, 2 m la dalle),
+pas en fraction de mur.
+
+Trois règles rendent ces matières cohérentes avec le reste, et chacune vient
+d'un défaut qu'on a vu à l'écran :
+
+- **l'albédo d'une photo est lu en sRGB.** Les tuiles procédurales sont
+  peintes en valeurs linéaires ; une photographie, elle, est encodée. La
+  lire comme linéaire l'éclaircit d'environ 1,8, et la couleur déclarée par
+  la pièce perd son autorité — un brun sombre ressortait en ciment mouillé.
+  Relief, rugosité et normale restent hors de tout espace colorimétrique :
+  ce sont des données, pas des couleurs ;
+- **une tuile procédurale sert de relief à elle-même.** Le même motif en
+  bump, doucement : un mur `planches` cesse d'être une couleur plate à côté
+  d'un sol photographique. C'est ce qui manquait à la jonction sol/mur ;
+- **la grille ne se pose pas sur une matière.** Elle est un repère de plan
+  vide ; sur un parquet, deux trames se croisaient sans rapport. Le défaut
+  ne vaut plus qu'à défaut de matière — une pièce qui écrit `"grid": true`
+  en connaissance de cause l'obtient quand même.
 
 L'**image d'environnement** qui nourrit l'IBL se choisit dans
 `reglages.json` : `"environnement": "studio"` (le défaut, un studio neutre

@@ -63,24 +63,66 @@ test('aucun fichier orphelin dans les assets', () => {
 });
 
 titre('ce que le moteur déclare existe');
-test('les deux matières ont leurs trois cartes', () => {
-  const src = readFileSync(join(ici, '..', 'engine', 'src', 'core', 'textures.js'), 'utf8');
-  for (const style of ['bois', "'brique-vraie'"]) {
-    assert.ok(src.includes(style), `style ${style} absent de textures.js`);
+const SRC_TEXTURES = readFileSync(
+  join(ici, '..', 'engine', 'src', 'core', 'textures.js'), 'utf8');
+const SRC_ROOMS = readFileSync(
+  join(ici, '..', 'engine', 'src', 'core', 'RoomManager.js'), 'utf8');
+
+test('les quatre matières ont leurs cartes', () => {
+  for (const style of ['bois', "'brique-vraie'", 'damier', "'herbe-vraie'"]) {
+    assert.ok(SRC_TEXTURES.includes(style), `style ${style} absent de textures.js`);
   }
-  for (const carte of ['matiere', 'relief', 'rugosite']) {
-    for (const m of ['bois', 'brique']) {
+  // bois et brique : albédo + relief + rugosité ; damier et herbe : albédo +
+  // carte NORMALE (elles n'ont pas de jeu de rugosité en amont)
+  for (const m of ['bois', 'brique']) {
+    for (const carte of ['matiere', 'relief', 'rugosite']) {
+      assert.ok(existsSync(join(ASSETS, 'matieres', `${m}-${carte}.jpg`)),
+        `${m}-${carte}.jpg manquant`);
+    }
+  }
+  for (const m of ['damier', 'herbe']) {
+    for (const carte of ['matiere', 'normale']) {
       assert.ok(existsSync(join(ASSETS, 'matieres', `${m}-${carte}.jpg`)),
         `${m}-${carte}.jpg manquant`);
     }
   }
 });
+test('l’albédo est lu en sRGB, les cartes de données non', () => {
+  // LA LEÇON QUI A DÉLAVÉ LES PARQUETS. Une photographie est encodée en
+  // sRGB ; la lire comme linéaire l'éclaircit d'environ 1,8 et la couleur
+  // déclarée par la pièce perd toute autorité — un brun sombre ressortait
+  // en ciment. Relief, rugosité et normale sont des DONNÉES : elles
+  // restent hors de tout espace colorimétrique.
+  assert.ok(SRC_TEXTURES.includes('SRGBColorSpace'),
+    'l’albédo d’une matière doit être déclaré en sRGB');
+  assert.match(SRC_TEXTURES, /map: chargerCarte\(m\.matiere, m\.metres, true\)/,
+    'seul l’albédo passe `true` à chargerCarte');
+  for (const carte of ['m.relief', 'm.rugosite', 'm.normale']) {
+    assert.ok(!new RegExp(`chargerCarte\\(${carte.replace('.', '\\.')}[^)]*true`)
+      .test(SRC_TEXTURES), `${carte} ne doit pas être traitée comme une couleur`);
+  }
+});
 test('RoomManager branche bien les matières, sol et murs', () => {
-  const src = readFileSync(join(ici, '..', 'engine', 'src', 'core', 'RoomManager.js'), 'utf8');
-  assert.ok((src.match(/styleMatiere\(/g) ?? []).length >= 2,
+  assert.ok((SRC_ROOMS.match(/styleMatiere\(/g) ?? []).length >= 2,
     'styleMatiere doit servir au sol ET aux murs');
-  assert.ok(src.includes('bumpMap'), 'le relief n’est pas branché');
-  assert.ok(src.includes('roughnessMap'), 'la rugosité n’est pas branchée');
+  assert.ok(SRC_ROOMS.includes('bumpMap'), 'le relief n’est pas branché');
+  assert.ok(SRC_ROOMS.includes('roughnessMap'), 'la rugosité n’est pas branchée');
+  assert.ok(SRC_ROOMS.includes('normalMap'), 'les cartes normales ne sont pas branchées');
+});
+test('une tuile procédurale sert de relief à elle-même', () => {
+  // sans cela, un mur « planches » restait une couleur plate à côté d'un sol
+  // photographique : c'est l'incohérence qui se voyait à la jonction
+  assert.match(SRC_ROOMS, /bumpMap: matiere \? matiere\.bumpMap : map/,
+    'le sol doit se servir de sa tuile comme bump');
+  assert.match(SRC_ROOMS, /bumpMap: wallMatiere \? wallMatiere\.bumpMap : wallMap/,
+    'les murs doivent se servir de leur tuile comme bump');
+});
+test('la grille ne se pose pas d’elle-même sur une matière', () => {
+  // deux trames sans rapport se croisaient sur le parquet : la grille est un
+  // repère de plan VIDE. Une pièce peut toujours la demander explicitement.
+  assert.ok(SRC_ROOMS.includes('grilleVoulue'), 'la règle a disparu');
+  assert.match(SRC_ROOMS, /opt\.grid && !matiere/,
+    'le défaut « grille » ne doit plus valoir en présence d’une matière');
 });
 test('les environnements déclarés pointent vers des fichiers du dépôt', () => {
   const src = readFileSync(join(ici, '..', 'engine', 'src', 'core',
@@ -93,7 +135,7 @@ test('les environnements déclarés pointent vers des fichiers du dépôt', () =
 });
 test('les pièces du contenu n’utilisent que des styles connus', () => {
   const connus = new Set(['pierre', 'brique', 'planches', 'dalles', 'herbe',
-    'sable', 'ratisse', 'eau', 'bois', 'brique-vraie']);
+    'sable', 'ratisse', 'eau', 'bois', 'brique-vraie', 'damier', 'herbe-vraie']);
   const salles = join(ici, '..', 'content', 'rooms');
   if (!existsSync(salles)) { console.log('    (pas de contenu — sauté)'); return; }
   for (const f of readdirSync(salles).filter((n) => n.endsWith('.json'))) {
@@ -104,11 +146,22 @@ test('les pièces du contenu n’utilisent que des styles connus', () => {
   }
 });
 test('le poids total des assets reste sous le mégot', () => {
-  // un demi-mégaoctet d'assets pour deux matières et deux panoramas : c'est
-  // le budget. Si un rapatriement le crève, il doit se justifier ici.
+  // Le budget : quatre matières et deux panoramas, un mégaoctet. Il est
+  // passé de 800 ko à ce chiffre quand le damier et l'herbe sont arrivés —
+  // et les cartes NORMALES ont été ramenées à 256 texels pour tenir : à
+  // 512, l'herbe pesait 261 ko à elle seule, plus que la photo qu'elle
+  // accompagne. Rien de tout cela ne pèse au démarrage : une matière n'est
+  // téléchargée que par la pièce qui la demande.
   let total = 0;
   for (const e of Object.values(provenance)) total += e.octets;
-  assert.ok(total < 800 * 1024, `${(total / 1024).toFixed(0)} ko`);
+  assert.ok(total < 1024 * 1024, `${(total / 1024).toFixed(0)} ko`);
+});
+test('une carte normale ne pèse pas plus que son albédo', () => {
+  for (const m of ['damier', 'herbe']) {
+    const alb = provenance[`matieres/${m}-matiere.jpg`].octets;
+    const nor = provenance[`matieres/${m}-normale.jpg`].octets;
+    assert.ok(nor <= alb, `${m} : normale ${nor} > albédo ${alb}`);
+  }
 });
 
 console.log(`\n${ok} ✓ / ${ko} ✗`);

@@ -9,15 +9,16 @@
   "fogColor": "#05060c",
   "floor": {
     "size": 42,
-    "color": "#12121c",
+    "color": "#474d6e",
     "grid": false,
-    "texture": "dalles"
+    "texture": "damier",
+    "textureRepeat": 1
   },
   "shell": {
     "width": 8,
     "depth": 38,
     "height": 5.5,
-    "color": "#171722",
+    "color": "#5b6182",
     "windows": [
       {
         "wall": "est",
@@ -41,7 +42,7 @@
         "sill": 1.1
       }
     ],
-    "texture": "brique"
+    "texture": "brique-vraie"
   },
   "keyLight": {
     "color": "#aab4e8",

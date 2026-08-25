@@ -9,10 +9,10 @@
   "fogColor": "#090b16",
   "floor": {
     "size": 140,
-    "color": "#191d2e",
-    "grid": true,
-    "gridColor": "#3c4266",
-    "texture": "dalles"
+    "color": "#414a70",
+    "grid": false,
+    "texture": "damier",
+    "textureRepeat": 1
   },
   "keyLight": {
     "color": "#c8d4ff",
@@ -96,7 +96,7 @@
     "width": 60,
     "depth": 44,
     "height": 10,
-    "color": "#232840",
+    "color": "#333a5c",
     "walls": [
       "nord"
     ],

@@ -1145,13 +1145,19 @@ export function buildFloor(config) {
     new THREE.MeshStandardMaterial({
       color: new THREE.Color(opt.color ?? FLOOR_DEFAULTS.color),
       map: matiere?.map ?? map,
-      bumpMap: matiere?.bumpMap ?? null,
-      bumpScale: matiere?.bumpScale ?? 1,
+      // une tuile procédurale devient son PROPRE relief : la même carte en
+      // bump, doucement — c'est ce qui fait accrocher la lumière rasante
+      // aux joints d'un dallage, sans le moindre asset de plus
+      bumpMap: matiere ? matiere.bumpMap : map,
+      bumpScale: matiere ? matiere.bumpScale : 0.18,
+      normalMap: matiere?.normalMap ?? null,
+      normalScale: matiere?.normalScale
+        ? new THREE.Vector2(matiere.normalScale, matiere.normalScale) : undefined,
       roughnessMap: matiere?.roughnessMap ?? null,
       // avec une carte de rugosité, le scalaire est un MULTIPLICATEUR :
-      // il part de un, la carte parle
+      // il part de un, la carte parle ; sans carte, la matière donne le sien
       roughness: Number.isFinite(opt.roughness) ? opt.roughness
-        : (matiere ? 1 : 0.95),
+        : (matiere ? matiere.roughness : 0.95),
       metalness: Number.isFinite(opt.metalness) ? opt.metalness : 0.05
     })
   );
@@ -1162,7 +1168,15 @@ export function buildFloor(config) {
   plane.userData.ignoreRaycast = true;
   group.add(plane);
 
-  if (opt.grid) {
+  // LA GRILLE NE SE POSE PAS SUR UNE MATIÈRE. Elle est un repère de plan
+  // vide — utile sur un sol nu, contradictoire sur un parquet, où deux
+  // trames se croisent sans rapport l'une avec l'autre. Le défaut « grille
+  // allumée » ne vaut donc que faute de matière ; une pièce qui écrit
+  // `"grid": true` en connaissance de cause l'obtient quand même.
+  const grilleVoulue = (config?.floor && typeof config.floor === 'object'
+    && config.floor.grid !== undefined) ? Boolean(config.floor.grid)
+    : (opt.grid && !matiere);
+  if (grilleVoulue) {
     const divisions = Math.max(4, Math.round(size / 2));
     const grid = new THREE.GridHelper(size, divisions,
       new THREE.Color(opt.gridColor ?? FLOOR_DEFAULTS.gridColor),
@@ -1389,11 +1403,17 @@ export function buildShell(config) {
       materials.set(color, new THREE.MeshStandardMaterial({
         color: new THREE.Color(color),
         map: wallMatiere?.map ?? wallMap,
-        bumpMap: wallMatiere?.bumpMap ?? null,
-        bumpScale: wallMatiere?.bumpScale ?? 1,
+        // même règle qu'au sol : une tuile procédurale sert de bump à
+        // elle-même — un mur « planches » cesse d'être une couleur plate
+        bumpMap: wallMatiere ? wallMatiere.bumpMap : wallMap,
+        bumpScale: wallMatiere ? wallMatiere.bumpScale : 0.22,
+        normalMap: wallMatiere?.normalMap ?? null,
+        normalScale: wallMatiere?.normalScale
+          ? new THREE.Vector2(wallMatiere.normalScale, wallMatiere.normalScale)
+          : undefined,
         roughnessMap: wallMatiere?.roughnessMap ?? null,
         roughness: Number.isFinite(opt.roughness) ? opt.roughness
-          : (wallMatiere ? 1 : 0.88),
+          : (wallMatiere ? wallMatiere.roughness : 0.88),
         metalness: Number.isFinite(opt.metalness) ? opt.metalness : 0.04
       }));
     }

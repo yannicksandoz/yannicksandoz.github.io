@@ -1,33 +1,53 @@
 {
   "matieres/bois-matiere.jpg": {
     "source": "https://raw.githubusercontent.com/mrdoob/three.js/r166/examples/textures/hardwood2_diffuse.jpg",
-    "sha256": "5ed2cbd7a8d3beb956ba079cc31f4713fe8fe30e4378284d56ec9a413220f51d",
-    "octets": 29713
+    "sha256": "8aee7647228baf5e227d6564e8f0c70549ad3955607fdaddcda4258209730132",
+    "octets": 28147
   },
   "matieres/bois-relief.jpg": {
     "source": "https://raw.githubusercontent.com/mrdoob/three.js/r166/examples/textures/hardwood2_bump.jpg",
-    "sha256": "721b1a1da1b3c54e1539fa3b4431e0bf945bf8a25e5ce41ab23a902bc9690c3d",
-    "octets": 13495
+    "sha256": "1d14191ee27f9d539dd916ef4031b5278b829599e467e831186746b0717a329a",
+    "octets": 13497
   },
   "matieres/bois-rugosite.jpg": {
     "source": "https://raw.githubusercontent.com/mrdoob/three.js/r166/examples/textures/hardwood2_roughness.jpg",
-    "sha256": "dc15b7dcb8e6f760403ce1114099bd902d16c14ff6cd0ee69297f67e301df3f2",
-    "octets": 16954
+    "sha256": "05909825140835a105e367255bcbad9f81774b239c3164ac9551845e4bc4ac77",
+    "octets": 13876
   },
   "matieres/brique-matiere.jpg": {
     "source": "https://raw.githubusercontent.com/mrdoob/three.js/r166/examples/textures/brick_diffuse.jpg",
-    "sha256": "d6ec2943873f9e1b3427f41b306e6b10de67a78c80ec25fab821dc2462798381",
-    "octets": 81482
+    "sha256": "737f82bbd84a1ee1a4fac14ed8609459676a310a46d375f49ff5a5c011d13bae",
+    "octets": 87204
   },
   "matieres/brique-relief.jpg": {
     "source": "https://raw.githubusercontent.com/mrdoob/three.js/r166/examples/textures/brick_bump.jpg",
-    "sha256": "7e2bbda361796e5611f69943880631fd73fa92ce038d6afdb8790dfdc64cd073",
-    "octets": 75836
+    "sha256": "5858d678790eb5b9f6dceaf65a72869c5e7e48dda1d943f0493ed37d72edfda6",
+    "octets": 75854
   },
   "matieres/brique-rugosite.jpg": {
     "source": "https://raw.githubusercontent.com/mrdoob/three.js/r166/examples/textures/brick_roughness.jpg",
-    "sha256": "3d8f17a40ad8918ce0ba8f1f3e20c042166ed1b1cebae6edccac16100fbc89dc",
-    "octets": 92231
+    "sha256": "d1504378a811f0dc41c776024666ba0b620ef817dcec9e7aebfd9e9244ca66d7",
+    "octets": 75411
+  },
+  "matieres/damier-matiere.jpg": {
+    "source": "https://raw.githubusercontent.com/mrdoob/three.js/r166/examples/textures/floors/FloorsCheckerboard_S_Diffuse.jpg",
+    "sha256": "e8365de594d146f31651539b038c18a75cd62cb99440d9f05ee249afc937a3e5",
+    "octets": 56108
+  },
+  "matieres/damier-normale.jpg": {
+    "source": "https://raw.githubusercontent.com/mrdoob/three.js/r166/examples/textures/floors/FloorsCheckerboard_S_Normal.jpg",
+    "sha256": "be71f43685587059d03e20eaf03cbb25e03f9fb63214232b5c3e6424063a7a24",
+    "octets": 40654
+  },
+  "matieres/herbe-matiere.jpg": {
+    "source": "https://raw.githubusercontent.com/mrdoob/three.js/r166/examples/textures/terrain/grasslight-big.jpg",
+    "sha256": "8d9db935a048e3cb0aa32febe5574db65f8f24bd204f18cf783f2ef94f00c292",
+    "octets": 133658
+  },
+  "matieres/herbe-normale.jpg": {
+    "source": "https://raw.githubusercontent.com/mrdoob/three.js/r166/examples/textures/terrain/grasslight-big-nm.jpg",
+    "sha256": "372997d87ac407e9d0832ab51ab567e6d2d1cd5c130b7e85502e42a5bfc40e0c",
+    "octets": 39381
   },
   "environnements/aube.exr": {
     "source": "npm:@pmndrs/assets/hdri/dawn.exr.js (CC0, Poly Haven)",

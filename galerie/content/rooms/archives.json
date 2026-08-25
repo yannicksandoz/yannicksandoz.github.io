@@ -9,7 +9,7 @@
   "fogColor": "#051012",
   "floor": {
     "size": 30,
-    "color": "#12181a",
+    "color": "#56605d",
     "grid": false,
     "texture": "bois"
   },
@@ -17,7 +17,7 @@
     "width": 26,
     "depth": 20,
     "height": 7.5,
-    "color": "#18262a",
+    "color": "#547071",
     "windows": [
       {
         "wall": "ouest",
