@@ -191,10 +191,16 @@ console.log('\nla chaîne tourne au nœud, sans empaqueteur');
   const { fileURLToPath } = await import('node:url');
   const ici = dirname(fileURLToPath(import.meta.url));
   const coeur = join(ici, '..', 'engine', 'src', 'core');
+  // Deux façons de dépendre de l'empaqueteur, et le nœud butе sur les deux :
+  // la source d'un worklet chargée en TEXTE (`?raw`), et un FICHIER importé
+  // pour son URL (la police des cartels, `.woff`). La seconde est arrivée
+  // après la première ; le contrôle les cherche donc par la forme de
+  // l'import et non par une liste de suffixes qu'il faudrait tenir à jour.
+  const EMPAQUETEUR = /^import .*(\?raw'|\.(woff2?|ttf|otf|png|jpe?g|svg|glb|hdr|mp3|wav)')/m;
   const teintes = new Set(readdirSync(coeur)
     .filter((f) => f.endsWith('.js'))
-    .filter((f) => /^import .*\?raw'/m.test(readFileSync(join(coeur, f), 'utf8'))));
-  vrai('des modules chargent bien un worklet en texte', teintes.size > 0);
+    .filter((f) => EMPAQUETEUR.test(readFileSync(join(coeur, f), 'utf8'))));
+  vrai('des modules dépendent bien de l’empaqueteur', teintes.size > 0);
   const fautifs = [];
   for (const f of readdirSync(ici).filter((n) => /^test-.*\.mjs$/.test(n))) {
     const src = readFileSync(join(ici, f), 'utf8');
@@ -202,7 +208,7 @@ console.log('\nla chaîne tourne au nœud, sans empaqueteur');
       if (teintes.has(m[1])) fautifs.push(`${f} → ${m[1]}`);
     }
   }
-  vrai('aucun test n’importe un module qui charge un worklet en ?raw',
+  vrai('aucun test n’importe un module que le nœud ne sait pas résoudre',
     fautifs.length === 0, fautifs.join(', '));
 }
 

@@ -16,6 +16,7 @@ import { LoadingTracker, assetUrl } from './utils.js';
 import { setDefaultAnisotropy } from './textures.js';
 import { COUCHE_AUTO_ECLAIREE } from './Artwork.js';
 import { WATER_TIME } from './primitives.js';
+import { chauffer } from './cartels.js';
 
 const FOG_COLOR = 0x05050a;
 
@@ -286,6 +287,12 @@ export class App {
       this._setupVisibility();
       return;
     }
+
+    // La carte des glyphes se calcule dans un worker : on la lance ICI,
+    // pendant que le rendu s'installe et que la galerie se charge. Sans
+    // cela, la première étiquette de porte attend son tour et l'on voit un
+    // trou au-dessus du linteau. Voir `core/cartels.js`.
+    chauffer();
 
     // --- rendu ---------------------------------------------------------
     // `antialias` du canevas : inutile — l'image arrive par le composer,

@@ -1643,7 +1643,67 @@ un passage à sens unique (les portails d'Escher exceptés — une pièce vers
 elle-même est son propre retour), et une pièce qu'aucun chemin ne relie à
 l'entrée.
 
-**Et la chaîne elle-même se vérifie.** Les vingt-deux suites s'enchaînent par
+### Les cartels, et une accélération qu'on a refusé d'empaqueter
+
+**Le nom des salles est en texte SDF** (`engine/src/core/cartels.js`, d'après
+*troika-three-text*, MIT). C'était un canevas de 512 pixels étiré sur deux
+mètres soixante : net à dix mètres, illisible en poussant la porte — une
+lettre y faisait quinze pixels de haut, exactement au moment où le visiteur
+la lit. Un champ de distances signées ne stocke pas des pixels mais la
+distance au trait le plus proche : le bord reste franc à tout grossissement.
+Il n'y a plus non plus ni canevas ni téléversement de texture par porte, et
+l'étiquette ne pivote plus qu'autour de la **verticale** — un sprite se
+couche quand on le regarde d'en haut, et une enseigne vue du belvédère
+devenait une ligne.
+
+**La police est livrée avec le site**, et c'est une règle plutôt qu'une
+intention. Sans fichier, troika va chercher Roboto sur `fonts.gstatic.com` —
+silencieusement, au premier texte affiché : une galerie publiée finirait par
+montrer ses portes en blanc le jour où ce serveur ne répond plus. On passe
+donc Inter (31 ko, latin, une graisse, SIL OFL 1.1), et le garde-fou refuse
+désormais un build où `fonts.gstatic.com` apparaîtrait.
+
+**Ce n'était pas encore assez, et c'est le test qui l'a dit.** Troika embarque
+aussi un résolveur de polices de repli : un caractère absent de la police
+livrée déclenche une requête vers `cdn.jsdelivr.net`, et rediriger cette
+adresse ne sert à rien — son code retombe sur le CDN d'origine en cas
+d'échec. La seule protection est de ne jamais lui présenter un caractère
+inconnu. `test-cartels.mjs` lit donc la table `cmap` du `.woff` livré et
+vérifie la couverture réelle, sur le jeu préchargé **et** sur les 42 noms de
+salles et de portes du contenu. Il a immédiatement trouvé que le losange
+« ◆ » des comptes, affiché sur **chaque porte**, n'existe pas dans le
+sous-ensemble latin d'Inter — qui ne contient aucune forme géométrique. Les
+portes annoncent maintenant « • 1 / 4 », et la sonde de navigateur confirme
+zéro requête sortante après une visite complète.
+
+**Et le BVH ? Mesuré, puis refusé — presque.** `three-mesh-bvh` (MIT) remplace
+le balayage triangle par triangle du `Raycaster` par une descente d'arbre, et
+la marche tire jusqu'à sept rayons par frame. Sur le papier, le belvédère de
+cinquante mètres devait en souffrir. Relevé au navigateur :
+
+| pièce | cibles | triangles | la plus grosse | passe de collision |
+|---|---|---|---|---|
+| belvédère | 58 | 676 | **12** | **0,192 ms** |
+| labo | 12 | 100 | 12 | 0,062 ms |
+| jardin | 4 | 28 | 12 | 0,012 ms |
+
+Un centième de frame, et **pas une cible au-dessus de douze triangles** : le
+labyrinthe n'est pas fait de masses lourdes mais d'une multitude de pavés. Le
+coût est celui du nombre d'OBJETS, pas des triangles, et un arbre par
+géométrie n'y peut rien. L'empaqueter revenait à livrer 20 ko compressés qui
+ne font rien.
+
+Il est donc chargé par `import()` **dynamique** : la bibliothèque vit dans son
+propre morceau, le morceau n'est demandé que si une cible dépasse deux mille
+triangles — un modèle importé, jamais une boîte — et la galerie
+d'aujourd'hui ne le télécharge pas. Vérifié des deux côtés : en A/B, le
+paquet principal passe de 1 201,78 à 1 202,00 ko (**+0,22 ko**), et
+`verif-cartels.cjs` repère le morceau sur le disque puis prouve qu'aucune des
+44 requêtes d'une visite complète ne le demande. La protection existe pour le
+jour où quelqu'un posera un modèle de deux cent mille triangles ; elle ne
+coûte rien avant.
+
+**Et la chaîne elle-même se vérifie.** Les vingt-quatre suites s’enchaînent par
 des `&&` : un script qui *plante* — pas qui échoue, qui plante — arrête tout
 le reste sans afficher une seule croix. C'est arrivé. En accueillant la sept,
 `Console.js` a gagné un `import … from './console7-worklet.js?raw'` : une
@@ -1652,8 +1712,11 @@ affaire d'empaqueteur, que le nœud ne sait pas résoudre. Comme
 script sur vingt-deux, et **treize suites ne tournaient plus** — pendant que
 le décompte final affichait paisiblement `0 ✗`. D'où la règle, désormais
 éprouvée et non plus rappelée : un test n'importe que des `*-reglages.js`,
-jamais un module qui charge un worklet en texte. La chaîne complète tient
-aujourd'hui **792 ✓ / 0 ✗**.
+jamais un module que le nœud ne sait pas résoudre — la source d'un worklet
+en `?raw`, ou un fichier importé pour son URL comme la police des cartels.
+Le contrôle les cherche par la FORME de l'import, pas par une liste de
+suffixes qu'il faudrait tenir à jour. La chaîne complète tient aujourd'hui
+**821 ✓ / 0 ✗**.
 
 ### Sauvegarder, publier, mettre en ligne
 

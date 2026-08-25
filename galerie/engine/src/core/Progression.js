@@ -253,7 +253,7 @@ export class Progression {
    * donné du mal à ne pas divulguer. Ramené à la pièce, le compteur se
    * remplit vite, se vide en changeant de salle, et redevient ce qu'il
    * doit être : « ai-je fait le tour d'ici ? ». Ce qu'il y a AILLEURS se
-   * lit sur les portes (« ◆ 1 / 4 », voir `peindreEtiquette`) et sur la
+   * lit sur les portes (« • 1 / 4 », voir `peindreEtiquette`) et sur la
    * carte, pas dans un total qui ne veut rien dire.
    */
   _peindre() {

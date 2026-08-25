@@ -46,10 +46,39 @@ const EMPREINTES_EDITEUR = [
  */
 const HOTES_INTERDITS = [
   'api.poly.pizza', 'freesound.org/apiv2', 'unpkg.com', 'cdn.jsdelivr', 'googleapis.com',
+  // LA POLICE DES CARTELS. `troika-three-text` va chercher Roboto sur
+  // `fonts.gstatic.com` quand on ne lui donne pas de fichier — silencieusement,
+  // et seulement au premier texte affiché : rien ne le signale au build, et
+  // une galerie publiée finirait par afficher ses portes en blanc le jour où
+  // ce serveur ne répond plus. `core/cartels.js` passe toujours notre Inter
+  // local ; cette ligne fait que ce n'est pas une promesse mais une règle.
+  'fonts.gstatic.com',
   // La mise en ligne écrit un commit sur le dépôt de l'auteur : c'est le
   // geste le plus puissant de l'éditeur, et il n'a rien à faire dans les
   // mains d'un visiteur.
   'api.github.com'
+];
+
+/**
+ * Une adresse, et une seule, qui a le droit d'apparaître dans le code
+ * empaqueté sans que le navigateur la contacte jamais.
+ *
+ * `troika-three-text` embarque le résolveur de polices de repli de lojjic,
+ * dont l'adresse de données est une constante compilée. On ne peut pas la
+ * retirer (elle est inlinée dans le bundle de la bibliothèque), et l'on ne
+ * peut pas la rediriger (son code retombe sur le CDN d'origine si l'adresse
+ * de remplacement échoue). Ce qu'on PEUT faire, et qui est vérifié
+ * autrement, c'est ne jamais lui présenter un caractère qu'elle aurait à
+ * résoudre : le résolveur n'est appelé QUE pour les caractères absents de la
+ * police livrée, et `test-cartels.mjs` lit la table `cmap` de notre Inter
+ * pour prouver qu'aucun texte affiché — jeu préchargé ET noms de salles du
+ * contenu réel — n'en sort. Aucun caractère à résoudre, aucune requête.
+ *
+ * La tolérance est donc adossée à une PREUVE, pas à une intention ; et elle
+ * est aussi étroite que possible — l'adresse exacte, pas le domaine.
+ */
+const TOLERES = [
+  'https://cdn.jsdelivr.net/gh/lojjic/unicode-font-resolver@v1.0.1/packages/data'
 ];
 
 /** Motifs de clé d'API : aucune ne doit jamais être commitée ni publiée. */
@@ -110,7 +139,11 @@ for (const chemin of texte) {
     }
   }
   for (const hote of HOTES_INTERDITS) {
-    if (contenu.includes(hote)) erreurs.push(`${chemin} : hôte tiers « ${hote} »`);
+    // On ôte d'abord les adresses TOLÉRÉES, puis on cherche l'hôte : sans
+    // cela, une seule adresse tolérée dédouanerait tout le fichier.
+    let reste = contenu;
+    for (const t of TOLERES) reste = reste.split(t).join('');
+    if (reste.includes(hote)) erreurs.push(`${chemin} : hôte tiers « ${hote} »`);
   }
   for (const motif of MOTIFS_CLE) {
     if (motif.test(contenu)) erreurs.push(`${chemin} : ressemble à une clé d'API`);

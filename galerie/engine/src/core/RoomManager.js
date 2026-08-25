@@ -4,6 +4,9 @@ import { buildSky, disposeSky, updateSkyUniforms } from './Sky.js';
 import { styleTexture, scaleBoxUV, scalePlaneUV, scaleWorldUV, TILE } from './textures.js';
 import { delaiDe, fermer, estFerme, tick as tickCooldown } from './Cooldown.js';
 import { reverbDePiece } from './reverb-reglages.js';
+import { creerCartel, majCartel, disposerCartel, tournerVersCamera }
+  from './cartels.js';
+import { texteEtiquette, encreEtiquette } from './cartels-reglages.js';
 
 const PORTAL_COLOR = 0x9f8cff;
 /** Densité de brouillard par défaut — celle d'une salle d'exposition. */
@@ -547,7 +550,7 @@ export class RoomManager {
   }
 
   /**
-   * Remet à jour ce que les portes annoncent : « ◆ 1 / 4 » pour la salle
+   * Remet à jour ce que les portes annoncent : « • 1 / 4 » pour la salle
    * qu'elles desservent. Appelé au changement de pièce et à chaque
    * découverte — le compte doit bouger sous les yeux du visiteur, sinon la
    * porte ment jusqu'au prochain passage.
@@ -1008,12 +1011,20 @@ export class RoomManager {
         return;
       }
     }
-    // légère pulsation des portails
+    // légère pulsation des portails, et l'étiquette qui se tourne vers nous
     for (const mesh of this.current.portalMeshes) {
       const glow = mesh.userData.glow;
       if (glow && !this.app.quality.reducedMotion) {
         glow.material.opacity = 0.12 + 0.05 * Math.sin(ctx.time * 1.8);
       }
+      // Le `Sprite` d'avant se tournait tout seul ; un texte plat non. On le
+      // fait ICI, dans la boucle qui parcourt déjà les portes de la pièce
+      // COURANTE — pas une traversée de plus, et jamais pour des portes
+      // qu'on ne voit pas. Autour de la verticale seulement : un sprite se
+      // couche quand on le regarde d'en haut, et une enseigne vue du
+      // belvédère deviendrait une ligne.
+      const cartel = mesh.userData.etiquette?.cartel;
+      if (cartel) tournerVersCamera(cartel, this.app.camera);
     }
   }
 
@@ -1748,26 +1759,29 @@ function buildPortalMesh(cfg, label) {
   group.add(glow);
   group.userData.glow = glow;
 
-  // étiquette (CanvasTexture) : le nom de la salle, et sous lui le compte
-  // de ses œuvres — voir `peindreEtiquette`
-  const canvas = document.createElement('canvas');
-  canvas.width = 512; canvas.height = 176;
-  const tex = new THREE.CanvasTexture(canvas);
-  const sprite = new THREE.Sprite(new THREE.SpriteMaterial({
-    map: tex, transparent: true, depthWrite: false
-  }));
-  sprite.scale.set(2.6, 0.9, 1);
-  sprite.position.set(0, 3.4, 0);
-  group.add(sprite);
-  group.userData.etiquette = { canvas, tex, nom: cfg.label ?? label ?? '', bilan: null };
-  peindreEtiquette(group, null);
+  // étiquette : le nom de la salle, et sous lui le compte de ses œuvres.
+  //
+  // C'ÉTAIT UN CANEVAS DE 512 PIXELS étiré sur deux mètres soixante. À dix
+  // mètres c'était net ; en poussant la porte, une lettre faisait quinze
+  // pixels de haut — exactement au moment où le visiteur la lit. C'est
+  // maintenant du texte SDF (voir `core/cartels.js`), net à toute distance,
+  // et il n'y a plus ni canevas ni téléversement de texture par porte.
+  const cartel = creerCartel({
+    texte: '', taille: 0.3, largeur: 3.4, ancrageY: 'top'
+  });
+  if (cartel) {
+    cartel.position.set(0, 3.75, 0);
+    group.add(cartel);
+    group.userData.etiquette = { cartel, nom: cfg.label ?? label ?? '', bilan: null };
+    peindreEtiquette(group, null);
+  }
 
   return group;
 }
 
 /**
  * L'étiquette d'un portail : le nom de la salle, et sous lui ce qu'elle
- * contient — « ◆ 1 / 4 ».
+ * contient — « • 1 / 4 ».
  *
  * Un nom seul ne dit pas s'il vaut le détour. Le compte, lui, promet sans
  * rien dévoiler : on apprend qu'il y a quatre œuvres derrière cette porte
@@ -1780,27 +1794,26 @@ function buildPortalMesh(cfg, label) {
  */
 function peindreEtiquette(group, bilan) {
   const e = group.userData.etiquette;
-  if (!e) return;
-  const cle = bilan ? `${bilan.vues}/${bilan.total}` : '';
-  if (e.bilan === cle) return;            // rien de neuf : pas de ré-upload
-  e.bilan = cle;
-  const g = e.canvas.getContext('2d');
-  g.clearRect(0, 0, e.canvas.width, e.canvas.height);
-  g.textAlign = 'center';
-  g.textBaseline = 'middle';
-  g.font = '300 52px system-ui, sans-serif';
-  g.fillStyle = '#cfc8ff';
-  g.fillText(e.nom, 256, 52);
-  if (bilan && bilan.total > 0) {
-    g.font = '300 38px system-ui, sans-serif';
-    // tout trouvé : la porte le dit d'une couleur, sans un mot de plus
-    g.fillStyle = bilan.vues >= bilan.total ? '#8fe0c0' : 'rgba(207, 200, 255, 0.62)';
-    g.fillText(`\u25C6 ${bilan.vues} / ${bilan.total}`, 256, 122);
-  }
-  e.tex.needsUpdate = true;
+  if (!e?.cartel) return;
+  // Ce qui s'écrit et de quelle couleur est décidé dans
+  // `cartels-reglages.js`, qui s'éprouve au nœud ; ici on ne fait que le
+  // poser. `majCartel` ne recalcule la carte des glyphes que si le texte a
+  // VRAIMENT changé — cette fonction est appelée à chaque découverte et à
+  // chaque changement de pièce, et un `sync()` par frame mettrait un worker
+  // en marche pour rien.
+  majCartel(e.cartel, {
+    texte: texteEtiquette(e.nom, bilan),
+    couleur: encreEtiquette(bilan)
+  });
 }
 
+
 function disposePortalMesh(group) {
+  // Le cartel D'ABORD, et par sa propre méthode : troika tient une géométrie
+  // et un matériau à lui, plus une entrée dans le cache d'atlas. Le laisser
+  // au `traverse` ci-dessous rendrait le matériau sans rendre le reste.
+  disposerCartel(group.userData.etiquette?.cartel);
+  if (group.userData.etiquette) group.userData.etiquette.cartel = null;
   group.traverse((o) => {
     o.geometry?.dispose();
     if (o.material) {

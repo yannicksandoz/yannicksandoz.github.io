@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { damp } from '../core/utils.js';
+import { preparerRayons, rayonRapide } from '../core/rayons.js';
 
 /**
  * Navigation : orbite (souris / tactile) + déplacement clavier ZQSD/WASD +
@@ -63,10 +64,20 @@ export class Controls {
     this._keys = new Set();
     this._joyVec = new THREE.Vector2();
     this._yawVel = 0; // vitesse de pivot courante (lissée)
-    this._groundRay = new THREE.Raycaster();
+    // LES TROIS RAYONS DE LA MARCHE, et eux seuls, ont le droit d'aller vite.
+    //
+    // `firstHitOnly` fait s'arrêter la descente de l'arbre au premier
+    // triangle touché. C'est juste ici parce que ces trois-là ne lisent que
+    // le plus proche (`[0]`) ou une simple présence (`.length > 0`) ; ce
+    // serait faux sur le rayon de SÉLECTION d'`App.pickAt`, qui doit
+    // traverser les vitres pour trouver l'œuvre derrière. Le raccourci se
+    // pose donc sur les rayons, jamais sur la bibliothèque — et tant
+    // qu'aucun modèle ne la réveille, la propriété dort. Voir
+    // `core/rayons.js`, qui dit aussi pourquoi elle dort presque toujours.
+    this._groundRay = rayonRapide(new THREE.Raycaster());
     this._groundRay.far = 40;
-    this._wallRay = new THREE.Raycaster();
-    this._voidRay = new THREE.Raycaster();   // anti-chute (voir _collide)
+    this._wallRay = rayonRapide(new THREE.Raycaster());
+    this._voidRay = rayonRapide(new THREE.Raycaster()); // anti-chute (voir _collide)
     // position en fin de frame précédente : la référence de la collision —
     // tout ce qui a bougé la caméra depuis (clavier, orbite, pan tactile)
     // est corrigé d'un seul geste
@@ -305,12 +316,25 @@ export class Controls {
     }
     if (reach <= 0) return this[cache];
     const from = this.app.camera.position;
-    return this[cache].filter((o, i) => {
+    const proches = this[cache].filter((o, i) => {
       const s = this[spheres][i];
       if (!s) return true;                  // sphère inconnue : on n'écarte pas
       const d = s.radius + reach;
       return s.center.distanceToSquared(from) <= d * d;
     });
+    // Les arbres se bâtissent ICI, sur la liste DÉJÀ filtrée par la portée,
+    // et étalés sur plusieurs frames (voir `core/rayons.js`). Deux raisons de
+    // ne pas le faire à la construction de la pièce : on demanderait des
+    // dizaines d'arbres d'un coup à l'entrée — une saccade franche à la
+    // place d'une lenteur diffuse, mauvais échange — et l'on paierait pour
+    // des masses que le visiteur ne frôlera jamais.
+    //
+    // Sur le contenu d'aujourd'hui cet appel ne fait RIEN, et c'est mesuré :
+    // la plus grosse cible de la galerie fait douze triangles, très loin du
+    // seuil. Il ne coûte qu'un parcours de liste, et ne télécharge la
+    // bibliothèque que si un modèle lourd apparaît un jour.
+    preparerRayons(proches, undefined, THREE);
+    return proches;
   }
 
   /**
