@@ -601,6 +601,17 @@ au code du moteur** :
   },                               // valeur 0 = vide, n ≥ 1 = couleur n−1
   "scale": [1, 1, 1],              // échelle par axe (gizmo « échelle »)
 
+  // ou un SCAN — une capture volumétrique en splats gaussiens (Polycam,
+  // Luma, ou la sortie d'un entraînement 3DGS ; formats .splat/.ksplat/.ply)
+  // posée dans la salle comme n'importe quelle œuvre : le lieu photoréel où
+  // un son a été enregistré, exposé à côté du son lui-même. Rendu par
+  // GaussianSplats3D (MIT, Mark Kellogg), chargé à la première œuvre scan.
+  "scan": "assets/scans/capture.splat",
+  "scanTaille": [4, 2, 4],         // pavé de préhension invisible (mètres) :
+                                   // les taches ne se piquent pas au rayon,
+                                   // c'est lui que visent clics et gizmo
+  "solid": false,                  // un nuage de taches ne bloque pas le pas
+
   // — audio : autant de pistes que voulu, lues en boucle —
   "baseGain": 1,                   // volume de référence de l'objet
   "stems": [
@@ -1247,6 +1258,22 @@ teinte selon les normales). `textureRepeat` resserre le motif procédural ;
 rugosité et métal font la matière — un sol ciré n'est pas un sable, même
 sous la même texture.
 
+Aux styles procéduraux s'ajoutent deux **matières réelles** : `bois` (un
+parquet, veines et reflet satiné) et `brique-vraie` (l'appareillage et son
+joint creusé). Ce sont les textures du dépôt three.js (MIT), **désaturées à
+l'import** : la photographie n'apporte que la matière — grain, relief,
+rugosité —, la COULEUR reste celle de la pièce, comme pour tous les autres
+styles. Leur écart au motif procédural est le relief (bump) et la carte de
+rugosité, que 32 texels ne pouvaient pas porter. Elles se répètent en
+MÈTRES réels (3,6 m le parquet, 2,8 m la brique), pas en fraction de mur.
+
+L'**image d'environnement** qui nourrit l'IBL se choisit dans
+`reglages.json` : `"environnement": "studio"` (le défaut, un studio neutre
+généré), `"aube"` ou `"appartement"` — deux panoramas HDR de Poly Haven
+(CC0, via `@pmndrs/assets`), rapatriés dans le dépôt et chargés à la
+demande dans leur propre morceau. `envIntensity`, par pièce, dose ce que
+chaque salle en reçoit.
+
 ```jsonc
 {
   "id": "hall",
@@ -1339,13 +1366,19 @@ avec **`?edit`** (ex. `http://localhost:5173/?edit`). Les mêmes commandes
 referment l'éditeur. Utilisable au doigt sur iOS : panneaux repliables,
 champs numériques pour le placement précis, barre d'outils défilante.
 
-**Barre d'outils** : ◻ Objets / ▦ Voxel (**V**) / ✂ Découpe (**C**),
-📁 Médias (import de fichiers), 🔗 URL (média distant),
-🎧 Mixage (l'onglet du même nom, ci-dessous),
-＋ Objet, gizmos ↔ / ⟳ / ⤢ (raccourcis
-1 / 2 / 3), ⧉ dupliquer, 🗑 supprimer (Suppr), ⤓ Importer et ⤒ Exporter
-(`galerie.json`, toute la galerie en un fichier), ☁ Publier… (le panneau
-*Sauvegarde* : fichier, dossier `content/`, mise en ligne), ✕ quitter.
+**Barre d'outils** (icônes [Lucide](https://lucide.dev), ISC, vendorées —
+un trait SVG est le même sur toutes les plateformes, ce qu'aucun émoji ne
+garantit) : Objets / Voxel (**V**) / Découpe (**C**),
+Médias (import de fichiers), URL (média distant),
+Mixage (l'onglet du même nom, ci-dessous),
+Photo (un rendu **path-tracé** de la vue courante — ombres douces,
+rebonds de lumière — téléchargé en PNG : l'image de presse tirée de la
+vraie scène ; Échap annule ; les œuvres à shader — ciel, eau, monolithe,
+lettrage, scans — n'y figurent pas, par construction),
+＋ Objet, gizmos déplacer / tourner / échelle (raccourcis
+1 / 2 / 3), dupliquer, supprimer (Suppr), Importer et Exporter
+(`galerie.zip`, toute la galerie rangée), Publier… (le panneau
+*Sauvegarde* : fichier, dossier `content/`, mise en ligne), quitter.
 
 ### Le volet droit : trois onglets
 
@@ -1778,6 +1811,14 @@ C'est la sauvegarde qu'on range sur une clé, qu'on envoie, qu'on rouvre sur
 un autre ordinateur — et c'est aussi ce qui rend **Firefox et Safari
 équivalents à Chrome** : ils n'ont pas l'écriture directe dans un dossier,
 mais une archive se décompresse partout.
+
+Sur Chrome et Edge, le même bloc propose en plus **« Exporter vers un
+dossier… »** : le même arbre, à l'octet près, écrit DIRECTEMENT dans un
+dossier que l'on désigne (File System Access, l'API native — aucune
+dépendance) — rien à décompresser. Le dossier se choisit à **chaque**
+export, délibérément : un export est un instantané, pas une destination
+mémorisée — au contraire du dossier `content/` du bloc 2, retenu d'une fois
+sur l'autre parce que lui est une destination.
 
 **⤓ Importer** relit l'archive **médias compris** — les images et les sons
 reviennent sous leur chemin de contenu, rien à redéposer. Il accepte aussi un
