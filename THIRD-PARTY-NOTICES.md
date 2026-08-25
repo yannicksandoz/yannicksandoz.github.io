@@ -21,20 +21,29 @@ Dernière vérification : 12 août 2026.
 |---|---|---|---|
 | [three.js](https://threejs.org) | 0.166.1 | MIT | © 2010-2024 three.js authors |
 | [Airwindows](https://github.com/airwindows/airwindows) — `Pressure4`, `ClipOnly2`, `Console6`, `Monitoring`, `Verbity`, `Galactic2`, `Distance2`, `ClearCoat`, `Ultrasonic`, `Infrasonic`, `Channel9`, `BussColors4`, `ToTape6`, `Console7`, `Pressure5` | portage 2026 | MIT | © 2016, 2018 airwindows (Chris Johnson) |
-| [troika-three-text](https://github.com/protectwise/troika) | 0.52.5 | MIT | © 2019 ProtectWise, © 2021 Jason Johnston |
-| [bidi-js](https://github.com/lojjic/bidi-js) *(via troika)* | 1.0.3 | MIT | © 2021 Jason Johnston |
-| [webgl-sdf-generator](https://github.com/lojjic/webgl-sdf-generator) *(via troika)* | 1.1.1 | MIT | © 2021 Jason Johnston |
-| [Inter](https://github.com/rsms/inter) *(via `@fontsource/inter`)* | 5.3.0 | **SIL OFL 1.1** | © 2016 The Inter Project Authors |
+| [Slug](https://github.com/EricLengyel/Slug) — algorithme de lettrage, portage 2026 | shaders de référence | MIT OU Apache-2.0 | © 2017 Eric Lengyel |
+| [Inter](https://github.com/rsms/inter) *(courbes extraites ; `@fontsource/inter` en dépendance de développement)* | 5.3.0 | **SIL OFL 1.1** | © 2016 The Inter Project Authors |
 | [three-mesh-bvh](https://github.com/gkjohnson/three-mesh-bvh) | 0.9.14 | MIT | © 2018 Garrett Johnson |
 
-**Les cartels sont en texte SDF, et la police est LOCALE.** `troika-three-text`
-dessine le nom des salles au-dessus des portes. Sans fichier de police, il en
-chercherait une sur `fonts.gstatic.com` : on lui passe donc toujours notre
-Inter, empaqueté avec le site (31 ko, latin, une graisse). L'**OFL 1.1** exige
-que la police reste sous OFL, soit distribuée avec sa licence — c'est
-`galerie/content/LICENCES/inter-OFL.txt` — et ne soit pas vendue seule ; elle
-n'impose rien au reste du dépôt. Le nom réservé « Inter » n'est pas utilisé
-pour une version modifiée : le fichier est livré tel quel.
+**Le lettrage est un PORTAGE de Slug, et le crédit est une CONDITION.** Les
+shaders de référence d'Eric Lengyel (SlugPixelShader.hlsl,
+SlugVertexShader.hlsl) sont transcrits en GLSL dans
+`engine/src/core/lettrage.js`, et l'auteur écrit : « If you do use this code
+in software that gets distributed in any way, then you are required to give
+credit. » Le crédit vit dans les chaînes GLSL (il survit à la minification,
+le garde-fou le vérifie), dans les en-têtes de fichiers et dans
+`galerie/content/LICENCES/slug-MIT.txt`, livré avec chaque build. Le brevet
+de l'algorithme a été versé au domaine public par son auteur en 2026.
+
+**La police n'est plus livrée en fichier : ses COURBES sont dans le code.**
+`scripts/genere-lettrage.mjs` extrait de l'Inter du dépôt les contours
+quadratiques des 126 caractères du jeu courant, le crénage et les métriques,
+et les écrit dans `engine/src/core/lettrage-inter.js`. L'**OFL 1.1** suit la
+fonte sous cette forme dérivée : la licence est distribuée
+(`galerie/content/LICENCES/inter-OFL.txt`), les données de police ne sont pas
+vendues seules, et le nom « Inter » n'est pas utilisé pour une version
+modifiée. `troika-three-text` (SDF), qui dessinait les cartels avant Slug, a
+été retiré avec ses dépendances.
 
 **`three-mesh-bvh` est chargé À LA DEMANDE, et ne l'est jamais aujourd'hui.**
 Mesuré au navigateur, la plus grosse cible de collision de la galerie fait

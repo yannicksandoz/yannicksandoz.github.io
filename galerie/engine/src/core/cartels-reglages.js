@@ -20,18 +20,18 @@ export const ENCRE_FINI = 0x8fe0c0;
  * couvre le latin accentué du français, les chiffres, la ponctuation
  * courante et la puce des comptes.
  *
- * IL NE CONTIENT QUE CE QU'INTER SAIT DESSINER, et ce n'est pas une
- * précaution de style. Troika embarque un résolveur de polices de repli :
- * un caractère hors de la police livrée déclenche une requête vers
- * `cdn.jsdelivr.net`, silencieusement, à l'affichage — et rediriger cette
- * adresse ne sert à rien, son code retombe sur le CDN d'origine en cas
- * d'échec. La seule protection est de ne jamais lui présenter un caractère
- * inconnu. `test-cartels.mjs` lit la table `cmap` du `.woff` livré et le
- * vérifie, sur ce jeu ET sur tous les noms du contenu réel.
+ * IL NE CONTIENT QUE CE QU'INTER SAIT DESSINER, et c'est désormais une
+ * frontière DURE : le lettrage Slug embarque les courbes de ces caractères
+ * et d'eux seuls (`genere-lettrage.mjs` refuse de générer si l'un manque à
+ * la police, `test-lettrage.mjs` refuse un fichier qui diverge). Un
+ * caractère hors du jeu ne s'affiche pas — il ne DÉCLENCHE plus rien non
+ * plus : du temps du SDF (troika), il partait chercher une police de repli
+ * sur un CDN, silencieusement. `test-cartels.mjs` vérifie que tous les noms
+ * du contenu réel restent dans le jeu.
  *
- * C'est ainsi qu'on a découvert que le losange « ◆ » des comptes, affiché
- * sur CHAQUE porte, n'existe pas dans le sous-ensemble latin d'Inter — qui
- * ne contient aucune forme géométrique. La puce « • », si.
+ * C'est ce contrôle qui avait révélé que le losange « ◆ » des comptes,
+ * affiché sur CHAQUE porte, n'existe pas dans le sous-ensemble latin
+ * d'Inter — qui ne contient aucune forme géométrique. La puce « • », si.
  */
 export const GLYPHES_COURANTS =
   'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz'

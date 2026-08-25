@@ -17,6 +17,7 @@ import { setDefaultAnisotropy } from './textures.js';
 import { COUCHE_AUTO_ECLAIREE } from './Artwork.js';
 import { WATER_TIME } from './primitives.js';
 import { chauffer } from './cartels.js';
+import * as lettrage from './lettrage.js';
 
 const FOG_COLOR = 0x05050a;
 
@@ -288,11 +289,15 @@ export class App {
       return;
     }
 
-    // La carte des glyphes se calcule dans un worker : on la lance ICI,
-    // pendant que le rendu s'installe et que la galerie se charge. Sans
-    // cela, la première étiquette de porte attend son tour et l'on voit un
-    // trou au-dessus du linteau. Voir `core/cartels.js`.
+    // Les textures de glyphes se bâtissent ICI, pendant que le rendu
+    // s'installe — quelques millisecondes, une fois. Voir `core/cartels.js`.
     chauffer();
+    // Le module de lettrage et THREE, exposés sur l'app : les sondes de
+    // test comparent les pixels du GPU à la référence CPU de l'algorithme,
+    // et il leur faut les deux. Ce ne sont pas des points d'entrée du
+    // moteur — rien dans `engine/` ne doit passer par là.
+    this.lettrage = lettrage;
+    this.THREE = THREE;
 
     // --- rendu ---------------------------------------------------------
     // `antialias` du canevas : inutile — l'image arrive par le composer,

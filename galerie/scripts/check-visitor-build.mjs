@@ -46,12 +46,11 @@ const EMPREINTES_EDITEUR = [
  */
 const HOTES_INTERDITS = [
   'api.poly.pizza', 'freesound.org/apiv2', 'unpkg.com', 'cdn.jsdelivr', 'googleapis.com',
-  // LA POLICE DES CARTELS. `troika-three-text` va chercher Roboto sur
-  // `fonts.gstatic.com` quand on ne lui donne pas de fichier — silencieusement,
-  // et seulement au premier texte affiché : rien ne le signale au build, et
-  // une galerie publiée finirait par afficher ses portes en blanc le jour où
-  // ce serveur ne répond plus. `core/cartels.js` passe toujours notre Inter
-  // local ; cette ligne fait que ce n'est pas une promesse mais une règle.
+  // AUCUNE POLICE PAR LE RÉSEAU. La leçon vient de troika, qui allait
+  // chercher Roboto ici quand on ne lui donnait pas de fichier ; le
+  // lettrage Slug embarque ses courbes et n'a plus de police au sens
+  // fichier, mais la ligne reste : si un futur composant réintroduisait un
+  // chargement de police distant, le build ne partirait pas.
   'fonts.gstatic.com',
   // La mise en ligne écrit un commit sur le dépôt de l'auteur : c'est le
   // geste le plus puissant de l'éditeur, et il n'a rien à faire dans les
@@ -60,26 +59,15 @@ const HOTES_INTERDITS = [
 ];
 
 /**
- * Une adresse, et une seule, qui a le droit d'apparaître dans le code
- * empaqueté sans que le navigateur la contacte jamais.
- *
- * `troika-three-text` embarque le résolveur de polices de repli de lojjic,
- * dont l'adresse de données est une constante compilée. On ne peut pas la
- * retirer (elle est inlinée dans le bundle de la bibliothèque), et l'on ne
- * peut pas la rediriger (son code retombe sur le CDN d'origine si l'adresse
- * de remplacement échoue). Ce qu'on PEUT faire, et qui est vérifié
- * autrement, c'est ne jamais lui présenter un caractère qu'elle aurait à
- * résoudre : le résolveur n'est appelé QUE pour les caractères absents de la
- * police livrée, et `test-cartels.mjs` lit la table `cmap` de notre Inter
- * pour prouver qu'aucun texte affiché — jeu préchargé ET noms de salles du
- * contenu réel — n'en sort. Aucun caractère à résoudre, aucune requête.
- *
- * La tolérance est donc adossée à une PREUVE, pas à une intention ; et elle
- * est aussi étroite que possible — l'adresse exacte, pas le domaine.
+ * Il n'y a AUCUNE adresse tolérée. Il y en a eu une : le résolveur de
+ * polices de repli embarqué par troika portait un CDN en constante
+ * compilée, et l'on avait dû prouver qu'il ne serait jamais appelé plutôt
+ * que de pouvoir le retirer. Le lettrage Slug a remplacé troika — les
+ * courbes d'Inter sont dans le bundle, plus aucune police ne vient du
+ * réseau — et la règle est redevenue simple : un hôte interdit qui
+ * apparaît, c'est un build qui ne part pas.
  */
-const TOLERES = [
-  'https://cdn.jsdelivr.net/gh/lojjic/unicode-font-resolver@v1.0.1/packages/data'
-];
+const TOLERES = [];
 
 /** Motifs de clé d'API : aucune ne doit jamais être commitée ni publiée. */
 const MOTIFS_CLE = [
@@ -119,11 +107,18 @@ const texte = tous.filter((f) => EXTENSIONS_TEXTE.has(extname(f)));
 // commentaires, et c'est pour cela qu'elles traversent la minification. Cela
 // tient à un détail de montage — donc on le vérifie.
 let creditAirwindows = false;
+// Même exigence pour Slug : Eric Lengyel demande le crédit en échange de
+// ses shaders. Le nom vit dans les CHAÎNES GLSL du lettrage (un shader est
+// une chaîne, pas un commentaire) et doit donc survivre à la minification.
+let creditLengyel = false;
 
 for (const chemin of texte) {
   const contenu = await readFile(chemin, 'utf8');
   if (extname(chemin) === '.js' && contenu.includes('airwindows')) {
     creditAirwindows = true;
+  }
+  if (extname(chemin) === '.js' && contenu.includes('Lengyel')) {
+    creditLengyel = true;
   }
 
   // Le catalogue de la bibliothèque est du CONTENU, pas de l'éditeur : il
@@ -201,6 +196,24 @@ if (!licence) {
 if (!creditAirwindows) {
   erreurs.push('aucune mention d’Airwindows dans le JS livré : les en-têtes '
     + 'de copyright ont été perdus à la minification');
+}
+if (!creditLengyel) {
+  erreurs.push('aucune mention d’Eric Lengyel dans le JS livré : le crédit '
+    + 'exigé par la licence de Slug a été perdu');
+}
+
+// …et la licence de Slug part avec le build, comme celle d'Airwindows.
+const licenceSlug = tous.find((f) => f.endsWith('LICENCES/slug-MIT.txt'));
+if (!licenceSlug) {
+  erreurs.push('la licence de Slug ne part pas avec le build '
+    + `(attendu ${RACINE}/LICENCES/slug-MIT.txt)`);
+} else {
+  const corpsSlug = await readFile(licenceSlug, 'utf8');
+  for (const attendu of ['Permission is hereby granted', 'Eric Lengyel']) {
+    if (!corpsSlug.includes(attendu)) {
+      erreurs.push(`la licence de Slug est incomplète : « ${attendu} » manque`);
+    }
+  }
 }
 
 console.log(`${texte.length} fichiers texte inspectés dans ${RACINE}/`);

@@ -1643,38 +1643,50 @@ un passage à sens unique (les portails d'Escher exceptés — une pièce vers
 elle-même est son propre retour), et une pièce qu'aucun chemin ne relie à
 l'entrée.
 
-### Les cartels, et une accélération qu'on a refusé d'empaqueter
+### Les cartels : Slug, ou les lettres dessinées depuis leurs contours
 
-**Le nom des salles est en texte SDF** (`engine/src/core/cartels.js`, d'après
-*troika-three-text*, MIT). C'était un canevas de 512 pixels étiré sur deux
-mètres soixante : net à dix mètres, illisible en poussant la porte — une
-lettre y faisait quinze pixels de haut, exactement au moment où le visiteur
-la lit. Un champ de distances signées ne stocke pas des pixels mais la
-distance au trait le plus proche : le bord reste franc à tout grossissement.
-Il n'y a plus non plus ni canevas ni téléversement de texture par porte, et
-l'étiquette ne pivote plus qu'autour de la **verticale** — un sprite se
-couche quand on le regarde d'en haut, et une enseigne vue du belvédère
-devenait une ligne.
+**Le nom des salles est du lettrage vectoriel calculé au fragment**
+(`engine/src/core/lettrage.js`), portage de l'algorithme **Slug** d'Eric
+Lengyel — le moteur de texte de jeux AAA, dont le brevet a été versé au
+domaine public en 2026 et les shaders de référence publiés en MIT/Apache-2
+(https://github.com/EricLengyel/Slug ; le crédit est exigé, il est dans le
+code, dans `content/LICENCES/slug-MIT.txt`, et le garde-fou refuse un build
+qui l'aurait perdu). Chaque pixel résout les polynômes des Béziers
+quadratiques du glyphe qui le concernent — deux rayons, un horizontal, un
+vertical, pondérés — et en tire une couverture **analytique** :
+l'anticrénelage est la fraction du pixel réellement couverte, le trait est
+exact à tout grossissement. Les « bandes » de Lengyel (chaque glyphe découpe
+son em en tranches qui listent leurs seules courbes, triées pour l'arrêt
+anticipé) bornent le coût. Un cartel entier tient dans UN appel de dessin.
 
-**La police est livrée avec le site**, et c'est une règle plutôt qu'une
-intention. Sans fichier, troika va chercher Roboto sur `fonts.gstatic.com` —
-silencieusement, au premier texte affiché : une galerie publiée finirait par
-montrer ses portes en blanc le jour où ce serveur ne répond plus. On passe
-donc Inter (31 ko, latin, une graisse, SIL OFL 1.1), et le garde-fou refuse
-désormais un build où `fonts.gstatic.com` apparaîtrait.
+**C'est le troisième moteur de ces étiquettes, et chaque étape a payé la
+suivante.** Le canevas (512 px étirés sur 2,60 m) devenait de la bouillie en
+poussant la porte. Le SDF (troika) a réglé la netteté mais apporté deux
+fuites réseau — la police par `fonts.gstatic.com`, puis un résolveur de
+replis qui partait sur `cdn.jsdelivr.net` au premier caractère inconnu, et
+c'est ce contrôle-là qui a révélé que le « ◆ » n'existe pas dans le latin
+d'Inter (d'où le « • » des portes). Slug ferme le dossier : **les courbes
+d'Inter sont dans le bundle** (`lettrage-inter.js`, généré depuis le `.woff`
+par `genere-lettrage.mjs` — 126 caractères, 2 935 courbes, 2 188 paires de
+crénage, 25 ko compressés). Plus de fichier de police, plus de worker, plus
+d'atlas ; troika et ses 227 ko sont partis, et le paquet principal est passé
+de 1 202 à **1 195 ko**. La police reste Inter (OFL 1.1), sous forme de
+courbes.
 
-**Ce n'était pas encore assez, et c'est le test qui l'a dit.** Troika embarque
-aussi un résolveur de polices de repli : un caractère absent de la police
-livrée déclenche une requête vers `cdn.jsdelivr.net`, et rediriger cette
-adresse ne sert à rien — son code retombe sur le CDN d'origine en cas
-d'échec. La seule protection est de ne jamais lui présenter un caractère
-inconnu. `test-cartels.mjs` lit donc la table `cmap` du `.woff` livré et
-vérifie la couverture réelle, sur le jeu préchargé **et** sur les 42 noms de
-salles et de portes du contenu. Il a immédiatement trouvé que le losange
-« ◆ » des comptes, affiché sur **chaque porte**, n'existe pas dans le
-sous-ensemble latin d'Inter — qui ne contient aucune forme géométrique. Les
-portes annoncent maintenant « • 1 / 4 », et la sonde de navigateur confirme
-zéro requête sortante après une visite complète.
+**Et c'est PROUVÉ, par trois oracles indépendants.** Au nœud
+(`test-lettrage.mjs`) : l'intégrale de la couverture égale l'aire
+géométrique des contours (théorème de Green, calculée par un tout autre
+chemin) à moins de 2 % sur neuf glyphes ; la couverture calculée avec les
+seules courbes de la bande égale celle calculée avec toutes, sur 2 000
+échantillons aléatoires — c'est exactement le pari du shader ; le fichier
+généré est régénéré et comparé octet à octet. Au navigateur
+(`verif-lettrage.cjs`) : un « Og » est rendu par le GPU dans une cible hors
+écran et comparé pixel à pixel à la référence CPU — **16 384 pixels, écart
+moyen 0,0001, accord binaire 100,00 %**, avec 150 pixels d'anticrénelage au
+bord. GPU = CPU = géométrie. Deux écarts assumés à la référence, documentés
+dans `lettrage.js` : pas de dilatation dynamique (un padding statique de
+0,25 em la remplace, pour du texte jamais lisible sous quelques pixels), et
+des textures float32 au lieu de float16/uint16.
 
 **Et le BVH ? Mesuré, puis refusé — presque.** `three-mesh-bvh` (MIT) remplace
 le balayage triangle par triangle du `Raycaster` par une descente d'arbre, et
@@ -1725,7 +1737,7 @@ mesure, et c'est noté ici pour qu'on ne refasse pas l'étude dans six mois.
 La règle qui sort de cette vague : une dépendance s'ajoute sur une mesure,
 jamais sur une réputation — et la mesure se garde dans un test ou ici.
 
-**Et la chaîne elle-même se vérifie.** Les vingt-quatre suites s’enchaînent par
+**Et la chaîne elle-même se vérifie.** Les vingt-cinq suites s’enchaînent par
 des `&&` : un script qui *plante* — pas qui échoue, qui plante — arrête tout
 le reste sans afficher une seule croix. C'est arrivé. En accueillant la sept,
 `Console.js` a gagné un `import … from './console7-worklet.js?raw'` : une
@@ -1738,7 +1750,7 @@ jamais un module que le nœud ne sait pas résoudre — la source d'un worklet
 en `?raw`, ou un fichier importé pour son URL comme la police des cartels.
 Le contrôle les cherche par la FORME de l'import, pas par une liste de
 suffixes qu'il faudrait tenir à jour. La chaîne complète tient aujourd'hui
-**821 ✓ / 0 ✗**.
+**856 ✓ / 0 ✗**.
 
 ### Sauvegarder, publier, mettre en ligne
 

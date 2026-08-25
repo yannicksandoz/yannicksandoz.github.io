@@ -105,23 +105,20 @@ test('le jeu de glyphes n’a pas de doublon', () => {
   assert.equal(new Set(GLYPHES_COURANTS).size, GLYPHES_COURANTS.length);
 });
 
-/* ------------------------------------------------- et surtout : le CDN -- */
+/* --------------------------------------- la police source, contrôlée -- */
 /**
- * LA VÉRIFICATION QUI PROTÈGE LA PROMESSE DE LA GALERIE.
+ * Le lettrage embarque les COURBES de la police ; plus rien ne se charge à
+ * l'affichage, et la couverture du jeu est déjà tenue par le générateur et
+ * `test-lettrage.mjs`. Ce qui reste à contrôler ICI, c'est LA SOURCE : que
+ * le `.woff` d'Inter (devenu dépendance de développement, il n'est plus
+ * livré) couvre bien tout le jeu — c'est lui qu'on lira à la prochaine
+ * régénération, et une mise à jour de la police qui perdrait un glyphe doit
+ * se voir AVANT de régénérer, pas après.
  *
- * Troika embarque `@unicode-font-resolver` : quand un caractère n'est PAS
- * couvert par la police qu'on lui donne, il va chercher une police de repli
- * sur `cdn.jsdelivr.net` — et si l'on redirige cette adresse vers une adresse
- * locale qui échoue, son code retombe sur le CDN d'origine. On ne peut donc
- * pas le lui interdire ; on peut seulement ne jamais lui présenter un
- * caractère qu'Inter ne connaît pas. Lu dans sa source, c'est exact : sans
- * caractère non couvert, la liste de replis reste vide et AUCUNE requête
- * n'est émise.
- *
- * Cette promesse ne vaut donc que si l'on connaît la couverture RÉELLE de
- * notre fichier de police. On la lit ici, dans le `.woff` livré, table
- * `cmap` comprise. C'est trente lignes, et cela remplace une supposition par
- * un fait.
+ * On lit sa table `cmap` nous-mêmes : trente lignes, et une supposition de
+ * moins. (Du temps du SDF, ce contrôle protégeait d'un résolveur de replis
+ * qui partait sur un CDN au premier caractère inconnu — c'est lui qui avait
+ * révélé que le « ◆ » n'existe pas dans le latin d'Inter.)
  */
 function couvertureWoff(chemin) {
   const buf = readFileSync(chemin);
@@ -180,8 +177,8 @@ function couvertureWoff(chemin) {
   return couvert;
 }
 
-titre('rien ne peut partir vers un CDN de polices');
-test('INTER COUVRE TOUT CE QUE L’ON AFFICHE — glyphes préchargés', () => {
+titre('la police source couvre tout ce qu’on régénérera');
+test('Inter couvre le jeu de glyphes entier', () => {
   const ici = dirname(fileURLToPath(import.meta.url));
   const police = join(ici, '..', 'node_modules', '@fontsource', 'inter',
     'files', 'inter-latin-300-normal.woff');
