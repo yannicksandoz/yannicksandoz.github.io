@@ -882,6 +882,47 @@ sommation**, pas un correcteur de niveau, et elle est livrée **éteinte** —
 `audio.console.attaque` dose combien on la pousse : 0 la table s'efface et la
 somme redevient une addition, 1 c'est le réglage de Chris.
 
+**Sur quelle table la galerie a été mixée — Channel9**
+(`engine/src/core/Pupitre.js`, d'après *Channel9* de Chris Johnson, MIT). On
+croit qu'une console « colore », comme si elle ajoutait quelque chose. Elle
+ENLÈVE : elle n'arrive pas à suivre. Le cœur du portage est un seuil sur ce
+que le signal a le droit de changer d'un échantillon au suivant, et les cinq
+tables ne diffèrent guère que par là :
+
+| Table | Suit jusqu'à | Bande | Ce qu'on entend |
+|---|---|---|---|
+| Neve | 0,334 | 28,8 kHz | large et lente — elle arrondit les attaques |
+| API | 0,600 | 27,2 kHz | plus vive, la même largeur |
+| SSL | 0,849 | 23,0 kHz | la plus rapide — celle qu'on dit propre |
+| Teac | 0,149 | 18,5 kHz | étroite et très lente — le quatre-pistes |
+| Mackie | 0,092 | 19,7 kHz | la table de chambre, et elle s'entend |
+
+Mesuré au nœud sur un créneau à 110 Hz : parmi les trois tables de studio,
+l'écart au signal d'entrée se range exactement dans l'ordre des seuils (SSL
+0,84 · API 1,02 · Neve 1,25), et les deux tables modestes altèrent davantage
+(Teac 1,39 · Mackie 1,34) tout en gardant **deux fois moins d'aigu** au-dessus
+de 5 kHz. Sur un échelon, la SSL est au but tout de suite ; la Teac et la
+Mackie mettent trois échantillons.
+
+Une PRÉCISION qui a coûté une première version des tests : le seuil de Chris
+ne borne pas la pente mais une différence SECONDE — un changement de pente.
+Une rampe rapide mais régulière traverse intacte, et c'est ce qui distingue
+une table d'un vulgaire limiteur de pente. Un test le vérifie exprès, pour
+que personne ne « corrige » le portage dans le mauvais sens.
+
+Le pupitre est **éteint par défaut**, et c'est délibéré : c'est le seul étage
+de la chaîne qui soit un parti pris et non une correction. Il se choisit par
+son nom dans l'onglet *Mixage*, avec l'attaque (le *Drive* de Chris — 0,34 %
+de distorsion à 0,1, 2,5 % à 0,9) et un niveau de sortie. Une galerie de sons
+faits chez soi n'a aucune raison de sonner comme un studio de Londres, et
+elle peut choisir de le dire.
+
+Il n'y a **pas de repli natif**, contrairement à l'hygiène : un passe-bas se
+refait à l'identique avec les nœuds du navigateur, un écrêtage de pente au
+nombre d'or non. L'imiter de loin donnerait un « à peu près » qui porterait
+le nom d'une Neve sans en être une. Sans worklet, le pupitre reste donc
+éteint et le dit.
+
 **Les deux bornes de l'audible — Ultrasonic et Infrasonic**
 (`engine/src/core/Hygiene.js`, d'après *Ultrasonic* et *Infrasonic* de Chris
 Johnson, MIT). Ce qu'ils enlèvent, personne ne l'entend — et c'est justement
@@ -1734,7 +1775,7 @@ portés en JavaScript — *Pressure4* et *ClipOnly2* au limiteur du maître,
 *Console6* à la table de mixage, *Monitoring* à l'écoute de contrôle,
 *Verbity* et *ClearCoat* aux pièces (la queue et ses premiers retours),
 *Galactic2* aux espaces qui n'en sont pas, *Ultrasonic* et *Infrasonic* aux
-bornes de l'audible, et
+bornes de l'audible, *Channel9* au pupitre, et
 *Distance2* au lointain. Chaque fichier porte le copyright, et la console de
 mixage l'affiche.
 

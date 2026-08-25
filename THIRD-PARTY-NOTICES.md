@@ -20,7 +20,7 @@ Dernière vérification : 12 août 2026.
 | Composant | Version | Licence | Copyright |
 |---|---|---|---|
 | [three.js](https://threejs.org) | 0.166.1 | MIT | © 2010-2024 three.js authors |
-| [Airwindows](https://github.com/airwindows/airwindows) — `Pressure4`, `ClipOnly2`, `Console6`, `Monitoring`, `Verbity`, `Galactic2`, `Distance2`, `ClearCoat`, `Ultrasonic`, `Infrasonic` | portage 2026 | MIT | © 2016, 2018 airwindows (Chris Johnson) |
+| [Airwindows](https://github.com/airwindows/airwindows) — `Pressure4`, `ClipOnly2`, `Console6`, `Monitoring`, `Verbity`, `Galactic2`, `Distance2`, `ClearCoat`, `Ultrasonic`, `Infrasonic`, `Channel9` | portage 2026 | MIT | © 2016, 2018 airwindows (Chris Johnson) |
 
 **Airwindows est VENDORÉ, et porté.** Plusieurs plugins de Chris Johnson sont
 réécrits en JavaScript :
@@ -48,6 +48,10 @@ réécrits en JavaScript :
   salle de 96 places au hall de 1541), leurs quatre étages de Householder et
   l'étage SubTight, avec les valeurs de Chris — qui ne les a pas réglées mais
   CHERCHÉES, une sur des centaines de milliers de tirages ;
+- `engine/src/core/pupitre-worklet.js` — *Channel9*, les cinq tables de
+  mixage (Neve, API, SSL, Teac, Mackie) : les trois constantes de chacune, le
+  passe-haut « diélectrique » dont la vitesse suit le niveau, la saturation
+  *Spiral* et l'écrêtage de pente au nombre d'or ;
 - `engine/src/core/hygiene-worklet.js` — *Ultrasonic* et *Infrasonic*, les
   deux bornes de l'audible : un Butterworth d'ordre dix en cinq biquads de
   chaque côté, avec les fréquences (20 kHz, 20 Hz) et les cinq facteurs de
