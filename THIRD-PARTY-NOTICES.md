@@ -20,7 +20,7 @@ Dernière vérification : 12 août 2026.
 | Composant | Version | Licence | Copyright |
 |---|---|---|---|
 | [three.js](https://threejs.org) | 0.166.1 | MIT | © 2010-2024 three.js authors |
-| [Airwindows](https://github.com/airwindows/airwindows) — `Pressure4`, `ClipOnly2`, `Console6`, `Monitoring`, `Verbity`, `Distance2`, `ClearCoat` | portage 2026 | MIT | © 2016, 2018 airwindows (Chris Johnson) |
+| [Airwindows](https://github.com/airwindows/airwindows) — `Pressure4`, `ClipOnly2`, `Console6`, `Monitoring`, `Verbity`, `Galactic2`, `Distance2`, `ClearCoat` | portage 2026 | MIT | © 2016, 2018 airwindows (Chris Johnson) |
 
 **Airwindows est VENDORÉ, et porté.** Plusieurs plugins de Chris Johnson sont
 réécrits en JavaScript :
@@ -37,6 +37,12 @@ réécrits en JavaScript :
 - `engine/src/core/reverb-worklet.js` — *Verbity*, la réverbération des
   pièces : trois blocs de quatre lignes de retard et leurs matrices de
   Householder, avec les longueurs de Chris ;
+- `engine/src/core/galactique-worklet.js` — *Galactic2*, le grand espace :
+  les seize longueurs de son unique jeu (290 ms, « un stade de dix mille
+  places »), les quatre étages de Householder, le CONDITIONNEMENT NON
+  LINÉAIRE de la contre-réaction — quatre gains qui grandissent avec ce qui
+  les traverse — les dix seuils d'assombrissement et l'arc sinus rapide de
+  sortie ;
 - `engine/src/core/premieres-worklet.js` — *ClearCoat*, les premières
   réflexions des pièces : dix-sept jeux de seize longueurs de ligne (de la
   salle de 96 places au hall de 1541), leurs quatre étages de Householder et

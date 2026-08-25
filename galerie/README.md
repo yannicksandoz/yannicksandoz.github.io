@@ -699,6 +699,7 @@ l'onglet **Pièce** de l'éditeur :
 
 | Réglage | Effet |
 |---|---|
+| `moteur` | `verbity` (une pièce) ou `galactique` (un espace) — voir plus bas |
 | `envoi` | combien la pièce reçoit. **0 = pièce sèche**, et c'est le défaut |
 | `taille` | l'ampleur du lieu — elle règle les DEUX étages (voir ci-dessous) |
 | `duree` | combien la queue s'attarde |
@@ -710,6 +711,43 @@ Six **lieux tout faits** (`sec`, `salle`, `bibliotheque`, `couloir`,
 ses cinq valeurs DÉPLIÉES, pour qu'on puisse les retoucher sans avoir à
 deviner ce que le nom cachait. Une œuvre peut rester sèche dans une salle qui
 résonne : `audio.envoi` la multiplie, `0` la coupe du lieu.
+
+**Ce qui n'est PAS une pièce — Galactic2** (`engine/src/core/galactique-worklet.js`,
+d'après *Galactic2* de Chris Johnson, MIT). Verbity fait des pièces : un
+volume fermé, des murs qu'on devine, une queue qui décroît. C'est juste pour
+un labo ou une bibliothèque, et c'est faux pour un belvédère de cinquante
+mètres à ciel ouvert — là, rien ne renvoie, il y a de l'espace, et le son s'y
+perd sans jamais vraiment rebondir. Aucun réglage de Verbity ne donne cela :
+tirer sa `taille` au bout fait une pièce énorme, pas un dehors.
+
+Galactic2 n'a donc **pas de taille** : un seul jeu de seize longueurs, mais
+énorme (290 ms, « un stade de dix mille places »), et une CONTRE-RÉACTION QUI
+SE NOURRIT — les quatre gains de retour ne sont pas constants, ils grandissent
+avec ce qui les traverse et se rabotent d'un passe-haut dont le dosage suit ce
+même état. C'est ce qui fait qu'à durée haute la queue ne meurt pas : elle
+s'installe, se referme sur elle-même et devient un lieu. Les deux canaux
+échangent leur premier retour et le moyennent : l'espace est commun aux deux
+oreilles, c'est un dehors et pas deux salles.
+
+Le moteur se choisit **par pièce**, dans l'onglet *Pièce* de l'éditeur ou
+`reverb.moteur` du JSON, et un seul lieu tout fait le change (`belvedere`).
+Les deux worklets sont montés à l'ouverture et un seul est alimenté — celui
+qui dort n'est pas appelé et ne coûte rien, et l'on évite d'enregistrer un
+module au milieu d'une visite. Au passage d'une porte, le retour se ferme en
+60 ms, on échange, on rouvre en 300 : le tout tient dans le fondu au noir du
+portail, et l'ancien moteur est VIDÉ en partant pour que sa queue ne revienne
+pas par surprise à la pièce suivante.
+
+Deux choses mesurées, qui ont décidé du réglage livré :
+
+- **la queue tient.** Sur la même frappe, la pièce est à −55 dB après cinq
+  secondes ; l'espace est encore à −23 dB. C'est tout le propos ;
+- **`duree` est plus basse qu'elle n'en a l'air.** 0,75 sur ce moteur ne
+  s'éteint plus (−8 dB après sept secondes) : le belvédère est livré à
+  **0,5**, ce qui donne déjà une queue d'une douzaine de secondes.
+
+Les premières réflexions, elles, restent ClearCoat dans les deux cas — une
+salle est une salle de près, et même un dehors a un sol.
 
 **La pièce entendue DE PRÈS — ClearCoat** (`engine/src/core/Premieres.js`,
 d'après *ClearCoat* de Chris Johnson, MIT). Une queue de réverbe ne s'entend
@@ -1657,7 +1695,8 @@ Jekyll du site, Primer — gardent leurs propres licences, listées dans
 vendoré** : les plugins d'**Airwindows** (Chris Johnson), sous licence MIT,
 portés en JavaScript — *Pressure4* et *ClipOnly2* au limiteur du maître,
 *Console6* à la table de mixage, *Monitoring* à l'écoute de contrôle,
-*Verbity* et *ClearCoat* aux pièces (la queue et ses premiers retours) et
+*Verbity* et *ClearCoat* aux pièces (la queue et ses premiers retours),
+*Galactic2* aux espaces qui n'en sont pas et
 *Distance2* au lointain. Chaque fichier porte le copyright, et la console de
 mixage l'affiche.
 

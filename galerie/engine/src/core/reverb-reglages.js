@@ -7,8 +7,25 @@
 
 import { PREMIERES_DEFAUT, normaliserPremieres } from './premieres-reglages.js';
 
+/**
+ * Les deux moteurs de queue, et ce qu'ils savent faire.
+ *
+ * Ce n'est pas un goût de couleur : c'est le choix entre une PIÈCE et un
+ * ESPACE. Verbity a des murs et une queue qui décroît ; Galactic2 n'en a pas
+ * et sa contre-réaction se nourrit d'elle-même — poussée, elle s'installe au
+ * lieu de mourir. Un labo veut le premier, un belvédère à ciel ouvert de
+ * cinquante mètres veut le second.
+ */
+export const MOTEURS = {
+  verbity: { nom: 'Pièce (Verbity)', desc: 'des murs, une queue qui décroît' },
+  galactique: { nom: 'Grand espace (Galactic2)', desc: 'pas de murs, une queue qui s’installe' }
+};
+
 export const REVERB_DEFAUTS = {
   actif: true,
+  // quel moteur porte la queue (voir MOTEURS). Les premières réflexions,
+  // elles, sont toujours ClearCoat : une salle est une salle de près.
+  moteur: 'verbity',
   taille: 0.4,    // A — l'ampleur du lieu
   duree: 0.5,     // B — combien la queue s'attarde
   sombre: 0.5,    // C — l'amortissement des aigus : pierre nue ou tenture
@@ -37,7 +54,12 @@ export const LIEUX = {
   couloir: { nom: 'Couloir', taille: 0.3, duree: 0.6, sombre: 0.3, envoi: 0.22, premieres: 0.6 },
   // à ciel ouvert, rien ne revient : le peu qu'on entend vient du sol
   jardin: { nom: 'Jardin (plein air)', taille: 0.6, duree: 0.25, sombre: 0.35, envoi: 0.08, premieres: 0.12 },
-  belvedere: { nom: 'Belvédère', taille: 0.85, duree: 0.75, sombre: 0.25, envoi: 0.26, premieres: 0.45 }
+  // cinquante mètres à ciel ouvert : pas une pièce, un espace — c'est le
+  // seul lieu tout fait qui change de moteur
+  // …et sa durée est plus basse qu'elle n'en a l'air : mesurée, une durée de
+  // 0,75 sur ce moteur ne s'éteint plus (−8 dB après sept secondes). 0,5
+  // donne une queue de douze secondes — énorme, et qui finit tout de même.
+  belvedere: { nom: 'Belvédère', moteur: 'galactique', taille: 0.85, duree: 0.5, sombre: 0.25, envoi: 0.26, premieres: 0.45 }
 };
 
 /** Réglages relus et bornés — un JSON écrit à la main n'est pas de confiance. */
@@ -50,6 +72,7 @@ export function normaliserReverb(brut) {
   };
   return {
     actif: c.actif !== false,
+    moteur: MOTEURS[c.moteur] ? c.moteur : REVERB_DEFAUTS.moteur,
     taille: borne(c.taille, 0, 1, REVERB_DEFAUTS.taille),
     duree: borne(c.duree, 0, 1, REVERB_DEFAUTS.duree),
     sombre: borne(c.sombre, 0, 1, REVERB_DEFAUTS.sombre),

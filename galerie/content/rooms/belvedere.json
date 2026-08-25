@@ -788,8 +788,9 @@
   ],
   "reverb": {
     "actif": true,
+    "moteur": "galactique",
     "taille": 0.85,
-    "duree": 0.75,
+    "duree": 0.5,
     "sombre": 0.25,
     "envoi": 0.26,
     "premieres": 0.45

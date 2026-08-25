@@ -1,8 +1,9 @@
 import sourceWorklet from './reverb-worklet.js?raw';
-import { REVERB_DEFAUTS, LIEUX, normaliserReverb, reverbDePiece }
+import sourceGalactique from './galactique-worklet.js?raw';
+import { REVERB_DEFAUTS, LIEUX, MOTEURS, normaliserReverb, reverbDePiece }
   from './reverb-reglages.js';
 
-export { REVERB_DEFAUTS, LIEUX, normaliserReverb, reverbDePiece };
+export { REVERB_DEFAUTS, LIEUX, MOTEURS, normaliserReverb, reverbDePiece };
 
 /**
  * LA PIÈCE QU'ON ENTEND — un départ, une queue, un retour.
@@ -32,13 +33,17 @@ export { REVERB_DEFAUTS, LIEUX, normaliserReverb, reverbDePiece };
 
 /** Durée du fondu du départ au changement de pièce (secondes). */
 const FONDU = 0.6;
+/** Le retour est un fil, pas un fader : son niveau vient des départs. */
+const RETOUR_NOMINAL = 1;
 
 export class Reverb {
   constructor() {
     this.ctx = null;
     this.entree = null;     // là où les départs arrivent
     this.retour = null;     // la sortie, à brancher en tranche
-    this.noeud = null;
+    this.noeud = null;      // le moteur ALIMENTÉ (voir _basculer)
+    this.moteurs = {};      // verbity, galactique — montés une fois pour toutes
+    this._moteur = 'verbity';
     this.disponible = false;
     this.reglages = { ...REVERB_DEFAUTS };
     // bus → { facteur, gain|null }. Le gain n'existe qu'une fois le worklet
@@ -57,14 +62,25 @@ export class Reverb {
     this.retour = ctx.createGain();
     try {
       if (!ctx.audioWorklet) throw new Error('pas d’AudioWorklet');
-      const url = URL.createObjectURL(
-        new Blob([sourceWorklet], { type: 'text/javascript' }));
-      try { await ctx.audioWorklet.addModule(url); }
-      finally { URL.revokeObjectURL(url); }
-      this.noeud = new AudioWorkletNode(ctx, 'galerie-reverb', {
+      const charger = async (source) => {
+        const url = URL.createObjectURL(
+          new Blob([source], { type: 'text/javascript' }));
+        try { await ctx.audioWorklet.addModule(url); }
+        finally { URL.revokeObjectURL(url); }
+      };
+      await charger(sourceWorklet);
+      await charger(sourceGalactique);
+      const monter = (nom) => new AudioWorkletNode(ctx, nom, {
         numberOfInputs: 1, numberOfOutputs: 1, outputChannelCount: [2],
         channelCount: 2, channelCountMode: 'explicit', channelInterpretation: 'speakers'
       });
+      // LES DEUX SONT MONTÉS, UN SEUL EST ALIMENTÉ. Un worklet que rien ne
+      // relie à la sortie n'est pas appelé : celui qui dort ne coûte donc
+      // rien, et l'on évite d'enregistrer un module au milieu d'une visite —
+      // `addModule` est asynchrone, et une pièce ne s'ouvre pas en deux fois.
+      this.moteurs.verbity = monter('galerie-reverb');
+      this.moteurs.galactique = monter('galerie-galactique');
+      this.noeud = this.moteurs.verbity;
       this.entree.connect(this.noeud);
       this.noeud.connect(this.retour);
       this.disponible = true;
@@ -124,17 +140,34 @@ export class Reverb {
     this.reglages = r;
     if (!this.ctx || !this.disponible) return r;
     const t = this.ctx.currentTime;
+    this._basculer(r.moteur, { instant });
+    // Les paramètres vont au moteur QUI VA JOUER, pas à celui qui joue
+    // encore : la bascule prend quatre-vingts millisecondes (le temps de
+    // refermer le retour), et pousser sur `this.noeud` réglait l'ancien
+    // pendant que le nouveau démarrait sur ses valeurs d'usine.
+    const cible = this.moteurs[r.moteur] ?? this.noeud;
     const p = (nom, v) => {
-      const param = this.noeud?.parameters.get(nom);
+      const param = cible?.parameters.get(nom);
       if (param) param.value = v;
     };
-    p('taille', r.taille);
-    p('duree', r.duree);
-    p('sombre', r.sombre);
-    const cible = r.actif ? r.envoi : 0;
+    if (r.moteur === 'galactique') {
+      // Galactic2 n'a pas de taille : son espace est fixe (un stade de dix
+      // mille places) et c'est le propos — on ne règle pas les dimensions
+      // d'un dehors. Son entrée reste au plein : le DÉPART de la pièce est
+      // déjà le dosage, en ajouter un second n'aurait fait que deux robinets
+      // pour un seul filet.
+      p('poussee', 1);
+      p('duree', r.duree);
+      p('sombre', r.sombre);
+    } else {
+      p('taille', r.taille);
+      p('duree', r.duree);
+      p('sombre', r.sombre);
+    }
+    const ouverture = r.actif ? r.envoi : 0;
     for (const depart of this.departs.values()) {
       if (!depart.gain) continue;
-      const valeur = cible * depart.facteur;
+      const valeur = ouverture * depart.facteur;
       // la compensation de distance repartira de cette valeur : on efface sa
       // mémoire, sinon un changement de pièce ne se verrait qu'au prochain
       // mouvement du visiteur
@@ -144,6 +177,56 @@ export class Reverb {
     }
     return r;
   }
+
+  /**
+   * Change de moteur de queue, sans qu'on entende la couture.
+   *
+   * Débrancher un worklet en pleine queue laisse un moignon : le son
+   * s'arrête net au milieu d'une décroissance, ce qu'aucune pièce ne fait.
+   * On ferme donc le RETOUR en soixante millisecondes, on échange, puis on
+   * rouvre en trois cents. Le tout tient dans le fondu au noir d'un portail,
+   * et c'est le seul moment où cela peut arriver — un moteur ne change qu'au
+   * changement de pièce.
+   *
+   * L'ancien moteur est VIDÉ en partant : sa queue, gardée, reviendrait par
+   * surprise à la prochaine pièce qui le redemande.
+   */
+  _basculer(moteur, { instant = false } = {}) {
+    const cible = MOTEURS[moteur] ? moteur : 'verbity';
+    if (cible === this._moteur || !this.moteurs[cible]) return;
+    const ancien = this.moteurs[this._moteur];
+    const nouveau = this.moteurs[cible];
+    this._moteur = cible;
+    const echanger = () => {
+      try { this.entree.disconnect(ancien); } catch { /* déjà */ }
+      try { ancien.disconnect(); } catch { /* déjà */ }
+      try { ancien.port.postMessage({ vider: true }); } catch { /* déjà */ }
+      this.entree.connect(nouveau);
+      nouveau.connect(this.retour);
+      this.noeud = nouveau;
+    };
+    if (instant) { echanger(); return; }
+    // On rouvre sur une valeur NOMINALE, jamais sur celle qu'on vient de
+    // lire : deux bascules rapprochées — un aller-retour dans l'éditeur —
+    // et la seconde relèverait un gain déjà en train de tomber, pour le
+    // rouvrir à zéro. Le retour est un fil, pas un fader : son niveau est
+    // porté par les départs.
+    const t = this.ctx.currentTime;
+    this.retour.gain.cancelScheduledValues(t);
+    this.retour.gain.setValueAtTime(this.retour.gain.value, t);
+    this.retour.gain.linearRampToValueAtTime(0, t + 0.06);
+    clearTimeout(this._bascule);
+    this._bascule = setTimeout(() => {
+      echanger();
+      const t2 = this.ctx.currentTime;
+      this.retour.gain.cancelScheduledValues(t2);
+      this.retour.gain.setValueAtTime(0, t2);
+      this.retour.gain.linearRampToValueAtTime(RETOUR_NOMINAL, t2 + 0.3);
+    }, 80);
+  }
+
+  /** Le moteur qui porte la queue en ce moment. */
+  get moteur() { return this._moteur; }
 
   /**
    * Rattrape la distance sur le départ d'un bus.
@@ -169,5 +252,7 @@ export class Reverb {
   }
 
   /** Coupe la queue net — utile en édition, jamais en visite. */
-  vider() { this.noeud?.port.postMessage({ vider: true }); }
+  vider() {
+    for (const n of Object.values(this.moteurs)) n?.port.postMessage({ vider: true });
+  }
 }
