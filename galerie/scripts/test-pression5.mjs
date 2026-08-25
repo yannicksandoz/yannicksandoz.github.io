@@ -17,7 +17,8 @@
  * Lancer avec : npm test
  */
 import assert from 'node:assert/strict';
-import { LIMITEUR_DEFAUTS, MOTEURS_LIMITEUR, normaliserLimiteur }
+import { LIMITEUR_DEFAUTS, MOTEURS_LIMITEUR, normaliserLimiteur,
+  sortiePression5, gainNetPression5 }
   from '../engine/src/core/limiteur-reglages.js';
 
 const TAUX = 48000;
@@ -298,6 +299,64 @@ test('les deux plafonds se décrivent', () => {
     assert.ok(MOTEURS_LIMITEUR[cle].nom, cle);
     assert.ok(MOTEURS_LIMITEUR[cle].desc?.length > 10, cle);
   }
+});
+
+/* ------------------------------------------------------ le rattrapage ---- */
+/* CE QUI SUIT GARDE UNE VRAIE ERREUR DE FERMÉE.
+ *
+ * En faisant de la cinq le plafond par défaut, j'ai laissé passer le
+ * rattrapage interne de Chris — `1/seuil`, appliqué avant le µ — et TOUTE la
+ * galerie est montée de deux décibels et demi. Rien ne le disait : le
+ * limiteur ne réduisait pas, les crêtes tenaient sous un, les tests passaient
+ * tous. On l'entendait, simplement, comme « ça sature un peu trop quand on
+ * est proche ».
+ *
+ * D'où la règle, et elle est éprouvée ici plutôt qu'écrite dans un
+ * commentaire : BRANCHER UN PLAFOND NE CHANGE PAS LE VOLUME. Un plafond
+ * rabote les crêtes ; s'il monte le niveau moyen, ce n'est plus un plafond,
+ * c'est une couleur — et l'on veut pouvoir la couper. */
+titre('le rattrapage de la cinq');
+test('brancher le plafond ne change pas le volume', () => {
+  assert.ok(Math.abs(gainNetPression5(1, 0.25, true) - 1) < 1e-12,
+    String(gainNetPression5(1, 0.25, true)));
+});
+test('…à toutes les pressions, pas seulement à celle qu’on a livrée', () => {
+  for (const p of [0, 0.1, 0.25, 0.4, 0.6, 0.8, 1]) {
+    const g = gainNetPression5(1, p, true);
+    assert.ok(Math.abs(g - 1) < 1e-12, `pression ${p} → ${g}`);
+  }
+});
+test('la sortie reste un multiplicateur franc', () => {
+  for (const s of [0.25, 0.5, 0.8]) {
+    const g = gainNetPression5(s, 0.25, true);
+    assert.ok(Math.abs(g - s) < 1e-12, `sortie ${s} → ${g}`);
+  }
+});
+test('sans compensation, on retrouve le rattrapage de Chris — +2,4 dB', () => {
+  const g = gainNetPression5(1, 0.25, false);
+  const db = 20 * Math.log10(g);
+  assert.ok(Math.abs(db - 2.36) < 0.05, `${db.toFixed(2)} dB`);
+  // et il grandit avec la pression, jusqu'à +26 dB au maximum
+  assert.ok(gainNetPression5(1, 0.9, false) > gainNetPression5(1, 0.5, false));
+});
+test('le niveau de Chris reste borné à un, même en demandant trop', () => {
+  assert.equal(sortiePression5(9, 0, true), 1);
+  assert.ok(sortiePression5(2, 0.9, true) <= 1);
+});
+test('une valeur impossible retombe sur du sain', () => {
+  assert.ok(Math.abs(gainNetPression5(undefined, 0.25, true) - 1) < 1e-12);
+  assert.ok(Number.isFinite(sortiePression5(NaN, NaN, true)));
+  assert.ok(sortiePression5(-3, 0.25, true) === 0);
+});
+test('et cela s’entend VRAIMENT dans le moteur, pas seulement sur le papier', () => {
+  // le vrai chemin : un signal sage, au réglage livré, doit ressortir
+  // au même niveau qu'il est entré
+  const s = sinus(220, 0.5, 0.2);
+  const y = traverser(s, { pression: 0.25, sortie: sortiePression5(1, 0.25, true) });
+  const depuis = Math.round(TAUX * 0.3);
+  const rapport = crete(y, depuis) / 0.2;
+  assert.ok(Math.abs(20 * Math.log10(rapport)) < 0.2,
+    `${(20 * Math.log10(rapport)).toFixed(2)} dB`);
 });
 
 console.log(`\n${ok} ✓ / ${ko} ✗`);

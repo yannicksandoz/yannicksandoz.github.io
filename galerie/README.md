@@ -1073,23 +1073,51 @@ le tout d'un bloc, et Chris y a mis trois choses que la quatre n'avait pas :
 
 Mesuré au navigateur, sur un sinus **trois fois trop fort** : les deux
 tiennent le plafond à 0,955 exactement — c'est le devoir d'un plafond et il
-est absolu. La cinq réduit de 9,8 dB pour y arriver, la quatre de 7,1.
+est absolu. La cinq réduit de 9,9 dB pour y arriver, la quatre de 7,1.
 
-**Et un écart qu'il faut connaître avant de basculer.** Au réglage
-RÉELLEMENT LIVRÉ (pression 0,25, marge 0,75), sur une entrée à 0,5 : la cinq
-rend **0,492 et 0,0 dB de réduction** — elle ne fait rien, ce qu'on attend
-d'un plafond à ce niveau-là — tandis que la quatre rend **0,168 et −7,0 dB**.
-La quatre travaillait donc beaucoup plus qu'on ne le croyait à ce réglage.
-Je n'ai pas diagnostiqué pourquoi : c'est le comportement d'avant, inchangé
-par ce portage, et c'est un fil à tirer. En attendant, comparez à l'oreille —
-la différence de niveau est franche, et le sélecteur est dans l'onglet
-*Mixage*.
+Au réglage RÉELLEMENT LIVRÉ (pression 0,25, marge 0,75), les deux sont
+**transparentes** : le gain du plafond, mesuré des deux côtés au même
+instant, vaut **0,00 dB** pour l'une comme pour l'autre, et le voyant reste à
+zéro. C'est exactement ce qu'on demande — brancher un plafond ne doit pas
+changer le volume. Le sélecteur est dans l'onglet *Mixage*, et la différence
+s'entend là où elles travaillent vraiment : sur les crêtes.
 
-Un piège de mesure, noté pour la prochaine fois : le vari-µ de Chris se
-relâche en **v² échantillons**, ce qui fait des dizaines de secondes quand le
-signal est fort. Une première version de la sonde ne vidait pas le nœud entre
-deux relevés et lisait −9 dB de réduction sur un signal qui n'en demandait
-aucune.
+### Le rattrapage caché de la cinq, et deux pièges de mesure
+
+Ce paragraphe garde une erreur de fermée, parce qu'elle est instructive et
+qu'elle a failli en faire naître une autre.
+
+**Le vrai défaut.** Chris fait précéder le µ de la cinq d'un rattrapage
+`1/seuil`, sans réglage pour le rendre — la quatre, elle, a `compenser`. En
+faisant de la cinq le défaut sans y penser, j'ai monté **toute la galerie de
++2,36 dB** et rapproché d'autant la saturation dont on venait de s'éloigner.
+Rien ne le disait : les crêtes tenaient sous un, le limiteur ne réduisait
+pas, toutes les suites passaient. Cela ne s'entendait que comme « ça sature
+un peu trop quand on est proche ». La conversion vit maintenant dans
+`sortiePression5()` / `gainNetPression5()` (`limiteur-reglages.js`), et
+`test-pression5.mjs` éprouve la règle plutôt que de la rappeler en
+commentaire : *brancher le plafond ne change pas le volume*, à toutes les
+pressions.
+
+**Le premier piège : mesurer un seul côté.** J'avais d'abord rapporté que la
+quatre rabotait **−7,0 dB** au réglage livré. C'était faux. Ne relever que la
+sortie et *supposer* l'entrée, c'est parier sur l'état de la marge, des
+rampes de bascule et du gain d'entrée. La sonde mesure désormais l'entrée et
+la sortie **au même instant**, par deux analyseurs : un rapport se mesure, il
+ne se déduit pas. Sans quoi on « corrige » un étage sain.
+
+**Le second : un état qui traîne.** Le vari-µ de Chris se relâche en
+**v² échantillons** — des dizaines de secondes quand le signal est fort. La
+quatre n'avait pas de `vider` : les remises à zéro de la sonde ne
+l'atteignaient pas, et chaque relevé traînait la compression du relevé
+précédent. `Pressure4` et `ClipOnly2` en ont un maintenant, et le processeur
+répond à `{ vider: true }` comme les autres worklets.
+
+**Et la marge ?** Mesurée sur la vraie galerie plutôt que sur un signal de
+test : la somme ne dépasse **0,08** même à 2,41 m de l'œuvre la plus proche,
+avec 0 dB de réduction du bout à l'autre — une vingtaine de décibels de
+réserve. Aucun changement de `marge` n'était justifié ; c'est bien le
++2,36 dB qu'il fallait retirer.
 
 **Le limiteur du maître — approcher, ce n'est pas « plus fort ».**
 Le bus maître allait droit à la sortie. Quinze sources qui s'additionnent y
@@ -1614,6 +1642,18 @@ chaque `npm test` et refuse trois choses : une porte qui ne mène nulle part,
 un passage à sens unique (les portails d'Escher exceptés — une pièce vers
 elle-même est son propre retour), et une pièce qu'aucun chemin ne relie à
 l'entrée.
+
+**Et la chaîne elle-même se vérifie.** Les vingt-deux suites s'enchaînent par
+des `&&` : un script qui *plante* — pas qui échoue, qui plante — arrête tout
+le reste sans afficher une seule croix. C'est arrivé. En accueillant la sept,
+`Console.js` a gagné un `import … from './console7-worklet.js?raw'` : une
+affaire d'empaqueteur, que le nœud ne sait pas résoudre. Comme
+`test-console.mjs` importait `Console.js`, la chaîne s'arrêtait au neuvième
+script sur vingt-deux, et **treize suites ne tournaient plus** — pendant que
+le décompte final affichait paisiblement `0 ✗`. D'où la règle, désormais
+éprouvée et non plus rappelée : un test n'importe que des `*-reglages.js`,
+jamais un module qui charge un worklet en texte. La chaîne complète tient
+aujourd'hui **792 ✓ / 0 ✗**.
 
 ### Sauvegarder, publier, mettre en ligne
 

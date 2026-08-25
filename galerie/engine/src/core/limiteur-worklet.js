@@ -55,6 +55,25 @@ export class Pressure4 {
   }
 
   /**
+   * Remet le vari-µ à neuf.
+   *
+   * IL EN FAUT UN, et son absence a coûté cher. Le µ se relâche en `v²`
+   * échantillons, ce qui fait des DIZAINES DE SECONDES après un passage
+   * fort : une mesure prise juste après une autre traîne la compression de
+   * la précédente. Sans ce message, une sonde a attribué à cet étage une
+   * perte de sept décibels qui n'était que le souvenir du relevé d'avant —
+   * et l'on a bien failli « corriger » un portage qui n'avait rien.
+   */
+  vider() {
+    this.muSpeedA = 10000;
+    this.muSpeedB = 10000;
+    this.muCoefficientA = 1;
+    this.muCoefficientB = 1;
+    this.flip = false;
+    this.moindre = 1;
+  }
+
+  /**
    * A = pression (seuil), B = vitesse (relâchement), C = douceur (mewiness),
    * D = sortie. Traitement lié : les deux canaux subissent la MÊME réduction,
    * sans quoi l'image stéréo se déplacerait à chaque crête.
@@ -187,6 +206,13 @@ export class ClipOnly2 {
     this.ecrete = [{ pos: false, neg: false }, { pos: false, neg: false }];
   }
 
+  /** Vide le retard et l'état « ça vient d'écrêter ». */
+  vider() {
+    this.dernier = [0, 0];
+    for (const t of this.tampon) t.fill(0);
+    this.ecrete = [{ pos: false, neg: false }, { pos: false, neg: false }];
+  }
+
   traiter(canal, c) {
     const etat = this.ecrete[c];
     const tampon = this.tampon[c];
@@ -256,6 +282,12 @@ class LimiteurProcessor extends AudioWorkletProcessor {
       // page laisserait le processeur tourner jusqu'à la fermeture du
       // contexte.
       if (e.data?.arret) this.vivant = false;
+      // …et l'on sait se remettre à neuf, comme tous les autres étages.
+      if (e.data?.vider) {
+        this.pression.vider();
+        this.ecreteur.vider();
+        this.moindre = 1;
+      }
     };
   }
 

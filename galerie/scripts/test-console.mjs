@@ -11,8 +11,13 @@
  *
  * Lancer avec : npm test
  */
+// DEPUIS `console-reglages.js`, PAS DEPUIS `Console.js`. Le second charge la
+// source du worklet de la sept en `?raw` — une affaire de bundler, que le
+// nœud ne sait pas résoudre : l'import cassait la chaîne entière dès que la
+// sept est arrivée. C'est justement pourquoi tout ce qui décide de quelque
+// chose vit dans un `*-reglages.js` séparé.
 import { encoder, decoder, normaliserConsole, CONSOLE_DEFAUTS }
-  from '../engine/src/core/Console.js';
+  from '../engine/src/core/console-reglages.js';
 
 let passed = 0, failed = 0;
 const eq = (a, b) => JSON.stringify(a) === JSON.stringify(b);
@@ -165,6 +170,40 @@ console.log('\nréglages');
     normaliserConsole({ attaque: 'fort' }).attaque, CONSOLE_DEFAUTS.attaque);
   check('un JSON douteux ne l’allume pas par accident',
     normaliserConsole({ actif: 0 }).actif, false);
+}
+
+/* LA CHAÎNE DE TESTS DOIT POUVOIR TOURNER SANS EMPAQUETEUR.
+ *
+ * Ce contrôle-ci existe parce que la panne a déjà eu lieu : `Console.js` a
+ * gagné un `import … from './console7-worklet.js?raw'` en accueillant la
+ * sept, et comme ce test-là importait `Console.js`, la chaîne ENTIÈRE s'est
+ * arrêtée net au neuvième script sur vingt-deux — sans une seule croix, juste
+ * une SyntaxError du nœud, qu'on ne voit pas si l'on ne regarde que le
+ * décompte final. Treize suites ne tournaient plus.
+ *
+ * La règle est donc vérifiée plutôt que rappelée : un test n'importe que des
+ * `*-reglages.js`. Ce qui décide de quelque chose vit là ; ce qui a besoin
+ * du navigateur reste au navigateur. */
+console.log('\nla chaîne tourne au nœud, sans empaqueteur');
+{
+  const { readdirSync, readFileSync } = await import('node:fs');
+  const { join, dirname } = await import('node:path');
+  const { fileURLToPath } = await import('node:url');
+  const ici = dirname(fileURLToPath(import.meta.url));
+  const coeur = join(ici, '..', 'engine', 'src', 'core');
+  const teintes = new Set(readdirSync(coeur)
+    .filter((f) => f.endsWith('.js'))
+    .filter((f) => /^import .*\?raw'/m.test(readFileSync(join(coeur, f), 'utf8'))));
+  vrai('des modules chargent bien un worklet en texte', teintes.size > 0);
+  const fautifs = [];
+  for (const f of readdirSync(ici).filter((n) => /^test-.*\.mjs$/.test(n))) {
+    const src = readFileSync(join(ici, f), 'utf8');
+    for (const m of src.matchAll(/['"]\.\.\/engine\/src\/core\/([\w-]+\.js)['"]/g)) {
+      if (teintes.has(m[1])) fautifs.push(`${f} → ${m[1]}`);
+    }
+  }
+  vrai('aucun test n’importe un module qui charge un worklet en ?raw',
+    fautifs.length === 0, fautifs.join(', '));
 }
 
 console.log(`\n${passed} ✓ / ${failed} ✗`);

@@ -95,3 +95,39 @@ export function reductionEnDb(coefficient) {
   if (!Number.isFinite(c) || c <= 0) return 0;
   return Math.min(0, 20 * Math.log10(Math.min(1, c)));
 }
+
+/**
+ * Le niveau de sortie à donner à Pressure5, depuis nos réglages à nous.
+ *
+ * DEUX CONVERSIONS EN UNE, et chacune a coûté quelque chose.
+ *
+ * 1. L'échelle. Chez Chris, la sortie de la cinq vaut `(E×2)²` : 0,5 rend
+ *    l'unité, et l'échelle est quadratique. On garde `sortie` comme un
+ *    multiplicateur franc, comme partout ailleurs dans ce moteur, et l'on
+ *    convertit ici plutôt que d'imposer à l'auteur une graduation qui n'est
+ *    pas la sienne.
+ *
+ * 2. LE RATTRAPAGE. La cinq multiplie d'abord tout par `1/seuil` — à
+ *    pression 0,25, c'est +2,4 dB sur la galerie entière, mesuré au nœud.
+ *    Chris n'offre aucun réglage pour le rendre ; la quatre, elle, a
+ *    `compenser`. En basculant le défaut vers la cinq sans le rendre, on a
+ *    monté toute la galerie de deux décibels et demi et rapproché d'autant
+ *    la saturation — exactement ce que `compenser` existe pour éviter.
+ *    Brancher un plafond ne doit pas changer le volume.
+ */
+export function sortiePression5(sortie, pression, compenser = true) {
+  const s = Number.isFinite(Number(sortie)) ? Number(sortie) : 1;
+  const p = Number.isFinite(Number(pression)) ? Number(pression) : 0;
+  const seuil = 1.0 - (Math.min(1, Math.max(0, p)) * 0.95);
+  const vise = compenser ? s * seuil : s;
+  return Math.min(1, Math.sqrt(Math.max(0, vise)) / 2);
+}
+
+/** Le gain que la cinq appliquera vraiment, rattrapage compris — pour les
+ *  tests, et pour qui veut vérifier qu'un plafond est bien transparent. */
+export function gainNetPression5(sortie, pression, compenser = true) {
+  const p = Math.min(1, Math.max(0, Number(pression) || 0));
+  const seuil = 1.0 - (p * 0.95);
+  const e = sortiePression5(sortie, pression, compenser);
+  return (1.0 / seuil) * ((e * 2.0) ** 2);
+}

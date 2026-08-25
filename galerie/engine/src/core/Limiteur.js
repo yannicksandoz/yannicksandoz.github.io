@@ -1,7 +1,7 @@
 import sourceWorklet from './limiteur-worklet.js?raw';
 import source5 from './pression5-worklet.js?raw';
-import { LIMITEUR_DEFAUTS, MOTEURS_LIMITEUR, normaliserLimiteur, reductionEnDb }
-  from './limiteur-reglages.js';
+import { LIMITEUR_DEFAUTS, MOTEURS_LIMITEUR, normaliserLimiteur, reductionEnDb,
+  sortiePression5 } from './limiteur-reglages.js';
 
 export { LIMITEUR_DEFAUTS, MOTEURS_LIMITEUR, normaliserLimiteur, reductionEnDb };
 
@@ -181,7 +181,11 @@ export class Limiteur {
         // garde `sortie` comme un multiplicateur franc, comme partout
         // ailleurs, et l'on convertit ici plutôt que de faire porter à
         // l'auteur une échelle qui n'est pas la sienne.
-        p('sortie', Math.min(1, Math.sqrt(Math.max(0, r.sortie)) / 2));
+        //
+        // ET L'ON REND LE RATTRAPAGE, exactement comme sur la quatre : la
+        // cinq multiplie d'abord tout par `1/seuil`, et brancher un plafond
+        // ne doit pas changer le volume. Voir sortiePression5.
+        p('sortie', sortiePression5(r.sortie, r.pression, r.compenser));
       } else {
         p('douceur', r.douceur);
         p('sortie', r.sortie);
