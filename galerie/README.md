@@ -923,6 +923,34 @@ nombre d'or non. L'imiter de loin donnerait un « à peu près » qui porterait
 le nom d'une Neve sans en être une. Sans worklet, le pupitre reste donc
 éteint et le dit.
 
+**La matière de la table — BussColors4** (`engine/src/core/Couleurs.js`,
+d'après *BussColors4* de Chris Johnson, MIT). Le pupitre modèle la VITESSE
+d'une console ; ceci modèle sa MATIÈRE. Chacune des huit est la réponse
+impulsionnelle relevée sur du vrai matériel, en trente-trois prises de retard
+dont les poids ne sont pas constants : ils bougent avec l'affaissement de
+l'alimentation sous le signal, ce qu'une console fait quand on la pousse.
+
+Dark (Focusrite MCI) · Rock (SSL) · Lush (Neve) · Vibe (Elation) ·
+Holo (Precision 8) · Punch (API) · Steel (Calibre) · Tube (Manley).
+
+Mesuré au nœud sur un créneau à 110 Hz, réglages au neutre : Steel garde le
+plus d'aigu au-dessus de 4 kHz (2,6 %), Dark le moins (1,0 %), et Lush est
+celle qui change le moins l'énergie du signal (0,493 contre 0,500 à l'entrée)
+tout en le colorant. Les deux se cumulent avec le pupitre — une vraie table a
+une vitesse ET une matière — mais chacun s'éteint tout seul.
+
+**Attention aux deux gains** : ils sont centrés sur 0,5, pas sur zéro, avec
+dix-huit décibels de part et d'autre. À un, la sortie multiplie par trente et
+un ; le limiteur tiendra, mais il ne fera plus que cela.
+
+Cinq cent vingt-huit coefficients, ce n'est pas quelque chose qu'on recopie à
+la main : ils ont été **extraits du source de Chris par programme**, et
+l'extraction validée en comparant ses blocs gauche et droit, qu'il a écrits
+deux fois — ils concordent sur les deux cent soixante-quatre paires. Le seul
+écart d'implémentation est un tampon circulaire au lieu de son décalage d'un
+cran par échantillon ; le test réimplémente sa version naïve et exige
+l'égalité **au bit près** sur les huit couleurs.
+
 **Les deux bornes de l'audible — Ultrasonic et Infrasonic**
 (`engine/src/core/Hygiene.js`, d'après *Ultrasonic* et *Infrasonic* de Chris
 Johnson, MIT). Ce qu'ils enlèvent, personne ne l'entend — et c'est justement
@@ -1775,7 +1803,7 @@ portés en JavaScript — *Pressure4* et *ClipOnly2* au limiteur du maître,
 *Console6* à la table de mixage, *Monitoring* à l'écoute de contrôle,
 *Verbity* et *ClearCoat* aux pièces (la queue et ses premiers retours),
 *Galactic2* aux espaces qui n'en sont pas, *Ultrasonic* et *Infrasonic* aux
-bornes de l'audible, *Channel9* au pupitre, et
+bornes de l'audible, *Channel9* au pupitre, *BussColors4* à sa matière, et
 *Distance2* au lointain. Chaque fichier porte le copyright, et la console de
 mixage l'affiche.
 

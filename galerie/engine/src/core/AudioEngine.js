@@ -12,6 +12,7 @@
 import { Limiteur } from './Limiteur.js';
 import { Hygiene } from './Hygiene.js';
 import { Pupitre } from './Pupitre.js';
+import { Couleurs } from './Couleurs.js';
 import { Console, normaliserConsole } from './Console.js';
 import { Ecoute } from './Ecoute.js';
 import { Reverb } from './Reverb.js';
@@ -25,6 +26,7 @@ export class AudioEngine {
     this.limiteur = new Limiteur();
     this.hygiene = new Hygiene();
     this.pupitre = new Pupitre();
+    this.couleurs = new Couleurs();
     this.console = new Console();
     this.ecoute = new Ecoute();
     this.reverb = new Reverb();
@@ -75,9 +77,17 @@ export class AudioEngine {
         // fabrique pas, et la saturation qu'elle ajoute doit encore passer
         // sous le coupe-haut. L'ordre est donc console → pupitre → hygiène →
         // marge → plafond, et chacun a une raison d'être là où il est.
-        .then(() => this.pupitre.installer(
+        // …LA COULEUR d'abord, pour que le pupitre puisse se poser DEVANT
+        // elle : d'abord ce que la table n'arrive pas à suivre, ensuite la
+        // matière de son bus. On monte donc la couleur contre l'hygiène, puis
+        // le pupitre contre la couleur.
+        .then(() => this.couleurs.installer(
           this.ctx, sortieConsole,
           this.hygiene.entree ?? this.limiteur.entree ?? this.ctx.destination))
+        .then(() => this.pupitre.installer(
+          this.ctx, sortieConsole,
+          this.couleurs.entree ?? this.hygiene.entree
+          ?? this.limiteur.entree ?? this.ctx.destination))
         .then(() => this.ecoute.installer(
           this.ctx, this.limiteur._sortie ?? sortieConsole, this.ctx.destination))
         // La réverbération entre par sa propre TRANCHE, sans départ : lui en
@@ -137,6 +147,16 @@ export class AudioEngine {
     if (signature === this._signatureLimiteur) return;
     this._signatureLimiteur = signature;
     this.limiteur.regler(reglages ?? undefined);
+  }
+
+  /** Idem pour la matière du bus (voir Couleurs.js). */
+  appliquerCouleurs(reglages) {
+    if (!this.couleurs) return;
+    let signature;
+    try { signature = JSON.stringify(reglages ?? null); } catch { return; }
+    if (signature === this._signatureCouleurs) return;
+    this._signatureCouleurs = signature;
+    this.couleurs.regler(reglages ?? undefined);
   }
 
   /** Idem pour la table sur laquelle tout est mixé (voir Pupitre.js). */

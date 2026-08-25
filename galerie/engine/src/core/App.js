@@ -686,6 +686,7 @@ export class App {
         this.audio.appliquerLimiteur(this.reglages?.audio?.limiteur);
         this.audio.appliquerHygiene(this.reglages?.audio?.hygiene);
         this.audio.appliquerPupitre(this.reglages?.audio?.pupitre);
+        this.audio.appliquerCouleurs(this.reglages?.audio?.couleurs);
         this.audio.appliquerConsole(this.reglages?.audio?.console);
       };
       tick();
@@ -713,6 +714,7 @@ export class App {
       this.audio.appliquerLimiteur(this.reglages?.audio?.limiteur);
       this.audio.appliquerHygiene(this.reglages?.audio?.hygiene);
       this.audio.appliquerPupitre(this.reglages?.audio?.pupitre);
+      this.audio.appliquerCouleurs(this.reglages?.audio?.couleurs);
       this.audio.appliquerConsole(this.reglages?.audio?.console);
 
       // Visite audio ouverte : le panneau opaque couvre tout — rendre des

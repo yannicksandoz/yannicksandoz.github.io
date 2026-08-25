@@ -20,7 +20,7 @@ Dernière vérification : 12 août 2026.
 | Composant | Version | Licence | Copyright |
 |---|---|---|---|
 | [three.js](https://threejs.org) | 0.166.1 | MIT | © 2010-2024 three.js authors |
-| [Airwindows](https://github.com/airwindows/airwindows) — `Pressure4`, `ClipOnly2`, `Console6`, `Monitoring`, `Verbity`, `Galactic2`, `Distance2`, `ClearCoat`, `Ultrasonic`, `Infrasonic`, `Channel9` | portage 2026 | MIT | © 2016, 2018 airwindows (Chris Johnson) |
+| [Airwindows](https://github.com/airwindows/airwindows) — `Pressure4`, `ClipOnly2`, `Console6`, `Monitoring`, `Verbity`, `Galactic2`, `Distance2`, `ClearCoat`, `Ultrasonic`, `Infrasonic`, `Channel9`, `BussColors4` | portage 2026 | MIT | © 2016, 2018 airwindows (Chris Johnson) |
 
 **Airwindows est VENDORÉ, et porté.** Plusieurs plugins de Chris Johnson sont
 réécrits en JavaScript :
@@ -48,6 +48,12 @@ réécrits en JavaScript :
   salle de 96 places au hall de 1541), leurs quatre étages de Householder et
   l'étage SubTight, avec les valeurs de Chris — qui ne les a pas réglées mais
   CHERCHÉES, une sur des centaines de milliers de tirages ;
+- `engine/src/core/couleurs-worklet.js` — *BussColors4*, les huit couleurs de
+  bus (Dark, Rock, Lush, Vibe, Holo, Punch, Steel, Tube) : les huit jeux de
+  trente-trois coefficients relevés par Chris sur du vrai matériel, leurs
+  gains d'entrée et de sortie, l'affaissement dynamique et les deux étages de
+  saturation. Les coefficients ont été extraits de son source par programme,
+  et l'extraction validée en comparant ses blocs gauche et droit ;
 - `engine/src/core/pupitre-worklet.js` — *Channel9*, les cinq tables de
   mixage (Neve, API, SSL, Teac, Mackie) : les trois constantes de chacune, le
   passe-haut « diélectrique » dont la vitesse suit le niveau, la saturation
@@ -81,7 +87,7 @@ copyright à la minification — l'invariant est vérifié sur le RÉSULTAT, com
 les autres. Ce dépôt refuse de publier une œuvre dont l'attribution est
 incomplète : la règle vaut d'abord pour lui.
 
-**Quatre écarts assumés au réglage d'origine**, documentés dans le code : le
+**Cinq écarts assumés au réglage d'origine**, documentés dans le code : le
 limiteur *rend* le gain de rattrapage de Pressure4 (sans quoi le brancher
 monte toute la galerie de +3 dB) et dose sa saturation sinus par un réglage
 `caractere`, à zéro par défaut ; le lointain coupe le CONTINU que pose
@@ -91,7 +97,12 @@ maître), sous 10 Hz et sur la seule part traitée. Enfin, l'hygiène BORNE ses
 coupures à 0,46 fois le taux d'échantillonnage : Chris pose 20 kHz sans
 condition, ce qui est juste dans une station, et le navigateur ouvre parfois
 un contexte à 22 050 Hz — 20 kHz passerait alors au-dessus de Nyquist et le
-biquad partirait en oscillation. À 44,1 et 48 kHz la borne ne mord pas. Les
+biquad partirait en oscillation. À 44,1 et 48 kHz la borne ne mord pas. Enfin, les couleurs
+de bus utilisent un tampon CIRCULAIRE là où Chris décale le sien d'un cran à
+chaque échantillon : trente-quatre recopies par échantillon et par canal, ce
+qu'un moteur JavaScript n'a aucune raison de faire. L'arithmétique est
+identique, et le test compare les deux implémentations échantillon par
+échantillon sur les huit couleurs. Les
 algorithmes ne sont pas modifiés ; ce sont des robinets posés autour d'eux,
 et ils se remettent à la valeur de Chris.
 
