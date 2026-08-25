@@ -14,6 +14,7 @@ import { Console, normaliserConsole } from './Console.js';
 import { Ecoute } from './Ecoute.js';
 import { Reverb } from './Reverb.js';
 import { Lointain } from './Lointain.js';
+import { Premieres } from './Premieres.js';
 
 export class AudioEngine {
   constructor() {
@@ -24,6 +25,7 @@ export class AudioEngine {
     this.ecoute = new Ecoute();
     this.reverb = new Reverb();
     this.lointain = new Lointain();
+    this.premieres = new Premieres();
     this.unlocked = false;
     this._cache = new Map();
     // url → nombre d'œuvres et d'ambiances qui s'en servent (voir load)
@@ -63,6 +65,11 @@ export class AudioEngine {
         // La réverbération entre par sa propre TRANCHE, sans départ : lui en
         // donner un ferait une boucle qui monterait jusqu'à saturer.
         .then(() => this.reverb.installer(this.ctx))
+        .then((retour) => { if (retour) this.console.brancher(retour); })
+        // …puis les PREMIÈRES réflexions, sur le MÊME départ que la queue :
+        // une pièce ne s'envoie pas deux fois (voir Premieres.js). Leur
+        // retour est une tranche de plus, sans départ non plus.
+        .then(() => this.premieres.installer(this.ctx, this.reverb.entree))
         .then((retour) => { if (retour) this.console.brancher(retour); })
         // …et le lointain, qui n'est ni un départ ni un étage du maître :
         // une insertion posée dans l'œuvre qui le demande (voir Lointain.js).
@@ -142,6 +149,9 @@ export class AudioEngine {
     if (signature === this._signatureReverb) return;
     this._signatureReverb = signature;
     this.reverb.regler(reglages ?? undefined, options);
+    // le même bloc décrit les deux étages de la pièce : la queue et ses
+    // premiers retours (voir Premieres.js)
+    this.premieres.regler(reglages ?? undefined, options);
   }
 
   /** Muet de travail : couper / rétablir une tranche sans rien écrire. */

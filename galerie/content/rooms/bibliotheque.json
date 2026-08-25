@@ -150,6 +150,7 @@
     "taille": 0.25,
     "duree": 0.35,
     "sombre": 0.8,
-    "envoi": 0.12
+    "envoi": 0.12,
+    "premieres": 0.3
   }
 }

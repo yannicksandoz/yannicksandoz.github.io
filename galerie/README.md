@@ -700,15 +700,43 @@ l'onglet **Pièce** de l'éditeur :
 | Réglage | Effet |
 |---|---|
 | `envoi` | combien la pièce reçoit. **0 = pièce sèche**, et c'est le défaut |
-| `taille` | l'ampleur du lieu |
+| `taille` | l'ampleur du lieu — elle règle les DEUX étages (voir ci-dessous) |
 | `duree` | combien la queue s'attarde |
 | `sombre` | la matière : 0 pierre nue, 1 tenture |
+| `premieres` | le niveau des premières réflexions — la pièce entendue de près |
 
 Six **lieux tout faits** (`sec`, `salle`, `bibliotheque`, `couloir`,
 `jardin`, `belvedere`) servent de point de départ ; choisir l'un d'eux écrit
-ses quatre valeurs DÉPLIÉES, pour qu'on puisse les retoucher sans avoir à
+ses cinq valeurs DÉPLIÉES, pour qu'on puisse les retoucher sans avoir à
 deviner ce que le nom cachait. Une œuvre peut rester sèche dans une salle qui
 résonne : `audio.envoi` la multiplie, `0` la coupe du lieu.
+
+**La pièce entendue DE PRÈS — ClearCoat** (`engine/src/core/Premieres.js`,
+d'après *ClearCoat* de Chris Johnson, MIT). Une queue de réverbe ne s'entend
+que loin de la source, ou après elle : collé à une œuvre, elle est masquée
+par le direct, et la salle disparaît alors qu'on est dedans. Ce qui la rend
+audible de près, ce sont les **premiers retours des murs** — cinq à deux
+cents millisecondes, assez tôt pour que l'oreille les fonde dans le son
+lui-même. On n'entend pas une réverbération : on entend que la pièce est
+petite.
+
+Dix-sept salles, et le réglage n'est pas un temps mais une **salle**, en
+places assises : de 96 (5 à 51 ms) à 1541 (24 à 203 ms). Chris ne les a pas
+réglées, il les a cherchées — chaque jeu de seize longueurs est un tirage
+retenu sur des centaines de milliers pour qu'aucun écho ne retombe sur un
+autre. Deux détails qui font le montage :
+
+- **le même départ que la queue.** Une œuvre n'envoie pas deux fois : le
+  gain de départ qu'elle porte déjà alimente les deux étages, et le fader de
+  la console agit sur les deux. Une œuvre sèche l'est des deux côtés ;
+- **une seule ampleur pour les deux.** `taille` allonge la queue ET éloigne
+  les premiers retours. Deux curseurs auraient permis une petite salle à
+  longue queue — ce qui n'existe pas, et s'entend faux. L'inspecteur nomme la
+  salle sous le curseur (« 225 places ») pendant qu'on le traîne.
+
+Mesuré au nœud sur une frappe propre : à 225 places, le centre de gravité de
+la réponse tombe à **67 ms** et tout est éteint en **365 ms**. C'est là toute
+la différence avec la queue — ça arrive tôt, et ça ne traîne pas.
 
 **La distance — s'éloigner, ce n'est pas seulement « moins fort ».**
 Jusqu'ici, quitter une œuvre ne faisait que baisser son volume. Or l'oreille
@@ -1613,8 +1641,9 @@ Jekyll du site, Primer — gardent leurs propres licences, listées dans
 vendoré** : les plugins d'**Airwindows** (Chris Johnson), sous licence MIT,
 portés en JavaScript — *Pressure4* et *ClipOnly2* au limiteur du maître,
 *Console6* à la table de mixage, *Monitoring* à l'écoute de contrôle,
-*Verbity* aux pièces et *Distance2* au lointain. Chaque fichier porte le
-copyright, et la console de mixage l'affiche.
+*Verbity* et *ClearCoat* aux pièces (la queue et ses premiers retours) et
+*Distance2* au lointain. Chaque fichier porte le copyright, et la console de
+mixage l'affiche.
 
 Le dossier `content/` contient des créations personnelles, également tous
 droits réservés : déployez le moteur avec votre propre contenu. Seule
