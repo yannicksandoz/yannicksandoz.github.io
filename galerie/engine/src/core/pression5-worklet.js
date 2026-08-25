@@ -267,15 +267,20 @@ class Pression5Processor extends AudioWorkletProcessor {
     if (sortie.length > 1) sortie[1].set(entree.length > 1 ? entree[1] : entree[0]);
     const g = sortie[0];
     const d = sortie.length > 1 ? sortie[1] : sortie[0];
-    if (parametres.actif[0] > 0.5) {
+    const vivant = parametres.actif[0] > 0.5;
+    if (vivant) {
       this.moteur.traiter(g, d, parametres.pression[0], parametres.vitesse[0],
         parametres.caractere[0], parametres.griffe[0], parametres.sortie[0],
         parametres.melange[0]);
-      // le voyant de réduction : dix fois par seconde suffit à l'œil, et
-      // soixante messages par seconde vers le fil principal, non
-      if ((this._compte = (this._compte + 1) % 8) === 0) {
-        this.port.postMessage({ reduction: this.moteur.reduction });
-      }
+    }
+    // LE VOYANT PARLE AUSSI QUAND ON EST ÉTEINT, et il dit alors « rien ».
+    // Se taire laisserait l'aiguille sur sa dernière valeur : couper le
+    // limiteur afficherait encore la réduction d'il y a une seconde, ce qui
+    // est le genre de mensonge dont un afficheur ne se relève pas.
+    // Dix fois par seconde suffit à l'œil ; soixante messages par seconde
+    // vers le fil principal, non.
+    if ((this._compte = (this._compte + 1) % 8) === 0) {
+      this.port.postMessage({ reduction: vivant ? this.moteur.reduction : 1 });
     }
     for (let c = 2; c < sortie.length; c++) sortie[c].set(g);
     return this.vivant;
