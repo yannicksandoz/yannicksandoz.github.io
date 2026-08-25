@@ -1,8 +1,9 @@
 import sourceWorklet from './limiteur-worklet.js?raw';
-import { LIMITEUR_DEFAUTS, normaliserLimiteur, reductionEnDb }
+import source5 from './pression5-worklet.js?raw';
+import { LIMITEUR_DEFAUTS, MOTEURS_LIMITEUR, normaliserLimiteur, reductionEnDb }
   from './limiteur-reglages.js';
 
-export { LIMITEUR_DEFAUTS, normaliserLimiteur, reductionEnDb };
+export { LIMITEUR_DEFAUTS, MOTEURS_LIMITEUR, normaliserLimiteur, reductionEnDb };
 
 /**
  * LE LIMITEUR DU MAÎTRE — ce qui fait qu'approcher n'est pas seulement
@@ -60,18 +61,35 @@ export class Limiteur {
       this._url = URL.createObjectURL(
         new Blob([sourceWorklet], { type: 'text/javascript' }));
       await ctx.audioWorklet.addModule(this._url);
-      const noeud = new AudioWorkletNode(ctx, 'galerie-limiteur', {
-        numberOfInputs: 1, numberOfOutputs: 1, outputChannelCount: [2],
-        channelCount: 2, channelCountMode: 'explicit', channelInterpretation: 'speakers'
-      });
-      noeud.port.onmessage = (e) => {
-        if (typeof e.data?.reduction === 'number') {
-          this._reduction = reductionEnDb(e.data.reduction);
-        }
+      // LES DEUX PLAFONDS SONT MONTÉS, UN SEUL EST ALIMENTÉ — comme les deux
+      // moteurs de queue. Enregistrer un module au milieu d'une visite
+      // demanderait d'attendre, et un plafond ne se change pas en deux fois.
+      const url5 = URL.createObjectURL(
+        new Blob([source5], { type: 'text/javascript' }));
+      try { await ctx.audioWorklet.addModule(url5); }
+      finally { URL.revokeObjectURL(url5); }
+      const monter = (nom) => {
+        const n = new AudioWorkletNode(ctx, nom, {
+          numberOfInputs: 1, numberOfOutputs: 1, outputChannelCount: [2],
+          channelCount: 2, channelCountMode: 'explicit',
+          channelInterpretation: 'speakers'
+        });
+        n.port.onmessage = (e) => {
+          // seul le plafond ALIMENTÉ a le droit de bouger l'aiguille :
+          // l'autre tourne à vide et rendrait une réduction imaginaire
+          if (typeof e.data?.reduction === 'number' && n === this.noeud) {
+            this._reduction = reductionEnDb(e.data.reduction);
+          }
+        };
+        return n;
       };
-      this.noeud = noeud;
-      this._entree = noeud;
-      this._sortie = noeud;
+      this.moteurs = {
+        pressure4: monter('galerie-limiteur'),
+        pressure5: monter('galerie-pression5')
+      };
+      this.noeud = this.moteurs[this.reglages.moteur] ?? this.moteurs.pressure5;
+      this._entree = this.noeud;
+      this._sortie = this.noeud;
       this.mode = 'worklet';
     } catch (err) {
       console.warn('[galerie] limiteur : worklet indisponible, repli —',
@@ -136,24 +154,87 @@ export class Limiteur {
       // gain sur le maître se remarque plus que le réglage lui-même
       this.marge.gain.setTargetAtTime(r.marge, this.ctx.currentTime, 0.05);
     }
-    if (this.mode === 'worklet' && this.noeud?.parameters) {
+    if (this.mode === 'worklet' && this.moteurs) {
+      this._basculer(r.moteur);
+      // les paramètres vont au plafond QUI JOUE, et l'autre est mis au repos
+      // pour qu'il ne mâche pas du signal dans le vide
+      const cible = this.moteurs[r.moteur] ?? this.noeud;
       const p = (nom, v) => {
-        const param = this.noeud.parameters.get(nom);
+        const param = cible?.parameters.get(nom);
         if (param) param.value = v;
       };
+      const dormant = r.moteur === 'pressure5'
+        ? this.moteurs.pressure4 : this.moteurs.pressure5;
+      const q = dormant?.parameters.get('actif');
+      if (q) q.value = 0;
+
+      p('actif', r.actif ? 1 : 0);
       p('pression', r.pression);
       p('vitesse', r.vitesse);
-      p('douceur', r.douceur);
-      p('sortie', r.sortie);
-      p('actif', r.actif ? 1 : 0);
-      p('compenser', r.compenser ? 1 : 0);
-      p('caractere', r.caractere);
+      if (r.moteur === 'pressure5') {
+        // « Mewines » chez Chris : la µ-ité. C'est la place qu'occupait la
+        // douceur de la quatre, et le curseur porte le même nom.
+        p('caractere', r.douceur);
+        p('griffe', r.griffe);
+        p('melange', r.melange);
+        // SA SORTIE EST QUADRATIQUE : `(E×2)²`, donc 0,5 rend l'unité. On
+        // garde `sortie` comme un multiplicateur franc, comme partout
+        // ailleurs, et l'on convertit ici plutôt que de faire porter à
+        // l'auteur une échelle qui n'est pas la sienne.
+        p('sortie', Math.min(1, Math.sqrt(Math.max(0, r.sortie)) / 2));
+      } else {
+        p('douceur', r.douceur);
+        p('sortie', r.sortie);
+        p('compenser', r.compenser ? 1 : 0);
+        p('caractere', r.caractere);
+      }
     } else if (this.mode === 'repli' && this._compresseur) {
       // La pression déplace le seuil : 0 → -1 dB (le limiteur dort),
       // 1 → -30 dB (il tient tout).
       this._compresseur.threshold.value = r.actif ? -1 - (r.pression * 29) : 0;
       this._compresseur.release.value = 0.05 + ((1 - r.vitesse) * 0.6);
     }
+  }
+
+  /**
+   * Change de plafond, sans qu'on entende la couture.
+   *
+   * Comme la bascule des moteurs de queue : on ferme le fil, on échange, on
+   * rouvre. Ici c'est plus simple — un plafond n'a pas de queue — mais il a
+   * une LATENCE (l'écrêteur de la cinq retarde d'un échantillon), et changer
+   * en pleine onde ferait un clic. Le fondu de soixante millisecondes le
+   * couvre, et le plafond ne change qu'au geste d'un auteur.
+   */
+  _basculer(moteur) {
+    const cible = MOTEURS_LIMITEUR[moteur] ? moteur : LIMITEUR_DEFAUTS.moteur;
+    const nouveau = this.moteurs?.[cible];
+    if (!nouveau || nouveau === this.noeud) return;
+    const ancien = this.noeud;
+    const t = this.ctx.currentTime;
+    this.marge?.gain.cancelScheduledValues(t);
+    this.marge?.gain.setValueAtTime(this.marge.gain.value, t);
+    this.marge?.gain.linearRampToValueAtTime(0, t + 0.06);
+    clearTimeout(this._bascule);
+    this._bascule = setTimeout(() => {
+      try { this.marge.disconnect(ancien); } catch { /* déjà */ }
+      try { ancien.disconnect(); } catch { /* déjà */ }
+      try { ancien.port.postMessage({ vider: true }); } catch { /* déjà */ }
+      this.marge.connect(nouveau);
+      nouveau.connect(this.destination);
+      this.noeud = nouveau;
+      this._entree = nouveau;
+      this._sortie = nouveau;
+      const t2 = this.ctx.currentTime;
+      this.marge.gain.cancelScheduledValues(t2);
+      this.marge.gain.setValueAtTime(0, t2);
+      this.marge.gain.linearRampToValueAtTime(this.reglages.marge, t2 + 0.3);
+    }, 80);
+  }
+
+  /** Le plafond qui travaille en ce moment. */
+  get moteur() {
+    if (this.mode !== 'worklet' || !this.moteurs) return null;
+    return this.noeud === this.moteurs.pressure5 ? 'pressure5' : 'pressure4';
   }
 
   /** Réduction courante, en décibels (≤ 0). */

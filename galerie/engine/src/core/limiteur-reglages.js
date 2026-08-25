@@ -7,8 +7,34 @@
  * décide de quelque chose.
  */
 
+/**
+ * Les deux plafonds, et ce qui les sépare.
+ *
+ * La QUATRE est Pressure4 suivi de ClipOnly2 : deux étages qu'il faut
+ * accorder l'un à l'autre, et un réglage de saturation (`caractere`) pour
+ * doser le grain du premier.
+ *
+ * La CINQ est Pressure5, qui est le tout d'un bloc — et Chris y a ajouté
+ * deux passe-bas fixes à 24 kHz (un détecteur qui voit de l'ultrasonique
+ * réagit à ce que personne n'entend) et « PawClaw », qui module la courbe
+ * par la PENTE du signal : patte de velours sur ce qui bouge doucement,
+ * griffe sur ce qui attaque.
+ *
+ * La cinq est le défaut. La quatre reste là pour comparer — un plafond se
+ * juge à l'oreille sur du vrai contenu, pas sur un argument.
+ */
+export const MOTEURS_LIMITEUR = {
+  pressure5: { nom: 'Pressure5', desc: 'le tout d’un bloc, avec PawClaw' },
+  pressure4: { nom: 'Pressure4 + ClipOnly2', desc: 'deux étages, réglage de grain' }
+};
+
 export const LIMITEUR_DEFAUTS = {
   actif: true,
+  // LA DERNIÈRE VERSION PAR DÉFAUT. Voir MOTEURS_LIMITEUR ci-dessus.
+  moteur: 'pressure5',
+  // Propres à la cinq : la griffe (0,5 au neutre) et le mélange.
+  griffe: 0.5,
+  melange: 1,
   // LA MARGE, avant tout le reste : de combien on baisse la somme AVANT de
   // la limiter. Ce n'est pas un goût, c'est une mesure — trois œuvres du
   // labo somment à 1,27 en approchant, et le second étage passait son temps
@@ -49,7 +75,10 @@ export function normaliserLimiteur(brut) {
     pression: borne(c.pression, 0, 1, LIMITEUR_DEFAUTS.pression),
     vitesse: borne(c.vitesse, 0, 1, LIMITEUR_DEFAUTS.vitesse),
     douceur: borne(c.douceur, 0, 1, LIMITEUR_DEFAUTS.douceur),
-    sortie: borne(c.sortie, 0, 2, LIMITEUR_DEFAUTS.sortie)
+    sortie: borne(c.sortie, 0, 2, LIMITEUR_DEFAUTS.sortie),
+    moteur: MOTEURS_LIMITEUR[c.moteur] ? c.moteur : LIMITEUR_DEFAUTS.moteur,
+    griffe: borne(c.griffe, 0, 1, LIMITEUR_DEFAUTS.griffe),
+    melange: borne(c.melange, 0, 1, LIMITEUR_DEFAUTS.melange)
   };
 }
 

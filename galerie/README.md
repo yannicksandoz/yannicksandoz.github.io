@@ -1055,6 +1055,42 @@ natif — dix `BiquadFilterNode` — n'est pas une approximation : le navigateur
 applique la même forme (K = tan(π·f/taux), Q linéaire), ce sont les mêmes
 coefficients par un autre chemin.
 
+**Le plafond, dernière version — Pressure5** (`engine/src/core/pression5-worklet.js`,
+d'après *Pressure5* de Chris Johnson, MIT). Le limiteur était Pressure4 suivi
+de ClipOnly2, deux étages qu'il fallait accorder l'un à l'autre. La cinq est
+le tout d'un bloc, et Chris y a mis trois choses que la quatre n'avait pas :
+
+- **deux passe-bas fixes à 24 kHz**, l'un devant la compression, l'autre
+  entre elle et l'écrêteur. Un détecteur qui voit de l'ultrasonique réagit à
+  ce que personne n'entend. (À 44,1 et 48 kHz ils sont sautés — la coupure
+  tomberait au-dessus de Nyquist ; c'est le test de Chris lui-même) ;
+- **« PawClaw »**, qui module la courbe du µ par la PENTE du signal : patte
+  de velours sur ce qui glisse, griffe sur ce qui attaque. Mesuré, l'écart
+  entre les deux bouts du curseur vaut **4,7 %** sur des attaques contre
+  **1,7 %** sur une pente douce ;
+- **ClipOnly2 est dedans**, après le mélange sec/traité, en filet même à
+  mi-chemin.
+
+Mesuré au navigateur, sur un sinus **trois fois trop fort** : les deux
+tiennent le plafond à 0,955 exactement — c'est le devoir d'un plafond et il
+est absolu. La cinq réduit de 9,8 dB pour y arriver, la quatre de 7,1.
+
+**Et un écart qu'il faut connaître avant de basculer.** Au réglage
+RÉELLEMENT LIVRÉ (pression 0,25, marge 0,75), sur une entrée à 0,5 : la cinq
+rend **0,492 et 0,0 dB de réduction** — elle ne fait rien, ce qu'on attend
+d'un plafond à ce niveau-là — tandis que la quatre rend **0,168 et −7,0 dB**.
+La quatre travaillait donc beaucoup plus qu'on ne le croyait à ce réglage.
+Je n'ai pas diagnostiqué pourquoi : c'est le comportement d'avant, inchangé
+par ce portage, et c'est un fil à tirer. En attendant, comparez à l'oreille —
+la différence de niveau est franche, et le sélecteur est dans l'onglet
+*Mixage*.
+
+Un piège de mesure, noté pour la prochaine fois : le vari-µ de Chris se
+relâche en **v² échantillons**, ce qui fait des dizaines de secondes quand le
+signal est fort. Une première version de la sonde ne vidait pas le nœud entre
+deux relevés et lisait −9 dB de réduction sur un signal qui n'en demandait
+aucune.
+
 **Le limiteur du maître — approcher, ce n'est pas « plus fort ».**
 Le bus maître allait droit à la sortie. Quinze sources qui s'additionnent y
 saturent, et l'approche d'une œuvre ne s'entendait que comme un volume qui
@@ -1870,7 +1906,7 @@ portés en JavaScript — *Pressure4* et *ClipOnly2* au limiteur du maître,
 *Console6* à la table de mixage, *Monitoring* à l'écoute de contrôle,
 *Verbity* et *ClearCoat* aux pièces (la queue et ses premiers retours),
 *Galactic2* aux espaces qui n'en sont pas, *Ultrasonic* et *Infrasonic* aux
-bornes de l'audible, *Channel9* au pupitre, *BussColors4* à sa matière, *ToTape6* à la bande, et
+bornes de l'audible, *Pressure5* au plafond, *Channel9* au pupitre, *BussColors4* à sa matière, *ToTape6* à la bande, et
 *Distance2* au lointain. Chaque fichier porte le copyright, et la console de
 mixage l'affiche.
 
