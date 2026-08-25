@@ -1,0 +1,42 @@
+{
+  "matieres/bois-matiere.jpg": {
+    "source": "https://raw.githubusercontent.com/mrdoob/three.js/r166/examples/textures/hardwood2_diffuse.jpg",
+    "sha256": "5ed2cbd7a8d3beb956ba079cc31f4713fe8fe30e4378284d56ec9a413220f51d",
+    "octets": 29713
+  },
+  "matieres/bois-relief.jpg": {
+    "source": "https://raw.githubusercontent.com/mrdoob/three.js/r166/examples/textures/hardwood2_bump.jpg",
+    "sha256": "721b1a1da1b3c54e1539fa3b4431e0bf945bf8a25e5ce41ab23a902bc9690c3d",
+    "octets": 13495
+  },
+  "matieres/bois-rugosite.jpg": {
+    "source": "https://raw.githubusercontent.com/mrdoob/three.js/r166/examples/textures/hardwood2_roughness.jpg",
+    "sha256": "dc15b7dcb8e6f760403ce1114099bd902d16c14ff6cd0ee69297f67e301df3f2",
+    "octets": 16954
+  },
+  "matieres/brique-matiere.jpg": {
+    "source": "https://raw.githubusercontent.com/mrdoob/three.js/r166/examples/textures/brick_diffuse.jpg",
+    "sha256": "d6ec2943873f9e1b3427f41b306e6b10de67a78c80ec25fab821dc2462798381",
+    "octets": 81482
+  },
+  "matieres/brique-relief.jpg": {
+    "source": "https://raw.githubusercontent.com/mrdoob/three.js/r166/examples/textures/brick_bump.jpg",
+    "sha256": "7e2bbda361796e5611f69943880631fd73fa92ce038d6afdb8790dfdc64cd073",
+    "octets": 75836
+  },
+  "matieres/brique-rugosite.jpg": {
+    "source": "https://raw.githubusercontent.com/mrdoob/three.js/r166/examples/textures/brick_roughness.jpg",
+    "sha256": "3d8f17a40ad8918ce0ba8f1f3e20c042166ed1b1cebae6edccac16100fbc89dc",
+    "octets": 92231
+  },
+  "environnements/aube.exr": {
+    "source": "npm:@pmndrs/assets/hdri/dawn.exr.js (CC0, Poly Haven)",
+    "sha256": "02529d0a04dbc6e761adb9b4f6bcb07b0ef3931b218b394ee6be68b1fe39ce79",
+    "octets": 182198
+  },
+  "environnements/appartement.exr": {
+    "source": "npm:@pmndrs/assets/hdri/apartment.exr.js (CC0, Poly Haven)",
+    "sha256": "31c62c03b5686b3d899071070ec1bfc760a3ddc1e6a05915ebc28102fef2fb1c",
+    "octets": 100399
+  }
+}

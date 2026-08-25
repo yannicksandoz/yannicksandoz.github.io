@@ -181,6 +181,10 @@ export default defineConfig({
   //   GALERIE_CONTENT=../mon-contenu npm run build
   publicDir: process.env.GALERIE_CONTENT || 'content',
 
+  // Les panoramas EXR des environnements (engine/assets/) sont des fichiers
+  // importés comme des images : Vite ne connaît pas l'extension par défaut.
+  assetsInclude: ['**/*.exr'],
+
   plugins: [retirerDomEditeur(), retirerSauvegardes(), combinerContenu()],
 
   resolve: {

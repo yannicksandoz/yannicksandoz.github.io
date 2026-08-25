@@ -24,6 +24,8 @@ Dernière vérification : 12 août 2026.
 | [Slug](https://github.com/EricLengyel/Slug) — algorithme de lettrage, portage 2026 | shaders de référence | MIT OU Apache-2.0 | © 2017 Eric Lengyel |
 | [Inter](https://github.com/rsms/inter) *(courbes extraites ; `@fontsource/inter` en dépendance de développement)* | 5.3.0 | **SIL OFL 1.1** | © 2016 The Inter Project Authors |
 | [three-mesh-bvh](https://github.com/gkjohnson/three-mesh-bvh) | 0.9.14 | MIT | © 2018 Garrett Johnson |
+| Matières « hardwood2 » et « brick » *(rapatriées du dépôt three.js, tag r166, désaturées et réduites)* | r166 | MIT | © 2010-2024 three.js authors |
+| Panoramas « aube » et « appartement » *(via `@pmndrs/assets`, HDRI Poly Haven)* | 1.7.0 | **CC0-1.0** | domaine public |
 
 **Le lettrage est un PORTAGE de Slug, et le crédit est une CONDITION.** Les
 shaders de référence d'Eric Lengyel (SlugPixelShader.hlsl,
@@ -44,6 +46,14 @@ fonte sous cette forme dérivée : la licence est distribuée
 vendues seules, et le nom « Inter » n'est pas utilisé pour une version
 modifiée. `troika-three-text` (SDF), qui dessinait les cartels avant Slug, a
 été retiré avec ses dépendances.
+
+**Les matières et les panoramas sont RAPATRIÉS, avec leur provenance.**
+`scripts/rapatrie-matieres.mjs` télécharge une fois, transforme (albédos
+désaturés : la couleur reste celle des pièces — le contrat des textures de
+la galerie), et écrit des fichiers commités dans `engine/assets/`, avec
+`provenance.json` : source exacte, taille et empreinte SHA-256 de chaque
+fichier, que `test-matieres.mjs` revérifie à chaque chaîne. Le CC0 n'exige
+rien ; on cite quand même. La MIT de three.js couvre déjà le moteur.
 
 **`three-mesh-bvh` est chargé À LA DEMANDE, et ne l'est jamais aujourd'hui.**
 Mesuré au navigateur, la plus grosse cible de collision de la galerie fait

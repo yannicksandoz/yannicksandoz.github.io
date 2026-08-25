@@ -11,7 +11,7 @@
     "size": 30,
     "color": "#12181a",
     "grid": false,
-    "texture": "planches"
+    "texture": "bois"
   },
   "shell": {
     "width": 26,
@@ -34,7 +34,7 @@
         "sill": 1.2
       }
     ],
-    "texture": "brique"
+    "texture": "brique-vraie"
   },
   "keyLight": {
     "color": "#9fd8d0",

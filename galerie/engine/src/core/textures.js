@@ -194,8 +194,87 @@ const PEINTRES = {
   ratisse: [peindreRatisse, 701]
 };
 
-/** Styles offerts par l'éditeur (l'ordre est celui du menu). */
-export const TEXTURE_STYLES = Object.keys(PEINTRES);
+/* ------------------------------------------------- les matières réelles -- */
+
+import boisMatiere from '../../assets/matieres/bois-matiere.jpg';
+import boisRelief from '../../assets/matieres/bois-relief.jpg';
+import boisRugosite from '../../assets/matieres/bois-rugosite.jpg';
+import briqueMatiere from '../../assets/matieres/brique-matiere.jpg';
+import briqueRelief from '../../assets/matieres/brique-relief.jpg';
+import briqueRugosite from '../../assets/matieres/brique-rugosite.jpg';
+
+/**
+ * Les MATIÈRES : des photographies, mais pliées au contrat des tuiles.
+ *
+ * Les jeux viennent du dépôt three.js (tag r166, MIT — voir
+ * `scripts/rapatrie-matieres.mjs` et `engine/assets/provenance.json`), et
+ * l'albédo est DÉSATURÉ à l'import : comme les tuiles procédurales
+ * ci-dessus, une matière n'apporte que la lumière qu'elle renvoie — la
+ * COULEUR reste celle que la pièce déclare, et un parquet prend la teinte
+ * de la salle au lieu de lui imposer son brun. Ce que la photo apporte que
+ * 32 texels ne savaient pas dire : le RELIEF (bump) et la RUGOSITÉ, carte
+ * par carte — c'est là que la lumière rasante des lanternes se met à
+ * accrocher le veinage.
+ *
+ * `metres` : la taille physique d'une répétition. Les UV du monde comptent
+ * en tuiles de TILE mètres ; `repeat = TILE / metres` remet chaque motif à
+ * son échelle réelle — des lames de parquet de vingt centimètres, des
+ * briques de vingt-cinq.
+ */
+const MATIERES = {
+  bois: {
+    matiere: boisMatiere, relief: boisRelief, rugosite: boisRugosite,
+    metres: 3.6, creux: 0.35
+  },
+  'brique-vraie': {
+    matiere: briqueMatiere, relief: briqueRelief, rugosite: briqueRugosite,
+    metres: 2.8, creux: 0.5
+  }
+};
+
+const _cacheMatieres = new Map();
+
+function chargerCarte(url, metres) {
+  const tex = new THREE.TextureLoader().load(url);
+  tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+  // une photo se filtre en linéaire — le NEAREST des tuiles pixel-art
+  // ferait scintiller le veinage ; les mipmaps restent, pour le lointain
+  tex.magFilter = THREE.LinearFilter;
+  tex.minFilter = THREE.LinearMipmapLinearFilter;
+  tex.generateMipmaps = true;
+  tex.anisotropy = _anisotropy;
+  tex.colorSpace = THREE.NoColorSpace;   // luminance et cartes de données
+  tex.repeat.set(TILE / metres, TILE / metres);
+  return tex;
+}
+
+/**
+ * Les cartes d'une matière réelle — ou null si le style est une tuile
+ * procédurale (ou inconnu). Chargées au premier usage, partagées ensuite :
+ * toutes les salles au sol de bois regardent les trois mêmes textures.
+ */
+export function styleMatiere(style) {
+  const m = MATIERES[style];
+  if (!m || typeof document === 'undefined') return null;
+  if (_cacheMatieres.has(style)) return _cacheMatieres.get(style);
+  const jeu = {
+    map: chargerCarte(m.matiere, m.metres),
+    bumpMap: chargerCarte(m.relief, m.metres),
+    roughnessMap: chargerCarte(m.rugosite, m.metres),
+    bumpScale: m.creux
+  };
+  _cacheMatieres.set(style, jeu);
+  return jeu;
+}
+
+/**
+ * Styles offerts par l'éditeur (l'ordre est celui du menu) : les tuiles
+ * procédurales d'abord, puis les matières réelles. « brique » procédurale
+ * garde son nom historique ; la matière photographique s'appelle
+ * « brique-vraie » pour que les pièces existantes ne changent pas de peau
+ * sans qu'on le leur demande.
+ */
+export const TEXTURE_STYLES = [...Object.keys(PEINTRES), ...Object.keys(MATIERES)];
 
 const _cache = new Map();
 

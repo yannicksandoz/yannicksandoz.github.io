@@ -6,7 +6,6 @@ import { GTAOPass } from 'three/addons/postprocessing/GTAOPass.js';
 import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { CopyShader } from 'three/addons/shaders/CopyShader.js';
-import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { VistaManager } from './Vista.js';
 import { FOG_DENSITY } from './RoomManager.js';
 import { AudioEngine } from './AudioEngine.js';
@@ -17,6 +16,7 @@ import { setDefaultAnisotropy } from './textures.js';
 import { COUCHE_AUTO_ECLAIREE } from './Artwork.js';
 import { WATER_TIME } from './primitives.js';
 import { chauffer } from './cartels.js';
+import { appliquerEnvironnement } from './environnements.js';
 import * as lettrage from './lettrage.js';
 
 const FOG_COLOR = 0x05050a;
@@ -398,11 +398,12 @@ export class App {
     // leur modelé — un caillou n'est plus une silhouette plate, un métal
     // accroche la lumière. L'intensité vient du profil de qualité et peut
     // être modulée par pièce (envIntensity, voir RoomManager).
-    const pmrem = new THREE.PMREMGenerator(this.renderer);
-    this.scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
+    // Le studio neutre reste le défaut ; deux panoramas réels (CC0) se
+    // choisissent dans reglages.json — voir `core/environnements.js`.
+    appliquerEnvironnement(this, 'studio');
+    this._envApplique = 'studio';
     this.envBaseIntensity = this.quality.profile.envIntensity ?? 0.5;
     this.scene.environmentIntensity = this.envBaseIntensity;
-    pmrem.dispose();
 
     // L'hémisphérique ne fait plus que teinter (voûte violette / sol sombre) :
     // le remplissage vient de l'environnement, qui modèle bien mieux.
@@ -730,6 +731,14 @@ export class App {
       this.audio.appliquerCouleurs(this.reglages?.audio?.couleurs);
       this.audio.appliquerBande(this.reglages?.audio?.bande);
       this.audio.appliquerConsole(this.reglages?.audio?.console);
+      // l'environnement suit reglages.json, comme l'audio — un simple
+      // compare de chaîne par frame, le vrai travail n'a lieu qu'au
+      // changement (voir environnements.js)
+      const env = this.reglages?.environnement ?? 'studio';
+      if (env !== this._envApplique) {
+        this._envApplique = env;
+        appliquerEnvironnement(this, env);
+      }
 
       // Visite audio ouverte : le panneau opaque couvre tout — rendre des
       // images derrière ne ferait que chauffer la machine (et le lecteur

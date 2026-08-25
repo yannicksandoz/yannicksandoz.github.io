@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { assetUrl, isWalkable } from './utils.js';
 import { buildSky, disposeSky, updateSkyUniforms } from './Sky.js';
-import { styleTexture, scaleBoxUV, scalePlaneUV, scaleWorldUV, TILE } from './textures.js';
+import { styleTexture, styleMatiere, scaleBoxUV, scalePlaneUV, scaleWorldUV, TILE } from './textures.js';
 import { delaiDe, fermer, estFerme, tick as tickCooldown } from './Cooldown.js';
 import { reverbDePiece } from './reverb-reglages.js';
 import { creerCartel, majCartel, disposerCartel, tournerVersCamera }
@@ -1131,17 +1131,27 @@ export function buildFloor(config) {
   // en niveaux de gris, teintée par la couleur du sol : la palette de la
   // pièce reste maîtresse, la texture n'apporte que la matière
   const map = styleTexture(opt.texture);
+  // …et les MATIÈRES réelles (bois, brique-vraie) : même contrat — albédo
+  // en niveaux de gris teinté par la couleur du sol — plus le relief et la
+  // rugosité que les tuiles n'avaient pas. Voir styleMatiere.
+  const matiere = styleMatiere(opt.texture);
   const geometry = new THREE.PlaneGeometry(size, size);
   // `textureRepeat` resserre ou étale le motif ; rugosité et métal donnent
   // la matière — un sol ciré n'est pas un sable, même sous la même texture
   const rep = Number(opt.textureRepeat) > 0 ? opt.textureRepeat : 1;
-  if (map) scalePlaneUV(geometry, size * rep, size * rep);
+  if (map || matiere) scalePlaneUV(geometry, size * rep, size * rep);
   const plane = new THREE.Mesh(
     geometry,
     new THREE.MeshStandardMaterial({
       color: new THREE.Color(opt.color ?? FLOOR_DEFAULTS.color),
-      map,
-      roughness: Number.isFinite(opt.roughness) ? opt.roughness : 0.95,
+      map: matiere?.map ?? map,
+      bumpMap: matiere?.bumpMap ?? null,
+      bumpScale: matiere?.bumpScale ?? 1,
+      roughnessMap: matiere?.roughnessMap ?? null,
+      // avec une carte de rugosité, le scalaire est un MULTIPLICATEUR :
+      // il part de un, la carte parle
+      roughness: Number.isFinite(opt.roughness) ? opt.roughness
+        : (matiere ? 1 : 0.95),
       metalness: Number.isFinite(opt.metalness) ? opt.metalness : 0.05
     })
   );
@@ -1370,12 +1380,20 @@ export function buildShell(config) {
   // chaque segment sont à l'échelle du monde (scaleBoxUV), si bien qu'un
   // seul matériau par couleur habille tous les segments sans étirement
   const wallMap = styleTexture(opt.texture);
+  // …ou une MATIÈRE réelle (bois, brique-vraie) : relief et rugosité en
+  // plus, albédo gris teinté par la couleur du mur — voir styleMatiere
+  const wallMatiere = styleMatiere(opt.texture);
   const matFor = (face) => {
     const color = opt.wallColors?.[face] ?? opt.color ?? SHELL_DEFAULTS.color;
     if (!materials.has(color)) {
       materials.set(color, new THREE.MeshStandardMaterial({
-        color: new THREE.Color(color), map: wallMap,
-        roughness: Number.isFinite(opt.roughness) ? opt.roughness : 0.88,
+        color: new THREE.Color(color),
+        map: wallMatiere?.map ?? wallMap,
+        bumpMap: wallMatiere?.bumpMap ?? null,
+        bumpScale: wallMatiere?.bumpScale ?? 1,
+        roughnessMap: wallMatiere?.roughnessMap ?? null,
+        roughness: Number.isFinite(opt.roughness) ? opt.roughness
+          : (wallMatiere ? 1 : 0.88),
         metalness: Number.isFinite(opt.metalness) ? opt.metalness : 0.04
       }));
     }
@@ -1447,7 +1465,7 @@ export function buildShell(config) {
     const ouvertures = winsOf(wall)
       .map((o) => baie(o, length, h)).filter(Boolean);
     const geo = murPerce(length, h, ouvertures, SINK);
-    if (wallMap) scaleWorldUV(geo, TILE / repMur);
+    if (wallMap || wallMatiere) scaleWorldUV(geo, TILE / repMur);
     const m = new THREE.Mesh(geo, matFor(wall));
     m.position.set(x, 0, z);
     m.rotation.y = rotY;
