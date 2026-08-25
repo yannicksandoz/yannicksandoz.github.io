@@ -87,6 +87,10 @@ export class AudioEngine {
         // EN PREMIER, contre l'hygiène, et les autres se posent devant elle,
         // chacun contre le précédent. L'ordre entendu est :
         //   console → pupitre → couleur → bande → hygiène → marge → plafond
+        // …et le module de Console7, chargé une fois pour toutes sans rien
+        // changer à ce qui joue : la table reste la six tant qu'on ne demande
+        // pas l'autre (voir Console.preparer).
+        .then(() => this.console.preparer(this.ctx))
         .then(() => this.bande.installer(
           this.ctx, sortieConsole,
           this.hygiene.entree ?? this.limiteur.entree ?? this.ctx.destination))

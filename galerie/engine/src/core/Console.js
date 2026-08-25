@@ -1,3 +1,8 @@
+import source7 from './console7-worklet.js?raw';
+import { POINTS, encoder, decoder, courbe, CONSOLE_DEFAUTS,
+  MOTEURS_CONSOLE, normaliserConsole } from './console-reglages.js';
+
+export { encoder, decoder, CONSOLE_DEFAUTS, MOTEURS_CONSOLE, normaliserConsole };
 /**
  * LA TABLE DE MIXAGE — Console6, d'Airwindows.
  *
@@ -52,35 +57,14 @@
  */
 
 /** Points de la courbe. 8192 suffisent : la formule est douce partout. */
-const POINTS = 8192;
-
-/** Encodage d'une tranche — Console6Channel. */
-export function encoder(x) {
-  if (x > 1) return 1;
-  if (x > 0) return x * (2 - x);
-  if (x < -1) return -1;
-  if (x < 0) return x * (x + 2);
-  return 0;
-}
-
-/** Décodage du bus — Console6Buss, réciproque exacte de l'encodage. */
-export function decoder(x) {
-  if (x > 1) return 1;
-  if (x > 0) return x / (1 + Math.sqrt(1 - x));
-  if (x < -1) return -1;
-  if (x < 0) return x / (Math.sqrt(x + 1) + 1);
-  return 0;
-}
-
-function courbe(fn) {
-  const c = new Float32Array(POINTS);
-  for (let i = 0; i < POINTS; i++) c[i] = fn((i / (POINTS - 1)) * 2 - 1);
-  return c;
-}
-
 export class Console {
   constructor() {
     this.ctx = null;
+    // 'console6' (des courbes natives, gratuites) ou 'console7' (des
+    // worklets, un par tranche). Voir MOTEURS_CONSOLE plus bas.
+    this.moteur = CONSOLE_DEFAUTS.moteur;
+    this.console7 = 'absent';   // 'absent' | 'pret' | 'refuse'
+    this._url7 = null;
     this.somme = null;     // le point où toutes les tranches arrivent
     this.sortie = null;    // ce que branche la suite de la chaîne
     this.decodeur = null;
@@ -103,11 +87,9 @@ export class Console {
     this.somme = somme;
     this._courbes = { encodage: courbe(encoder), decodage: courbe(decoder) };
     this.sortie = ctx.createGain();
-    this.decodeur = ctx.createWaveShaper();
-    this.decodeur.curve = this._courbes.decodage;
-    // « none » : Console6 est conçue SANS sur-échantillonnage. En ajouter
-    // changerait la courbe que Chris a réglée à l'oreille.
-    this.decodeur.oversample = 'none';
+    // « none » dans la six : elle est conçue SANS sur-échantillonnage, et en
+    // ajouter changerait la courbe que Chris a réglée à l'oreille.
+    this.decodeur = this._faireDecodeur();
     this.rendu = ctx.createGain();
     this.rendu.gain.value = 1 / this.attaque;
     this.decodeur.connect(this.rendu);
@@ -132,14 +114,96 @@ export class Console {
     if (!this.ctx || this.canaux.has(bus)) return bus;
     const attenuation = this.ctx.createGain();
     attenuation.gain.value = this.attaque;
-    const encodeur = this.ctx.createWaveShaper();
-    encodeur.curve = this._courbes.encodage;
-    encodeur.oversample = 'none';
+    const encodeur = this._faireEncodeur();
     attenuation.connect(encodeur);
     encodeur.connect(this.somme);
     this.canaux.set(bus, { attenuation, encodeur, coupe: false });
     bus.connect(this.actif ? attenuation : this.somme);
     return bus;
+  }
+
+  /** L'encodeur du moteur courant : une courbe, ou un worklet. */
+  _faireEncodeur() {
+    if (this.moteur === 'console7' && this.console7 === 'pret') {
+      return this._worklet('galerie-console7-tranche');
+    }
+    const n = this.ctx.createWaveShaper();
+    n.curve = this._courbes.encodage;
+    n.oversample = 'none';
+    return n;
+  }
+
+  _faireDecodeur() {
+    if (this.moteur === 'console7' && this.console7 === 'pret') {
+      return this._worklet('galerie-console7-somme');
+    }
+    const n = this.ctx.createWaveShaper();
+    n.curve = this._courbes.decodage;
+    n.oversample = 'none';
+    return n;
+  }
+
+  _worklet(nom) {
+    return new AudioWorkletNode(this.ctx, nom, {
+      numberOfInputs: 1, numberOfOutputs: 1, outputChannelCount: [2],
+      channelCount: 2, channelCountMode: 'explicit',
+      channelInterpretation: 'speakers'
+    });
+  }
+
+  /**
+   * Charge le module de la sept, sans rien changer à ce qui joue.
+   *
+   * On ne le fait qu'UNE FOIS, au montage de la chaîne : enregistrer un
+   * module au milieu d'une visite demanderait d'attendre, et une table ne se
+   * change pas en deux fois. Tant qu'il n'est pas là, demander la sept
+   * retombe sur la six et le dit.
+   */
+  async preparer(ctx) {
+    if (this.console7 !== 'absent') return this.console7;
+    try {
+      if (!ctx.audioWorklet) throw new Error('pas d’AudioWorklet');
+      this._url7 = URL.createObjectURL(
+        new Blob([source7], { type: 'text/javascript' }));
+      await ctx.audioWorklet.addModule(this._url7);
+      this.console7 = 'pret';
+    } catch (err) {
+      console.warn('[galerie] Console7 indisponible :', err?.message ?? err);
+      this.console7 = 'refuse';
+    } finally {
+      if (this._url7) { URL.revokeObjectURL(this._url7); this._url7 = null; }
+    }
+    // le moteur demandé attendait peut-être son module
+    if (this.moteur === 'console7' && this.console7 === 'pret') this._rebatir();
+    return this.console7;
+  }
+
+  /**
+   * Refait tous les encodeurs et le décodeur avec le moteur courant.
+   *
+   * On garde les ATTÉNUATIONS et les fils qui viennent des bus : ce qui
+   * change est l'étage du milieu, et le reste du graphe n'a pas à le savoir.
+   */
+  _rebatir() {
+    if (!this.ctx || !this._courbes) return;
+    for (const canal of this.canaux.values()) {
+      try { canal.attenuation.disconnect(); } catch { /* déjà */ }
+      try { canal.encodeur.disconnect(); } catch { /* déjà */ }
+      canal.encodeur = this._faireEncodeur();
+      canal.attenuation.connect(canal.encodeur);
+      canal.encodeur.connect(this.somme);
+    }
+    try { this.somme.disconnect(this.decodeur); } catch { /* déjà */ }
+    try { this.decodeur.disconnect(); } catch { /* déjà */ }
+    this.decodeur = this._faireDecodeur();
+    this.decodeur.connect(this.rendu);
+    this._routerBus();
+  }
+
+  /** Le moteur qui travaille vraiment — la sept peut avoir été refusée. */
+  get moteurEffectif() {
+    return this.moteur === 'console7' && this.console7 === 'pret'
+      ? 'console7' : 'console6';
   }
 
   /** Ferme la tranche : plus rien à elle ne traîne dans le graphe. */
@@ -184,10 +248,16 @@ export class Console {
   regler(brut) {
     const r = normaliserConsole(brut);
     const ancien = this.actif;
+    const ancienMoteur = this.moteurEffectif;
     this.actif = r.actif;
     this.attaque = r.attaque;
+    this.moteur = r.moteur;
 
     if (!this.ctx) return;
+    // CHANGER DE MOTEUR REFAIT LES QUINZE TRANCHES : on ne le fait donc que
+    // si le moteur qui TRAVAILLE change vraiment. Demander la sept quand
+    // elle n'est pas là ne doit rien reconstruire.
+    if (this.moteurEffectif !== ancienMoteur) this._rebatir();
     // L'attaque se règle en continu : deux gains, et l'un est l'inverse de
     // l'autre. On les pose ensemble, sinon on entend le trou entre les deux.
     const t = this.ctx.currentTime;
@@ -204,26 +274,4 @@ export class Console {
     }
     this._routerBus();
   }
-}
-
-/**
- * Réglages relus et bornés.
- *
- * ÉTEINTE par défaut, et à pleine attaque quand on l'allume : c'est le
- * réglage de Chris, celui qu'on veut entendre pour juger. À moitié attaque
- * la table s'entend à peine — autant ne pas la brancher.
- */
-export const CONSOLE_DEFAUTS = { actif: false, attaque: 1 };
-
-export function normaliserConsole(brut) {
-  const c = { ...CONSOLE_DEFAUTS, ...(brut ?? {}) };
-  const a = Number(c.attaque);
-  return {
-    // Seul un `true` franc l'allume : c'est une couleur livrée éteinte, et
-    // une valeur douteuse dans un JSON ne doit pas la brancher à l'insu de
-    // l'auteur.
-    actif: c.actif === true,
-    // jamais zéro : ce serait une division par zéro dans le gain de rendu
-    attaque: Number.isFinite(a) ? Math.min(1, Math.max(0.05, a)) : CONSOLE_DEFAUTS.attaque
-  };
 }

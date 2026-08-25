@@ -861,6 +861,41 @@ de l'autre, avec le retard d'une vraie tête — le binaural y tient-il ?). Un
 geste de travail : rien n'est écrit, et la loupe se relâche en quittant
 l'onglet.
 
+**La table version SEPT, au choix** (`engine/src/core/console7-worklet.js`,
+d'après *Console7Channel* et *Console7Buss* de Chris Johnson, MIT). La six
+est une paire de courbes SANS MÉMOIRE, réciproques exactes l'une de l'autre :
+c'est ce qui permet de l'écrire en `WaveShaperNode` natif, et c'est gratuit.
+La sept ne l'est pas —
+
+- l'encodage mêle **deux** saturations (Spiral à 80 %, la Density de
+  ConsoleChannel à 20 %) et le décodage en mêle deux autres, à 61,8 et
+  38,2 %. Ce ne sont plus des réciproques exactes, et c'est voulu : mesuré,
+  une source seule ressort avec **3,8 %** d'écart, là où la six est exacte ;
+- chaque étage porte un passe-bas à 20 kHz, et le fader est POURSUIVI ;
+- surtout, la tranche sature au CUBE du fader puis se réamplifie d'un seul
+  facteur. Une tranche baissée traverse donc beaucoup moins de distorsion —
+  mesuré : **23,4 %** d'harmoniques au fader plein, **0,06 %** à mi-course.
+  Chris écrit « fall back in the soundstage, subtly ». Dans cette galerie,
+  c'est la DISTANCE qui tient le fader : une œuvre lointaine recule donc
+  aussi en timbre, et c'est gratuit.
+
+**Ce que ça coûte, mesuré.** Quinze tranches et une somme, trente secondes
+rendues hors ligne : la six prend **19,9 ‰** du temps réel, la sept
+**85,6 ‰** — un facteur **4,3**. C'est tenable sur un ordinateur, ça ne
+l'est pas forcément sur un téléphone qui porte déjà quinze convolutions
+HRTF, trois réverbes et cinq étages de maître. **La six reste donc le
+défaut**, et la sept se demande par son nom dans l'onglet *Mixage*. Changer
+de version refait les quinze encodeurs et le décodeur en direct, sans couper
+le son — la suite navigateur le vérifie, tranches comptées avant et après.
+
+Un détail du portage qui mérite d'être écrit, sans quoi quelqu'un le
+« corrigera » : la vitesse de poursuite du fader ne redescend jamais à son
+plancher de 64. La condition de Chris est `if (gainchase != inputgain)`, or
+la poursuite est une moyenne pondérée qui converge à quelques ulps de sa
+cible — mesuré, 3·10⁻¹⁵ — sans jamais l'atteindre. La vitesse se gare donc
+juste sous la taille du bloc, soit une constante de lissage de deux
+millisecondes et demie. Un test l'affirme dans ce sens-là.
+
 **La table de mixage — Console6** (`engine/src/core/Console.js`, d'après
 *Console6Channel* et *Console6Buss* de Chris Johnson, MIT ; son
 encodage/décodage vient de torridgristle, MIT aussi). Chaque œuvre encode son
