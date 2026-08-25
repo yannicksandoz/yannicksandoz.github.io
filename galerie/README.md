@@ -1703,6 +1703,28 @@ paquet principal passe de 1 201,78 à 1 202,00 ko (**+0,22 ko**), et
 jour où quelqu'un posera un modèle de deux cent mille triangles ; elle ne
 coûte rien avant.
 
+**Le reste de la liste, mesuré puis refusé.** Trois autres candidats de la
+même vague avaient l'air utiles sur le papier ; aucun n'a survécu à la
+mesure, et c'est noté ici pour qu'on ne refasse pas l'étude dans six mois.
+
+- **meshoptimizer / glTF-Transform** (compression de modèles au build) : la
+  bibliothèque entière de modèles pèse **232 ko**, le plus gros fichier
+  131 ko (la lune). Monter un pipeline de compression pour cela coûterait
+  plus en entretien qu'il ne rendra jamais en octets.
+- **`THREE.BatchedMesh`** (fondre les maillages en un appel de dessin) :
+  compté sur soixante frames, appels de dessin par pièce — entrée 49, labo
+  40, jardin 28, bibliothèque 20, archives 20, **belvédère 89** pour 267
+  objets. La douleur WebGL commence à plusieurs centaines d'appels ; à
+  quatre-vingt-neuf, une refonte du rendu (un matériau par lot, le culling à
+  refaire) n'achèterait rien de perceptible.
+- **fflate** (compresser `galerie.zip`) : l'archive utilise déjà
+  `CompressionStream('deflate-raw')`, natif au navigateur, avec les médias
+  déjà compressés rangés sans recompression (`state/Archive.js`). Le
+  problème était résolu avant d'être posé.
+
+La règle qui sort de cette vague : une dépendance s'ajoute sur une mesure,
+jamais sur une réputation — et la mesure se garde dans un test ou ici.
+
 **Et la chaîne elle-même se vérifie.** Les vingt-quatre suites s’enchaînent par
 des `&&` : un script qui *plante* — pas qui échoue, qui plante — arrête tout
 le reste sans afficher une seule croix. C'est arrivé. En accueillant la sept,
