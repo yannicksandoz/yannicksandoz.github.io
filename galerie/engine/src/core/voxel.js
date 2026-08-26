@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { patcherGrain } from './textures.js';
-import { estFluide, patcherStries } from './style.js';
+import { estFluide, patcherStries, serpentinVoxel } from './style.js';
 
 /**
  * Constructions voxel — données et rendu.
@@ -87,6 +87,53 @@ export function gridOf(model) {
 /* --------------------------------------------------------------- rendu --- */
 
 /**
+ * Pose la matrice d'un pavé [x,y,z, sx,sy,sz] de la grille — et, en mode
+ * fluide, lui applique le SERPENTEMENT (style.serpentinVoxel) : les masses
+ * allongées (escaliers, rampes) ondoient en plan et gonflent en leur
+ * milieu, extrémités fixes. La même fonction sert au rendu par cellule,
+ * au rendu fusionné ET au collider : la marche reste posée sur la forme.
+ */
+function poserPave(m, dims, cell, x, y, z, sx, sy, sz, serpent) {
+  const c0 = cellCenter(dims, cell, x, y, z);
+  let px = c0[0] + (sx - 1) * cell / 2;
+  const py = c0[1] + (sy - 1) * cell / 2;
+  let pz = c0[2] + (sz - 1) * cell / 2;
+  let ex = sx * cell, ez = sz * cell;
+  if (serpent) {
+    const t = serpent.axe === 0 ? (x + sx / 2) / dims[0] : (z + sz / 2) / dims[2];
+    const g = serpent.gonflement(t), d = serpent.decalage(t);
+    // le gonflement s'échelonne autour du centre du modèle (grille centrée
+    // en x/z), le décalage vient ensuite — l'axe long ne bouge jamais
+    if (serpent.axe === 0) { pz = pz * g + d; ez *= g; }
+    else { px = px * g + d; ex *= g; }
+  }
+  m.makeScale(ex, sy * cell, ez);
+  m.setPosition(px, py, pz);
+}
+
+/**
+ * Avant de serpenter, DÉCOUPER les pavés en tranches d'une cellule le long
+ * de l'axe du serpent : un pavé fusionné qui court sur toute la longueur
+ * (un palier, une dalle) serait sinon décalé d'un bloc — les extrémités ne
+ * resteraient pas fixes. Tranché, il se PLIE. Le surcoût d'instances est
+ * dérisoire (un escalier passe de ~30 à ~60 instances).
+ */
+function decouperPaves(paves, axe) {
+  const out = [];
+  for (const p of paves) {
+    const n = axe === 0 ? p[3] : p[5];
+    if (n === 1) { out.push(p); continue; }
+    for (let k = 0; k < n; k++) {
+      const q = p.slice();
+      if (axe === 0) { q[0] = p[0] + k; q[3] = 1; }
+      else { q[2] = p[2] + k; q[5] = 1; }
+      out.push(q);
+    }
+  }
+  return out;
+}
+
+/**
  * Construit l'InstancedMesh d'une grille. Renvoie null si rien n'est posé,
  * pour que l'œuvre garde son placeholder plutôt qu'un objet vide invisible.
  */
@@ -109,14 +156,15 @@ export function buildVoxelMesh(model, grid = gridOf(model)) {
   }
   if (!visible.length) return null;
 
-  const geometry = new THREE.BoxGeometry(cell, cell, cell);
+  const geometry = new THREE.BoxGeometry(1, 1, 1);
   const mesh = new THREE.InstancedMesh(geometry, buildVoxelMaterial(model), visible.length);
   mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
 
+  const serpent = serpentinVoxel(dims, cell);
   const m = new THREE.Matrix4();
   const white = new THREE.Color('#ffffff');
   visible.forEach(([x, y, z, v], i) => {
-    m.makeTranslation(...cellCenter(dims, cell, x, y, z));
+    poserPave(m, dims, cell, x, y, z, 1, 1, 1, serpent);
     mesh.setMatrixAt(i, m);
     mesh.setColorAt(i, teinteVoxel(palette[v - 1] ?? white));
   });
@@ -189,19 +237,15 @@ export function buildVoxelMeshMerged(model, grid = gridOf(model)) {
   }
   if (!pavés.length) return null;
 
+  const serpent = serpentinVoxel(dims, cell);
+  const tranches = serpent ? decouperPaves(pavés, serpent.axe) : pavés;
   const geometry = new THREE.BoxGeometry(1, 1, 1);
-  const mesh = new THREE.InstancedMesh(geometry, buildVoxelMaterial(model), pavés.length);
+  const mesh = new THREE.InstancedMesh(geometry, buildVoxelMaterial(model), tranches.length);
   const m = new THREE.Matrix4();
   const white = new THREE.Color('#ffffff');
-  for (let i = 0; i < pavés.length; i++) {
-    const [x, y, z, sx, sy, sz, v] = pavés[i];
-    const c0 = cellCenter(dims, cell, x, y, z);
-    m.makeScale(sx * cell, sy * cell, sz * cell);
-    m.setPosition(
-      c0[0] + (sx - 1) * cell / 2,
-      c0[1] + (sy - 1) * cell / 2,
-      c0[2] + (sz - 1) * cell / 2
-    );
+  for (let i = 0; i < tranches.length; i++) {
+    const [x, y, z, sx, sy, sz, v] = tranches[i];
+    poserPave(m, dims, cell, x, y, z, sx, sy, sz, serpent);
     mesh.setMatrixAt(i, m);
     mesh.setColorAt(i, teinteVoxel(palette[v - 1] ?? white));
   }
@@ -282,22 +326,18 @@ export function buildVoxelCollider(model, grid = gridOf(model)) {
   }
   if (!pavés.length) return null;
 
+  const serpent = serpentinVoxel(dims, cell);
+  const tranches = serpent ? decouperPaves(pavés, serpent.axe) : pavés;
   const geometry = new THREE.BoxGeometry(1, 1, 1);
   const mesh = new THREE.InstancedMesh(geometry, new THREE.MeshBasicMaterial(),
-    pavés.length);
+    tranches.length);
   mesh.visible = false;          // il ne sert qu'aux rayons
   mesh.name = 'collision-voxel';
   mesh.userData.ignoreRaycast = false;
   const m = new THREE.Matrix4();
-  for (let i = 0; i < pavés.length; i++) {
-    const [x, y, z, sx, sy, sz] = pavés[i];
-    const c0 = cellCenter(dims, cell, x, y, z);
-    m.makeScale(sx * cell, sy * cell, sz * cell);
-    m.setPosition(
-      c0[0] + (sx - 1) * cell / 2,
-      c0[1] + (sy - 1) * cell / 2,
-      c0[2] + (sz - 1) * cell / 2
-    );
+  for (let i = 0; i < tranches.length; i++) {
+    const [x, y, z, sx, sy, sz] = tranches[i];
+    poserPave(m, dims, cell, x, y, z, sx, sy, sz, serpent);
     mesh.setMatrixAt(i, m);
   }
   mesh.instanceMatrix.needsUpdate = true;

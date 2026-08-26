@@ -5,7 +5,7 @@ import { styleTexture, scaleBoxUV, scalePlaneUV, scaleWorldUV, scaleObjetUV,
   patcherRepetition, TILE }
   from './textures.js';
 import { styleMatiere, jeuDeSurface } from './matieres.js';
-import { estFluide, materiauFluide, dessinerCouronne } from './style.js';
+import { estFluide, materiauFluide, dessinerCouronne, courberParoi } from './style.js';
 import { aDesSourcesEtendues } from './primitives.js';
 import { delaiDe, fermer, estFerme, tick as tickCooldown } from './Cooldown.js';
 import { reverbDePiece } from './reverb-reglages.js';
@@ -1361,7 +1361,8 @@ export function silhouetteOuverture(o, length, height) {
  * `sink` enfonce le pied sous le sol : deux faces exactement coplanaires
  * grésillent, et le pied de mur clignotait sur toute sa longueur.
  */
-function murPerce(length, height, ouvertures, sink, { couronneFluide = false } = {}) {
+function murPerce(length, height, ouvertures, sink,
+  { couronneFluide = false, courbe = null } = {}) {
   const forme = new THREE.Shape();
   forme.moveTo(-length / 2, -sink);
   forme.lineTo(length / 2, -sink);
@@ -1378,10 +1379,17 @@ function murPerce(length, height, ouvertures, sink, { couronneFluide = false } =
 
   // 36 segments par courbe : à 15° un oculus se lit comme un polygone, et
   // c'est justement l'objet qu'on regarde de près.
-  const geo = new THREE.ExtrudeGeometry(forme, {
+  let geo = new THREE.ExtrudeGeometry(forme, {
     depth: WALL_T, bevelEnabled: false, curveSegments: 36
   });
   geo.translate(0, 0, -WALL_T / 2);   // le mur est centré sur son plan
+  if (courbe) {
+    // mode fluide : le mur devient un VOILE cintré (style.courberParoi) —
+    // les bandes des baies restent planes pour que chambranles, vitres et
+    // portails posent affleurants
+    const zones = ouvertures.map((b) => [b.c - b.wl / 2 - 0.5, b.c + b.wl / 2 + 0.5]);
+    geo = courberParoi(geo, { length, height, sink, zones, ...courbe });
+  }
   return geo;
 }
 
@@ -1526,8 +1534,14 @@ export function buildShell(config) {
   const mur = (wall, length, x, z, rotY) => {
     const ouvertures = winsOf(wall)
       .map((o) => baie(o, length, h)).filter(Boolean);
-    const geo = murPerce(length, h, ouvertures, SINK,
-      { couronneFluide: estFluide() && !opt.ceiling });
+    const geo = murPerce(length, h, ouvertures, SINK, {
+      couronneFluide: estFluide() && !opt.ceiling,
+      // le voile bombe vers l'EXTÉRIEUR de la pièce : il agrandit le volume
+      // au lieu de venir mordre sur les œuvres accrochées près des murs
+      courbe: estFluide()
+        ? { plafonne: !!opt.ceiling, sens: (wall === 'sud' || wall === 'est') ? 1 : -1 }
+        : null
+    });
     if (wallMap || wallMatiere) scaleWorldUV(geo, TILE / repMur);
     const m = new THREE.Mesh(geo, matFor(wall));
     m.position.set(x, 0, z);

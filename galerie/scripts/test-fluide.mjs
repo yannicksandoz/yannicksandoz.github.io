@@ -29,10 +29,12 @@ register('data:text/javascript,'
       return next(url, ctx);
     }`), import.meta.url);
 
-const { setStyle, styleCourant, estFluide, patcherStries, dessinerCouronne } =
+const { setStyle, styleCourant, estFluide, patcherStries, dessinerCouronne,
+  tesseler, courberParoi, serpentinVoxel } =
   await import('../engine/src/core/style.js');
 const { buildPrimitive } = await import('../engine/src/core/primitives.js');
-const { buildVoxelMeshMerged } = await import('../engine/src/core/voxel.js');
+const { buildVoxelMeshMerged, buildVoxelCollider } =
+  await import('../engine/src/core/voxel.js');
 const tex = await import('../engine/src/core/textures.js');
 
 const ici = dirname(fileURLToPath(import.meta.url));
@@ -297,6 +299,130 @@ test('le patch s\'installe sans casser la chaîne onBeforeCompile', () => {
   assert.ok(dabord, 'le patch précédent a tourné');
   assert.ok(shader.uniforms.uStriePas, 'les uniformes des stries');
   assert.ok(shader.fragmentShader.includes('uStrieForce'), 'le fragment est patché');
+});
+
+/* ---------------------------------------------------- courber le volume */
+
+groupe('courber le volume : plus aucun plan orthogonal');
+
+// un « mur » d'essai : la même extrusion que murPerce, centrée sur son plan
+const murEssai = (L = 20, H = 6, T = 0.3) => {
+  const forme = new THREE.Shape();
+  forme.moveTo(-L / 2, 0);
+  forme.lineTo(L / 2, 0);
+  forme.lineTo(L / 2, H);
+  forme.lineTo(-L / 2, H);
+  forme.lineTo(-L / 2, 0);
+  const g = new THREE.ExtrudeGeometry(forme, { depth: T, bevelEnabled: false });
+  g.translate(0, 0, -T / 2);
+  return g;
+};
+
+test('tesseler : plus aucune arête au-dessus de la maille, sans jonction en T', () => {
+  const g = tesseler(murEssai(), 1.2);
+  const pos = g.attributes.position, idx = g.index.array;
+  const l2 = (a, b) => {
+    const dx = pos.getX(a) - pos.getX(b), dy = pos.getY(a) - pos.getY(b),
+      dz = pos.getZ(a) - pos.getZ(b);
+    return dx * dx + dy * dy + dz * dz;
+  };
+  let max = 0;
+  for (let i = 0; i < idx.length; i += 3) {
+    max = Math.max(max, l2(idx[i], idx[i + 1]), l2(idx[i + 1], idx[i + 2]),
+      l2(idx[i + 2], idx[i]));
+  }
+  assert.ok(Math.sqrt(max) <= 1.2 + 1e-6, `arête max ${Math.sqrt(max).toFixed(3)}`);
+  assert.ok(pos.count > 300, `des sommets INTÉRIEURS sont nés (${pos.count})`);
+});
+
+test('courberParoi : extrémités et bande de baie planes, le voile bombe au-delà de son épaisseur', () => {
+  const g = courberParoi(murEssai(), {
+    length: 20, height: 6, zones: [[2, 4]], plafonne: false, sens: 1
+  });
+  const pos = g.attributes.position;
+  let bombe = 0;
+  for (let i = 0; i < pos.count; i++) {
+    const x = pos.getX(i), z = pos.getZ(i);
+    if (Math.abs(Math.abs(x) - 10) < 0.05) {
+      assert.ok(Math.abs(z) <= 0.151, `extrémité plane (x=${x.toFixed(2)}, z=${z.toFixed(3)})`);
+    }
+    if (x > 2.01 && x < 3.99) {
+      assert.ok(Math.abs(z) <= 0.16, `bande de baie plane (x=${x.toFixed(2)}, z=${z.toFixed(3)})`);
+    }
+    bombe = Math.max(bombe, z);
+  }
+  assert.ok(bombe > 0.3, `le mur n'est plus un plan (bombé ${bombe.toFixed(2)} m)`);
+});
+
+test('courberParoi plafonné : le sommet revient affleurer la verrière', () => {
+  const g = courberParoi(murEssai(20, 6), {
+    length: 20, height: 6, plafonne: true, sens: 1
+  });
+  const pos = g.attributes.position;
+  let ventre = 0;
+  for (let i = 0; i < pos.count; i++) {
+    const y = pos.getY(i), z = pos.getZ(i);
+    if (y > 5.95) assert.ok(Math.abs(z) <= 0.16, `sommet plan (y=${y.toFixed(2)}, z=${z.toFixed(3)})`);
+    if (y > 2.5 && y < 3.5) ventre = Math.max(ventre, z);
+  }
+  assert.ok(ventre > 0.25, `le ventre est à mi-hauteur (${ventre.toFixed(2)} m)`);
+});
+
+test('serpentinVoxel : allongé seulement, extrémités fixes, milieu qui gonfle', () => {
+  setStyle('fluide');
+  assert.equal(serpentinVoxel([8, 8, 8], 0.5), null, 'une masse compacte reste droite');
+  const s = serpentinVoxel([7, 16, 32], 0.5);
+  assert.ok(s && s.axe === 2, 'l\'escalier serpente le long de sa montée');
+  assert.ok(Math.abs(s.decalage(0)) < 1e-9 && Math.abs(s.decalage(1)) < 1e-9,
+    'les connexions du labyrinthe tiennent');
+  let max = 0;
+  for (let t = 0; t <= 1; t += 0.02) max = Math.max(max, Math.abs(s.decalage(t)));
+  assert.ok(max > 0.25, `l'ondulation est franche (${max.toFixed(2)} m)`);
+  assert.ok(s.gonflement(0.5) > 1.1, 'la forme gonfle en son milieu');
+  assert.ok(Math.abs(s.gonflement(0) - 1) < 1e-9, 'sans gonfler ses extrémités');
+  setStyle('brut');
+  assert.equal(serpentinVoxel([7, 16, 32], 0.5), null, 'hors mode fluide, rien ne bouge');
+});
+
+test('le rendu fusionné et le collider serpentent d\'un même mouvement', () => {
+  setStyle('fluide');
+  const model = { type: 'voxel', dims: [4, 2, 24], cell: 0.5, palette: ['#888888'],
+    cells: [4 * 2 * 24, 1] };
+  const rendu = buildVoxelMeshMerged(model);
+  const collider = buildVoxelCollider(model);
+  const centres = (mesh) => {
+    const m = new THREE.Matrix4(), p = new THREE.Vector3(),
+      q = new THREE.Quaternion(), s = new THREE.Vector3(), out = [];
+    for (let i = 0; i < mesh.count; i++) {
+      mesh.getMatrixAt(i, m);
+      m.decompose(p, q, s);
+      out.push([p.x, p.y, p.z]);
+    }
+    return out.sort((a, b) => a[2] - b[2] || a[1] - b[1] || a[0] - b[0]);
+  };
+  const a = centres(rendu), b = centres(collider);
+  assert.equal(a.length, b.length, 'mêmes tranches');
+  for (let i = 0; i < a.length; i++) {
+    for (let k = 0; k < 3; k++) {
+      assert.ok(Math.abs(a[i][k] - b[i][k]) < 1e-6, `tranche ${i} identique`);
+    }
+  }
+  assert.ok(Math.max(...a.map((c) => Math.abs(c[0]))) > 0.15,
+    'et le serpent a réellement décalé la masse');
+  setStyle('brut');
+});
+
+test('ruban plat : la largeur reste horizontale, l\'épaisseur verticale', () => {
+  const mesh = buildPrimitive({
+    shape: 'ruban', plat: true, epaisseur: 0.1, largeur: 2,
+    points: [[0, 0, -5], [1, 0, 0], [0, 0, 5]]
+  });
+  const boite = new THREE.Box3().setFromObject(mesh);
+  assert.ok(boite.max.y - boite.min.y < 0.12,
+    `un chemin, pas un mur (haut de ${(boite.max.y - boite.min.y).toFixed(2)} m)`);
+  assert.ok(boite.max.x - boite.min.x > 2.5,
+    `l'S déploie sa largeur au sol (${(boite.max.x - boite.min.x).toFixed(2)} m)`);
+  assert.ok(boite.max.z - boite.min.z > 9.5, 'sur toute sa longueur');
 });
 
 console.log(`\n${ok} ✓ / ${ko} ✗`);

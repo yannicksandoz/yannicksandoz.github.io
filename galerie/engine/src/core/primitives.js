@@ -634,8 +634,9 @@ function buildLucioles(size, model) {
  *     "largeurFin": 0.5,     // …à l'arrivée (défaut : constante)
  *     "epaisseur": 0.14,     // épaisseur de la coque
  *     "torsion": 90,         // vrille totale le long du chemin (degrés)
- *     "ferme": false         // true : la courbe se referme (anneau)
- *   }
+ *     "ferme": false,        // true : la courbe se referme (anneau)
+ *     "plat": false          // true : ruban AU SOL (chemin, rampe) —
+ *   }                        //   largeur horizontale, épaisseur verticale
  *
  * La section n'est pas un rectangle : une super-ellipse d'exposant 4 —
  * des faces presque planes, des angles fondus, le profil d'une coque
@@ -659,10 +660,18 @@ function buildRuban(size, model, echelle = null) {
   const ep = Math.max(0.02, model.epaisseur ?? 0.14);
   const torsion = THREE.MathUtils.degToRad(model.torsion ?? 0);
 
-  const reperes = courbe.computeFrenetFrames(SEG, ferme);
+  // ruban PLAT (chemin, rampe au sol) : les repères de Frenet d'une courbe
+  // horizontale mettent la binormale à la VERTICALE — la largeur se
+  // construirait debout, comme un mur. On fige donc le « haut » du monde :
+  // côté = up × tangente, épaisseur = up. Pour un ruban aérien, Frenet.
+  const plat = model.plat === true;
+  const reperes = plat ? null : courbe.computeFrenetFrames(SEG, ferme);
   const pos = [], nrm = [], uv = [], idx = [];
   const centre = new THREE.Vector3();
   const q = new THREE.Vector3();
+  const tang = new THREE.Vector3();
+  const cote = new THREE.Vector3();
+  const HAUT = new THREE.Vector3(0, 1, 0);
 
   // longueur cumulée : les UV comptent en mètres, pas en paramètre
   const longueurs = courbe.getLengths(SEG);
@@ -670,8 +679,18 @@ function buildRuban(size, model, echelle = null) {
   for (let i = 0; i <= SEG; i++) {
     const t = i / SEG;
     courbe.getPointAt(t, centre);
-    const N = reperes.normals[Math.min(i, SEG - 1)];
-    const B = reperes.binormals[Math.min(i, SEG - 1)];
+    let N, B;
+    if (plat) {
+      courbe.getTangentAt(t, tang);
+      tang.y = 0;
+      if (tang.lengthSq() < 1e-8) tang.set(0, 0, 1);
+      tang.normalize();
+      cote.set(-tang.z, 0, tang.x);
+      N = HAUT; B = cote;
+    } else {
+      N = reperes.normals[Math.min(i, SEG - 1)];
+      B = reperes.binormals[Math.min(i, SEG - 1)];
+    }
     const demiL = THREE.MathUtils.lerp(larg0, larg1, t) / 2;
     const demiE = ep / 2;
     const vrille = torsion * t;

@@ -4,7 +4,7 @@
   "description": "",
   "position": [
     -1.5,
-    0.03,
+    0.04,
     8.5
   ],
   "rotation": [
@@ -13,14 +13,40 @@
     0
   ],
   "scale": [
-    1.8,
-    0.05,
-    12
+    1,
+    1,
+    1
   ],
   "modules": [],
   "role": "decor",
   "model": {
-    "shape": "box",
+    "shape": "ruban",
+    "plat": true,
+    "points": [
+      [
+        0,
+        0,
+        -6
+      ],
+      [
+        0.9,
+        0,
+        -2
+      ],
+      [
+        -0.9,
+        0,
+        2
+      ],
+      [
+        0,
+        0,
+        6
+      ]
+    ],
+    "largeur": 1.9,
+    "largeurFin": 1.4,
+    "epaisseur": 0.07,
     "color": "#4a4638",
     "roughness": 1,
     "metalness": 0,
