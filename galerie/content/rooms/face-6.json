@@ -23,13 +23,8 @@
     "ceiling": true,
     "texture": "pierre"
   },
-  "keyLight": {
-    "color": "#986cda",
-    "intensity": 3.39,
-    "azimuth": 315,
-    "elevation": 42
-  },
-  "envIntensity": 0.54,
+  "keyLight": false,
+  "envIntensity": 0.22,
   "works": [
     "lanterne-face-6"
   ],

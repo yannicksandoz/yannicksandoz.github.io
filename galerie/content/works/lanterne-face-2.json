@@ -29,7 +29,9 @@
     "texture": "metal"
   },
   "lightColor": "#75f6a7",
-  "lightIntensity": 2.4,
+  "lightIntensity": 14,
   "selfLit": true,
-  "loadDistance": 240
+  "loadDistance": 240,
+  "lightDistance": 34,
+  "lightDecay": 1.35
 }

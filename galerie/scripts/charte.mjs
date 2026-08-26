@@ -64,6 +64,20 @@ export const EXTERIEURS = new Set(['jardin', 'allee', 'annexe']);
  */
 export const FACES_HABITEES = new Set(['belvedere']);
 
+/**
+ * CHAMBRES CLOSES : quatre murs, un plafond, et pour tout luminaire leur
+ * propre lanterne. Dans un volume clos, un « soleil » n'a aucun droit
+ * d'exister — la lumière clé y peignait trois pans depuis une direction
+ * impossible, et l'œil le lit immédiatement comme un décor truqué. Règle :
+ * `keyLight: false`, la lanterne porte la chambre. Les salles closes de la
+ * galerie (archives, bibliothèque…) gardent leur clé : elle y joue le rôle
+ * des rails de spots d'un plafond de musée, un artifice assumé QUE des
+ * luminaires visibles (corniches) justifient. Ici il n'y a rien à voir qui
+ * l'excuse.
+ */
+export const CHAMBRES_CLOSES = new Set(
+  ['face-1', 'face-2', 'face-3', 'face-4', 'face-5', 'face-6']);
+
 export const CHARTE = {
   ecartMurSol: { vise: 8, tolerance: 6 },   // L* : le mur au-dessus du sol
   // L* : le plafond SOUS le sol. Quatre salles murées sur quatre côtés
@@ -224,7 +238,10 @@ export function auditSalles() {
         }
       }
     }
-    const k = s.keyLight ?? {};
+    if (CHAMBRES_CLOSES.has(s.id) && s.keyLight !== false) {
+      ligne.fautes.push('chambre close avec un soleil');
+    }
+    const k = s.keyLight || {};
     const { intensite, marge, elevation, margeElevation } = CHARTE.lumiere;
     if (Number.isFinite(k.intensity) && Math.abs(k.intensity - intensite) > marge) {
       ligne.fautes.push(`intensité ${k.intensity}`);
