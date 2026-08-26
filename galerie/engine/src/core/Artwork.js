@@ -334,10 +334,20 @@ export class Artwork {
     // d'attente, qui dit « ça charge ».
     const m0 = this.config.model;
     if (m0 && (m0.shape || m0.type === 'voxel')) mat.visible = false;
+    // Un SCAN n'a pas de silhouette d'attente : le panneau sombre prévu
+    // pour les images devenait un plan noir d'une face planté dans le
+    // nuage de taches. La cible de clic prend la taille du pavé de
+    // préhension, et reste invisible — le splat arrive sans écran devant.
+    if (this.config.scan) mat.visible = false;
     const size = this.config.size ?? [4, 4];
     const m = this.config.model;
     let geo;
-    if (m?.type === 'voxel') {
+    if (this.config.scan) {
+      const t = Array.isArray(this.config.scanTaille)
+        && this.config.scanTaille.length === 3
+        ? this.config.scanTaille : [2, 2, 2];
+      geo = new THREE.BoxGeometry(...t);
+    } else if (m?.type === 'voxel') {
       // Une construction vide se signale par un socle mince à l'emprise
       // exacte de sa grille : un bloc au centre masquerait le quadrillage
       // et gênerait la visée.

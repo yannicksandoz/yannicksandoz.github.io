@@ -513,7 +513,9 @@ html, body {
    La flèche tient toute la hauteur de l'écran, le fond reste presque
    invisible tant qu'on ne la vise pas — c'est une commande, pas un cadre. */
 .derive-bord {
-  position: fixed; top: 0; bottom: 0; z-index: 16;
+  /* une BANDE centrée, pas toute la hauteur : plein écran, ces zones de
+     clic recouvraient la minimap, le menu et les boutons d'angle */
+  position: fixed; top: 30vh; bottom: 30vh; z-index: 16;
   width: clamp(4rem, 8vw, 7rem);
   display: flex; flex-direction: column;
   align-items: center; justify-content: center; gap: 0.6rem;
@@ -557,7 +559,7 @@ html, body {
 /* Sur un écran étroit, la bande mange la vue : on l'affine et on la décale
    du bas, là où vivent la barre et le pouce. */
 @media (max-width: 640px) {
-  .derive-bord { width: 2.8rem; bottom: 7rem; }
+  .derive-bord { width: 2.8rem; top: 32vh; bottom: 32vh; }
 }
 #derive-barre button:hover:not([disabled]),
 #derive-barre button:focus-visible:not([disabled]) {

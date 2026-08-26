@@ -121,14 +121,30 @@ export class UI {
 
   /** Branche la barre de progression sur le LoadingTracker de l'App. */
   bindLoading(tracker) {
+    // LA CIBLE BOUGE, LA BARRE NON. Le total du tracker grandit à mesure
+    // que les préchargements s'ajoutent (salle d'arrivée, puis salles
+    // adjacentes) : une barre qui suit `done/total` au pied de la lettre
+    // RECULE après avoir presque fini, et sur un vrai réseau elle semble ne
+    // jamais atteindre son but. Deux règles la rendent honnête :
+    //   • elle ne recule jamais (progression monotone) ;
+    //   • quand tout ce qui est demandé est arrivé et que rien de neuf ne
+    //     s'ajoute pendant 400 ms, c'est FINI — et fini reste fini, les
+    //     chargements paresseux d'après appartiennent à la visite.
+    let plafond = 0;
+    let fini = false;
+    let verrou = null;
     tracker.onChange((done, total) => {
-      if (!this.loadBarFill) return;
-      const pct = total > 0 ? Math.round((done / total) * 100) : 100;
-      this.loadBarFill.style.width = `${pct}%`;
+      if (!this.loadBarFill || fini) return;
+      const pct = total > 0 ? Math.round((done / total) * 100) : 0;
+      plafond = Math.max(plafond, pct);
+      this.loadBarFill.style.width = `${plafond}%`;
+      clearTimeout(verrou);
       if (total > 0 && done >= total) {
-        this.loadBar.classList.add('complete');
-      } else {
-        this.loadBar.classList.remove('complete');
+        verrou = setTimeout(() => {
+          fini = true;
+          this.loadBarFill.style.width = '100%';
+          this.loadBar.classList.add('complete');
+        }, 400);
       }
     });
   }
