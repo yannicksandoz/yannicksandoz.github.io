@@ -28,7 +28,7 @@
     "metalness": 0.0
   },
   "lightColor": "#cfd0e0",
-  "lightIntensity": 1.6,
+  "lightIntensity": 0,
   "credit": {
     "author": "Galerie",
     "license": "CC0-1.0",

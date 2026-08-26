@@ -4,7 +4,7 @@
   "description": "",
   "position": [
     15,
-    0,
+    -0.15,
     -6
   ],
   "rotation": [
@@ -36,5 +36,5 @@
     "sourceUrl": "https://poly.pizza/m/54jZKTAt5p"
   },
   "lightColor": "#cfd0e0",
-  "lightIntensity": 0.6
+  "lightIntensity": 0
 }

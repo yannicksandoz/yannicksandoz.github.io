@@ -639,6 +639,9 @@ export class App {
   }
 
   notifyVisualLoaded(artwork) {
+    // un maillage vient d'apparaître : son ombre doit exister à l'image
+    // suivante, pas au prochain filet de 500 ms
+    this.ombresSales = true;
     for (const fn of this._visualListeners ?? []) fn(artwork);
   }
 
@@ -761,16 +764,27 @@ export class App {
       if (this.warpPass.enabled) this.warpPass.uniforms.uTime.value = t;
       this.quality.tick(dt, this);
 
-      // cadence des ombres : 30 Hz suffisent à une galerie quasi statique
+      // LA CARTE D'OMBRE NE SE REDESSINE QUE SI QUELQUE CHOSE A CHANGÉ.
+      //
+      // À 30 Hz inconditionnels, la carte 4096 re-rendait TOUTE la scène
+      // une frame sur deux — pour une galerie où rien ne bouge. C'est ce
+      // qui a mis un M1 Max sous 30 fps au belvédère. Désormais elle ne se
+      // redessine que : quand la fenêtre a suivi le visiteur (salles sans
+      // coque), quand une œuvre vient de charger son maillage (drapeau
+      // `ombresSales`, posé par notifyVisualLoaded et au changement de
+      // salle), et sinon à 2 Hz — le filet pour les maillages qui pulsent
+      // avec l'audio, dont l'ombre peut suivre à un demi-souffle près.
       this._ombreAcc += dt;
+      this._ombreFilet = (this._ombreFilet ?? 0) + dt;
       if (this.renderer.shadowMap.enabled && this._ombreAcc >= 1 / 30) {
         this._ombreAcc = 0;
-        // la fenêtre d'ombre suit le visiteur dans les grandes pièces, calée
-        // sur la grille de texels (voir suivreOmbre) : c'est ce qui permet
-        // 1,7 cm par texel au belvédère comme dans un couloir
         const cle = this.rooms?.current?.keyLight;
-        if (cle) suivreOmbre(cle, camPos);
-        this.renderer.shadowMap.needsUpdate = true;
+        const bouge = cle ? suivreOmbre(cle, camPos) : false;
+        if (bouge || this.ombresSales || this._ombreFilet >= 0.5) {
+          this._ombreFilet = 0;
+          this.ombresSales = false;
+          this.renderer.shadowMap.needsUpdate = true;
+        }
       }
 
       this.vistas?.update(dt); // la pièce apparue se rend avant la vraie

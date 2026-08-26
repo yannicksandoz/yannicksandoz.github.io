@@ -4,7 +4,7 @@
   "description": "",
   "position": [
     9.29,
-    0,
+    -0.15,
     -14.49
   ],
   "rotation": [
@@ -30,7 +30,7 @@
     "textureRepeat": 2
   },
   "lightColor": "#cfd0e0",
-  "lightIntensity": 1.6,
+  "lightIntensity": 0,
   "credit": {
     "author": "Quaternius",
     "license": "CC0 1.0",

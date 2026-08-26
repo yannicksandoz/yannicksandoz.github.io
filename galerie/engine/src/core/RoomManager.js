@@ -577,6 +577,8 @@ export class RoomManager {
    * annoncer une pièce dans laquelle on n'est jamais entré.
    */
   async setCurrent(id, { instant = false, arrival = null, plane = 'sol' } = {}) {
+    // nouvelle salle = nouvelle carte d'ombre, tout de suite
+    this.app.ombresSales = true;
     const room = this.rooms.get(id);
     if (!room || this._transitioning) return false;
 
