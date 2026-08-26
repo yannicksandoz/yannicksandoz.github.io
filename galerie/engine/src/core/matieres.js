@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { TILE, styleTexture, anisotropie, SURFACES, PEINTRES_NOMS }
+import { TILE, styleTexture, anisotropie, SURFACES, PEINTRES_NOMS, scaleObjetUV }
   from './textures.js';
 
 /**
@@ -171,9 +171,97 @@ export function jeuDeSurface(style, echelle = 1) {
     bumpScale: s.creux,
     normalMap: null,
     normalScale: null,
-    roughnessMap: null,
-    roughness: s.rugosite,
+    // LA RUGOSITÉ QUI VARIE — l'ingrédient qui manquait partout.
+    //
+    // Une surface dont la rugosité est CONSTANTE ne peut pas ressembler à
+    // une matière : la lumière y glisse d'un seul tenant, et l'œil lit du
+    // plastique peint. Ce qui distingue une pierre d'un plastique de la
+    // même couleur, ce n'est pas son motif — c'est que ses creux sont
+    // mats et ses arêtes lustrées. Les matières photographiques avaient
+    // leur carte de rugosité depuis toujours ; les tuiles procédurales,
+    // non : elles n'apportaient qu'un albédo et un relief.
+    //
+    // La tuile sert donc AUSSI de carte de rugosité. three multiplie
+    // `roughness` par le canal vert : les creux (sombres) deviennent mats,
+    // les reliefs (clairs) plus lisses. Aucune texture supplémentaire,
+    // aucune lecture de plus qu'un `map` déjà échantillonné.
+    roughnessMap: map,
+    // …et la base est relevée d'autant, sans quoi tout deviendrait
+    // brillant : la tuile tourne autour de 0,75, on divise par là pour que
+    // la rugosité MOYENNE reste celle que le style déclare.
+    roughness: Math.min(1, s.rugosite / 0.75),
     metalness: s.metal,
     metres: s.metres / echelle
   };
+}
+
+/* ------------------------------------------------------ modèles importés --- */
+
+/**
+ * HABILLER UN MODÈLE IMPORTÉ — la dernière poche de plastique.
+ *
+ * Un `.glb` arrive avec les matériaux de son fichier, et rien ne les
+ * regardait. Or les nôtres sont des modèles d'atelier, minimalistes : un
+ * aplat de couleur, aucune carte, et parfois des valeurs qui n'existent
+ * pas dans la nature — la pierre du jardin arrivait à `metalness 0,4` avec
+ * `roughness 1`, c'est-à-dire « métal à demi, mat comme du plâtre », une
+ * combinaison qu'aucune matière réelle ne produit. Résultat : huit rochers
+ * orange vif à facettes lisses, et cinq bancs du même plastique, posés
+ * dans des salles dont les murs, eux, avaient du grain.
+ *
+ * Le JSON peut donc désormais dire de quoi un modèle est fait, exactement
+ * comme pour une primitive :
+ *
+ *   "model": { "type": "gltf", "url": "…", "texture": "pierre",
+ *              "color": "#6b6357", "roughness": 0.95, "metalness": 0 }
+ *
+ * On ne touche QUE ce qui est demandé : un modèle qui apporte ses propres
+ * cartes (une vraie photogrammétrie, un modèle texturé) et dont le JSON ne
+ * dit rien garde son apparence, au texel près.
+ */
+export function habillerModele(object3d, model = {}) {
+  const veutStyle = model.texture && model.texture !== 'aucune';
+  const veutCouleur = typeof model.color === 'string';
+  const veutRugosite = Number.isFinite(model.roughness);
+  const veutMetal = Number.isFinite(model.metalness);
+  if (!veutStyle && !veutCouleur && !veutRugosite && !veutMetal) return object3d;
+
+  const serrage = Number.isFinite(model.textureRepeat) && model.textureRepeat > 0
+    ? model.textureRepeat : 1;
+  const jeu = veutStyle ? jeuDeSurface(model.texture, serrage) : null;
+
+  object3d.traverse((o) => {
+    if (!o.isMesh || !o.material) return;
+    const multiple = Array.isArray(o.material);
+    const mats = multiple ? o.material : [o.material];
+    const habilles = mats.map((m) => {
+      // Les matériaux d'un `.glb` sont PARTAGÉS entre tous les maillages
+      // qui en sont issus — et le chargeur rend la même instance à chaque
+      // œuvre qui demande le même fichier. Les modifier en place teindrait
+      // les huit pierres du jardin d'un coup, y compris celles qui n'ont
+      // rien demandé. On clone donc, systématiquement.
+      const n = m.clone();
+      if (veutCouleur) n.color = new THREE.Color(model.color);
+      if (jeu) {
+        n.map = jeu.map;
+        n.bumpMap = jeu.bumpMap ?? null;
+        n.bumpScale = jeu.bumpScale ?? 1;
+        n.normalMap = jeu.normalMap ?? null;
+        if (jeu.normalScale) n.normalScale = new THREE.Vector2(jeu.normalScale, jeu.normalScale);
+        n.roughnessMap = jeu.roughnessMap ?? null;
+        if (!veutRugosite && Number.isFinite(jeu.roughness)) n.roughness = jeu.roughness;
+        if (!veutMetal && Number.isFinite(jeu.metalness)) n.metalness = jeu.metalness;
+        // les UV du modèle vont de zéro à un : sans mise à l'échelle
+        // MONDE, le motif d'une pierre de deux mètres serait deux fois
+        // plus gros que celui de sa voisine d'un mètre
+        if (o.geometry) scaleObjetUV(o.geometry, jeu.metres);
+      }
+      if (veutRugosite) n.roughness = model.roughness;
+      if (veutMetal) n.metalness = model.metalness;
+      n.needsUpdate = true;
+      return n;
+    });
+    o.material = multiple ? habilles : habilles[0];
+  });
+  return object3d;
 }

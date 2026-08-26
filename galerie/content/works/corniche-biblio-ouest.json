@@ -1,0 +1,31 @@
+{
+  "id": "corniche-biblio-ouest",
+  "title": "Corniche ouest",
+  "role": "decor",
+  "position": [
+    -13.2,
+    6.0,
+    0
+  ],
+  "rotation": [
+    0,
+    0,
+    0
+  ],
+  "scale": [
+    1,
+    1,
+    1
+  ],
+  "model": {
+    "shape": "corniche",
+    "longueur": 18,
+    "epaisseur": 0.12,
+    "color": "#ffe4c6",
+    "intensite": 10,
+    "mur": "ouest",
+    "inclinaison": 30
+  },
+  "solid": false,
+  "cartel": false
+}

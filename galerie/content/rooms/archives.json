@@ -34,7 +34,11 @@
         "sill": 1.2
       }
     ],
-    "texture": "brique-vraie"
+    "texture": "brique-vraie",
+    "ceiling": true,
+    "wallColors": {
+      "plafond": "#344545"
+    }
   },
   "keyLight": {
     "color": "#9fd8d0",
@@ -51,7 +55,9 @@
     "lanterne-archives-1",
     "lanterne-archives-2",
     "corniche-archives-nord",
-    "corniche-archives-ouest"
+    "corniche-archives-ouest",
+    "corniche-archives-sud",
+    "corniche-archives-est"
   ],
   "portals": [
     {

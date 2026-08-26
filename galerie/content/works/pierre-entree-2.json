@@ -23,7 +23,12 @@
     "type": "gltf",
     "url": "library/models/rock-large.glb",
     "fit": 1.6,
-    "source": "polypizza"
+    "source": "polypizza",
+    "texture": "pierre",
+    "color": "#6e675c",
+    "roughness": 0.95,
+    "metalness": 0.0,
+    "textureRepeat": 3
   },
   "credit": {
     "author": "Quaternius",

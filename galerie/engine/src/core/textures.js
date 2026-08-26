@@ -622,7 +622,15 @@ export function patcherGrain(material, style = 'poli',
           float det = dot(dpdxG, r1);
           vec3 grad = sign(det) * ((dhdxG * r1) + (dhdyG * r2));
           normal = normalize((abs(det) * normal) - (grad * uGrainRelief));
-        }`);
+        }`)
+      // LA RUGOSITÉ SUIT LE GRAIN. Le relief seul ne suffit pas : une
+      // marche du belvédère bosselée mais uniformément lustrée reste du
+      // plastique bosselé. Ce qui fait la pierre, c'est que le creux boit
+      // la lumière et que l'arête la rend. On module donc la rugosité par
+      // la MÊME hauteur déjà calculée — pas une lecture de plus — en
+      // rendant les creux mats et les reliefs lisses.
+      .replace('#include <roughnessmap_fragment>', `#include <roughnessmap_fragment>
+        roughnessFactor = clamp(roughnessFactor * (1.0 + (0.9 - grainH) * 0.55), 0.04, 1.0);`);
   };
   material.customProgramCacheKey = () => `grain-${style}-${echelle}-${force}-${relief}`;
   return material;

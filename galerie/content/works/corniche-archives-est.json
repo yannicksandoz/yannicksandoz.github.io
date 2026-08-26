@@ -1,0 +1,31 @@
+{
+  "id": "corniche-archives-est",
+  "title": "Corniche est",
+  "role": "decor",
+  "position": [
+    12.2,
+    6.5,
+    0
+  ],
+  "rotation": [
+    0,
+    0,
+    0
+  ],
+  "scale": [
+    1,
+    1,
+    1
+  ],
+  "model": {
+    "shape": "corniche",
+    "longueur": 16,
+    "epaisseur": 0.12,
+    "color": "#ffe0bd",
+    "intensite": 10,
+    "mur": "est",
+    "inclinaison": 30
+  },
+  "solid": false,
+  "cartel": false
+}

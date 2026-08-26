@@ -1,0 +1,31 @@
+{
+  "id": "corniche-biblio-nord",
+  "title": "Corniche nord",
+  "role": "decor",
+  "position": [
+    0,
+    6.0,
+    -10.2
+  ],
+  "rotation": [
+    0,
+    0,
+    0
+  ],
+  "scale": [
+    1,
+    1,
+    1
+  ],
+  "model": {
+    "shape": "corniche",
+    "longueur": 24,
+    "epaisseur": 0.12,
+    "color": "#ffe4c6",
+    "intensite": 10,
+    "mur": "nord",
+    "inclinaison": 30
+  },
+  "solid": false,
+  "cartel": false
+}

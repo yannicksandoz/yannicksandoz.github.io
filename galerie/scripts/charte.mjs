@@ -56,8 +56,23 @@ export const LUMINAIRES = new Set(['corniche', 'faisceau', 'gerbe']);
 /** Salles à ciel ouvert : leur lumière est le ciel, pas une salle. */
 export const EXTERIEURS = new Set(['jardin', 'allee', 'annexe']);
 
+/**
+ * Salles dont TOUTES les faces se marchent — la gravité y bascule, et ce
+ * que le JSON appelle « plafond » est un sol comme les autres. La règle du
+ * plafond en creux n'y a aucun sens : on n'assombrit pas un sol parce
+ * qu'il se trouve en haut quand on le regarde d'en bas.
+ */
+export const FACES_HABITEES = new Set(['belvedere']);
+
 export const CHARTE = {
   ecartMurSol: { vise: 8, tolerance: 6 },   // L* : le mur au-dessus du sol
+  // L* : le plafond SOUS le sol. Quatre salles murées sur quatre côtés
+  // n'avaient pas de plafond — une pièce fermée à ciel noir, c'est un
+  // décor de plateau, et le mur s'y coupait net sur du vide. En les
+  // couvrant, il a fallu dire ce qu'est un bon plafond : plus sombre que
+  // ses murs et que son sol. Sans rebond, un plafond clair ne rend aucune
+  // lumière — il ne fait que se voir, et il écrase la salle.
+  ecartPlafondSol: { vise: -8, tolerance: 5 },
   saturationMax: 45,                        // %
   ecartTeinteMax: 15,                       // degrés
   // LA LUMIÈRE CLÉ, recalibrée sur une mesure et non sur une intention.
@@ -193,7 +208,16 @@ export function auditSalles() {
         }
         if (!dehors) {
           const ecartFace = clarte(teinteFace) - ligne.clarteSol;
-          const { vise, tolerance } = CHARTE.ecartMurSol;
+          // UN PLAFOND N'EST PAS UN MUR. La règle « le mur au-dessus du
+          // sol » vient de la muséographie : un mur plus clair que le sol
+          // fait monter le regard vers les œuvres. Un plafond, lui, doit
+          // rester SOUS ses murs — sinon il renvoie l'œil vers le haut et
+          // écrase la salle, et c'est d'autant plus vrai ici où il n'y a
+          // pas de rebond : un plafond clair ne rend rien, il ne fait que
+          // se voir. Il a donc sa propre borne, en creux.
+          if (face === 'plafond' && FACES_HABITEES.has(s.id)) continue;
+          const { vise, tolerance } = face === 'plafond'
+            ? CHARTE.ecartPlafondSol : CHARTE.ecartMurSol;
           if (Math.abs(ecartFace - vise) > tolerance) {
             ligne.fautes.push(`face ${face} : écart au sol ${ecartFace.toFixed(1)}`);
           }

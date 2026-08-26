@@ -2366,6 +2366,73 @@ déjà une copie adoucie. Lissage partout : la matière redevient continue.
 défaut de toutes les démos 3D depuis 1995 ; c'était la première chose que
 voyait un visiteur. Remplacé par les dalles.
 
+## Matière : la rugosité qui varie, et les modèles importés
+
+Une surface dont la rugosité est **constante** ne peut pas ressembler à une
+matière : la lumière y glisse d'un seul tenant, et l'œil lit du plastique
+peint. Ce qui distingue une pierre d'un plastique de la même couleur, ce
+n'est pas son motif — c'est que ses creux sont mats et ses arêtes lustrées.
+Les matières photographiques avaient leur carte de rugosité depuis toujours ;
+les tuiles procédurales, non. Elles n'apportaient qu'un albédo et un relief.
+
+La tuile sert donc **aussi** de carte de rugosité (three multiplie
+`roughness` par le canal vert : creux mats, reliefs lisses), et la base est
+relevée d'autant pour que la rugosité *moyenne* reste celle que le style
+déclare. Aucune texture supplémentaire, aucune lecture de plus. Le grain des
+voxels — marches et passerelles du belvédère — module la sienne par la
+**même** hauteur déjà calculée.
+
+**Les modèles importés étaient la dernière poche de plastique.** Un `.glb`
+arrive avec les matériaux de son fichier, et rien ne les regardait. Les
+nôtres sont des modèles d'atelier : un aplat de couleur, aucune carte, et
+parfois des valeurs qui n'existent pas dans la nature — la pierre du jardin
+arrivait à `metalness 0,4` avec `roughness 1`, c'est-à-dire « métal à demi,
+mat comme du plâtre ». Résultat : huit rochers **orange vif** à facettes
+lisses, et cinq bancs du même plastique, dans des salles dont les murs, eux,
+avaient du grain. Le JSON peut désormais dire de quoi un modèle est fait,
+exactement comme pour une primitive :
+
+```json
+"model": { "type": "gltf", "url": "…", "texture": "pierre",
+           "color": "#6e675c", "roughness": 0.95, "metalness": 0 }
+```
+
+On ne touche **que** ce qui est demandé : un modèle qui apporte ses propres
+cartes et dont le JSON ne dit rien garde son apparence au texel près. Et les
+matériaux sont clonés — ceux d'un `.glb` sont partagés entre toutes les
+œuvres qui chargent le même fichier, les modifier en place teindrait les
+huit pierres d'un coup.
+
+**Les voxels s'auto-éclairaient à 45 %.** Chaque cube rendait près de la
+moitié de sa couleur *sans* qu'aucune lumière n'intervienne : les marches et
+les passerelles du belvédère étaient à moitié insensibles à l'éclairage de
+la salle — la définition même du plastique. La valeur venait d'une époque où
+le belvédère était presque noir ; maintenant que la clé y porte, l'émission
+n'a plus à faire ce travail (0,2, de quoi garder l'« encre » de la palette
+visible).
+
+## Les salles fermées ont un plafond, et un périmètre de corniches
+
+Quatre salles murées sur quatre côtés n'avaient **pas de plafond** : une
+pièce fermée à ciel noir, c'est un décor de plateau, et le mur s'y coupait
+net sur du vide. En les couvrant, il a fallu dire ce qu'est un bon plafond —
+plus **sombre** que ses murs et que son sol. Sans rebond, un plafond clair
+ne rend aucune lumière : il ne fait que se voir, et il écrase la salle. La
+charte porte cette borne en creux (`ecartPlafondSol`), avec une exemption
+documentée pour le belvédère, dont les six faces se marchent : on
+n'assombrit pas un sol parce qu'il est en haut quand on le regarde d'en bas.
+
+Un plafond bloque la lumière clé. Ce sont donc les **corniches** qui portent
+désormais ces salles, et il en faut sur les **quatre** murs : deux sur quatre
+laissent deux parois éteintes, et l'œil lit une salle mal finie plutôt qu'une
+salle sombre. Six corniches ajoutées pour compléter les périmètres.
+
+*Limite du protocole, dite franchement* : une fois les salles couvertes, la
+« surface ombrée » mesure surtout le fait que le plafond arrête le soleil
+(elle bondit à ~50 % dans les salles fermées). C'est la **profondeur** qui
+reste l'indicateur utile — entrée 0,54 · labo 0,56 · archives 0,39 ·
+bibliothèque 0,49 · jardin 0,53.
+
 ## Qualité adaptative & mobile
 
 Le `QualityManager` (`engine/src/core/Quality.js`) choisit un profil au

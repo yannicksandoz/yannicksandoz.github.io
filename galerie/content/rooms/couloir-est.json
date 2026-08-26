@@ -42,7 +42,11 @@
         "sill": 1.1
       }
     ],
-    "texture": "brique-vraie"
+    "texture": "brique-vraie",
+    "ceiling": true,
+    "wallColors": {
+      "plafond": "#383c51"
+    }
   },
   "keyLight": {
     "color": "#aab4e8",
@@ -57,7 +61,8 @@
     "carillon-fenetres",
     "ligne-couloir-ouest",
     "ligne-couloir-est",
-    "corniche-couloir-fond"
+    "corniche-couloir-fond",
+    "corniche-couloir-sud"
   ],
   "portals": [
     {

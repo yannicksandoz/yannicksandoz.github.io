@@ -1,0 +1,31 @@
+{
+  "id": "corniche-labo-sud",
+  "title": "Corniche sud",
+  "role": "decor",
+  "position": [
+    0,
+    6.9,
+    21.2
+  ],
+  "rotation": [
+    0,
+    0,
+    0
+  ],
+  "scale": [
+    1,
+    1,
+    1
+  ],
+  "model": {
+    "shape": "corniche",
+    "longueur": 32,
+    "epaisseur": 0.12,
+    "color": "#cdc2ff",
+    "intensite": 11,
+    "mur": "sud",
+    "inclinaison": 30
+  },
+  "solid": false,
+  "cartel": false
+}

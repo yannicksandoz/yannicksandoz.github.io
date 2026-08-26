@@ -23,7 +23,10 @@
     "type": "gltf",
     "url": "library/models/banc.glb",
     "fit": 1.8,
-    "source": "library"
+    "source": "library",
+    "texture": "bois-use",
+    "roughness": 0.78,
+    "metalness": 0.0
   },
   "lightIntensity": 0,
   "loadDistance": 240,

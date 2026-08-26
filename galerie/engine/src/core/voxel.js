@@ -309,7 +309,20 @@ function buildVoxelMaterial() {
     roughness: 0.62,
     metalness: 0.05,
     emissive: new THREE.Color(0xffffff),
-    emissiveIntensity: 0.45
+    // L'AUTO-ÉCLAIRAGE, ramené à ce qu'il doit être.
+    //
+    // À 0,45, chaque cube rendait près de la moitié de sa couleur SANS
+    // qu'aucune lumière n'intervienne : les marches et les passerelles du
+    // belvédère étaient donc à moitié insensibles à l'éclairage de la
+    // salle. C'est la définition même du plastique — une surface qui ne
+    // répond pas à la lumière. La valeur venait d'une époque où le
+    // belvédère était presque noir et où il fallait que le labyrinthe
+    // reste lisible ; maintenant que la clé y porte et que les ombres se
+    // lisent, l'émission n'a plus à faire ce travail.
+    //
+    // On garde un fond de braise — la palette compte une « encre »
+    // (#3d3d5c) qui, complètement éteinte, disparaîtrait dans le noir.
+    emissiveIntensity: 0.2
   });
   material.onBeforeCompile = (shader) => {
     shader.fragmentShader = shader.fragmentShader.replace(

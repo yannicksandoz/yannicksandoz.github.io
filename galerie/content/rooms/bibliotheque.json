@@ -35,7 +35,11 @@
       }
     ],
     "texture": "bois",
-    "textureRepeat": 1.6
+    "textureRepeat": 1.6,
+    "ceiling": true,
+    "wallColors": {
+      "plafond": "#4b3a2d"
+    }
   },
   "keyLight": {
     "color": "#ffcf9e",
@@ -55,7 +59,9 @@
     "lanterne-biblio-1",
     "lanterne-biblio-2",
     "corniche-biblio-sud",
-    "corniche-biblio-est"
+    "corniche-biblio-est",
+    "corniche-biblio-nord",
+    "corniche-biblio-ouest"
   ],
   "portals": [
     {

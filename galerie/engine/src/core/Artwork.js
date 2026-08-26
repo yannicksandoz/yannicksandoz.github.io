@@ -6,7 +6,7 @@ import { buildVoxelMesh, buildVoxelMeshMerged, buildVoxelCollider } from './voxe
 import { EDITOR_AVAILABLE } from '../editorLoader.js';
 import { isWalkable } from './utils.js';
 import { scaleObjetUV } from './textures.js';
-import { jeuDeSurface } from './matieres.js';
+import { jeuDeSurface, habillerModele } from './matieres.js';
 import { creerCartel, tournerVersCamera, disposerCartel } from './cartels.js';
 
 // crossOrigin « anonymous » : indispensable pour les médias distants, dont
@@ -470,6 +470,7 @@ export class Artwork {
 
     if (model.fit !== false) fitModel(object3d, model.fit ?? 2);
     if (Number.isFinite(model.scale)) object3d.scale.multiplyScalar(model.scale);
+    habillerModele(object3d, model);
 
     if (animations.length) {
       this._mixer = new THREE.AnimationMixer(object3d);
