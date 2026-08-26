@@ -70,7 +70,10 @@ export const PRIMITIVES = {
   lucioles: { label: 'Lucioles', build: (s) => new THREE.BoxGeometry(s, s, s) },
   // ruban paramétrique : une coque balayée le long d'une courbe — l'outil
   // des formes fluides (buildRuban fait le vrai travail)
-  ruban: { label: 'Ruban', build: (s) => new THREE.BoxGeometry(s, s * 0.1, s * 0.3) }
+  ruban: { label: 'Ruban', build: (s) => new THREE.BoxGeometry(s, s * 0.1, s * 0.3) },
+  // galet : une dalle posée au contour super-elliptique — lit de sable,
+  // margelle (trouée), podium (buildGalet fait le vrai travail)
+  galet: { label: 'Galet', build: (s) => new THREE.CylinderGeometry(s * 0.8, s * 0.8, s * 0.12, 32) }
 };
 
 /**
@@ -187,6 +190,7 @@ export function buildPrimitive(model, echelle = null) {
   if (model.shape === 'gerbe') return buildGerbe(size, model);
   if (model.shape === 'lucioles') return buildLucioles(size, model);
   if (model.shape === 'ruban') return buildRuban(size, model, echelle);
+  if (model.shape === 'galet') return buildGalet(size, model, echelle);
 
   return finishPrimitive(def, size, model, echelle);
 }
@@ -703,6 +707,59 @@ function buildRuban(size, model, echelle = null) {
   geometry.setIndex(idx);
   geometry.computeVertexNormals();
 
+  return finishPrimitive({ build: () => geometry }, size, model, echelle);
+}
+
+/**
+ * LE GALET — une dalle posée, au contour qui n'est jamais droit.
+ *
+ * Une super-ellipse extrudée avec un chanfrein doux : le lit de sable d'un
+ * jardin sec, la margelle d'un bassin (trouée), un podium. C'est la
+ * réponse aux rectangles qui trahissaient le décor construit.
+ *
+ *   "model": {
+ *     "shape": "galet",
+ *     "size": 8,             // demi-grand axe ≈ size × 0,8
+ *     "ratio": 0.72,         // demi-petit axe / demi-grand axe
+ *     "exposant": 3,         // 2 = ellipse, 3–4 = rectangle fondu
+ *     "epaisseur": 0.18,     // hauteur de la dalle
+ *     "troue": 0             // 0 = pleine ; 0,84 = anneau (margelle)
+ *   }
+ */
+function buildGalet(size, model, echelle = null) {
+  const rx = Math.max(0.1, size * 0.8);
+  const rz = rx * (model.ratio ?? 0.78);
+  const n = Math.max(2, model.exposant ?? 3);
+  const ep = Math.max(0.02, model.epaisseur ?? size * 0.1);
+  const POINTS = 72;
+
+  const contour = (forme, kx, kz) => {
+    const sgn = (v) => (v < 0 ? -1 : 1);
+    for (let i = 0; i <= POINTS; i++) {
+      const a = (i / POINTS) * Math.PI * 2;
+      const c = Math.cos(a), s2 = Math.sin(a);
+      const x = sgn(c) * Math.abs(c) ** (2 / n) * rx * kx;
+      const y = sgn(s2) * Math.abs(s2) ** (2 / n) * rz * kz;
+      if (i === 0) forme.moveTo(x, y); else forme.lineTo(x, y);
+    }
+  };
+  const forme = new THREE.Shape();
+  contour(forme, 1, 1);
+  const troue = Number(model.troue) || 0;
+  if (troue > 0 && troue < 0.97) {
+    const trou = new THREE.Path();
+    contour(trou, troue, troue);
+    forme.holes.push(trou);
+  }
+  const biseau = Math.min(ep * 0.35, 0.08);
+  const geometry = new THREE.ExtrudeGeometry(forme, {
+    depth: Math.max(0.01, ep - biseau * 2), curveSegments: 8,
+    bevelEnabled: true, bevelThickness: biseau, bevelSize: biseau,
+    bevelSegments: 3
+  });
+  // l'extrusion pousse en +z : on couche la dalle, base au sol
+  geometry.rotateX(-Math.PI / 2);
+  geometry.translate(0, biseau, 0);
   return finishPrimitive({ build: () => geometry }, size, model, echelle);
 }
 

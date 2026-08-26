@@ -110,7 +110,7 @@ export function buildVoxelMesh(model, grid = gridOf(model)) {
   if (!visible.length) return null;
 
   const geometry = new THREE.BoxGeometry(cell, cell, cell);
-  const mesh = new THREE.InstancedMesh(geometry, buildVoxelMaterial(), visible.length);
+  const mesh = new THREE.InstancedMesh(geometry, buildVoxelMaterial(model), visible.length);
   mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
 
   const m = new THREE.Matrix4();
@@ -190,7 +190,7 @@ export function buildVoxelMeshMerged(model, grid = gridOf(model)) {
   if (!pavés.length) return null;
 
   const geometry = new THREE.BoxGeometry(1, 1, 1);
-  const mesh = new THREE.InstancedMesh(geometry, buildVoxelMaterial(), pavés.length);
+  const mesh = new THREE.InstancedMesh(geometry, buildVoxelMaterial(model), pavés.length);
   const m = new THREE.Matrix4();
   const white = new THREE.Color('#ffffff');
   for (let i = 0; i < pavés.length; i++) {
@@ -318,7 +318,7 @@ export function buildVoxelCollider(model, grid = gridOf(model)) {
  * disparaîtrait. Le résultat garde l'ombrage du MeshStandardMaterial, nourrit
  * le bloom, et reste un seul appel de dessin.
  */
-function buildVoxelMaterial() {
+function buildVoxelMaterial(model = {}) {
   const material = new THREE.MeshStandardMaterial({
     roughness: 0.62,
     metalness: 0.05,
@@ -365,11 +365,26 @@ function buildVoxelMaterial() {
     // lignes du hall de la Dominion Tower — et son émission se tait
     // (une coque blanche qui émet devient du lait). Le grain reste,
     // plus doux : le plâtre n'est pas un plastique non plus.
+    //
+    // LES STRIES SUIVENT LA MONTÉE. Des bandes horizontales sur un
+    // escalier ne racontent rien : celles des références suivent le
+    // mouvement. L'axe des stries est donc la DIAGONALE de la masse —
+    // (0, hauteur, profondeur) en espace LOCAL, insensible aux rotations
+    // de salle et aux bascules de gravité : sur un escalier, les lignes
+    // traversent les marches le long de l'ascension ; sur une passerelle
+    // plate, elles redeviennent des travées régulières.
+    const dims = model.dims ?? DEFAULT_DIMS;
+    const cell = model.cell ?? DEFAULT_CELL;
+    const montee = [0, dims[1] * cell, dims[2] * cell];
     material.roughness = 0.42;
     material.emissiveIntensity = 0.05;
     patcherGrain(material, 'poli', { echelle: 0.38, force: 0.1, relief: 0.18 });
-    patcherStries(material, { pas: 0.5, epaisseur: 0.12, force: 0.5 });
-    material.customProgramCacheKey = () => 'voxel-fluide';
+    patcherStries(material, {
+      pas: 0.55, epaisseur: 0.12, force: 0.5,
+      axe: montee, espace: 'local'
+    });
+    material.customProgramCacheKey =
+      () => `voxel-fluide-${montee.map((v) => v.toFixed(1)).join(',')}`;
     return material;
   }
   return patcherGrain(material, 'poli', { echelle: 0.38, force: 0.16, relief: 0.3 });

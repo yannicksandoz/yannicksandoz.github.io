@@ -4,7 +4,7 @@
   "description": "",
   "position": [
     0,
-    0.02,
+    0.0,
     -2
   ],
   "rotation": [
@@ -13,20 +13,22 @@
     0
   ],
   "scale": [
-    14,
-    0.04,
-    10
+    1,
+    1,
+    1
   ],
   "modules": [],
   "role": "decor",
   "model": {
-    "shape": "box",
+    "shape": "galet",
     "color": "#7d745c",
-    "roughness": 1,
-    "metalness": 0,
-    "emissive": 0.08,
+    "size": 8.75,
+    "ratio": 0.72,
+    "exposant": 3.2,
+    "epaisseur": 0.06,
     "texture": "ratisse",
-    "textureRepeat": 7
+    "roughness": 0.96,
+    "metalness": 0
   },
   "lightIntensity": 0
 }

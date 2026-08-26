@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { estFluide } from './style.js';
 
 /**
  * Textures procédurales — le grain d'un pack Minecraft, sans un octet
@@ -219,6 +220,33 @@ function peindreRatisse(rand) {
   return px;
 }
 
+/**
+ * RATISSÉ FLUIDE — le râteau ne tire plus des droites.
+ *
+ * Les sillons ondulent : chaque ligne du râteau est décalée par deux
+ * harmoniques de périodes ENTIÈRES sur la tuile (k = 1 et 2), donc la
+ * tuile boucle toujours — en x comme en y. C'est aussi, du reste, ce que
+ * fait un vrai karesansui : on ratisse en courbes autour des pierres.
+ * Exporté : la suite de tests vérifie l'ondulation et le raccord.
+ */
+export function peindreRatisseFluide(rand) {
+  const px = new Array(SIZE * SIZE).fill(0.92);
+  const PAS = SIZE / 8;
+  const A1 = SIZE / 10, A2 = SIZE / 26;
+  for (let y = 0; y < SIZE; y++) {
+    for (let x = 0; x < SIZE; x++) {
+      const onde = A1 * Math.sin((x / SIZE) * Math.PI * 2)
+                 + A2 * Math.sin((x / SIZE) * Math.PI * 4 + 1.7);
+      const ligne = ((y + onde) % PAS + PAS) % PAS;
+      let v = 0.92 + (rand() - 0.5) * 0.05;            // gravier
+      if (ligne < 1) v = 0.72;                          // creux du sillon
+      else if (ligne < 2) v = 1.02;                     // arête éclairée
+      px[y * SIZE + x] = v;
+    }
+  }
+  return px;
+}
+
 /* --- les trois surfaces d'OBJET : pour ce qui n'est ni sol ni mur ------- */
 
 function peindreMetal(rand) {
@@ -331,8 +359,13 @@ export function styleTexture(style) {
   // hors navigateur (suites au nœud), pas de canvas : le matériau part
   // sans texture — même contrat que patcherGrain et styleMatiere
   if (typeof document === 'undefined') return null;
-  if (_cache.has(style)) return _cache.get(style);
-  const [peindre, seed] = PEINTRES[style];
+  // le ratissé a une variante FLUIDE (sillons courbes) : la clé de cache
+  // distingue les deux, pour que basculer de style ne serve pas la
+  // mauvaise tuile
+  const variante = style === 'ratisse' && estFluide() ? 'ratisse-fluide' : style;
+  if (_cache.has(variante)) return _cache.get(variante);
+  let [peindre, seed] = PEINTRES[style];
+  if (variante === 'ratisse-fluide') peindre = peindreRatisseFluide;
   const px = peindre(prng(seed));
 
   const canvas = document.createElement('canvas');
@@ -363,7 +396,7 @@ export function styleTexture(style) {
   tex.generateMipmaps = true;
   tex.anisotropy = _anisotropy;
   tex.colorSpace = THREE.NoColorSpace; // niveaux de gris : pas une couleur
-  _cache.set(style, tex);
+  _cache.set(variante, tex);
   return tex;
 }
 

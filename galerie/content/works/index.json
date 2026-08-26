@@ -64,10 +64,6 @@
   "buisson-jardin-5.json",
   "lanterne-jardin-2.json",
   "moon.json",
-  "margelle-bassin-n.json",
-  "margelle-bassin-s.json",
-  "margelle-bassin-e.json",
-  "margelle-bassin-o.json",
   "escalier-r1.json",
   "palier-r1.json",
   "escalier-r2.json",
@@ -185,5 +181,6 @@
   "corniche-biblio-nord.json",
   "corniche-biblio-ouest.json",
   "corniche-couloir-sud.json",
-  "corniche-labo-sud.json"
+  "corniche-labo-sud.json",
+  "margelle-bassin.json"
 ]

@@ -62,17 +62,33 @@ export function materiauFluide({ teinte = '#e9e7f0', rugosite = 0.38 } = {}) {
  * `pas` : distance entre deux stries (m). `epaisseur` : part sombre de la
  * période (0–1). `force` : combien la strie assombrit.
  */
-export function patcherStries(material, { pas = 0.5, epaisseur = 0.14, force = 0.55 } = {}) {
+export function patcherStries(material,
+  { pas = 0.5, epaisseur = 0.14, force = 0.55, axe = null, espace = 'monde' } = {}) {
+  // `axe` : direction des stries — la phase court LE LONG de cet axe, les
+  // bandes lui sont perpendiculaires. Par défaut la verticale du monde.
+  // `espace: 'local'` : l'axe se lit dans le repère de L'OBJET (pour un
+  // escalier, la diagonale de sa montée) — insensible aux rotations de
+  // salle, et l'instance d'un voxel compte dans la grille, pas dans le
+  // monde : les stries suivent la forme, c'est toute l'idée.
+  const local = espace === 'local';
+  const ax = axe ?? [0, 1, 0];
   const precedent = material.onBeforeCompile;
   material.onBeforeCompile = (shader, renderer) => {
     precedent?.call(material, shader, renderer);
     shader.uniforms.uStriePas = { value: pas };
     shader.uniforms.uStrieEpaisseur = { value: epaisseur };
     shader.uniforms.uStrieForce = { value: force };
+    shader.uniforms.uStrieAxe = { value: new THREE.Vector3(...ax).normalize() };
     shader.vertexShader = shader.vertexShader
       .replace('#include <common>',
         '#include <common>\nvarying vec3 vStriePos;')
-      .replace('#include <project_vertex>', `
+      .replace('#include <project_vertex>', local ? `
+        #ifdef USE_INSTANCING
+          vStriePos = (instanceMatrix * vec4(transformed, 1.0)).xyz;
+        #else
+          vStriePos = transformed;
+        #endif
+        #include <project_vertex>` : `
         #ifdef USE_INSTANCING
           vStriePos = (modelMatrix * instanceMatrix * vec4(transformed, 1.0)).xyz;
         #else
@@ -84,10 +100,11 @@ export function patcherStries(material, { pas = 0.5, epaisseur = 0.14, force = 0
         uniform float uStriePas;
         uniform float uStrieEpaisseur;
         uniform float uStrieForce;
+        uniform vec3 uStrieAxe;
         varying vec3 vStriePos;`)
       .replace('#include <color_fragment>', `#include <color_fragment>
         {
-          float phase = fract(vStriePos.y / uStriePas);
+          float phase = fract(dot(vStriePos, uStrieAxe) / uStriePas);
           // une strie douce : les bords fondent sur ~1/4 de son épaisseur
           float bord = uStrieEpaisseur * 0.25;
           float strie = smoothstep(0.0, bord, phase)
@@ -95,7 +112,8 @@ export function patcherStries(material, { pas = 0.5, epaisseur = 0.14, force = 0
           diffuseColor.rgb *= 1.0 - strie * uStrieForce;
         }`);
   };
-  material.customProgramCacheKey = () => `stries-${pas}-${epaisseur}-${force}`;
+  material.customProgramCacheKey =
+    () => `stries-${pas}-${epaisseur}-${force}-${ax.join(',')}-${espace}`;
   return material;
 }
 
@@ -111,12 +129,26 @@ export function patcherStries(material, { pas = 0.5, epaisseur = 0.14, force = 0
  * La forme arrive au point (length/2, hauteur-…) : on trace de droite à
  * gauche. Le creux est relatif — 12 % de la hauteur, plafonné à 1,20 m.
  */
-export function dessinerCouronne(forme, length, height, segments = 24) {
-  const creux = Math.min(height * 0.12, 1.2);
+export function dessinerCouronne(forme, length, height, segments = 48) {
+  // L'ONDULATION, pas l'affaissement. La première version était UNE arche
+  // en creux : de loin, elle se relisait comme une droite qui plonge un
+  // peu. La ligne des références ne repose jamais — elle ondule. D'où une
+  // PORTEUSE de ~2,2 périodes modulée par une enveloppe sin(πt) : les
+  // extrémités restent exactement à pleine hauteur (les angles des murs
+  // voisins se rejoignent), et TOUT l'intérieur vit — le facteur de la
+  // porteuse reste dans [0,3 ; 1], donc la ligne ne retouche jamais le
+  // sommet et ne descend jamais sous l'amplitude prévue.
+  //
+  // La phase est SEMÉE PAR LA LONGUEUR du mur : deux murs différents
+  // ondulent différemment, le même mur ondule pareil à chaque build.
+  const A = Math.min(height * 0.16, 1.5);
+  const phase = (length * 7.13) % (Math.PI * 2);
   forme.lineTo(length / 2, height);
   for (let i = 1; i <= segments; i++) {
     const t = i / segments;
-    forme.lineTo(length / 2 - t * length, height - creux * Math.sin(Math.PI * t));
+    const porteuse = 0.65 + 0.35 * Math.sin(Math.PI * 2 * 2.2 * t + phase);
+    forme.lineTo(length / 2 - t * length,
+      height - A * Math.sin(Math.PI * t) * porteuse);
   }
   return forme;
 }

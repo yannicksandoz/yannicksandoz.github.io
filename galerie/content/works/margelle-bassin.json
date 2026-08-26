@@ -1,0 +1,36 @@
+{
+  "id": "margelle-bassin",
+  "title": "Margelle",
+  "role": "decor",
+  "position": [
+    9,
+    0.0,
+    6
+  ],
+  "rotation": [
+    0,
+    0,
+    0
+  ],
+  "scale": [
+    1,
+    1,
+    1
+  ],
+  "model": {
+    "shape": "galet",
+    "color": "#6a6456",
+    "size": 7.4,
+    "ratio": 0.735,
+    "exposant": 4.0,
+    "epaisseur": 0.24,
+    "troue": 0.8,
+    "texture": "pierre",
+    "roughness": 0.9,
+    "metalness": 0
+  },
+  "solid": false,
+  "cartel": false,
+  "contact": false,
+  "lightIntensity": 0
+}
