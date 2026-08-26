@@ -25,7 +25,8 @@
     "emissiveColor": "#80a3ff",
     "roughness": 0.55,
     "metalness": 0,
-    "emissive": 0.6
+    "emissive": 0.6,
+    "texture": "metal"
   },
   "lightColor": "#80a3ff",
   "lightIntensity": 2.4,

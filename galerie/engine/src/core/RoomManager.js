@@ -1,7 +1,9 @@
 import * as THREE from 'three';
 import { assetUrl, isWalkable } from './utils.js';
 import { buildSky, disposeSky, updateSkyUniforms } from './Sky.js';
-import { styleTexture, styleMatiere, scaleBoxUV, scalePlaneUV, scaleWorldUV, TILE } from './textures.js';
+import { styleTexture, scaleBoxUV, scalePlaneUV, scaleWorldUV, scaleObjetUV, TILE }
+  from './textures.js';
+import { styleMatiere, jeuDeSurface } from './matieres.js';
 import { delaiDe, fermer, estFerme, tick as tickCooldown } from './Cooldown.js';
 import { reverbDePiece } from './reverb-reglages.js';
 import { creerCartel, majCartel, disposerCartel, tournerVersCamera }
@@ -1419,8 +1421,15 @@ export function buildShell(config) {
     }
     return materials.get(color);
   };
+  // le cadre d'une baie est un DORMANT : même métal brossé que les
+  // chambranles de portail, pour que l'huisserie de la galerie soit d'une
+  // seule main d'un bout à l'autre
+  const cadreSurface = jeuDeSurface('metal');
   const frameMat = new THREE.MeshStandardMaterial({
     color: new THREE.Color(opt.frameColor ?? '#4a4668'),
+    map: cadreSurface?.map ?? null,
+    bumpMap: cadreSurface?.bumpMap ?? null,
+    bumpScale: cadreSurface?.bumpScale ?? 1,
     roughness: 0.55, metalness: 0.25,
     emissive: new THREE.Color(opt.frameColor ?? '#4a4668'),
     emissiveIntensity: 0.3
@@ -1772,16 +1781,33 @@ function buildPortalMesh(cfg, label) {
     THREE.MathUtils.degToRad(r[2] ?? 0)
   );
 
+  // Le chambranle : du MÉTAL BROSSÉ, et non un aplat noir laqué. Les
+  // stries de la tuile `metal` sont presque invisibles de face, et c'est
+  // voulu — ce qu'on lit d'un métal, c'est la façon dont sa rugosité
+  // étire le reflet des lanternes le long du montant quand on passe
+  // devant. Les UV sont mis à l'échelle du monde comme partout ailleurs.
+  const surface = jeuDeSurface('metal');
   const mat = new THREE.MeshStandardMaterial({
-    color: 0x0c0c14, roughness: 0.4, metalness: 0.6,
+    color: 0x14141f,
+    map: surface?.map ?? null,
+    bumpMap: surface?.bumpMap ?? null,
+    bumpScale: surface?.bumpScale ?? 1,
+    roughness: surface?.roughness ?? 0.4,
+    metalness: surface?.metalness ?? 0.6,
     emissive: PORTAL_COLOR, emissiveIntensity: 0.8
   });
-  const post = new THREE.BoxGeometry(0.14, 2.7, 0.14);
-  const left = new THREE.Mesh(post, mat);
+  const montant = () => {
+    const g = new THREE.BoxGeometry(0.14, 2.7, 0.14);
+    if (surface) scaleObjetUV(g, surface.metres);
+    return g;
+  };
+  const left = new THREE.Mesh(montant(), mat);
   left.position.set(-0.85, 1.35, 0);
-  const right = new THREE.Mesh(post, mat);
+  const right = new THREE.Mesh(montant(), mat);
   right.position.set(0.85, 1.35, 0);
-  const lintel = new THREE.Mesh(new THREE.BoxGeometry(1.84, 0.14, 0.14), mat);
+  const geoLinteau = new THREE.BoxGeometry(1.84, 0.14, 0.14);
+  if (surface) scaleObjetUV(geoLinteau, surface.metres);
+  const lintel = new THREE.Mesh(geoLinteau, mat);
   lintel.position.set(0, 2.77, 0);
   group.add(left, right, lintel);
 

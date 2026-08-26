@@ -1286,6 +1286,37 @@ d'un défaut qu'on a vu à l'écran :
   ne vaut plus qu'à défaut de matière — une pièce qui écrit `"grid": true`
   en connaissance de cause l'obtient quand même.
 
+**Les OBJETS ont une surface, eux aussi.** Sol et murs avaient du grain ;
+bancs, lanternes, stèles, rayonnages, marches du belvédère restaient des
+aplats — d'où l'impression de plastique juste à côté d'un mur qui, lui,
+avait de la matière. Trois règles y remédient :
+
+- une primitive passe par le **même robinet** que les murs : elle reçoit
+  relief, rugosité et métal avec son albédo, et accepte aussi bien une
+  tuile procédurale qu'une matière photographique. Aux styles de sol
+  s'ajoutent trois surfaces d'objet : `metal` (brossé), `poli` (pierre
+  polie) et `bois-use` (bois d'atelier) ;
+- ses **UV sont à l'échelle du monde**, échelle de l'œuvre comprise. Les UV
+  d'une boîte vont de zéro à un quelle que soit sa taille : les briques
+  d'une stèle de quatre mètres étaient quatre fois plus grosses que celles
+  du mur derrière elle, et un rayonnage étiré sept fois en hauteur portait
+  des veines sept fois trop longues ;
+- **sans style déclaré, une primitive reçoit tout de même un grain** —
+  quatre-vingts objets de la galerie n'en nommaient aucun, et l'aplat
+  parfait est précisément ce qui les faisait lire comme du plastique.
+  `"texture": "aucune"` rend l'aplat à qui le veut.
+
+Les constructions **voxel** sont un cas à part : ce sont des pavés
+instanciés, dont les UV ne peuvent porter aucune échelle physique. Leur
+grain est donc échantillonné sur la **position monde**, projeté selon les
+trois axes — un pavé de six mètres et un cube de vingt-cinq centimètres
+portent la même matière à la même taille réelle. Son relief vient des
+dérivées d'écran (la méthode du bump de three.js) : aucune lecture de
+texture supplémentaire. C'est ce qui a sorti tout le belvédère de l'aplat.
+
+Enfin l'**huisserie est d'une seule main** : chambranles de portail,
+dormants de baie et cadres d'œuvre partagent le même métal brossé.
+
 L'**image d'environnement** qui nourrit l'IBL se choisit dans
 `reglages.json` : `"environnement": "studio"` (le défaut, un studio neutre
 généré), `"aube"` ou `"appartement"` — deux panoramas HDR de Poly Haven

@@ -24,7 +24,8 @@
     "color": "#4a3826",
     "roughness": 0.95,
     "metalness": 0,
-    "emissive": 0.08
+    "emissive": 0.08,
+    "texture": "bois-use"
   },
   "lightIntensity": 0
 }

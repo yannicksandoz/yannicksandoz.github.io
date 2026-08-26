@@ -10,14 +10,16 @@
   "fogDensity": 0.014,
   "floor": {
     "size": 50.0,
-    "color": "#171226",
-    "grid": false
+    "color": "#3a3350",
+    "grid": false,
+    "texture": "dalles",
+    "textureRepeat": 1
   },
   "shell": {
     "width": 50.0,
     "depth": 50.0,
     "height": 50.0,
-    "color": "#241c34",
+    "color": "#4a3f63",
     "ceiling": true,
     "texture": "pierre",
     "wallColors": {
@@ -26,7 +28,8 @@
       "est": "#35704c",
       "ouest": "#7a6330",
       "plafond": "#453163"
-    }
+    },
+    "textureRepeat": 1
   },
   "keyLight": {
     "color": "#e0c4ff",

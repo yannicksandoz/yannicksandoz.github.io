@@ -24,7 +24,8 @@
     "color": "#2b2440",
     "roughness": 0.9,
     "metalness": 0.05,
-    "emissive": 0.04
+    "emissive": 0.04,
+    "texture": "pierre"
   },
   "lightIntensity": 0,
   "loadDistance": 240

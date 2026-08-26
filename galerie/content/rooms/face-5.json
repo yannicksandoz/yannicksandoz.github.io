@@ -10,14 +10,16 @@
   "fogDensity": 0.02,
   "floor": {
     "size": 25.0,
-    "color": "#371c17",
-    "grid": false
+    "color": "#503a3a",
+    "grid": false,
+    "texture": "dalles",
+    "textureRepeat": 1
   },
   "shell": {
     "width": 25.0,
     "depth": 25.0,
     "height": 25.0,
-    "color": "#7a3f34",
+    "color": "#684c4c",
     "ceiling": true,
     "texture": "pierre"
   },

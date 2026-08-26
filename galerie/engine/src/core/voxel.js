@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { patcherGrain } from './textures.js';
 
 /**
  * Constructions voxel — données et rendu.
@@ -316,7 +317,15 @@ function buildVoxelMaterial() {
       '#include <emissivemap_fragment>\n\ttotalEmissiveRadiance *= vColor;'
     );
   };
-  return material;
+  // LE GRAIN. Une construction voxel est faite de pavés instanciés : leurs
+  // UV vont de zéro à un quelle que soit leur taille, donc aucune texture
+  // ordinaire ne peut y garder une échelle physique. C'est ce qui laissait
+  // tout le belvédère — ses marches, ses masses, ses passerelles — en
+  // aplats de plastique. Le grain est donc échantillonné sur la POSITION
+  // MONDE, projeté selon les trois axes (voir patcherGrain) : rien ne
+  // s'étire, un pavé de six mètres et un cube de vingt-cinq centimètres
+  // portent la même matière à la même taille réelle.
+  return patcherGrain(material, 'poli', { echelle: 1.3, force: 0.3, relief: 0.85 });
 }
 
 /** Centre d'une cellule, dans le repère de l'objet (grille centrée, base à y=0). */

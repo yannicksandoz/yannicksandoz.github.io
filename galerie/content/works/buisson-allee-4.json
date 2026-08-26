@@ -24,7 +24,8 @@
     "color": "#2a5232",
     "roughness": 1,
     "metalness": 0,
-    "emissive": 0.05
+    "emissive": 0.05,
+    "texture": "herbe"
   },
   "lightIntensity": 0
 }

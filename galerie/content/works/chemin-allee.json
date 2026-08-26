@@ -24,7 +24,8 @@
     "color": "#3c3c30",
     "roughness": 1,
     "metalness": 0,
-    "emissive": 0.05
+    "emissive": 0.05,
+    "texture": "dalles"
   },
   "lightIntensity": 0
 }

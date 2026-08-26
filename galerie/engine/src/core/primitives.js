@@ -1,5 +1,6 @@
 import * as THREE from 'three';
-import { styleTexture } from './textures.js';
+import { scaleObjetUV } from './textures.js';
+import { jeuDeSurface } from './matieres.js';
 
 /**
  * Primitives paramétriques du mode Objets.
@@ -115,8 +116,16 @@ export function isPrimitive(shape) {
   return Object.hasOwn(PRIMITIVES, shape);
 }
 
-/** Construit le mesh d'une primitive depuis `config.model`. */
-export function buildPrimitive(model) {
+/**
+ * Construit le mesh d'une primitive depuis `config.model`.
+ *
+ * `echelle` est l'échelle que l'ŒUVRE applique ensuite à son groupe
+ * (`config.scale`). Elle compte : un rayonnage est une boîte d'un mètre et
+ * demi étirée à 0,5 × 3,2 × 3,6, et sans elle le motif du bois serait posé
+ * à l'échelle de la boîte d'origine puis étiré sept fois en hauteur. On la
+ * reçoit ici pour poser les UV à la taille FINALE de l'objet.
+ */
+export function buildPrimitive(model, echelle = null) {
   const def = PRIMITIVES[model.shape];
   if (!def) return null;
   const size = Number.isFinite(model.size) ? model.size : 1.5;
@@ -129,19 +138,7 @@ export function buildPrimitive(model) {
   if (model.shape === 'faisceau') return buildFaisceau(def, size, model);
   if (model.shape === 'lucioles') return buildLucioles(size, model);
 
-  // texture pixel-art optionnelle (« texture »: ratisse, planches…) — en
-  // niveaux de gris, teintée par la couleur de la primitive. `textureRepeat`
-  // règle combien de fois la tuile couvre l'objet (défaut : 1).
-  const map = styleTexture(model.texture);
-  if (map && Number.isFinite(model.textureRepeat) && model.textureRepeat !== 1) {
-    // répétition propre à l'objet : clone léger (l'image GPU est partagée
-    // par style, seule la matrice UV diffère)
-    const clone = map.clone();
-    clone.repeat.set(model.textureRepeat, model.textureRepeat);
-    clone.needsUpdate = true;
-    return finishPrimitive(def, size, model, clone);
-  }
-  return finishPrimitive(def, size, model, map);
+  return finishPrimitive(def, size, model, echelle);
 }
 
 /**
@@ -265,12 +262,51 @@ function buildLucioles(size, model) {
   return points;
 }
 
-function finishPrimitive(def, size, model, map) {
+/**
+ * LA SURFACE D'UNE PRIMITIVE — là où le plastique disparaît.
+ *
+ * Une primitive n'avait qu'une couleur, une rugosité fixe et, au mieux, un
+ * albédo pixel-art étiré sur tout l'objet. D'où l'aplat de plastique des
+ * bancs, des lanternes, des stèles et de toutes les marches du belvédère,
+ * juste à côté de murs qui, eux, avaient du grain. Trois changements :
+ *
+ *   • le style passe par `jeuDeSurface` — le MÊME robinet que le sol et les
+ *     murs : relief, rugosité et métal viennent avec l'albédo, et une
+ *     matière photographique (bois, damier…) est acceptée là aussi ;
+ *
+ *   • les UV sont mis à l'ÉCHELLE DU MONDE (`scaleObjetUV`). Les UV d'une
+ *     boîte vont de zéro à un quelle que soit sa taille : les briques d'une
+ *     stèle de quatre mètres étaient donc quatre fois plus grosses que
+ *     celles du mur derrière. Désormais un motif garde sa taille physique,
+ *     et deux objets voisins parlent la même langue ;
+ *
+ *   • sans style déclaré, la primitive reçoit tout de même un grain fin —
+ *     `poli`, très doux et sans direction. Quatre-vingts objets de la
+ *     galerie n'ont aucune texture dans leur JSON : leur donner un aplat
+ *     parfait, c'est précisément ce qui les faisait lire comme du plastique.
+ *     `"texture": "aucune"` rend l'aplat à qui le veut.
+ */
+function finishPrimitive(def, size, model, echelleObjet = null) {
+  const style = model.texture === 'aucune' ? null : (model.texture ?? 'poli');
+  const serrage = Number.isFinite(model.textureRepeat) && model.textureRepeat > 0
+    ? model.textureRepeat : 1;
+  const jeu = jeuDeSurface(style, serrage);
+  const geometry = def.build(size);
+  if (jeu) scaleObjetUV(geometry, jeu.metres, echelleObjet);
+
   const material = new THREE.MeshStandardMaterial({
     color: new THREE.Color(model.color ?? '#8a7cff'),
-    map: map ?? null,
-    roughness: model.roughness ?? 0.5,
-    metalness: model.metalness ?? 0.15,
+    map: jeu?.map ?? null,
+    bumpMap: jeu?.bumpMap ?? null,
+    bumpScale: jeu?.bumpScale ?? 1,
+    normalMap: jeu?.normalMap ?? null,
+    normalScale: jeu?.normalScale
+      ? new THREE.Vector2(jeu.normalScale, jeu.normalScale) : undefined,
+    roughnessMap: jeu?.roughnessMap ?? null,
+    // le JSON garde le dernier mot : une œuvre qui a réglé sa rugosité ne
+    // doit pas changer d'aspect parce que le moteur a appris les surfaces
+    roughness: model.roughness ?? jeu?.roughness ?? 0.5,
+    metalness: model.metalness ?? jeu?.metalness ?? 0.15,
     // L'émission peut différer de la couleur du corps : une lanterne a une
     // paroi sombre et une lueur claire — les confondre donnait un objet
     // uniformément blanc, qui fleurissait dans le bloom.
@@ -279,6 +315,6 @@ function finishPrimitive(def, size, model, map) {
     side: model.shape === 'plane' ? THREE.DoubleSide : THREE.FrontSide
   });
   // la texture teinte aussi l'émission, sinon la lueur gomme les sillons
-  if (map) material.emissiveMap = map;
-  return new THREE.Mesh(def.build(size), material);
+  if (jeu?.map) material.emissiveMap = jeu.map;
+  return new THREE.Mesh(geometry, material);
 }

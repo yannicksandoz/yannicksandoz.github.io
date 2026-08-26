@@ -65,12 +65,17 @@ test('aucun fichier orphelin dans les assets', () => {
 titre('ce que le moteur déclare existe');
 const SRC_TEXTURES = readFileSync(
   join(ici, '..', 'engine', 'src', 'core', 'textures.js'), 'utf8');
+const SRC_MATIERES = readFileSync(
+  join(ici, '..', 'engine', 'src', 'core', 'matieres.js'), 'utf8');
+// les deux modules ensemble : les tests qui parlent « du moteur des
+// matières » cherchent dans l'un OU l'autre
+const SRC_MAT2 = SRC_TEXTURES + SRC_MATIERES;
 const SRC_ROOMS = readFileSync(
   join(ici, '..', 'engine', 'src', 'core', 'RoomManager.js'), 'utf8');
 
 test('les quatre matières ont leurs cartes', () => {
   for (const style of ['bois', "'brique-vraie'", 'damier', "'herbe-vraie'"]) {
-    assert.ok(SRC_TEXTURES.includes(style), `style ${style} absent de textures.js`);
+    assert.ok(SRC_MAT2.includes(style), `style ${style} absent`);
   }
   // bois et brique : albédo + relief + rugosité ; damier et herbe : albédo +
   // carte NORMALE (elles n'ont pas de jeu de rugosité en amont)
@@ -93,13 +98,13 @@ test('l’albédo est lu en sRGB, les cartes de données non', () => {
   // déclarée par la pièce perd toute autorité — un brun sombre ressortait
   // en ciment. Relief, rugosité et normale sont des DONNÉES : elles
   // restent hors de tout espace colorimétrique.
-  assert.ok(SRC_TEXTURES.includes('SRGBColorSpace'),
+  assert.ok(SRC_MATIERES.includes('SRGBColorSpace'),
     'l’albédo d’une matière doit être déclaré en sRGB');
-  assert.match(SRC_TEXTURES, /map: chargerCarte\(m\.matiere, m\.metres, true\)/,
+  assert.match(SRC_MATIERES, /map: chargerCarte\(m\.matiere, m\.metres, true\)/,
     'seul l’albédo passe `true` à chargerCarte');
   for (const carte of ['m.relief', 'm.rugosite', 'm.normale']) {
     assert.ok(!new RegExp(`chargerCarte\\(${carte.replace('.', '\\.')}[^)]*true`)
-      .test(SRC_TEXTURES), `${carte} ne doit pas être traitée comme une couleur`);
+      .test(SRC_MATIERES), `${carte} ne doit pas être traitée comme une couleur`);
   }
 });
 test('RoomManager branche bien les matières, sol et murs', () => {
@@ -161,6 +166,107 @@ test('une carte normale ne pèse pas plus que son albédo', () => {
     const alb = provenance[`matieres/${m}-matiere.jpg`].octets;
     const nor = provenance[`matieres/${m}-normale.jpg`].octets;
     assert.ok(nor <= alb, `${m} : normale ${nor} > albédo ${alb}`);
+  }
+});
+
+
+titre('les objets ont une surface, pas un aplat');
+const SRC_PRIM = readFileSync(
+  join(ici, '..', 'engine', 'src', 'core', 'primitives.js'), 'utf8');
+const SRC_VOX = readFileSync(
+  join(ici, '..', 'engine', 'src', 'core', 'voxel.js'), 'utf8');
+const SRC_ART = readFileSync(
+  join(ici, '..', 'engine', 'src', 'core', 'Artwork.js'), 'utf8');
+
+test('les trois styles d’objet existent, avec leur surface', () => {
+  for (const style of ['metal', 'poli', "'bois-use'"]) {
+    assert.ok(SRC_TEXTURES.includes(style), `style ${style} absent`);
+  }
+  assert.ok(SRC_TEXTURES.includes('export const SURFACES'),
+    'SURFACES dit ce qu’une matière fait à la LUMIÈRE — relief, rugosité, métal');
+});
+test('un seul robinet sert le sol, les murs ET les objets', () => {
+  assert.ok(SRC_MATIERES.includes('export function jeuDeSurface'));
+  assert.ok(SRC_PRIM.includes('jeuDeSurface('),
+    'les primitives doivent passer par le même robinet que les murs');
+  assert.ok(!SRC_PRIM.includes('styleTexture('),
+    'plus d’albédo seul : une primitive reçoit son relief avec sa carte');
+});
+test('les UV d’une primitive sont à l’échelle du MONDE, échelle comprise', () => {
+  // sans cela, les briques d'une stèle de quatre mètres étaient quatre fois
+  // plus grosses que celles du mur derrière elle — et un rayonnage étiré
+  // sept fois en hauteur portait des veines sept fois trop longues
+  assert.ok(SRC_TEXTURES.includes('export function scaleObjetUV'));
+  assert.ok(SRC_PRIM.includes('scaleObjetUV(geometry, jeu.metres, echelleObjet)'),
+    'l’échelle de l’œuvre doit entrer dans le calcul des UV');
+  assert.ok(SRC_ART.includes('buildPrimitive(cfg.model, cfg.scale)'),
+    'Artwork doit transmettre l’échelle à la primitive');
+});
+test('sans style déclaré, une primitive reçoit tout de même un grain', () => {
+  assert.ok(/model\.texture \?\? 'poli'/.test(SRC_PRIM),
+    'quatre-vingts objets du contenu n’ont pas de texture : l’aplat parfait '
+    + 'est précisément ce qui les faisait lire comme du plastique');
+  assert.ok(SRC_PRIM.includes("=== 'aucune'"),
+    '« aucune » doit rendre l’aplat à qui le veut');
+});
+test('le voxel reçoit son grain en espace MONDE (triplanaire)', () => {
+  // une construction voxel est faite de pavés instanciés : leurs UV vont de
+  // zéro à un quelle que soit leur taille, donc aucune texture ordinaire
+  // n’y garde une échelle physique — c’est ce qui laissait tout le
+  // belvédère en aplats
+  assert.ok(SRC_TEXTURES.includes('export function patcherGrain'));
+  assert.ok(SRC_VOX.includes('patcherGrain(material'), 'le voxel n’a pas de grain');
+});
+test('le relief du grain passe par les DÉRIVÉES, pas par des échantillons', () => {
+  // quatre échantillonnages décalés coûtaient douze lectures de texture par
+  // pixel ; la méthode de Mikkelsen (celle du bump de three.js) n’en coûte
+  // aucune de plus
+  assert.ok(SRC_TEXTURES.includes('dFdx(grainH)'));
+  assert.ok(!SRC_TEXTURES.includes('grainEn(vGrainPos + vec3('),
+    'les échantillons décalés ne doivent pas revenir');
+});
+test('l’huisserie est d’une seule main : portails, baies, cadres', () => {
+  assert.ok((SRC_ROOMS.match(/jeuDeSurface\('metal'\)/g) ?? []).length >= 2,
+    'chambranles de portail ET dormants de baie');
+  assert.ok(SRC_ART.includes("jeuDeSurface('metal')"), 'cadres d’œuvre');
+});
+test('le contenu nomme la matière de son mobilier', () => {
+  // le moteur donne un grain par défaut ; c'est le CONTENU qui dit qu'un
+  // rayonnage est en bois et une lanterne en métal
+  const dossier = join(ici, '..', 'content', 'works');
+  if (!existsSync(dossier)) { console.log('    (pas de contenu — sauté)'); return; }
+  let bois = 0, metal = 0;
+  for (const f of readdirSync(dossier).filter((n) => n.endsWith('.json'))) {
+    if (f === 'index.json') continue;
+    const w = JSON.parse(readFileSync(join(dossier, f), 'utf8'));
+    const t = w.model?.texture;
+    if (t === 'bois-use') bois++;
+    if (t === 'metal') metal++;
+  }
+  assert.ok(bois >= 5, `${bois} objets en bois`);
+  assert.ok(metal >= 20, `${metal} objets en métal`);
+});
+
+
+titre('le montage reste éprouvable au nœud');
+test('textures.js ne dépend d’AUCUN fichier d’asset', () => {
+  // les imports .jpg ne se résolvent qu'au bundler : les laisser dans
+  // textures.js rendait voxel.js — et donc test-voxel — inexécutable par
+  // node. La leçon est la même que celle du `?raw` qui avait fait taire
+  // treize suites sans que rien ne rougisse.
+  assert.ok(!/from '\.\.\/\.\.\/assets\//.test(SRC_TEXTURES),
+    'textures.js doit rester du code pur');
+  assert.ok(/from '\.\.\/\.\.\/assets\//.test(SRC_MATIERES),
+    'les photographies vivent dans matieres.js');
+});
+test('les modules du cœur testés au nœud restent importables', async () => {
+  // le test est le contrat : si un import bundler-only revient dans
+  // voxel.js, cette ligne échoue avant que la suite voxel ne se taise
+  const vox = readFileSync(join(ici, '..', 'engine', 'src', 'core',
+    'voxel.js'), 'utf8');
+  for (const m of vox.matchAll(/from '(\.[^']+)'/g)) {
+    assert.ok(!m[1].includes('/assets/') && !m[1].includes('matieres'),
+      `voxel.js ne doit pas dépendre de ${m[1]}`);
   }
 });
 

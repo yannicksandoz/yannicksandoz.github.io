@@ -36,6 +36,8 @@ export const TILE = 2;
  */
 let _anisotropy = 4;
 export function setDefaultAnisotropy(n) { _anisotropy = n; }
+/** L'anisotropie courante — les matières photographiques la lisent aussi. */
+export function anisotropie() { return _anisotropy; }
 
 const SIZE = 32;
 
@@ -184,131 +186,105 @@ function peindreRatisse(rand) {
   return px;
 }
 
-const PEINTRES = {
+/* --- les trois surfaces d'OBJET : pour ce qui n'est ni sol ni mur ------- */
+
+function peindreMetal(rand) {
+  // métal brossé : des stries horizontales très fines, à peine contrastées.
+  // Ce qu'on lit d'un métal, ce n'est pas son grain mais la façon dont son
+  // reflet s'étire — d'où une carte presque plate, dont l'essentiel du
+  // travail se fait en RUGOSITÉ (voir SURFACES.metal).
+  const px = new Array(SIZE * SIZE);
+  for (let y = 0; y < SIZE; y++) {
+    const strie = (rand() - 0.5) * 0.06;
+    for (let x = 0; x < SIZE; x++) {
+      px[(y * SIZE) + x] = 0.93 + strie + ((rand() - 0.5) * 0.02);
+    }
+  }
+  return px;
+}
+
+function peindrePoli(rand) {
+  // pierre polie : le nuage minéral d'une plaque de marbre, sans veine
+  // franche — deux octaves de bruit doux, rien qui accroche l'œil de près
+  // mais qui empêche la surface d'être un aplat.
+  const a = valueNoise(rand, 4);
+  const b = valueNoise(rand, 8);
+  const px = [];
+  for (let y = 0; y < SIZE; y++) {
+    for (let x = 0; x < SIZE; x++) {
+      const u = (x / SIZE) * 4, v = (y / SIZE) * 4;
+      // amplitude franche : sur une masse sombre, un grain à quatre pour
+      // cent ne se voit tout simplement pas — la première version en a
+      // fait la démonstration sur les marches du belvédère
+      px.push(0.9 + ((a(u, v) - 0.5) * 0.26) + ((b(u * 2, v * 2) - 0.5) * 0.13));
+    }
+  }
+  return px;
+}
+
+function peindreBoisUse(rand) {
+  // bois d'atelier : les veines d'une planche vue en travers, plus douces
+  // que `planches` (qui dessine des lames entières) — la surface d'un banc
+  // ou d'un rayonnage, où l'on voit le fil et non le joint.
+  const n = valueNoise(rand, 6);
+  const px = [];
+  for (let y = 0; y < SIZE; y++) {
+    for (let x = 0; x < SIZE; x++) {
+      // le fil court en x : on écrase le bruit dans cette direction
+      const fil = n((x / SIZE) * 1.5, (y / SIZE) * 6);
+      // contraste franc : mesuré sur les rayonnages de la bibliothèque, un
+      // fil à sept pour cent ne se voyait pas à trois mètres sous une
+      // lanterne — le bois restait un aplat olive
+      let v = 0.9 + ((fil - 0.5) * 0.3);
+      if (rand() < 0.02) v -= 0.12;       // pore
+      px.push(v);
+    }
+  }
+  return px;
+}
+
+export const PEINTRES = {
   pierre: [peindrePierre, 101],
   brique: [peindreBrique, 211],
   planches: [peindrePlanches, 307],
   dalles: [peindreDalles, 401],
   herbe: [peindreHerbe, 503],
   sable: [peindreSable, 601],
-  ratisse: [peindreRatisse, 701]
+  ratisse: [peindreRatisse, 701],
+  metal: [peindreMetal, 809],
+  poli: [peindrePoli, 907],
+  'bois-use': [peindreBoisUse, 1009]
 };
 
-/* ------------------------------------------------- les matières réelles -- */
-
-import boisMatiere from '../../assets/matieres/bois-matiere.jpg';
-import boisRelief from '../../assets/matieres/bois-relief.jpg';
-import boisRugosite from '../../assets/matieres/bois-rugosite.jpg';
-import briqueMatiere from '../../assets/matieres/brique-matiere.jpg';
-import briqueRelief from '../../assets/matieres/brique-relief.jpg';
-import briqueRugosite from '../../assets/matieres/brique-rugosite.jpg';
-import damierMatiere from '../../assets/matieres/damier-matiere.jpg';
-import damierNormale from '../../assets/matieres/damier-normale.jpg';
-import herbeMatiere from '../../assets/matieres/herbe-matiere.jpg';
-import herbeNormale from '../../assets/matieres/herbe-normale.jpg';
-
 /**
- * Les MATIÈRES : des photographies, mais pliées au contrat des tuiles.
+ * LES SURFACES : ce qu'une matière fait à la LUMIÈRE, et non à la couleur.
  *
- * Les jeux viennent du dépôt three.js (tag r166, MIT — voir
- * `scripts/rapatrie-matieres.mjs` et `engine/assets/provenance.json`), et
- * l'albédo est DÉSATURÉ à l'import : comme les tuiles procédurales
- * ci-dessus, une matière n'apporte que la lumière qu'elle renvoie — la
- * COULEUR reste celle que la pièce déclare, et un parquet prend la teinte
- * de la salle au lieu de lui imposer son brun. Ce que la photo apporte que
- * 32 texels ne savaient pas dire : le RELIEF (bump) et la RUGOSITÉ, carte
- * par carte — c'est là que la lumière rasante des lanternes se met à
- * accrocher le veinage.
+ * Une primitive n'était qu'une couleur avec une rugosité fixe — d'où le
+ * plastique uniforme des bancs, des lanternes et des marches. Une surface
+ * ajoute trois choses à un style : la profondeur de son relief, sa
+ * rugosité, et son côté métallique. C'est ce trio, pas la texture, qui
+ * distingue un bronze d'un galet.
  *
- * `metres` : la taille physique d'une répétition. Les UV du monde comptent
- * en tuiles de TILE mètres ; `repeat = TILE / metres` remet chaque motif à
- * son échelle réelle — des lames de parquet de vingt centimètres, des
- * briques de vingt-cinq.
+ * `metres` dit la taille physique d'une répétition : c'est ce qui empêche
+ * une marche de deux mètres et un jeton de dix centimètres de porter le
+ * même motif à la même taille apparente.
  */
-const MATIERES = {
-  bois: {
-    matiere: boisMatiere, relief: boisRelief, rugosite: boisRugosite,
-    metres: 3.6, creux: 0.35
-  },
-  'brique-vraie': {
-    matiere: briqueMatiere, relief: briqueRelief, rugosite: briqueRugosite,
-    metres: 2.8, creux: 0.5
-  },
-  // le damier de sol des exemples three.js : un hall de galerie. Pas de
-  // carte de rugosité — `lisse` donne le scalaire (une pierre polie), et la
-  // carte NORMALE (les joints entre dalles) remplace le bump.
-  damier: {
-    matiere: damierMatiere, normale: damierNormale,
-    metres: 2, creux: 0.8, lisse: 0.55
-  },
-  // l'herbe du terrain : là où la tuile « herbe » disait un pré en huit
-  // texels, la photo dit les brins — surtout par sa normale, en lumière
-  // rasante. Mate, comme l'herbe.
-  'herbe-vraie': {
-    matiere: herbeMatiere, normale: herbeNormale,
-    metres: 2.4, creux: 0.7
-  }
+/** Les noms des tuiles procédurales, pour le menu de l'éditeur. */
+export const PEINTRES_NOMS = Object.keys(PEINTRES);
+
+export const SURFACES = {
+  metal:      { creux: 0.12, rugosite: 0.34, metal: 0.85, metres: 1.2 },
+  poli:       { creux: 0.4, rugosite: 0.34, metal: 0.06, metres: 1.8 },
+  'bois-use': { creux: 0.5, rugosite: 0.72, metal: 0.02, metres: 1.2 },
+  pierre:     { creux: 0.28, rugosite: 0.92, metal: 0.02, metres: 2 },
+  brique:     { creux: 0.3, rugosite: 0.9, metal: 0.02, metres: 2 },
+  planches:   { creux: 0.26, rugosite: 0.8, metal: 0.02, metres: 2 },
+  dalles:     { creux: 0.24, rugosite: 0.7, metal: 0.04, metres: 2 },
+  herbe:      { creux: 0.2, rugosite: 0.95, metal: 0, metres: 2 },
+  sable:      { creux: 0.14, rugosite: 0.98, metal: 0, metres: 2 },
+  ratisse:    { creux: 0.3, rugosite: 0.96, metal: 0, metres: 2 }
 };
 
-const _cacheMatieres = new Map();
-
-function chargerCarte(url, metres, albedo = false) {
-  const tex = new THREE.TextureLoader().load(url);
-  tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
-  // une photo se filtre en linéaire — le NEAREST des tuiles pixel-art
-  // ferait scintiller le veinage ; les mipmaps restent, pour le lointain
-  tex.magFilter = THREE.LinearFilter;
-  tex.minFilter = THREE.LinearMipmapLinearFilter;
-  tex.generateMipmaps = true;
-  tex.anisotropy = _anisotropy;
-  // L'ALBÉDO D'UNE PHOTO EST EN sRGB, ET LE DIRE CHANGE TOUT.
-  //
-  // Les tuiles procédurales sont peintes en valeurs linéaires : leur
-  // NoColorSpace est juste. Une photographie, elle, est encodée en sRGB —
-  // la lire comme linéaire éclaircit chaque texel d'environ 1,8, et c'est
-  // exactement ce qui délavait les parquets : un brun sombre déclaré par la
-  // pièce ressortait en ciment mouillé, la couleur perdait son autorité.
-  // Le relief, la rugosité et la normale, eux, sont des DONNÉES et non des
-  // couleurs : ils restent hors de tout espace colorimétrique.
-  tex.colorSpace = albedo ? THREE.SRGBColorSpace : THREE.NoColorSpace;
-  tex.repeat.set(TILE / metres, TILE / metres);
-  return tex;
-}
-
-/**
- * Les cartes d'une matière réelle — ou null si le style est une tuile
- * procédurale (ou inconnu). Chargées au premier usage, partagées ensuite :
- * toutes les salles au sol de bois regardent les trois mêmes textures.
- */
-export function styleMatiere(style) {
-  const m = MATIERES[style];
-  if (!m || typeof document === 'undefined') return null;
-  if (_cacheMatieres.has(style)) return _cacheMatieres.get(style);
-  const jeu = {
-    map: chargerCarte(m.matiere, m.metres, true),
-    // le relief parle bump OU normale — jamais les deux : une matière
-    // photographiée vient avec l'un ou l'autre, et les mélanger doublerait
-    // le grain sans rien dire de plus
-    bumpMap: m.relief ? chargerCarte(m.relief, m.metres) : null,
-    bumpScale: m.creux,
-    normalMap: m.normale ? chargerCarte(m.normale, m.metres) : null,
-    normalScale: m.creux,
-    roughnessMap: m.rugosite ? chargerCarte(m.rugosite, m.metres) : null,
-    // sans carte de rugosité, `lisse` donne le scalaire (défaut : mate)
-    roughness: m.lisse ?? 1
-  };
-  _cacheMatieres.set(style, jeu);
-  return jeu;
-}
-
-/**
- * Styles offerts par l'éditeur (l'ordre est celui du menu) : les tuiles
- * procédurales d'abord, puis les matières réelles. « brique » procédurale
- * garde son nom historique ; la matière photographique s'appelle
- * « brique-vraie » pour que les pièces existantes ne changent pas de peau
- * sans qu'on le leur demande.
- */
-export const TEXTURE_STYLES = [...Object.keys(PEINTRES), ...Object.keys(MATIERES)];
 
 const _cache = new Map();
 
@@ -392,4 +368,149 @@ export function scalePlaneUV(geometry, w, h) {
     uv.setXY(i, uv.getX(i) * w / TILE, uv.getY(i) * h / TILE);
   }
   uv.needsUpdate = true;
+}
+
+/**
+ * ÉCHELLE-MONDE POUR UNE PRIMITIVE QUELCONQUE — la règle qui manquait.
+ *
+ * Une boîte, un cylindre, un tore portent des UV NORMALISÉS : zéro à un sur
+ * chaque face, quelle que soit sa taille. Un motif y couvrait donc toujours
+ * l'objet entier — les briques d'une stèle de quatre mètres étaient quatre
+ * fois plus grosses que celles du mur derrière elle, et un jeton de dix
+ * centimètres portait une brique entière. On mesure ici la boîte englobante
+ * et on redistribue les UV en MÈTRES, comme pour les murs : la matière
+ * garde sa taille physique, et deux objets voisins parlent enfin la même
+ * langue.
+ *
+ * `metres` est la taille d'une répétition. La géométrie est modifiée en
+ * place ; elle doit donc être PROPRE à l'objet (les primitives en
+ * construisent une par mesh, c'est le cas).
+ */
+export function scaleObjetUV(geometry, metres = TILE, echelle = null) {
+  const uv = geometry.attributes?.uv;
+  const pos = geometry.attributes?.position;
+  if (!uv || !pos || !(metres > 0)) return;
+  geometry.computeBoundingBox();
+  const b = geometry.boundingBox;
+  // l'ÉCHELLE de l'objet compte : une œuvre étire souvent sa primitive
+  // (un rayonnage est une boîte aplatie et montée en hauteur). Sans elle,
+  // le motif serait posé à la taille de la boîte d'origine puis étiré
+  // avec elle — des veines de bois trois fois plus longues que larges.
+  const [ex, ey, ez] = Array.isArray(echelle) && echelle.length === 3
+    ? echelle.map((v) => Math.abs(Number(v)) || 1) : [1, 1, 1];
+  const dx = Math.max(0.05, (b.max.x - b.min.x) * ex);
+  const dy = Math.max(0.05, (b.max.y - b.min.y) * ey);
+  const dz = Math.max(0.05, (b.max.z - b.min.z) * ez);
+  // deux dimensions suffisent : on prend les deux plus grandes, qui sont
+  // celles que le regard parcourt — un motif ne s'étire jamais de plus
+  // qu'un facteur deux, et c'est invisible sur une matière sans direction
+  const [a, c] = [dx, dy, dz].sort((p, q) => q - p);
+  for (let i = 0; i < uv.count; i++) {
+    uv.setXY(i, (uv.getX(i) * a) / metres, (uv.getY(i) * c) / metres);
+  }
+  uv.needsUpdate = true;
+}
+
+/**
+ * LE GRAIN TRIPLANAIRE — pour ce qui n'a pas d'UV exploitables.
+ *
+ * Les constructions voxel sont des InstancedMesh : une géométrie unitaire,
+ * mise à l'échelle par instance. Leurs UV vont de zéro à un sur chaque face
+ * quelle que soit sa taille réelle — un pavé de six mètres et un cube de
+ * vingt-cinq centimètres porteraient le même motif à la même taille
+ * apparente. C'est pour cela que tout le belvédère restait un aplat.
+ *
+ * On échantillonne donc la texture SUR LA POSITION MONDE, projetée selon
+ * les trois axes et mélangée par la normale : aucune UV n'est nécessaire,
+ * l'échelle est physique, et rien ne s'étire — la façon habituelle de
+ * texturer un terrain ou une géométrie procédurale.
+ *
+ * `patcherGrain(material, style, { echelle, force })` greffe cela sur
+ * n'importe quel MeshStandardMaterial, en préservant un `onBeforeCompile`
+ * déjà posé (le voxel en a un, pour sa couleur d'instance).
+ */
+export function patcherGrain(material, style = 'poli',
+  { echelle = 1.4, force = 0.65, relief = 0.5 } = {}) {
+  // hors navigateur (les suites au nœud construisent de vrais maillages
+  // voxel pour compter leurs instances), il n'y a pas de canvas : le
+  // matériau part sans grain plutôt que de faire échouer le test
+  const tex = typeof document === 'undefined' ? null : styleTexture(style);
+  if (!tex) return material;
+  // un grain se lit en continu : le NEAREST des tuiles pixel-art ferait des
+  // marches d'escalier sur une surface lisse
+  const doux = tex.clone();
+  doux.magFilter = THREE.LinearFilter;
+  doux.needsUpdate = true;
+
+  const precedent = material.onBeforeCompile;
+  material.onBeforeCompile = (shader, renderer) => {
+    precedent?.call(material, shader, renderer);
+    shader.uniforms.uGrain = { value: doux };
+    shader.uniforms.uGrainEchelle = { value: echelle };
+    shader.uniforms.uGrainForce = { value: force };
+    shader.uniforms.uGrainRelief = { value: relief };
+
+    shader.vertexShader = shader.vertexShader
+      .replace('#include <common>',
+        '#include <common>\nvarying vec3 vGrainPos;\nvarying vec3 vGrainNrm;')
+      .replace('#include <project_vertex>', `
+        #ifdef USE_INSTANCING
+          vec4 grainW = modelMatrix * instanceMatrix * vec4(transformed, 1.0);
+          vGrainNrm = normalize(mat3(modelMatrix) * mat3(instanceMatrix) * objectNormal);
+        #else
+          vec4 grainW = modelMatrix * vec4(transformed, 1.0);
+          vGrainNrm = normalize(mat3(modelMatrix) * objectNormal);
+        #endif
+        vGrainPos = grainW.xyz;
+        #include <project_vertex>`);
+
+    shader.fragmentShader = shader.fragmentShader
+      .replace('#include <common>', `#include <common>
+        uniform sampler2D uGrain;
+        uniform float uGrainEchelle;
+        uniform float uGrainForce;
+        uniform float uGrainRelief;
+        varying vec3 vGrainPos;
+        varying vec3 vGrainNrm;
+        // la hauteur du grain en un point du MONDE : trois projections,
+        // mélangées par la normale — aucune UV, aucune couture
+        float grainEn(vec3 p, vec3 an) {
+          return texture2D(uGrain, p.zy / uGrainEchelle).r * an.x
+               + texture2D(uGrain, p.xz / uGrainEchelle).r * an.y
+               + texture2D(uGrain, p.xy / uGrainEchelle).r * an.z;
+        }`)
+      // LE GRAIN EST CALCULÉ UNE FOIS, ET SERT DEUX FOIS. `color_fragment`
+      // passe avant `normal_fragment_maps` dans le shader standard : on y
+      // pose la hauteur et la pondération triplanaire, que le relief relit
+      // plus bas. Trois lectures de texture par pixel, pas quinze.
+      .replace('#include <color_fragment>', `#include <color_fragment>
+        vec3 grainAxes = abs(normalize(vGrainNrm));
+        grainAxes /= max(1e-4, grainAxes.x + grainAxes.y + grainAxes.z);
+        float grainH = grainEn(vGrainPos, grainAxes);
+        // les tuiles tournent autour de 0,9 : on ramène à 1 pour que le
+        // grain MODULE la couleur sans l'assombrir en moyenne
+        diffuseColor.rgb *= mix(1.0, grainH / 0.9, uGrainForce);`)
+      // LE RELIEF — c'est lui qu'on voit. Une modulation de couleur seule
+      // reste invisible sur une masse sombre : ce qui fait qu'une marche
+      // cesse d'être du plastique, c'est que la lumière rasante d'une
+      // lanterne accroche sa surface. Le gradient vient des DÉRIVÉES
+      // d'écran (la méthode de Mikkelsen, celle du bump de three.js) :
+      // aucune lecture supplémentaire, là où quatre échantillonnages
+      // décalés en coûtaient douze de plus par pixel.
+      .replace('#include <normal_fragment_maps>', `#include <normal_fragment_maps>
+        {
+          vec3 dpdxG = dFdx(vGrainPos);
+          vec3 dpdyG = dFdy(vGrainPos);
+          float dhdxG = dFdx(grainH);
+          float dhdyG = dFdy(grainH);
+          vec3 nG = normalize(vGrainNrm);
+          vec3 r1 = cross(dpdyG, nG);
+          vec3 r2 = cross(nG, dpdxG);
+          float det = dot(dpdxG, r1);
+          vec3 grad = sign(det) * ((dhdxG * r1) + (dhdyG * r2));
+          normal = normalize((abs(det) * normal) - (grad * uGrainRelief));
+        }`);
+  };
+  material.customProgramCacheKey = () => `grain-${style}-${echelle}-${force}-${relief}`;
+  return material;
 }

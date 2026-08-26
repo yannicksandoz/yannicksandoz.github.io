@@ -5,6 +5,8 @@ import { loadModel, fitModel, modelKind } from './modelLoaders.js';
 import { buildVoxelMesh, buildVoxelMeshMerged, buildVoxelCollider } from './voxel.js';
 import { EDITOR_AVAILABLE } from '../editorLoader.js';
 import { isWalkable } from './utils.js';
+import { scaleObjetUV } from './textures.js';
+import { jeuDeSurface } from './matieres.js';
 
 // crossOrigin « anonymous » : indispensable pour les médias distants, dont
 // les pixels doivent être lisibles par WebGL (l'hôte doit autoriser le CORS).
@@ -66,8 +68,16 @@ function buildFrame(w, h) {
   const t = 0.09;  // épaisseur du montant
   const d = 0.08;  // profondeur, centrée sur le plan : visible des deux côtés
   const group = new THREE.Group();
+  // même métal brossé que les chambranles de portail et les dormants de
+  // baie : l'huisserie de la galerie est d'une seule main
+  const surface = jeuDeSurface('metal');
   const mat = new THREE.MeshStandardMaterial({
-    color: 0x0c0c12, roughness: 0.4, metalness: 0.7
+    color: 0x14141c,
+    map: surface?.map ?? null,
+    bumpMap: surface?.bumpMap ?? null,
+    bumpScale: surface?.bumpScale ?? 1,
+    roughness: surface?.roughness ?? 0.4,
+    metalness: surface?.metalness ?? 0.7
   });
   const bars = [
     [w + t * 2, t, 0, (h + t) / 2],
@@ -76,7 +86,9 @@ function buildFrame(w, h) {
     [t, h, (w + t) / 2, 0]
   ];
   for (const [bw, bh, x, y] of bars) {
-    const bar = new THREE.Mesh(new THREE.BoxGeometry(bw, bh, d), mat);
+    const geo = new THREE.BoxGeometry(bw, bh, d);
+    if (surface) scaleObjetUV(geo, surface.metres);
+    const bar = new THREE.Mesh(geo, mat);
     bar.position.set(x, y, 0);
     group.add(bar);
   }
@@ -316,7 +328,7 @@ export class Artwork {
       } else if (cfg.model?.shape === 'monolith') {
         this._setMesh(this._buildMonolith(cfg.model));
       } else if (isPrimitive(cfg.model?.shape)) {
-        this._setMesh(buildPrimitive(cfg.model));
+        this._setMesh(buildPrimitive(cfg.model, cfg.scale));
       } else {
         console.warn(`[galerie] Œuvre ${cfg.id} : ni image, ni vidéo, ni scan, ni modèle reconnu.`);
       }
