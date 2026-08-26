@@ -5,7 +5,7 @@
   "position": [
     0,
     8.6,
-    -21
+    -21.2
   ],
   "rotation": [
     0,
@@ -19,7 +19,7 @@
   ],
   "model": {
     "shape": "corniche",
-    "longueur": 48,
+    "longueur": 58.4,
     "epaisseur": 0.12,
     "color": "#cfd8ff",
     "intensite": 14,

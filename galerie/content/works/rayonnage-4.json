@@ -21,7 +21,7 @@
   "role": "decor",
   "model": {
     "shape": "box",
-    "color": "#4a3826",
+    "color": "#4a3a29",
     "roughness": 0.95,
     "metalness": 0,
     "emissive": 0.08,

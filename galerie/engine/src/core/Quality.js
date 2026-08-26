@@ -60,7 +60,12 @@ export class QualityManager {
           dustCount: 450,
           maxTextureSize: 2048,
           shadows: true,
-          shadowMapSize: 2048,
+          // 4096 : la fenêtre d'ombre couvre désormais la coque entière
+          // (jusqu'à 64 m à l'entrée) — à 2048, l'ombre d'un pied de banc
+          // y retombait dans un texel de 3 cm. La carte ne se redessine
+          // qu'à 30 Hz et les ombres n'existent pas sur mobile : le coût
+          // reste borné au bureau, où la mémoire ne manque pas.
+          shadowMapSize: 4096,
           sourcesEtendues: 8,
           envIntensity: 0.5
         };

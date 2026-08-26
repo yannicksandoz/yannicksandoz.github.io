@@ -5,7 +5,7 @@
   "position": [
     0,
     4.6,
-    -18.4
+    -18.2
   ],
   "rotation": [
     0,
@@ -19,12 +19,12 @@
   ],
   "model": {
     "shape": "corniche",
-    "longueur": 7,
+    "longueur": 6.4,
     "epaisseur": 0.12,
     "color": "#cdd6ff",
     "intensite": 9,
     "mur": "nord",
-    "inclinaison": 40
+    "inclinaison": 45
   },
   "solid": false,
   "cartel": false

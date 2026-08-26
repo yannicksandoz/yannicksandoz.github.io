@@ -50,6 +50,25 @@ export const COUCHE_AUTO_ECLAIREE = 3;
 const LUMINAIRES = new Set(['corniche', 'faisceau', 'gerbe']);
 
 /**
+ * Le recul de l'ancienne ponctuelle d'accent, en mètres. Il sert d'ÉTALON :
+ * `lightIntensity` continue de vouloir dire « la lumière reçue par
+ * l'œuvre », quel que soit l'endroit d'où le projecteur la lui envoie.
+ */
+const RECUL_REFERENCE = 1.65;
+
+/**
+ * LE GAIN D'ACCENT — ce qui fait qu'une œuvre devient le sujet.
+ *
+ * Compenser le recul rend seulement l'œuvre aussi éclairée qu'avant, et
+ * « avant » ne suffisait pas : mesuré salle par salle, le luminaire était
+ * deux fois plus clair que ce qu'il éclaire (rapport 0,45 à 0,59 quand il
+ * doit dépasser 1). Un accent de musée ne se contente pas de rendre
+ * l'œuvre visible, il la DÉTACHE de sa paroi. Ce facteur est calibré à la
+ * mesure — voir la sonde de hiérarchie — et non choisi à l'œil.
+ */
+const GAIN_ACCENT = 2.6;
+
+/**
  * Accent d'une œuvre, en l'absence de consigne.
  *
  * Quatre pour tout le monde — c'est ce que le moteur a toujours fait, et
@@ -293,22 +312,114 @@ export class Artwork {
     this._beacon = s;
   }
 
+  /**
+   * L'ACCENT — un projecteur de musée, pas une ampoule posée devant.
+   *
+   * C'était une PointLight à quarante centimètres au-dessus de l'œuvre et
+   * un mètre soixante devant : elle éclairait EN ROND, donc elle lavait le
+   * mur autant que la toile. Mesuré, l'écart de clarté entre l'œuvre et sa
+   * paroi au point d'accrochage restait proche de 1 — autrement dit, rien
+   * dans la lumière ne disait « ceci est le sujet ». C'est pourtant le
+   * geste fondateur de l'éclairage muséal : chaque œuvre a SA flaque, et
+   * le mur autour redescend.
+   *
+   * D'où un cône, cadré sur l'œuvre, tombant à **30° de la verticale** —
+   * l'angle standard des musées : assez haut pour ne pas éblouir le
+   * visiteur qui s'approche, assez oblique pour ne pas laver le relief
+   * d'une toile ou d'un bas-relief. Le décor, lui, garde sa ponctuelle :
+   * une lanterne rayonne dans toutes les directions, c'est son métier.
+   */
   _buildLight() {
-    this.light = new THREE.PointLight(
-      new THREE.Color(this.config.lightColor ?? '#7a6cff'),
-      this.lightBaseIntensity, 14, 1.8);
-    this.group.add(this.light);
+    const cfg = this.config;
+    const couleur = new THREE.Color(cfg.lightColor ?? '#7a6cff');
+    const veutSpot = cfg.lightType
+      ? cfg.lightType === 'spot'
+      : cfg.role !== 'decor';
+    if (!veutSpot) {
+      this.light = new THREE.PointLight(couleur, this.lightBaseIntensity, 14, 1.8);
+      this.group.add(this.light);
+    } else {
+      this.light = new THREE.SpotLight(couleur, this.lightBaseIntensity);
+      // la cible vit dans le groupe de l'œuvre : elle suit ses
+      // déplacements et sa rotation sans qu'on ait rien à recalculer
+      this.light.target = new THREE.Object3D();
+      this.group.add(this.light, this.light.target);
+    }
     this._poserLumiere();
   }
 
-  /** Portée, décroissance et position de la lampe — relues de la config. */
+  /** L'œuvre est-elle éclairée par un cône ? */
+  get accentDirige() { return !!this.light?.isSpotLight; }
+
+  /** Portée, décroissance, ouverture et position de la lampe. */
   _poserLumiere() {
     const cfg = this.config;
     const n = (v, repli) => (Number.isFinite(v) ? v : repli);
-    this.light.distance = Math.max(0, n(cfg.lightDistance, 14));
-    this.light.decay = Math.max(0, n(cfg.lightDecay, 1.8));
     const off = Array.isArray(cfg.lightOffset) ? cfg.lightOffset : [];
-    this.light.position.set(n(off[0], 0), n(off[1], 0.4), n(off[2], 1.6));
+    if (!this.accentDirige) {
+      this.light.distance = Math.max(0, n(cfg.lightDistance, 14));
+      this.light.decay = Math.max(0, n(cfg.lightDecay, 1.8));
+      this.light.position.set(n(off[0], 0), n(off[1], 0.4), n(off[2], 1.6));
+      return;
+    }
+    // LE RECUL DU PROJECTEUR. On le pose sur un arc de rayon `jet` à 30° de
+    // la verticale, au-dessus et en avant : `+z` local est la face de
+    // l'œuvre (c'est déjà la convention de l'ancien décalage), donc le
+    // même calcul vaut pour une toile au mur comme pour un volume au sol.
+    const jet = Math.max(0.6, n(cfg.lightDistance, 2.8));
+    const angleMusee = THREE.MathUtils.degToRad(n(cfg.lightAngle, 30));
+    this.light.position.set(
+      n(off[0], 0),
+      n(off[1], jet * Math.cos(angleMusee)),
+      n(off[2], jet * Math.sin(angleMusee))
+    );
+    this.light.target.position.set(0, 0, 0);
+    // portée : trois fois le jet, pour que la décroissance ne soit pas
+    // tronquée AU NIVEAU DE L'ŒUVRE (three coupe net à `distance`)
+    this.light.distance = Math.max(0, n(cfg.lightPortee, jet * 3));
+    this.light.decay = Math.max(0, n(cfg.lightDecay, 1.6));
+    this.light.penumbra = Math.min(1, Math.max(0, n(cfg.lightPenombre, 0.55)));
+    this.light.angle = this._ouvertureCone(jet);
+    // L'INTENSITÉ COMPENSE LE RECUL, sinon reculer c'est éteindre.
+    //
+    // L'ancienne ponctuelle se tenait à 1,65 m de l'œuvre ; le projecteur
+    // se tient à `jet`, soit 2,8 m par défaut. À intensité égale et
+    // décroissance 1,6, il délivre (2,8/1,65)^1,6 ≈ 2,4 fois MOINS —
+    // mesuré, les œuvres des Archives sont passées de 60,6 à 32,5 de
+    // clarté à la première tentative. `lightIntensity` doit rester ce que
+    // l'auteur croit qu'il est : la lumière REÇUE par l'œuvre, pas la
+    // puissance d'une lampe dont il ignore où elle se pose.
+    this.light.intensity = this.lightBaseIntensity
+      * ((jet / RECUL_REFERENCE) ** this.light.decay) * GAIN_ACCENT;
+    this.light.target.updateMatrixWorld();
+  }
+
+  /**
+   * L'ouverture du cône, CADRÉE SUR L'ŒUVRE : un projecteur de musée est
+   * réglé au format de ce qu'il montre. Sans maillage encore chargé, on
+   * part d'une valeur large — `_setMesh` reposera la lampe quand la vraie
+   * taille sera connue.
+   */
+  _ouvertureCone(jet) {
+    const cfg = this.config;
+    if (Number.isFinite(cfg.lightOuverture)) {
+      return THREE.MathUtils.degToRad(cfg.lightOuverture);
+    }
+    const rayon = this._rayonApparent();
+    // + 18 % de marge : un cône exactement au format laisse un bord net et
+    // sombre au ras de l'œuvre, ce qu'aucun accrochage ne fait
+    const demi = rayon ? Math.atan((rayon * 1.18) / jet) : THREE.MathUtils.degToRad(24);
+    return THREE.MathUtils.clamp(demi, 0.14, 1.25);
+  }
+
+  /** Demi-diagonale de l'œuvre, en mètres — 0 si rien n'est encore chargé. */
+  _rayonApparent() {
+    const cible = this.mesh ?? this.hitMesh;
+    if (!cible) return 0;
+    const boite = new THREE.Box3().setFromObject(cible);
+    if (boite.isEmpty()) return 0;
+    const t = boite.getSize(new THREE.Vector3());
+    return Math.max(0.25, Math.hypot(t.x, t.y, t.z) / 2);
   }
 
   /**
@@ -328,6 +439,8 @@ export class Artwork {
       return;
     }
     this.light.color.set(this.config.lightColor ?? '#7a6cff');
+    // pour un cône, c'est `_poserLumiere` qui pose l'intensité — elle y
+    // compense le recul ; l'écraser ici la ferait retomber à plat
     this.light.intensity = this.lightBaseIntensity;
     this._poserLumiere();
   }
@@ -637,7 +750,14 @@ export class Artwork {
         void main() {
           vPos = position;
           vNormal = normalize(normalMatrix * normal);
-          vec3 p = position + normal * uAudio * 0.06 * sin(position.y * 5.0 + uTime * 2.5);
+          // Déplacement RADIAL, pas le long de la normale. Sur une boîte,
+          // les sommets d'une arête appartiennent à deux faces de normales
+          // différentes : poussés chacun le long de la sienne, ils se
+          // séparent et l'arête se DÉCHIRE en zigzag dès que l'audio joue.
+          // La direction radiale ne dépend que de la position : deux
+          // sommets confondus partent ensemble, l'arête reste soudée.
+          vec3 radial = normalize(vec3(position.x, 0.0, position.z) + vec3(1e-5, 0.0, 0.0));
+          vec3 p = position + radial * uAudio * 0.06 * sin(position.y * 5.0 + uTime * 2.5);
           vec4 mv = modelViewMatrix * vec4(p, 1.0);
           vView = -mv.xyz;
           gl_Position = projectionMatrix * mv;
@@ -701,6 +821,10 @@ export class Artwork {
       });
     }
     this.group.add(mesh);
+    // Le projecteur se recadre maintenant que le format est connu : à la
+    // construction, l'œuvre n'était qu'un placeholder et le cône partait
+    // d'une ouverture par défaut.
+    if (this.accentDirige) this._poserLumiere();
   }
 
   /**

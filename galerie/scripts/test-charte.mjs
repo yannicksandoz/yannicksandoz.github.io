@@ -21,7 +21,7 @@ import { fileURLToPath } from 'node:url';
 import { CHARTE, EXTERIEURS, LUMINAIRES, clarte, teinteEtSaturation, ecartTeinte,
   auditSalles, auditAccrochage, auditRecul, auditHierarchie, auditVista,
   auditRythme, auditBancs, auditAmpleur, ampleurOeuvre, angleApparent,
-  arriveesDe, salles } from './charte.mjs';
+  arriveesDe, salles, auditDecor } from './charte.mjs';
 
 let ok = 0, ko = 0;
 const test = (nom, fn) => {
@@ -367,6 +367,19 @@ test('les voix de la bibliothèque et du couloir sont générées', () => {
   const gen = readFileSync(join(ici, 'generate-assets.mjs'), 'utf8');
   assert.ok(gen.includes('rayonnage-murmure.wav'));
   assert.ok(gen.includes('carillon-fenetres.wav'));
+});
+
+
+titre('le décor se tait');
+test('aucun objet de décor au-dessus de 45 % de saturation', () => {
+  const fautifs = auditDecor().filter((l) => l.fautes.length);
+  assert.deepEqual(fautifs.map((l) => `${l.id} : ${l.fautes.join(', ')}`), []);
+});
+test("l'exemption ne couvre que les lueurs et l'eau — pas un fourre-tout", () => {
+  // le jour où quelqu'un exempte une forme de plus, ce test le fait dire
+  const audite = auditDecor().map((l) => l.id);
+  assert.ok(audite.includes('arbre-1-couronne'), 'la végétation reste auditée');
+  assert.ok(!audite.includes('lucioles-bel-1'), 'les lucioles sont des lueurs');
 });
 
 console.log(`\n${ok} ✓ / ${ko} ✗`);

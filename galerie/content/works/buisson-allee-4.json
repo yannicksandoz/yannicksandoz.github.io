@@ -21,7 +21,7 @@
   "role": "decor",
   "model": {
     "shape": "sphere",
-    "color": "#2a5232",
+    "color": "#2e5235",
     "roughness": 1,
     "metalness": 0,
     "emissive": 0.05,

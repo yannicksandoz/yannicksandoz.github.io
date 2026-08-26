@@ -36,6 +36,9 @@ export function setBudgetSourcesEtendues(n) {
   budgetSourcesEtendues = Number.isFinite(n) ? Math.max(0, n) : 8;
 }
 
+/** La machine peut-elle payer des sources de confort (lavis, flaques) ? */
+export function aDesSourcesEtendues() { return budgetSourcesEtendues > 0; }
+
 /**
  * Primitives paramétriques du mode Objets.
  *
@@ -471,7 +474,15 @@ function buildCorniche(size, model) {
   // couleur, le cœur de la ligne partait en blanc pur avec un halo. On le
   // pose donc juste au-dessus du seuil — assez pour qu'il rayonne, pas
   // assez pour qu'il brûle. La LUMIÈRE, elle, garde sa teinte entière.
-  const eclat = Number.isFinite(model.eclat) ? model.eclat : 0.62;
+  // …et 0,62 était encore trop. Mesuré au navigateur, la corniche
+  // ressortait à 135/255 de clarté moyenne quand les ŒUVRES de la même
+  // salle plafonnaient à 60-80 : le luminaire était DEUX FOIS plus clair
+  // que ce qu'il éclaire. C'est l'inverse exact de ce que fait une salle
+  // d'exposition, où l'on cache la source et où l'on ne voit que le lavis.
+  // À 0,34 le bandeau passe sous le seuil du bloom (0,55) : il cesse de
+  // fleurir en halo et redevient un TRAIT — la ligne de lumière de la DA
+  // reste, la brûlure s'en va. La lampe, elle, ne bouge pas d'un lumen.
+  const eclat = Number.isFinite(model.eclat) ? model.eclat : 0.34;
   const bandeau = new THREE.Mesh(
     new THREE.PlaneGeometry(longueur, epaisseur),
     new THREE.MeshBasicMaterial({

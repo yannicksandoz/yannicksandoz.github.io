@@ -3,7 +3,7 @@
   "title": "Ligne est",
   "role": "decor",
   "position": [
-    3.5,
+    3.2,
     4.7,
     0
   ],
@@ -19,12 +19,12 @@
   ],
   "model": {
     "shape": "corniche",
-    "longueur": 34,
+    "longueur": 36.4,
     "epaisseur": 0.12,
     "color": "#cdd6ff",
     "intensite": 10,
     "mur": "est",
-    "inclinaison": 35
+    "inclinaison": 45
   },
   "solid": false,
   "cartel": false

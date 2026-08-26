@@ -51,7 +51,7 @@
   "keyLight": {
     "color": "#aab4e8",
     "intensity": 3.25,
-    "azimuth": 90,
+    "azimuth": 150,
     "elevation": 44
   },
   "envIntensity": 0.47,

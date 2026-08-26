@@ -19,12 +19,12 @@
   ],
   "model": {
     "shape": "corniche",
-    "longueur": 16,
+    "longueur": 18.4,
     "epaisseur": 0.12,
     "color": "#ffe0bd",
     "intensite": 10,
     "mur": "est",
-    "inclinaison": 30
+    "inclinaison": 45
   },
   "solid": false,
   "cartel": false

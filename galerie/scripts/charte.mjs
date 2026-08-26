@@ -239,6 +239,50 @@ export function auditSalles() {
 }
 
 /** Les œuvres murales mal accrochées, avec la hauteur qu'elles devraient avoir. */
+/**
+ * LE DÉCOR SE TAIT — audit des couleurs hors pièce.
+ *
+ * La charte tenait les salles à 45 % de saturation… mais n'auditait que
+ * les couleurs de PIÈCE. Les objets, eux, posaient des primaires saturées
+ * en toute impunité : un tabouret vert/bleu/rose, une tour verte — et
+ * l'unité défendue partout ailleurs se cassait au premier objet posé.
+ *
+ * La règle a une exemption de principe : une ŒUVRE a le droit d'être la
+ * seule couleur saturée de la salle — c'est le sujet. C'est le DÉCOR qui
+ * doit se taire : lui est jugé à la même borne que les murs. Les
+ * luminaires y échappent (leur couleur est une lumière, pas une surface),
+ * comme tout ce qui est auto-éclairé (les lanternes : leur teinte EST
+ * leur lueur).
+ */
+export function auditDecor() {
+  const dossier = join(RACINE, 'works');
+  if (!existsSync(dossier)) return [];
+  const lignes = [];
+  for (const nom of readdirSync(dossier)) {
+    if (!nom.endsWith('.json') || nom === 'index.json') continue;
+    const w = JSON.parse(readFileSync(join(dossier, nom), 'utf8'));
+    if (!w || typeof w !== 'object' || Array.isArray(w)) continue;
+    if (w.role !== 'decor' || w.selfLit) continue;
+    const m = w.model ?? {};
+    if (LUMINAIRES.has(m.shape)) continue;
+    // les lucioles sont des lueurs (leur couleur EST leur lumière), et
+    // l'eau tire sa couleur d'une profondeur optique, pas d'une peinture
+    if (m.shape === 'lucioles' || m.shape === 'eau') continue;
+    const teintes = [];
+    if (typeof m.color === 'string') teintes.push(m.color);
+    for (const c of m.palette ?? []) if (typeof c === 'string') teintes.push(c);
+    const fautes = [];
+    for (const t of teintes) {
+      const { saturation } = teinteEtSaturation(t);
+      if (saturation > CHARTE.saturationMax) {
+        fautes.push(`${t} à ${saturation.toFixed(0)} %`);
+      }
+    }
+    if (teintes.length) lignes.push({ id: w.id ?? nom.slice(0, -5), fautes });
+  }
+  return lignes;
+}
+
 export function auditAccrochage() {
   const { centre, basMinimum } = CHARTE.accrochage;
   return oeuvresMurales().map((w) => {

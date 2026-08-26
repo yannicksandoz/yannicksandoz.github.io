@@ -24,7 +24,7 @@
     "color": "#4a4266",
     "roughness": 0.6,
     "metalness": 0,
-    "emissive": 0.6,
+    "emissive": 0.42,
     "emissiveColor": "#cbb4ff",
     "texture": "metal"
   },

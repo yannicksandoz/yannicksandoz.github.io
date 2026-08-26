@@ -5,6 +5,7 @@ import { styleTexture, scaleBoxUV, scalePlaneUV, scaleWorldUV, scaleObjetUV,
   patcherRepetition, TILE }
   from './textures.js';
 import { styleMatiere, jeuDeSurface } from './matieres.js';
+import { aDesSourcesEtendues } from './primitives.js';
 import { delaiDe, fermer, estFerme, tick as tickCooldown } from './Cooldown.js';
 import { reverbDePiece } from './reverb-reglages.js';
 import { creerCartel, majCartel, disposerCartel, tournerVersCamera }
@@ -1379,7 +1380,14 @@ function murPerce(length, height, ouvertures, sink) {
 function cadreBaie(b, marge, profondeur, height) {
   const forme = new THREE.Shape();
   forme.curves.push(...contourBaie(b, marge, height).curves);
-  forme.holes.push(contourBaie(b, 0, height));
+  // Le trou du cadre est DÉCOUPÉ 2 CM PLUS PETIT que la baie. À zéro, les
+  // faces internes du cadre tombaient exactement sur la tranche du mur
+  // percé : deux surfaces au même endroit sur toute la profondeur de
+  // l'ébrasement, et le GPU tranchait au hasard — c'est le grésillement
+  // qu'on voyait « dans » les fenêtres. En rentrant de 2 cm, le cadre
+  // TAPISSE l'ébrasement : la tranche du mur disparaît derrière lui, et
+  // il n'y a plus deux surfaces qui se disputent le même pixel.
+  forme.holes.push(contourBaie(b, -0.02, height));
   const geo = new THREE.ExtrudeGeometry(forme, {
     depth: profondeur, bevelEnabled: false, curveSegments: 36
   });
@@ -1462,6 +1470,7 @@ export function buildShell(config) {
     m.castShadow = true;
     m.userData.ignoreRaycast = true; // décor : jamais une cible de sélection
     group.add(m);
+    return m;
   };
 
   /**
@@ -1543,7 +1552,17 @@ export function buildShell(config) {
   if (has('est')) mur('est', d - WALL_T, w / 2, 0, Math.PI / 2);
 
   if (opt.ceiling) {
-    box(w + WALL_T, WALL_T, d + WALL_T, 0, h + WALL_T / 2, 0, matFor('plafond'));
+    const plafond = box(w + WALL_T, WALL_T, d + WALL_T, 0, h + WALL_T / 2, 0,
+      matFor('plafond'));
+    // LE PLAFOND EST UNE VERRIÈRE, pas un couvercle. S'il projetait, la
+    // coque fermée bloquerait toute la lumière clé : au belvédère (cube de
+    // 50 m couvert), PLUS RIEN à l'intérieur ne portait d'ombre — marches
+    // et passerelles flottaient, exactement le défaut qu'on venait de
+    // corriger partout ailleurs. Choix d'éclairagiste de théâtre : le
+    // plafond REÇOIT (il s'assombrit, il ferme la salle à l'œil) mais
+    // laisse passer la clé, comme un plafond lumineux de musée. Les murs,
+    // eux, continuent de projeter — ce sont eux qui découpent les baies.
+    plafond.castShadow = false;
   }
   return group;
 }
@@ -1668,7 +1687,17 @@ export function buildKeyLight(config, profile) {
  * LUMIÈRE — arrondir en x/z du monde ne calerait rien, la lumière étant
  * oblique.
  */
-export const PORTEE_OMBRE = 17;   // demi-fenêtre, en mètres
+// La demi-fenêtre d'ombre, en mètres. 17 m était trop court : à l'entrée
+// (coque de 60 m), l'ombre du grand mur nord se COUPAIT NET au bord de la
+// fenêtre — une bande sombre qui s'arrête au milieu du sol, pire que pas
+// d'ombre du tout. La fenêtre doit couvrir la COQUE ENTIÈRE de chaque
+// salle ; la finesse se paie en résolution de carte (4096 sur bureau, voir
+// Quality), pas en couverture. À 32 m de demi-fenêtre et 4096 texels, le
+// pire cas (entrée, 64 m couverts) tient à 1,6 cm par texel — mieux que
+// les 1,7 cm de l'ancienne fenêtre courte. Le suivi du visiteur ne sert
+// plus qu'aux salles SANS coque (annexe, allée), dont le sol décoratif
+// dépasse la fenêtre.
+export const PORTEE_OMBRE = 32;   // demi-fenêtre, en mètres
 
 /** L'étendue utile d'une pièce : sa coque si elle en a une, sinon son sol. */
 function etendueUtile(config) {
@@ -1928,6 +1957,22 @@ function buildPortalMesh(cfg, label) {
   glow.position.set(0, 1.35, 0);
   group.add(glow);
   group.userData.glow = glow;
+
+  // LA FLAQUE DE SEUIL. Un parcours muséal alterne zones claires (où l'on
+  // s'arrête) et zones sombres (où l'on passe) ; mesuré, le sol de la
+  // galerie était un champ uniforme, sans rien qui guide le pas. Chaque
+  // portail pose donc sa flaque au sol — un cône discret depuis le
+  // linteau, dans la teinte du portail. Trois à quatre par salle : c'est
+  // exactement le chemin. Le cône est étroit et court (5 m) : il marque
+  // le seuil, il n'éclaire pas la salle.
+  // …et seulement si la machine peut la payer : sur mobile, où chaque
+  // lampe se paie sur chaque pixel, le seuil garde sa lueur émissive.
+  if (aDesSourcesEtendues()) {
+    const seuil = new THREE.SpotLight(PORTAL_COLOR, 5.5, 5, Math.PI * 0.24, 0.7, 1.4);
+    seuil.position.set(0, 2.8, 0.4);
+    seuil.target.position.set(0, 0, 0.7);
+    group.add(seuil, seuil.target);
+  }
 
   // étiquette : le nom de la salle, et sous lui le compte de ses œuvres.
   //
