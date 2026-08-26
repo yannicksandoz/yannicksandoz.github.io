@@ -269,4 +269,42 @@ writeWav('stele-voix-souffle.wav', synth((t) => {
   return s * am;
 }));
 
+
+/* ------------------------------------- la bibliothèque et le couloir ----- */
+
+// Les rayonnages murmurent : un feuilletage — partiels inharmoniques médians
+// sous tremblement rapide et fenêtres lentes, comme des pages qu'on tourne
+// à plusieurs, jamais une note. Trois rayonnages le portent, décalés dans la
+// salle : le murmure n'a pas de source, il a un lieu.
+writeWav('rayonnage-murmure.wav', synth((t) => {
+  let s = 0;
+  for (let k = 0; k < 7; k++) {
+    const f = (2640 + (k * 1122)) / 6;           // inharmonique, k/6 : sans couture
+    const trem = 0.6 + 0.4 * Math.sin(TAU * (7 + k) * t + k * 1.7);
+    const fen = 0.5 + 0.5 * Math.sin(TAU * ((k % 2) + 1) / 6 * t + k * 2.4);
+    s += Math.sin(TAU * f * t + k * 0.9) * trem * fen * (0.14 / (1 + k * 0.4));
+  }
+  return s * (0.5 + 0.5 * Math.sin(TAU * (1 / 6) * t + 2));
+}));
+
+// Le carillon des fenêtres : des tintements épars sur l'accord de ré, aigus
+// et brefs, chacun avec sa seconde partielle légèrement fausse — c'est elle
+// qui fait le métal. Sept coups sur six secondes : le vent, pas la mélodie.
+writeWav('carillon-fenetres.wav', synth((t) => {
+  const COUPS = [
+    [0.3, 3520 / 6], [1.2, 4440 / 6], [2.0, 880], [2.9, 3520 / 6],
+    [3.7, 7040 / 6], [4.4, 4440 / 6], [5.2, 880]
+  ];
+  let s = 0;
+  for (const [debut, f] of COUPS) {
+    if (t >= debut && t < debut + 0.7) {
+      const tt = t - debut;
+      const env = Math.min(1, tt / 0.004) * Math.exp(-tt * 6);
+      s += env * (Math.sin(TAU * f * tt)
+        + 0.35 * Math.sin(TAU * f * 2.76 * tt)) * 0.5;
+    }
+  }
+  return s;
+}));
+
 console.log('\nAssets générés dans content/textures et content/audio.');

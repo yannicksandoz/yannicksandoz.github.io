@@ -1,0 +1,46 @@
+{
+  "id": "carillon-fenetres",
+  "title": "Carillon des fenêtres",
+  "description": "Un anneau de métal pendu au courant d'air. Les fenêtres du couloir donnent sur le dehors ; lui, il en rapporte le vent — sept tintements d'un accord de ré, jamais dans le même ordre qu'on croit.",
+  "position": [
+    3.1,
+    2.6,
+    -8
+  ],
+  "rotation": [
+    90,
+    0,
+    0
+  ],
+  "scale": [
+    1,
+    1,
+    1
+  ],
+  "modules": [],
+  "solid": false,
+  "model": {
+    "shape": "torus",
+    "size": 0.5,
+    "color": "#8a90a8",
+    "texture": "metal",
+    "roughness": 0.35,
+    "metalness": 0.85,
+    "emissiveColor": "#cbd4ff",
+    "emissive": 0.25
+  },
+  "stems": [
+    {
+      "file": "audio/carillon-fenetres.wav",
+      "radius": 10,
+      "gain": 0.6
+    }
+  ],
+  "credit": {
+    "author": "Galerie",
+    "license": "CC0-1.0",
+    "sourceUrl": "https://github.com/yannicksandoz/yannicksandoz.github.io"
+  },
+  "lightColor": "#cbd4ff",
+  "lightIntensity": 3
+}

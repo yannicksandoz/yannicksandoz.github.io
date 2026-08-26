@@ -27,5 +27,13 @@
     "emissive": 0.08,
     "texture": "bois-use"
   },
-  "lightIntensity": 0
+  "lightIntensity": 0,
+  "partOf": "rayonnage-2",
+  "stems": [
+    {
+      "file": "audio/rayonnage-murmure.wav",
+      "radius": 8,
+      "gain": 0.7
+    }
+  ]
 }

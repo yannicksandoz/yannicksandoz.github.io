@@ -20,7 +20,7 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { CHARTE, EXTERIEURS, clarte, teinteEtSaturation, ecartTeinte,
   auditSalles, auditAccrochage, auditRecul, auditHierarchie, auditVista,
-  auditRythme, salles } from './charte.mjs';
+  auditRythme, auditBancs, salles } from './charte.mjs';
 
 let ok = 0, ko = 0;
 const test = (nom, fn) => {
@@ -188,6 +188,57 @@ test('le quatuor des Archives est écoutable, et généré', () => {
     assert.ok((w.stems?.[0]?.radius ?? 99) <= 10,
       'rayon court : chaque voix ne s’entend qu’auprès de sa stèle');
   }
+});
+
+
+titre('les salles habitées et les bancs');
+test('chaque banc à plat regarde une œuvre', () => {
+  // un banc de musée offre une assise à la contemplation — face à une
+  // œuvre, pas dos à tout. ±45° sur l'axe d'assise, une œuvre à ≤ 25 m.
+  const bancs = auditBancs();
+  if (!bancs.length) { console.log('    (aucun banc à juger — sauté)'); return; }
+  for (const b of bancs) {
+    assert.ok(b.regarde, `${b.id} (${b.salle}) : ` + (b.vers
+      ? `${b.angle.toFixed(0)}° vers ${b.vers}` : 'aucune œuvre à portée'));
+  }
+});
+test('les rayonnages sont UN ensemble qui murmure', () => {
+  // rayonnage-2 est l'œuvre maîtresse ; les cinq autres la rejoignent par
+  // partOf (un cartel, une entrée de catalogue), et le murmure vit sur
+  // TROIS d'entre eux en triangle — il n'a pas de source, il a un lieu
+  const maitre = JSON.parse(readFileSync(join(ici, '..', 'content', 'works',
+    'rayonnage-2.json'), 'utf8'));
+  assert.ok(maitre.role !== 'decor' && !maitre.partOf);
+  assert.equal(maitre.stems?.[0]?.file, 'audio/rayonnage-murmure.wav');
+  let voix = 1;
+  for (const i of [1, 3, 4, 5, 6]) {
+    const m = JSON.parse(readFileSync(join(ici, '..', 'content', 'works',
+      `rayonnage-${i}.json`), 'utf8'));
+    assert.equal(m.partOf, 'rayonnage-2', `rayonnage-${i} hors de l’ensemble`);
+    if (m.stems?.length) voix++;
+  }
+  assert.equal(voix, 3, 'le murmure vit sur trois rayonnages');
+});
+test('le carillon du couloir existe, salle ET index du combineur', () => {
+  // la leçon de l'onde stationnaire : une œuvre absente de works/index.json
+  // existe sur le disque et manque au build
+  const w = JSON.parse(readFileSync(join(ici, '..', 'content', 'works',
+    'carillon-fenetres.json'), 'utf8'));
+  assert.equal(w.stems?.[0]?.file, 'audio/carillon-fenetres.wav');
+  assert.equal(w.solid, false, 'un carillon suspendu ne bloque pas le pas');
+  const salle = JSON.parse(readFileSync(join(ici, '..', 'content', 'rooms',
+    'couloir-est.json'), 'utf8'));
+  assert.ok(salle.works.includes('carillon-fenetres'));
+  const idx = JSON.parse(readFileSync(join(ici, '..', 'content', 'works',
+    'index.json'), 'utf8'));
+  const noms = (Array.isArray(idx) ? idx : idx.works).map(String);
+  assert.ok(noms.includes('carillon-fenetres.json'),
+    'absent de works/index.json : œuvre fantôme au build');
+});
+test('les voix de la bibliothèque et du couloir sont générées', () => {
+  const gen = readFileSync(join(ici, 'generate-assets.mjs'), 'utf8');
+  assert.ok(gen.includes('rayonnage-murmure.wav'));
+  assert.ok(gen.includes('carillon-fenetres.wav'));
 });
 
 console.log(`\n${ok} ✓ / ${ko} ✗`);

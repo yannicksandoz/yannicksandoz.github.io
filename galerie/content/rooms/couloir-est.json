@@ -53,7 +53,8 @@
   "envIntensity": 1.05,
   "works": [
     "lanterne-couloir-1",
-    "lanterne-couloir-2"
+    "lanterne-couloir-2",
+    "carillon-fenetres"
   ],
   "portals": [
     {

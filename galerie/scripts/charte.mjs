@@ -316,6 +316,54 @@ export function auditRythme() {
       ? rapports.reduce((x, y) => x + y, 0) / rapports.length : 0 };
 }
 
+/**
+ * LES BANCS — la zone de repos regarde quelque chose.
+ *
+ * Un banc de musée n'est jamais posé au hasard : il offre une ASSISE à la
+ * contemplation — face à une œuvre, à la bonne distance. Un banc qui
+ * tourne le dos à tout transforme le repos en salle d'attente.
+ *
+ * Pour chaque banc posé à plat (les bancs des faces de gravité vivent dans
+ * une autre géométrie), on cherche une œuvre à moins de 25 m dont la
+ * direction fait ≤ 45° avec l'axe d'assise (±Z local tourné par la
+ * rotation Y — une assise a deux côtés, l'angle est pris des deux). Le
+ * banc-œuvre (banc d'écoute) est jugé comme les autres, contre les AUTRES
+ * œuvres de sa salle ; s'il est la seule, il n'a rien à regarder et la
+ * règle se tait.
+ */
+export function auditBancs() {
+  const oeuvres = new Map(toutesLesOeuvres().map((w) => [w.id, w]));
+  const rapport = [];
+  for (const s of salles()) {
+    const habitants = (s.works ?? []).map((n) => oeuvres.get(n)).filter(Boolean);
+    const cibles = habitants.filter((w) => w.role !== 'decor' && !w.partOf);
+    for (const banc of habitants.filter((w) => w.id.startsWith('banc'))) {
+      const [rx, ry, rz] = banc.rotation ?? [0, 0, 0];
+      if (rx || rz) continue;              // face de gravité : autre géométrie
+      const autres = cibles.filter((w) => w.id !== banc.id);
+      if (!autres.length) continue;        // seul au monde : rien à regarder
+      const [bx, , bz] = banc.position ?? [0, 0, 0];
+      const a = (ry ?? 0) * (Math.PI / 180);
+      const fx = Math.sin(a), fz = Math.cos(a);   // ±Z local, tourné
+      let meilleur = null;
+      for (const w of autres) {
+        const [wx, , wz] = w.position ?? [0, 0, 0];
+        const dx = wx - bx, dz = wz - bz;
+        const d = Math.hypot(dx, dz);
+        if (d < 0.5 || d > 25) continue;
+        const cos = Math.abs(((dx * fx) + (dz * fz)) / d);  // les deux côtés
+        const angle = Math.acos(Math.min(1, cos)) * (180 / Math.PI);
+        if (!meilleur || angle < meilleur.angle) {
+          meilleur = { vers: w.id, angle, distance: d };
+        }
+      }
+      rapport.push({ id: banc.id, salle: s.id, ...(meilleur ?? {}),
+        regarde: Boolean(meilleur && meilleur.angle <= 45) });
+    }
+  }
+  return rapport;
+}
+
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
   console.log('\nLES SALLES\n');
   console.log('  salle           sol    mur   écart  sat.  teinte  verdict');
@@ -346,6 +394,12 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
   for (const v of auditVista()) {
     console.log(`  ${v.id.padEnd(14)} plus proche à ${v.plusProche.toFixed(1)} m`
       + ` (plafond ${v.plafond.toFixed(0)} m)  ` + (v.cadrable ? '✓' : '✗'));
+  }
+  console.log('\nLES BANCS (le repos regarde une œuvre)\n');
+  for (const b of auditBancs()) {
+    console.log(`  ${b.id.padEnd(18)} ${b.vers
+      ? `→ ${b.vers} (${b.angle.toFixed(0)}°, ${b.distance.toFixed(1)} m)`
+      : 'aucune œuvre à portée'}  ${b.regarde ? '✓' : '✗'}`);
   }
   const rythme = auditRythme();
   console.log('\nLE RYTHME (compression → dilatation, par passage)\n');

@@ -1355,11 +1355,21 @@ passage par le rapport des surfaces des deux salles reliées : la galerie
 doit garder au moins un grand geste (rapport ≥ 3) et une respiration
 moyenne ≥ 1,5. Aujourd'hui : couloir → belvédère ×8,2, moyenne ×3,26.
 
+**Les bancs.** Une zone de repos regarde quelque chose : chaque banc posé
+à plat doit avoir une œuvre à moins de 25 m dans l'axe de son assise
+(± 45°, l'assise a deux côtés) — un banc qui tourne le dos à tout
+transforme le repos en salle d'attente. `auditBancs` le vérifie ; les
+bancs d'écoute, seuls œuvres de leur salle, n'ont rien à regarder et la
+règle se tait.
+
 **Le quatuor des Archives.** Les quatre stèles sont des œuvres écoutables :
 quatre voix générées d'un même accord de ré (la grave, l'alto, le ténor, le
 souffle — `scripts/generate-assets.mjs`), chacune audible à moins de huit
 mètres de sa stèle. Marcher entre elles compose le quatuor : la salle est
-l'instrument, le visiteur est l'archet.
+l'instrument, le visiteur est l'archet. La **bibliothèque** murmure de même
+(les six rayonnages forment UN ensemble — `partOf` — dont trois portent un
+feuilletage généré), et le **couloir** a gagné son œuvre : le *Carillon des
+fenêtres*, un anneau de métal suspendu qui tinte l'accord de ré.
 
 L'**image d'environnement** qui nourrit l'IBL se choisit dans
 `reglages.json` : `"environnement": "studio"` (le défaut, un studio neutre
