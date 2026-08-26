@@ -275,6 +275,47 @@ export function auditVista() {
   return rapport;
 }
 
+/**
+ * LE RYTHME DU PARCOURS — la respiration des salles.
+ *
+ * La scénographie alterne COMPRESSION et DILATATION : un couloir bas qui
+ * débouche sur un grand hall rend le hall immense — c'est le contraste qui
+ * fait l'échelle, pas les mètres. Une suite de salles de même gabarit,
+ * elle, s'oublie en marchant.
+ *
+ * On mesure chaque passage (chaque portail) par le rapport des surfaces
+ * des deux salles qu'il relie : 1 = aucun changement, 3 = le souffle
+ * coupé. Deux exigences douces : qu'il existe au moins UN grand geste
+ * (rapport ≥ 3 quelque part), et que la galerie respire en moyenne
+ * (rapport moyen ≥ 1,5) — rien qui dicte le plan, tout qui interdit la
+ * monotonie silencieuse.
+ */
+export function auditRythme() {
+  const toutes = salles();
+  const surfaces = new Map(toutes.map((s) => {
+    const { w, d } = dimensionsSalle(s);
+    return [s.id, w * d];
+  }));
+  const passages = [];
+  const vus = new Set();
+  for (const s of toutes) {
+    for (const p of s.portals ?? []) {
+      if (!surfaces.has(p.to)) continue;
+      const cle = [s.id, p.to].sort().join('↔');
+      if (vus.has(cle)) continue;          // l'aller-retour est UN passage
+      vus.add(cle);
+      const a = surfaces.get(s.id), b = surfaces.get(p.to);
+      passages.push({ de: s.id, vers: p.to,
+        rapport: Math.max(a, b) / Math.max(1, Math.min(a, b)) });
+    }
+  }
+  const rapports = passages.map((p) => p.rapport);
+  return { passages,
+    plusGrand: rapports.length ? Math.max(...rapports) : 0,
+    moyen: rapports.length
+      ? rapports.reduce((x, y) => x + y, 0) / rapports.length : 0 };
+}
+
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
   console.log('\nLES SALLES\n');
   console.log('  salle           sol    mur   écart  sat.  teinte  verdict');
@@ -306,5 +347,12 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
     console.log(`  ${v.id.padEnd(14)} plus proche à ${v.plusProche.toFixed(1)} m`
       + ` (plafond ${v.plafond.toFixed(0)} m)  ` + (v.cadrable ? '✓' : '✗'));
   }
+  const rythme = auditRythme();
+  console.log('\nLE RYTHME (compression → dilatation, par passage)\n');
+  for (const p of rythme.passages.sort((a, b) => b.rapport - a.rapport)) {
+    console.log(`  ${(p.de + ' ↔ ' + p.vers).padEnd(28)} ×${p.rapport.toFixed(1)}`);
+  }
+  console.log(`\n  plus grand geste ×${rythme.plusGrand.toFixed(1)}`
+    + `   respiration moyenne ×${rythme.moyen.toFixed(2)}`);
   console.log();
 }

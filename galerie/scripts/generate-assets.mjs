@@ -217,4 +217,56 @@ writeWav('monolithe-pulse.wav', synth((t) => {
   return env * sub + air;
 }));
 
+
+/* --------------------------------------------- le quatuor des Archives --- */
+//
+// Quatre stèles, quatre voix d'un même accord de ré : chacune ne s'entend
+// qu'auprès de sa stèle (rayon court), et marcher entre elles COMPOSE le
+// quatuor — la salle est l'instrument. Toutes les fréquences font un nombre
+// entier de cycles sur 6 s (f = k/6) : les boucles sont sans couture, et
+// superposées elles restent accordées quelle que soit la position de
+// l'écoutant.
+
+// La grave : bourdon de fondation (ré 73,33 Hz et sa quinte), respiration lente
+writeWav('stele-voix-grave.wav', synth((t) => {
+  const am = 0.62 + 0.38 * Math.sin(TAU * (1 / 6) * t);
+  return am * (Math.sin(TAU * (440 / 6) * t)
+    + 0.55 * Math.sin(TAU * 110 * t)
+    + 0.2 * Math.sin(TAU * (880 / 6) * t));
+}));
+
+// L'alto : l'accord tenu (ré–fa#–la), battement lent entre deux ré voisins
+writeWav('stele-voix-alto.wav', synth((t) => {
+  const am = 0.7 + 0.3 * Math.sin(TAU * (1 / 3) * t + 1.2);
+  const battement = Math.sin(TAU * (880 / 6) * t)
+    + Math.sin(TAU * (880 / 6 + 1 / 3) * t);
+  return am * (0.5 * battement
+    + 0.4 * Math.sin(TAU * (1100 / 6) * t)
+    + 0.3 * Math.sin(TAU * 220 * t));
+}));
+
+// Le ténor : notes égrenées, cloches lointaines de l'accord (8 pas de 0,75 s)
+writeWav('stele-voix-tenor.wav', synth((t) => {
+  const NOTES = [880 / 3, 220, 1100 / 3, 880 / 3, 440, 1100 / 3, 220, 880 / 3];
+  const pas = 0.75;
+  const idx = Math.floor(t / pas) % NOTES.length;
+  const tt = t % pas;
+  const env = Math.min(1, tt / 0.01) * Math.exp(-tt * 4);
+  return env * (Math.sin(TAU * NOTES[idx] * tt)
+    + 0.3 * Math.sin(TAU * NOTES[idx] * 2 * tt)) * 0.8;
+}));
+
+// Le souffle : l'air des rayonnages — un chœur de partiels hauts et détunés
+// sous fenêtres lentes, ni note ni bruit, la poussière sonore d'une archive
+writeWav('stele-voix-souffle.wav', synth((t) => {
+  let s = 0;
+  for (let k = 0; k < 9; k++) {
+    const f = (5280 + (k * 754)) / 6;              // partiels inharmoniques, k/6
+    const fen = 0.5 + 0.5 * Math.sin(TAU * ((k % 3) + 1) / 6 * t + k * 2.1);
+    s += Math.sin(TAU * f * t + k) * fen * (0.12 / (1 + k * 0.35));
+  }
+  const am = 0.55 + 0.45 * Math.sin(TAU * (1 / 6) * t + 4);
+  return s * am;
+}));
+
 console.log('\nAssets générés dans content/textures et content/audio.');

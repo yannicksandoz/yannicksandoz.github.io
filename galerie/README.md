@@ -1340,6 +1340,27 @@ leur « mur » est un lointain, leur lumière est le ciel. `node
 scripts/charte.mjs` imprime le rapport salle par salle ; une salle qui jure
 fait rougir la chaîne de tests avant de partir en ligne.
 
+**Les cartels.** Toute œuvre (jamais le décor) porte sa plaque
+d'identification DANS le monde, pas seulement dans la fiche cliquable : une
+œuvre murale la reçoit dans le plan du panneau, à sa droite, centrée à
+1,45 m — la norme d'accrochage ; une œuvre en volume reçoit une plaque de
+socle posée à côté d'elle (1,15 m), qui pivote vers le visiteur autour de
+la verticale. Lettres de 4,5 cm : lisibles à deux ou trois mètres, la
+distance d'un cartel réel — s'approcher pour lire est le geste muséal
+voulu, celui qui rapproche aussi du son. `"cartel": false` y renonce.
+
+**Le rythme.** La scénographie fait l'échelle par le contraste — un couloir
+qui débouche sur un hall rend le hall immense. `auditRythme` mesure chaque
+passage par le rapport des surfaces des deux salles reliées : la galerie
+doit garder au moins un grand geste (rapport ≥ 3) et une respiration
+moyenne ≥ 1,5. Aujourd'hui : couloir → belvédère ×8,2, moyenne ×3,26.
+
+**Le quatuor des Archives.** Les quatre stèles sont des œuvres écoutables :
+quatre voix générées d'un même accord de ré (la grave, l'alto, le ténor, le
+souffle — `scripts/generate-assets.mjs`), chacune audible à moins de huit
+mètres de sa stèle. Marcher entre elles compose le quatuor : la salle est
+l'instrument, le visiteur est l'archet.
+
 L'**image d'environnement** qui nourrit l'IBL se choisit dans
 `reglages.json` : `"environnement": "studio"` (le défaut, un studio neutre
 généré), `"aube"` ou `"appartement"` — deux panoramas HDR de Poly Haven

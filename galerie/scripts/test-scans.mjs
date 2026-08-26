@@ -105,7 +105,9 @@ test('Artwork traite « scan », en premier et dynamiquement', () => {
   assert.ok(src.includes('cfg.scan'), 'pas de branche scan');
   assert.ok(src.includes("import('./scans.js')"),
     'l’import doit rester dynamique — la bibliothèque dans son morceau');
-  assert.ok(src.indexOf('cfg.scan') < src.indexOf('cfg.image'),
+  // on compare les BRANCHES du dispatch, pas les positions globales des
+  // chaînes : le cartel d'œuvre mentionne aussi cfg.image, plus haut
+  assert.ok(src.indexOf('if (cfg.scan') < src.indexOf('} else if (cfg.image'),
     'scan doit passer avant image');
 });
 test('scans.js garde les deux choix qui ne se voient pas', () => {

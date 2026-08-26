@@ -20,7 +20,7 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { CHARTE, EXTERIEURS, clarte, teinteEtSaturation, ecartTeinte,
   auditSalles, auditAccrochage, auditRecul, auditHierarchie, auditVista,
-  salles } from './charte.mjs';
+  auditRythme, salles } from './charte.mjs';
 
 let ok = 0, ko = 0;
 const test = (nom, fn) => {
@@ -143,6 +143,50 @@ test('le premier regard a une œuvre à cadrer, à bonne distance', () => {
     assert.ok(s.cadrable,
       `${s.id} : œuvre la plus proche à ${s.plusProche.toFixed(1)} m `
       + `(fenêtre : 2 m à ${s.plafond.toFixed(0)} m)`);
+  }
+});
+
+
+titre('le rythme du parcours, et les cartels');
+test('la galerie respire — compression et dilatation existent', () => {
+  // la scénographie fait l'échelle par le CONTRASTE : un couloir qui
+  // débouche sur un hall rend le hall immense. On exige au moins un grand
+  // geste (rapport de surfaces ≥ 3 sur un passage) et une respiration
+  // moyenne ≥ 1,5 — rien qui dicte le plan, tout qui interdit la monotonie.
+  const r = auditRythme();
+  if (!r.passages.length) { console.log('    (pas de contenu — sauté)'); return; }
+  assert.ok(r.plusGrand >= 3,
+    `plus grand geste ×${r.plusGrand.toFixed(1)} — aucun passage ne coupe le souffle`);
+  assert.ok(r.moyen >= 1.5, `respiration moyenne ×${r.moyen.toFixed(2)}`);
+});
+test('toute œuvre porte son cartel dans le monde', () => {
+  // la plaque d'identification du musée : dans le plan du panneau pour une
+  // œuvre murale (centre à 1,45 m), posée à côté et pivotante pour un
+  // volume (1,15 m). Le décor n'en porte pas ; « "cartel": false » y renonce.
+  const art = readFileSync(join(ici, '..', 'engine', 'src', 'core',
+    'Artwork.js'), 'utf8');
+  assert.ok(art.includes('_buildCartel'), 'le cartel d’œuvre a disparu');
+  assert.ok(art.includes('1.45 - posY'), 'plaque murale à 1,45 m');
+  assert.ok(art.includes('1.15 - posY'), 'plaque de volume à 1,15 m');
+  assert.ok(art.includes("config.cartel !== false"), 'l’opt-out doit exister');
+  assert.ok(art.includes("config.role !== 'decor' && !config.partOf\n      && config.title")
+    || /role !== 'decor'[\s\S]{0,120}config\.title/.test(art),
+  'seules les œuvres titrées en portent un');
+  assert.ok(art.includes('disposerCartel(this._cartel)'),
+    'la plaque doit être libérée avec l’œuvre');
+});
+test('le quatuor des Archives est écoutable, et généré', () => {
+  // quatre stèles, quatre voix d'un même accord de ré : chacune ne
+  // s'entend qu'auprès de sa stèle, la salle est l'instrument
+  const gen = readFileSync(join(ici, 'generate-assets.mjs'), 'utf8');
+  for (const voix of ['grave', 'alto', 'tenor', 'souffle']) {
+    assert.ok(gen.includes(`stele-voix-${voix}.wav`), `voix ${voix} absente du générateur`);
+    const w = JSON.parse(readFileSync(join(ici, '..', 'content', 'works',
+      `stele-archives-${['grave', 'alto', 'tenor', 'souffle'].indexOf(voix) + 1}.json`), 'utf8'));
+    assert.ok(w.role !== 'decor', 'une stèle qui chante est une œuvre');
+    assert.equal(w.stems?.[0]?.file, `audio/stele-voix-${voix}.wav`);
+    assert.ok((w.stems?.[0]?.radius ?? 99) <= 10,
+      'rayon court : chaque voix ne s’entend qu’auprès de sa stèle');
   }
 });
 

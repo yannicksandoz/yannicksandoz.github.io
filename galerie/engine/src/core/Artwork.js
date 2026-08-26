@@ -7,6 +7,7 @@ import { EDITOR_AVAILABLE } from '../editorLoader.js';
 import { isWalkable } from './utils.js';
 import { scaleObjetUV } from './textures.js';
 import { jeuDeSurface } from './matieres.js';
+import { creerCartel, tournerVersCamera, disposerCartel } from './cartels.js';
 
 // crossOrigin « anonymous » : indispensable pour les médias distants, dont
 // les pixels doivent être lisibles par WebGL (l'hôte doit autoriser le CORS).
@@ -185,6 +186,72 @@ export class Artwork {
     if (!app.headless && config.role !== 'decor' && !config.partOf) {
       this._buildBeacon();
     }
+
+    // LE CARTEL — la plaque d'identification, comme au musée. Toute œuvre
+    // (pas le décor) porte son titre dans le monde, pas seulement dans la
+    // fiche cliquable : une galerie sans cartels demande au visiteur de
+    // cliquer pour savoir DEVANT QUOI il se tient. `"cartel": false` dans
+    // le JSON y renonce pour une œuvre qui veut rester anonyme.
+    this._cartel = null;
+    this._cartelPivote = false;
+    if (!app.headless && config.role !== 'decor' && !config.partOf
+      && config.title && config.cartel !== false) {
+      this._buildCartel();
+    }
+  }
+
+  /**
+   * La pose suit la norme d'accrochage des musées :
+   *
+   *   • une œuvre MURALE (image, vidéo) reçoit sa plaque dans le PLAN du
+   *     panneau, à sa droite, centrée à 1,45 m du sol — là où toutes les
+   *     galeries du monde la mettent, là où la main irait la chercher ;
+   *
+   *   • une œuvre en VOLUME (sculpture, scan, primitive) reçoit une plaque
+   *     posée à côté d'elle, plus basse (1,15 m, la hauteur d'un pupitre),
+   *     qui PIVOTE vers le visiteur — une plaque de socle, pas une enseigne.
+   *
+   * Taille des lettres : 4,5 cm — lisible à deux ou trois mètres, la
+   * distance d'un cartel réel ; il faut s'approcher pour lire, et c'est le
+   * geste muséal voulu, celui qui rapproche aussi de l'œuvre (et du son).
+   */
+  _buildCartel() {
+    const cfg = this.config;
+    const auteur = cfg.credit?.author;
+    const texte = auteur && auteur !== 'Galerie'
+      ? `${cfg.title}\n${auteur}` : cfg.title;
+    const cartel = creerCartel({
+      texte, taille: 0.045, largeur: 1.7,
+      ancrageX: 'center', ancrageY: 'middle', opacite: 0.92
+    });
+    if (!cartel) return;
+    const posY = (cfg.position ?? [0, 0, 0])[1] ?? 0;
+    const mural = Boolean(cfg.image || cfg.video);
+    if (mural) {
+      const largeur = (cfg.size ?? [2, 2])[0] * ((cfg.scale ?? [1, 1, 1])[0] ?? 1);
+      cartel.position.set((largeur / 2) + 0.35, 1.45 - posY, 0.02);
+    } else {
+      // à côté du VOLUME, pas dedans : l'écart se mesure sur la boîte
+      // englobante réelle (le hitMesh existe dès la construction), plus la
+      // demi-largeur du texte — la plaque pivote autour de son origine, et
+      // c'est cette origine qui doit être hors de l'œuvre
+      let demiX = 0.5;
+      const geo = this.hitMesh?.geometry;
+      if (geo) {
+        geo.computeBoundingBox();
+        demiX = Math.max(demiX, (geo.boundingBox.max.x - geo.boundingBox.min.x) / 2);
+      }
+      const sx = (cfg.scale ?? [1, 1, 1])[0] || 1;
+      cartel.position.set(demiX + ((0.3 + 0.85) / sx), 1.15 - posY, 0);
+      this._cartelPivote = true;
+    }
+    // le groupe de l'œuvre porte parfois une échelle (une stèle est une
+    // boîte étirée) : la plaque la compense, ses lettres restent des lettres
+    const s = cfg.scale ?? [1, 1, 1];
+    cartel.scale.set(1 / (s[0] || 1), 1 / (s[1] || 1), 1 / (s[2] || 1));
+    cartel.renderOrder = 2;
+    this._cartel = cartel;
+    this.group.add(cartel);
   }
 
   _buildBeacon() {
@@ -768,6 +835,12 @@ export class Artwork {
     // panoramique binaural — raisonnait sur un point qui n'existe pas.
     this._distance = ctx.cameraPos.distanceTo(this.worldPosition);
 
+    // la plaque d'une œuvre en volume pivote vers le visiteur — autour de
+    // la verticale seulement, comme les étiquettes de portail
+    if (this._cartel && this._cartelPivote && this._distance < 30) {
+      tournerVersCamera(this._cartel, this.app.camera);
+    }
+
     // chargement paresseux à l'approche, libération au-delà
     const loadDist = this.config.loadDistance ?? 50;
     const unloadDist = loadDist * 1.6;
@@ -888,6 +961,12 @@ export class Artwork {
 
   dispose() {
     for (const m of this.modules) m.dispose();
+    // la plaque d'abord : ses lettres partagent leurs ressources avec les
+    // autres cartels — c'est disposerCartel qui sait quoi rendre à qui
+    if (this._cartel) {
+      disposerCartel(this._cartel);
+      this._cartel = null;
+    }
     this.forceUnload();
     this.group.traverse((o) => {
       o.geometry?.dispose();
