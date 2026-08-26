@@ -19,7 +19,8 @@ import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { CHARTE, EXTERIEURS, clarte, teinteEtSaturation, ecartTeinte,
-  auditSalles, auditAccrochage, salles } from './charte.mjs';
+  auditSalles, auditAccrochage, auditRecul, auditHierarchie, auditVista,
+  salles } from './charte.mjs';
 
 let ok = 0, ko = 0;
 const test = (nom, fn) => {
@@ -107,6 +108,42 @@ test('jardin et allée ne sont pas jugés sur leurs murs', () => {
   assert.ok(EXTERIEURS.has('jardin') && EXTERIEURS.has('allee'));
   const jardin = rapport.find((l) => l.id === 'jardin');
   if (jardin) assert.ok(jardin.dehors, 'le jardin doit être reconnu extérieur');
+});
+
+titre('muséographie, second étage : recul, hiérarchie, vista');
+test('chaque œuvre murale a son recul — 1,5 fois sa diagonale', () => {
+  // la règle des galeristes : on regarde une œuvre depuis 1,5 à 3 fois sa
+  // diagonale ; sans cet espace libre devant elle, le visiteur ne peut
+  // physiquement pas la voir en entier
+  const recul = auditRecul();
+  if (!recul.length) { console.log('    (aucune œuvre murale — sauté)'); return; }
+  for (const r of recul) {
+    assert.ok(r.manque <= 0,
+      `${r.id} (${r.salle}) : ${r.libre.toFixed(1)} m libres pour `
+      + `${r.requis.toFixed(1)} m requis`);
+  }
+});
+test('l’accent le plus fort va aux œuvres, jamais au décor', () => {
+  // la lune du labo éclairait à 6 quand les œuvres plafonnaient à 4 :
+  // l'œil allait au décor. Dans un musée, la hiérarchie lumineuse EST la
+  // hiérarchie du propos.
+  const h = auditHierarchie();
+  if (!h.length) { console.log('    (pas de contenu — sauté)'); return; }
+  for (const s of h) {
+    assert.ok(!s.inversee,
+      `${s.id} : décor à ${s.maxDecor} au-dessus des œuvres à ${s.maxOeuvre}`);
+  }
+});
+test('le premier regard a une œuvre à cadrer, à bonne distance', () => {
+  // le moteur cadre l'œuvre la plus proche du point d'arrivée ; encore
+  // faut-il qu'elle existe, ni collée au spawn ni perdue dans la brume
+  const v = auditVista();
+  if (!v.length) { console.log('    (pas de contenu — sauté)'); return; }
+  for (const s of v) {
+    assert.ok(s.cadrable,
+      `${s.id} : œuvre la plus proche à ${s.plusProche.toFixed(1)} m `
+      + `(fenêtre : 2 m à ${s.plafond.toFixed(0)} m)`);
+  }
 });
 
 console.log(`\n${ok} ✓ / ${ko} ✗`);

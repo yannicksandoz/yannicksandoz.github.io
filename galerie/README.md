@@ -1331,6 +1331,9 @@ muséographie, pas d'un goût :
 | une salle = **une teinte** | sol et mur à ≤ 15° l'un de l'autre |
 | une **lumière de référence** | intensité 2,4 (± 0,4), élévation 55° (± 12) |
 | l'**accrochage à hauteur d'œil** | centre à 1,50 m ; les très grands formats gardent leur bas à 0,90 m |
+| le **recul** d'une œuvre murale | ≥ 1,5 × sa diagonale d'espace libre devant elle |
+| la **hiérarchie lumineuse** | l'accent le plus fort va aux œuvres — jamais à une lanterne ou une lune de décor |
+| la **vista d'entrée** | le premier regard (cadré par le moteur) trouve une œuvre entre 2 m et 80 % de la diagonale de la salle |
 
 Les extérieurs (jardin, allée) sont exemptés des deux premières règles :
 leur « mur » est un lointain, leur lumière est le ciel. `node

@@ -2,11 +2,28 @@
   "id": "onde-stationnaire",
   "title": "Onde stationnaire",
   "description": "Scan gaussien de démonstration : une membrane figée en pleine vibration, sable de Chladni suspendu au-dessus des ventres. Fabriqué par scripts/genere-scan-demo.mjs — remplacez-le par votre propre capture (Polycam, Luma, .splat/.ksplat/.ply).",
-  "position": [-9, 1.5, -13],
-  "rotation": [0, 15, 0],
-  "scale": [1, 1, 1],
+  "position": [
+    -9,
+    1.5,
+    -13
+  ],
+  "rotation": [
+    0,
+    15,
+    0
+  ],
+  "scale": [
+    1,
+    1,
+    1
+  ],
   "scan": "assets/scans/onde-stationnaire.splat",
-  "scanTaille": [4.2, 1.8, 4.2],
+  "scanTaille": [
+    4.2,
+    1.8,
+    4.2
+  ],
   "solid": false,
-  "lightColor": "#8a6cff"
+  "lightColor": "#8a6cff",
+  "lightIntensity": 5.5
 }

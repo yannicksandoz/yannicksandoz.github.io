@@ -173,6 +173,108 @@ export function auditAccrochage() {
   });
 }
 
+/* ------------------------------------------- muséographie, second étage -- */
+
+/** Toutes les œuvres du contenu, id compris, ou []. */
+function toutesLesOeuvres() {
+  const dossier = join(RACINE, 'works');
+  if (!existsSync(dossier)) return [];
+  return readdirSync(dossier)
+    .filter((n) => n.endsWith('.json') && n !== 'index.json')
+    .map((n) => ({ id: n.slice(0, -5), ...JSON.parse(readFileSync(join(dossier, n), 'utf8')) }));
+}
+
+/** Largeur/profondeur utiles d'une salle : la coque, à défaut le sol. */
+function dimensionsSalle(s) {
+  if (s.shell && typeof s.shell === 'object') {
+    return { w: s.shell.width ?? 26, d: s.shell.depth ?? 20 };
+  }
+  const taille = (typeof s.floor === 'object' ? s.floor?.size : null) ?? 40;
+  return { w: taille, d: taille };
+}
+
+/**
+ * LE RECUL — la règle des galeristes : on regarde une œuvre depuis 1,5 à
+ * 3 fois sa diagonale. Une œuvre murale doit donc avoir AU MOINS 1,5
+ * diagonale d'espace libre devant elle ; sinon le visiteur ne peut
+ * physiquement pas la voir en entier. On mesure la distance de l'œuvre à
+ * la paroi d'en face le long de sa normale (la rotation Y du panneau).
+ */
+export function auditRecul() {
+  const parId = new Map(salles().map((s) => [s.id, s]));
+  const salleDe = new Map();
+  for (const s of parId.values()) {
+    for (const w of s.works ?? []) salleDe.set(w, s);
+  }
+  return oeuvresMurales().map((w) => {
+    const s = salleDe.get(w.id);
+    if (!s) return null;
+    const { w: lw, d: ld } = dimensionsSalle(s);
+    const [px, , pz] = w.position ?? [0, 0, 0];
+    const ry = ((w.rotation ?? [0, 0, 0])[1] ?? 0) * (Math.PI / 180);
+    // normale d'un plan : +z dans son repère, tournée par la rotation Y
+    const nx = Math.sin(ry), nz = Math.cos(ry);
+    // distance au bord de la salle le long de la normale (x ±w/2, z ±d/2)
+    const borne = (p, n, demi) => (Math.abs(n) < 1e-4 ? Infinity
+      : ((n > 0 ? demi : -demi) - p) / n);
+    const libre = Math.min(borne(px, nx, lw / 2), borne(pz, nz, ld / 2));
+    const [sw, sh] = w.size ?? [2, 2];
+    const diagonale = Math.hypot(sw * ((w.scale ?? [1, 1, 1])[0] ?? 1),
+      sh * ((w.scale ?? [1, 1, 1])[1] ?? 1));
+    return { id: w.id, salle: s.id, libre, diagonale,
+      requis: 1.5 * diagonale, manque: (1.5 * diagonale) - libre };
+  }).filter(Boolean);
+}
+
+/**
+ * LA HIÉRARCHIE LUMINEUSE — dans un musée, l'accent le plus fort va aux
+ * ŒUVRES ; la circulation et le décor forment un fond qui soutient sans
+ * rivaliser. Une salle où une lanterne ou une lune de décor éclaire plus
+ * fort que la pièce maîtresse inverse la lecture : l'œil va au décor.
+ */
+export function auditHierarchie() {
+  const oeuvres = new Map(toutesLesOeuvres().map((w) => [w.id, w]));
+  const rapport = [];
+  for (const s of salles()) {
+    const habitants = (s.works ?? []).map((n) => oeuvres.get(n)).filter(Boolean);
+    const accent = (w) => w.lightIntensity ?? 4;
+    const majeures = habitants.filter((w) => w.role !== 'decor' && !w.partOf);
+    const decor = habitants.filter((w) => w.role === 'decor');
+    if (!majeures.length) continue;      // salle de circulation : rien à juger
+    const maxOeuvre = Math.max(...majeures.map(accent));
+    const maxDecor = Math.max(0, ...decor.map(accent));
+    rapport.push({ id: s.id, maxOeuvre, maxDecor, inversee: maxDecor > maxOeuvre });
+  }
+  return rapport;
+}
+
+/**
+ * LA VISTA — le premier regard du visiteur (le moteur cadre l'œuvre la plus
+ * proche du point d'arrivée) doit avoir quelque chose à cadrer : une œuvre
+ * ni collée au spawn (< 2 m : on apparaît dessus) ni perdue au-delà de 80 %
+ * de la diagonale de la salle (on cadre un point dans la brume).
+ */
+export function auditVista() {
+  const oeuvres = new Map(toutesLesOeuvres().map((w) => [w.id, w]));
+  const rapport = [];
+  for (const s of salles()) {
+    const habitants = (s.works ?? []).map((n) => oeuvres.get(n)).filter(Boolean)
+      .filter((w) => w.role !== 'decor' && !w.partOf);
+    if (!habitants.length) continue;
+    const { w: lw, d: ld } = dimensionsSalle(s);
+    const diag = Math.hypot(lw, ld);
+    const [sx, , sz] = s.spawn ?? [0, 2.2, 10];
+    const distances = habitants.map((w) => {
+      const [x, , z] = w.position ?? [0, 0, 0];
+      return Math.hypot(x - sx, z - sz);
+    });
+    const plusProche = Math.min(...distances);
+    rapport.push({ id: s.id, plusProche, plafond: 0.8 * diag,
+      cadrable: plusProche >= 2 && plusProche <= 0.8 * diag });
+  }
+  return rapport;
+}
+
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
   console.log('\nLES SALLES\n');
   console.log('  salle           sol    mur   écart  sat.  teinte  verdict');
@@ -187,6 +289,22 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
     console.log(`  ${a.id.padEnd(14)} y=${a.y.toFixed(2)} m  (haut ${a.hauteur} m)`
       + `  visé ${a.vise.toFixed(2)} m  `
       + (Math.abs(a.ecart) > 0.25 ? `✗ ${a.ecart > 0 ? '+' : ''}${a.ecart.toFixed(2)} m` : '✓'));
+  }
+  console.log('\nLE RECUL (≥ 1,5 × la diagonale de l’œuvre)\n');
+  for (const r of auditRecul()) {
+    console.log(`  ${r.id.padEnd(14)} ${r.libre.toFixed(1)} m libres devant`
+      + ` (diag ${r.diagonale.toFixed(1)} m, requis ${r.requis.toFixed(1)} m)  `
+      + (r.manque > 0 ? `✗ manque ${r.manque.toFixed(1)} m` : '✓'));
+  }
+  console.log('\nLA HIÉRARCHIE LUMINEUSE (l’accent va aux œuvres)\n');
+  for (const h of auditHierarchie()) {
+    console.log(`  ${h.id.padEnd(14)} œuvre ${h.maxOeuvre} / décor ${h.maxDecor}  `
+      + (h.inversee ? '✗ le décor éclipse les œuvres' : '✓'));
+  }
+  console.log('\nLA VISTA (le premier regard a une œuvre à cadrer)\n');
+  for (const v of auditVista()) {
+    console.log(`  ${v.id.padEnd(14)} plus proche à ${v.plusProche.toFixed(1)} m`
+      + ` (plafond ${v.plafond.toFixed(0)} m)  ` + (v.cadrable ? '✓' : '✗'));
   }
   console.log();
 }
