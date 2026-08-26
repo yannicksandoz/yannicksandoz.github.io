@@ -67,7 +67,10 @@ export const PRIMITIVES = {
   // gerbe : des dizaines de rais partant d'UN point (buildGerbe fait le reste)
   gerbe: { label: 'Gerbe', build: (s) => new THREE.SphereGeometry(s * 0.1, 8, 6) },
   // la géométrie réelle (essaim de points) se construit dans buildPrimitive
-  lucioles: { label: 'Lucioles', build: (s) => new THREE.BoxGeometry(s, s, s) }
+  lucioles: { label: 'Lucioles', build: (s) => new THREE.BoxGeometry(s, s, s) },
+  // ruban paramétrique : une coque balayée le long d'une courbe — l'outil
+  // des formes fluides (buildRuban fait le vrai travail)
+  ruban: { label: 'Ruban', build: (s) => new THREE.BoxGeometry(s, s * 0.1, s * 0.3) }
 };
 
 /**
@@ -183,6 +186,7 @@ export function buildPrimitive(model, echelle = null) {
   if (model.shape === 'corniche') return buildCorniche(size, model);
   if (model.shape === 'gerbe') return buildGerbe(size, model);
   if (model.shape === 'lucioles') return buildLucioles(size, model);
+  if (model.shape === 'ruban') return buildRuban(size, model, echelle);
 
   return finishPrimitive(def, size, model, echelle);
 }
@@ -610,6 +614,96 @@ function buildLucioles(size, model) {
   const points = new THREE.Points(geo, mat);
   points.raycast = () => {};
   return points;
+}
+
+/**
+ * LE RUBAN — l'outil de design des formes fluides (mode Hadid ou pas).
+ *
+ * Une coque balayée le long d'une courbe de Catmull-Rom, section
+ * super-elliptique aplatie : c'est la brique des références — la rampe qui
+ * devient garde-corps, le voile qui devient toit. Tout est dans le JSON :
+ *
+ *   "model": {
+ *     "shape": "ruban",
+ *     "points": [[-2,0,0], [-0.6,0.9,0.5], [0.8,1.7,-0.5], [2,2.6,0]],
+ *     "largeur": 1.2,        // largeur de la section (m)
+ *     "largeurFin": 0.5,     // …à l'arrivée (défaut : constante)
+ *     "epaisseur": 0.14,     // épaisseur de la coque
+ *     "torsion": 90,         // vrille totale le long du chemin (degrés)
+ *     "ferme": false         // true : la courbe se referme (anneau)
+ *   }
+ *
+ * La section n'est pas un rectangle : une super-ellipse d'exposant 4 —
+ * des faces presque planes, des angles fondus, le profil d'une coque
+ * moulée et non d'une planche. L'éditeur expose points et paramètres ;
+ * les UV sont posés en MÈTRES (u le long du chemin, v autour), si bien
+ * que les textures de la galerie s'y déroulent sans étirement.
+ */
+function buildRuban(size, model, echelle = null) {
+  const brut = Array.isArray(model.points) && model.points.length >= 2
+    ? model.points
+    : [[-size, 0, 0], [-size * 0.3, size * 0.45, size * 0.3],
+       [size * 0.4, size * 0.85, -size * 0.3], [size, size * 1.3, 0]];
+  const pts = brut.map((q) => new THREE.Vector3(q[0] ?? 0, q[1] ?? 0, q[2] ?? 0));
+  const ferme = model.ferme === true;
+  const courbe = new THREE.CatmullRomCurve3(pts, ferme, 'centripetal');
+
+  const SEG = Math.min(220, Math.max(32, pts.length * 24));
+  const COTE = 20;                          // points de la section
+  const larg0 = Math.max(0.05, model.largeur ?? size * 0.8);
+  const larg1 = Math.max(0.05, model.largeurFin ?? larg0);
+  const ep = Math.max(0.02, model.epaisseur ?? 0.14);
+  const torsion = THREE.MathUtils.degToRad(model.torsion ?? 0);
+
+  const reperes = courbe.computeFrenetFrames(SEG, ferme);
+  const pos = [], nrm = [], uv = [], idx = [];
+  const centre = new THREE.Vector3();
+  const q = new THREE.Vector3();
+
+  // longueur cumulée : les UV comptent en mètres, pas en paramètre
+  const longueurs = courbe.getLengths(SEG);
+
+  for (let i = 0; i <= SEG; i++) {
+    const t = i / SEG;
+    courbe.getPointAt(t, centre);
+    const N = reperes.normals[Math.min(i, SEG - 1)];
+    const B = reperes.binormals[Math.min(i, SEG - 1)];
+    const demiL = THREE.MathUtils.lerp(larg0, larg1, t) / 2;
+    const demiE = ep / 2;
+    const vrille = torsion * t;
+    const cv = Math.cos(vrille), sv = Math.sin(vrille);
+    for (let j = 0; j <= COTE; j++) {
+      const a = (j / COTE) * Math.PI * 2;
+      // super-ellipse n=4 : |cos|^(2/n) — faces planes, angles fondus
+      const sgn = (x) => (x < 0 ? -1 : 1);
+      const ca = Math.cos(a), sa = Math.sin(a);
+      const px = sgn(ca) * Math.abs(ca) ** 0.5 * demiL;
+      const py = sgn(sa) * Math.abs(sa) ** 0.5 * demiE;
+      // vrille de la section dans le plan (N, B)
+      const rx = px * cv - py * sv;
+      const ry = px * sv + py * cv;
+      q.copy(centre).addScaledVector(N, ry).addScaledVector(B, rx);
+      pos.push(q.x, q.y, q.z);
+      // normale approchée : radiale dans le plan de section (lissée ensuite)
+      nrm.push(0, 0, 1);
+      uv.push(longueurs[Math.min(i, SEG - 1)], (j / COTE) * (demiL * 2 + ep));
+    }
+  }
+  const ligne = COTE + 1;
+  for (let i = 0; i < SEG; i++) {
+    for (let j = 0; j < COTE; j++) {
+      const a1 = i * ligne + j, b1 = a1 + ligne;
+      idx.push(a1, b1, a1 + 1, b1, b1 + 1, a1 + 1);
+    }
+  }
+  const geometry = new THREE.BufferGeometry();
+  geometry.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+  geometry.setAttribute('normal', new THREE.Float32BufferAttribute(nrm, 3));
+  geometry.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2));
+  geometry.setIndex(idx);
+  geometry.computeVertexNormals();
+
+  return finishPrimitive({ build: () => geometry }, size, model, echelle);
 }
 
 /**

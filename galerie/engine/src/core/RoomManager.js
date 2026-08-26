@@ -5,6 +5,7 @@ import { styleTexture, scaleBoxUV, scalePlaneUV, scaleWorldUV, scaleObjetUV,
   patcherRepetition, TILE }
   from './textures.js';
 import { styleMatiere, jeuDeSurface } from './matieres.js';
+import { estFluide, materiauFluide, dessinerCouronne } from './style.js';
 import { aDesSourcesEtendues } from './primitives.js';
 import { delaiDe, fermer, estFerme, tick as tickCooldown } from './Cooldown.js';
 import { reverbDePiece } from './reverb-reglages.js';
@@ -1360,12 +1361,18 @@ export function silhouetteOuverture(o, length, height) {
  * `sink` enfonce le pied sous le sol : deux faces exactement coplanaires
  * grésillent, et le pied de mur clignotait sur toute sa longueur.
  */
-function murPerce(length, height, ouvertures, sink) {
+function murPerce(length, height, ouvertures, sink, { couronneFluide = false } = {}) {
   const forme = new THREE.Shape();
   forme.moveTo(-length / 2, -sink);
   forme.lineTo(length / 2, -sink);
-  forme.lineTo(length / 2, height);
-  forme.lineTo(-length / 2, height);
+  if (couronneFluide) {
+    // le couronnement fluide (mode Hadid) vit dans style.js — fonction
+    // pure, conduite par la suite de tests sans WebGL
+    dessinerCouronne(forme, length, height);
+  } else {
+    forme.lineTo(length / 2, height);
+    forme.lineTo(-length / 2, height);
+  }
   forme.lineTo(-length / 2, -sink);
   for (const b of ouvertures) forme.holes.push(contourBaie(b, 0, height));
 
@@ -1519,7 +1526,8 @@ export function buildShell(config) {
   const mur = (wall, length, x, z, rotY) => {
     const ouvertures = winsOf(wall)
       .map((o) => baie(o, length, h)).filter(Boolean);
-    const geo = murPerce(length, h, ouvertures, SINK);
+    const geo = murPerce(length, h, ouvertures, SINK,
+      { couronneFluide: estFluide() && !opt.ceiling });
     if (wallMap || wallMatiere) scaleWorldUV(geo, TILE / repMur);
     const m = new THREE.Mesh(geo, matFor(wall));
     m.position.set(x, 0, z);
@@ -1768,20 +1776,57 @@ function buildPortalMesh(cfg, label) {
     metalness: surface?.metalness ?? 0.6,
     emissive: PORTAL_COLOR, emissiveIntensity: 0.8
   });
-  const montant = () => {
-    const g = new THREE.BoxGeometry(0.14, 2.7, 0.14);
-    if (surface) scaleObjetUV(g, surface.metres);
-    return g;
-  };
-  const left = new THREE.Mesh(montant(), mat);
-  left.position.set(-0.85, 1.35, 0);
-  const right = new THREE.Mesh(montant(), mat);
-  right.position.set(0.85, 1.35, 0);
-  const geoLinteau = new THREE.BoxGeometry(1.84, 0.14, 0.14);
-  if (surface) scaleObjetUV(geoLinteau, surface.metres);
-  const lintel = new THREE.Mesh(geoLinteau, mat);
-  lintel.position.set(0, 2.77, 0);
-  group.add(left, right, lintel);
+  if (estFluide()) {
+    // MODE FLUIDE : le chambranle n'est plus trois barres mais UN anneau
+    // continu, adouci par un chanfrein généreux — l'ouverture organique
+    // des références (Heydar Aliyev), en blanc structurel. La teinte du
+    // portail reste dans son émission : c'est elle qui balise le chemin.
+    const anneau = (() => {
+      const arrondi = (forme, x, y, w2, hh, r) => {
+        forme.moveTo(x - w2 + r, y);
+        forme.lineTo(x + w2 - r, y);
+        forme.quadraticCurveTo(x + w2, y, x + w2, y + r);
+        forme.lineTo(x + w2, y + hh - r);
+        forme.quadraticCurveTo(x + w2, y + hh, x + w2 - r, y + hh);
+        forme.lineTo(x - w2 + r, y + hh);
+        forme.quadraticCurveTo(x - w2, y + hh, x - w2, y + hh - r);
+        forme.lineTo(x - w2, y + r);
+        forme.quadraticCurveTo(x - w2, y, x - w2 + r, y);
+      };
+      const externe = new THREE.Shape();
+      arrondi(externe, 0, 0, 1.14, 3.06, 0.62);
+      const interne = new THREE.Path();
+      arrondi(interne, 0, 0.06, 0.82, 2.72, 0.44);
+      externe.holes.push(interne);
+      const g = new THREE.ExtrudeGeometry(externe, {
+        depth: 0.16, curveSegments: 28,
+        bevelEnabled: true, bevelThickness: 0.07, bevelSize: 0.07,
+        bevelSegments: 5
+      });
+      g.translate(0, 0, -0.15);
+      return g;
+    })();
+    const matFluide = materiauFluide();
+    matFluide.emissive = new THREE.Color(PORTAL_COLOR);
+    matFluide.emissiveIntensity = 0.12;
+    const cadre = new THREE.Mesh(anneau, matFluide);
+    group.add(cadre);
+  } else {
+    const montant = () => {
+      const g = new THREE.BoxGeometry(0.14, 2.7, 0.14);
+      if (surface) scaleObjetUV(g, surface.metres);
+      return g;
+    };
+    const left = new THREE.Mesh(montant(), mat);
+    left.position.set(-0.85, 1.35, 0);
+    const right = new THREE.Mesh(montant(), mat);
+    right.position.set(0.85, 1.35, 0);
+    const geoLinteau = new THREE.BoxGeometry(1.84, 0.14, 0.14);
+    if (surface) scaleObjetUV(geoLinteau, surface.metres);
+    const lintel = new THREE.Mesh(geoLinteau, mat);
+    lintel.position.set(0, 2.77, 0);
+    group.add(left, right, lintel);
+  }
 
   const glow = new THREE.Mesh(
     new THREE.PlaneGeometry(1.56, 2.6),

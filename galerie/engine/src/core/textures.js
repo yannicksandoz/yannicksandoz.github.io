@@ -328,6 +328,9 @@ const _cache = new Map();
  */
 export function styleTexture(style) {
   if (!style || !PEINTRES[style]) return null;
+  // hors navigateur (suites au nœud), pas de canvas : le matériau part
+  // sans texture — même contrat que patcherGrain et styleMatiere
+  if (typeof document === 'undefined') return null;
   if (_cache.has(style)) return _cache.get(style);
   const [peindre, seed] = PEINTRES[style];
   const px = peindre(prng(seed));

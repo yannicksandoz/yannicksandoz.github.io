@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { patcherGrain } from './textures.js';
+import { estFluide, patcherStries } from './style.js';
 
 /**
  * Constructions voxel — données et rendu.
@@ -117,7 +118,7 @@ export function buildVoxelMesh(model, grid = gridOf(model)) {
   visible.forEach(([x, y, z, v], i) => {
     m.makeTranslation(...cellCenter(dims, cell, x, y, z));
     mesh.setMatrixAt(i, m);
-    mesh.setColorAt(i, palette[v - 1] ?? white);
+    mesh.setColorAt(i, teinteVoxel(palette[v - 1] ?? white));
   });
   mesh.instanceMatrix.needsUpdate = true;
   if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
@@ -202,11 +203,24 @@ export function buildVoxelMeshMerged(model, grid = gridOf(model)) {
       c0[2] + (sz - 1) * cell / 2
     );
     mesh.setMatrixAt(i, m);
-    mesh.setColorAt(i, palette[v - 1] ?? white);
+    mesh.setColorAt(i, teinteVoxel(palette[v - 1] ?? white));
   }
   mesh.instanceMatrix.needsUpdate = true;
   if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
   return mesh;
+}
+
+/**
+ * La couleur d'une cellule, selon le style. En mode FLUIDE, les masses
+ * deviennent la coque blanche des références — la palette ne survit qu'en
+ * murmure (18 %), assez pour qu'un escalier vert et un escalier ocre
+ * restent distincts de près, assez peu pour que l'ensemble se lise comme
+ * UNE architecture blanche striée et non comme un jouet.
+ */
+const _BLANC_FLUIDE = new THREE.Color('#e9e7f0');
+function teinteVoxel(couleur) {
+  if (!estFluide()) return couleur;
+  return couleur.clone().lerp(_BLANC_FLUIDE, 0.82);
 }
 
 /**
@@ -346,6 +360,18 @@ function buildVoxelMaterial() {
   // 38 cm il passe sous la marche ; la force et le relief redescendent
   // d'autant — un voxel a déjà ses arêtes franches pour dire son volume,
   // il n'a pas besoin qu'on lui en peigne d'autres par-dessus.
+  if (estFluide()) {
+    // MODE FLUIDE : le blanc structurel prend des STRIES sombres — les
+    // lignes du hall de la Dominion Tower — et son émission se tait
+    // (une coque blanche qui émet devient du lait). Le grain reste,
+    // plus doux : le plâtre n'est pas un plastique non plus.
+    material.roughness = 0.42;
+    material.emissiveIntensity = 0.05;
+    patcherGrain(material, 'poli', { echelle: 0.38, force: 0.1, relief: 0.18 });
+    patcherStries(material, { pas: 0.5, epaisseur: 0.12, force: 0.5 });
+    material.customProgramCacheKey = () => 'voxel-fluide';
+    return material;
+  }
   return patcherGrain(material, 'poli', { echelle: 0.38, force: 0.16, relief: 0.3 });
 }
 

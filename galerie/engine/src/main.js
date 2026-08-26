@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { setStyle } from './core/style.js';
 import './style.css';
 import { App } from './core/App.js';
 import { loadWorks, loadRooms, loadReglages } from './core/ConfigLoader.js';
@@ -117,7 +118,8 @@ async function boot() {
       loadRooms(),
       loadReglages()
     ]);
-    app.reglages = reglages;   // réglages généraux (délai des passages…)
+    app.reglages = reglages;
+    setStyle(reglages?.style);   // le mode architectural, AVANT toute construction   // réglages généraux (délai des passages…)
     buildScene(app, works, rooms);
     app.ui.setCredits(works);
     app.ui.setReady();
@@ -274,7 +276,8 @@ function bootHeadless() {
         const [works, rooms, reglages] = await Promise.all([
           loadWorks(), loadRooms(), loadReglages()]);
         const app = new App(document.getElementById('app'), { headless: true });
-        app.reglages = reglages;   // après la création : `app` n'existe qu'ici
+        app.reglages = reglages;
+    setStyle(reglages?.style);   // le mode architectural, AVANT toute construction   // après la création : `app` n'existe qu'ici
         // La mémoire avant la scène : pièces, œuvres et jetons la lisent en
         // naissant. Sans WebGL2 non plus, la visite ne repart pas de zéro.
         mountMemoire(app);
