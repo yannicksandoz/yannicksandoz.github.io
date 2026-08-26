@@ -20,7 +20,7 @@
  * Lancer avec : npm test
  */
 import assert from 'node:assert/strict';
-import { readFileSync, existsSync } from 'node:fs';
+import { readFileSync, existsSync, readdirSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { genererOnde } from './genere-scan-demo.mjs';
@@ -86,10 +86,18 @@ test('l’œuvre existe, avec son scan et son pavé de préhension', () => {
   assert.ok(Array.isArray(w.scanTaille) && w.scanTaille.length === 3);
   assert.equal(w.solid, false, 'un nuage de taches ne bloque pas la marche');
 });
-test('la pièce la liste, et l’index du combineur la connaît', () => {
-  const labo = JSON.parse(readFileSync(join(ici, '..', 'content', 'rooms',
-    'labo.json'), 'utf8'));
-  assert.ok(labo.works.includes('onde-stationnaire'), 'absente du labo');
+test('UNE pièce la liste, et l’index du combineur la connaît', () => {
+  // On vérifie la RÈGLE, pas l'adresse : une œuvre doit être listée par une
+  // salle (sinon elle n'existe nulle part) et par l'index (sinon le build
+  // combiné ne la voit pas). Nommer la salle en dur cassait ce test au
+  // premier déménagement, pour une raison qui n'avait rien à voir.
+  const dossier = join(ici, '..', 'content', 'rooms');
+  const salles = readdirSync(dossier).filter((f) => f.endsWith('.json'))
+    .map((f) => ({ id: f.replace(/\.json$/, ''),
+      ...JSON.parse(readFileSync(join(dossier, f), 'utf8')) }));
+  const hotes = salles.filter((s) => (s.works ?? []).includes('onde-stationnaire'));
+  assert.equal(hotes.length, 1,
+    `le scan est listé par ${hotes.length} salles (${hotes.map((s) => s.id)}) — il en faut une`);
   const index = JSON.parse(readFileSync(join(ici, '..', 'content', 'works',
     'index.json'), 'utf8'));
   const noms = (Array.isArray(index) ? index : index.works)

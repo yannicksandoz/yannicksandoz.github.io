@@ -20,7 +20,8 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { CHARTE, EXTERIEURS, clarte, teinteEtSaturation, ecartTeinte,
   auditSalles, auditAccrochage, auditRecul, auditHierarchie, auditVista,
-  auditRythme, auditBancs, salles } from './charte.mjs';
+  auditRythme, auditBancs, auditAmpleur, ampleurOeuvre, angleApparent,
+  arriveesDe, salles } from './charte.mjs';
 
 let ok = 0, ko = 0;
 const test = (nom, fn) => {
@@ -134,6 +135,116 @@ test('l’accent le plus fort va aux œuvres, jamais au décor', () => {
       `${s.id} : décor à ${s.maxDecor} au-dessus des œuvres à ${s.maxOeuvre}`);
   }
 });
+/**
+ * L'AMPLEUR À L'ARRIVÉE, et le cliquet qui la tient.
+ *
+ * Trois salles arrivent en DETTE sur cette règle — elle est neuve, et elle
+ * dit d'elles quelque chose de vrai. Les corriger demande des choix qui
+ * appartiennent à l'auteur (agrandir une œuvre, en ajouter une, déplacer
+ * une porte), pas au test. Elles sont donc nommées ici, avec leur raison :
+ *
+ *   • couloir-est — sa seule œuvre est un anneau d'1,2 m à 21 m du seuil,
+ *     soit 3° de champ. Un couloir est un passage, mais celui-là ne montre
+ *     RIEN de ce qu'il contient tant qu'on ne l'a pas traversé ;
+ *   • entree, jardin — leur seule œuvre est un banc d'écoute de 2,5 m ;
+ *     vu depuis les portes lointaines il tombe à 11°, tout juste sous le
+ *     seuil. C'est une salle sans œuvre dominante, pas une faute de pose.
+ *
+ * Le test n'exige pas qu'elles soient réparées ; il exige que la dette ne
+ * GRANDISSE PAS — aucune salle de plus, aucune arrivée de plus. Et il
+ * vérifie que les salles listées échouent ENCORE : le jour où l'auteur les
+ * répare, la liste devient fausse et le test le dit, plutôt que de laisser
+ * dormir une exemption qui ne protège plus rien.
+ */
+const DETTE_AMPLEUR = new Map([
+  ['couloir-est', ['spawn', 'depuis archives', 'depuis bibliotheque']],
+  ['entree', ['depuis archives', 'depuis jardin', 'depuis labo']],
+  ['jardin', ['depuis allee', 'depuis belvedere']]
+]);
+
+test('l’ampleur se mesure juste, quel que soit le type d’œuvre', () => {
+  // un panneau mural : sa diagonale, échelle comprise
+  assert.equal(
+    ampleurOeuvre({ size: [3, 4] }).metres.toFixed(2), '5.00');
+  assert.equal(
+    ampleurOeuvre({ size: [3, 4], scale: [2, 2, 2] }).metres.toFixed(2), '10.00');
+  // un scan : l'emprise horizontale la plus large et sa hauteur
+  assert.equal(
+    ampleurOeuvre({ scanTaille: [3, 4, 3] }).metres.toFixed(2), '5.00');
+  // un modèle importé normalisé par `fit` connaît sa taille
+  assert.equal(ampleurOeuvre({ model: { url: 'x.glb', fit: 3 } }).estimee, false);
+  // sans `fit`, elle est SUPPOSÉE — et le dit
+  assert.equal(ampleurOeuvre({ model: { url: 'x.glb' } }).estimee, true);
+  // l'angle : 1 m vu de 1 m couvre deux fois 26,57°
+  assert.equal(angleApparent(1, 1).toFixed(2), '53.13');
+  assert.ok(angleApparent(4, 28) < 9, 'le scan du labo faisait bien moins de 9°');
+});
+
+test('les points d’arrivée comptent le spawn ET chaque portail entrant', () => {
+  const toutes = salles();
+  if (!toutes.length) { console.log('    (pas de contenu — sauté)'); return; }
+  for (const s of toutes) {
+    const points = arriveesDe(s.id, toutes);
+    const entrants = toutes.flatMap((a) => (a.portals ?? [])
+      .filter((p) => p.to === s.id && Array.isArray(p.arrival)).length ? [a.id] : []);
+    assert.equal(points.length, (s.spawn ? 1 : 0) + entrants.length,
+      `${s.id} : ${points.length} arrivées pour ${entrants.length} portails entrants`);
+  }
+});
+
+test('en arrivant quelque part, on a quelque chose à regarder', () => {
+  const rapport = auditAmpleur();
+  if (!rapport.length) { console.log('    (pas de contenu — sauté)'); return; }
+  const enDette = new Map();
+  for (const a of rapport.filter((x) => !x.suffisant)) {
+    if (!enDette.has(a.id)) enDette.set(a.id, []);
+    enDette.get(a.id).push(a.arrivee);
+  }
+  // aucune salle de plus que la dette connue
+  for (const [id, arrivees] of enDette) {
+    const connues = DETTE_AMPLEUR.get(id);
+    assert.ok(connues, `${id} tombe sous ${CHARTE.angleMinimal}° et n’était pas en dette`
+      + ` (${arrivees.join(', ')}) — voir DETTE_AMPLEUR`);
+    for (const a of arrivees) {
+      assert.ok(connues.includes(a),
+        `${id} : nouvelle arrivée en dette « ${a} »`);
+    }
+  }
+  // et la dette listée est encore RÉELLE : une exemption périmée ment
+  for (const [id] of DETTE_AMPLEUR) {
+    assert.ok(enDette.has(id),
+      `${id} passe désormais la règle : retirez-la de DETTE_AMPLEUR`);
+  }
+});
+
+test('les salles hors dette tiennent la règle à chaque porte', () => {
+  const rapport = auditAmpleur();
+  if (!rapport.length) { console.log('    (pas de contenu — sauté)'); return; }
+  const saines = rapport.filter((a) => !DETTE_AMPLEUR.has(a.id));
+  assert.ok(saines.length >= 20, `trop peu de salles auditées (${saines.length})`);
+  for (const a of saines) {
+    assert.ok(a.suffisant, `${a.id} (${a.arrivee}) : ${a.oeuvre} n’occupe que`
+      + ` ${a.angle.toFixed(1)}° (minimum ${CHARTE.angleMinimal}°)`);
+  }
+});
+
+test('le scan habite l’annexe, à la bonne ampleur', () => {
+  const annexe = salles().find((s) => s.id === 'annexe');
+  if (!annexe) { console.log('    (pas de contenu — sauté)'); return; }
+  assert.ok(annexe.works?.includes('onde-stationnaire'),
+    'le scan doit vivre dans l’annexe');
+  const labo = salles().find((s) => s.id === 'labo');
+  assert.ok(!labo?.works?.includes('onde-stationnaire'),
+    'le scan ne doit plus être compté deux fois');
+  // il domine son arrivée, sans écraser le recul (1,5 à 3 diagonales)
+  for (const a of auditAmpleur().filter((x) => x.id === 'annexe')) {
+    assert.equal(a.oeuvre, 'onde-stationnaire',
+      `${a.arrivee} : le scan devrait être l’œuvre la plus ample`);
+    assert.ok(a.angle >= 19 && a.angle <= 37,
+      `${a.arrivee} : ${a.angle.toFixed(1)}° hors de la bande de confort 19–37°`);
+  }
+});
+
 test('le premier regard a une œuvre à cadrer, à bonne distance', () => {
   // le moteur cadre l'œuvre la plus proche du point d'arrivée ; encore
   // faut-il qu'elle existe, ni collée au spawn ni perdue dans la brume

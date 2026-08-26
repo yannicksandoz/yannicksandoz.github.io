@@ -15,7 +15,8 @@
   ],
   "works": [
     "echo",
-    "lanterne-annexe"
+    "lanterne-annexe",
+    "onde-stationnaire"
   ],
   "portals": [
     {
@@ -39,7 +40,7 @@
   },
   "keyLight": {
     "color": "#9f8cd8",
-    "intensity": 2.0,
+    "intensity": 2,
     "azimuth": 240,
     "elevation": 48
   },
@@ -47,7 +48,7 @@
   "jetons": [
     [
       3,
-      1.0,
+      1,
       2
     ]
   ],

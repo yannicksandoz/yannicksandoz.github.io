@@ -54,7 +54,14 @@ export const CHARTE = {
   saturationMax: 45,                        // %
   ecartTeinteMax: 15,                       // degrés
   lumiere: { intensite: 2.4, marge: 0.4, elevation: 55, margeElevation: 12 },
-  accrochage: { centre: 1.5, basMinimum: 0.9 }
+  accrochage: { centre: 1.5, basMinimum: 0.9 },
+  // L'ANGLE MINIMAL d'une œuvre depuis un point d'arrivée, en degrés.
+  // Il se DÉDUIT de la règle de recul : on regarde une œuvre entre 1,5 et
+  // 3 diagonales, ce qui la fait occuper de 37° à 19° du champ. Au-delà de
+  // 3 diagonales elle sort du confort ; on laisse une fois et demie cette
+  // distance — 5 diagonales, soit 11,4°, arrondi à 12 — avant de dire
+  // qu'elle a cessé d'être un sujet pour devenir un détail du décor.
+  angleMinimal: 12
 };
 
 /* ------------------------------------------------------------ couleurs -- */
@@ -276,6 +283,129 @@ export function auditVista() {
 }
 
 /**
+ * L'AMPLEUR d'une œuvre : sa plus grande diagonale apparente, en mètres,
+ * échelle comprise. Chaque type de contenu la porte à sa façon — c'est
+ * l'endroit unique qui sait les lire tous.
+ *
+ * Rendue avec un drapeau `estimee` : un modèle importé sans `fit` n'annonce
+ * sa taille nulle part dans le JSON (elle est dans le .glb), on suppose
+ * alors 1,5 m et on le dit plutôt que de faire passer une supposition pour
+ * une mesure.
+ */
+export function ampleurOeuvre(w) {
+  const s = w.scale ?? [1, 1, 1];
+  const [sx, sy, sz] = [s[0] ?? 1, s[1] ?? 1, s[2] ?? 1];
+  // largeur = la plus grande des deux emprises horizontales : une œuvre se
+  // regarde de face, mais on ne sait pas d'où l'on arrive
+  const horizontal = Math.max(sx, sz);
+  const diag = (l, h) => Math.hypot(l * horizontal, h * sy);
+
+  if (Array.isArray(w.size) && w.size.length === 2) {
+    return { metres: diag(w.size[0], w.size[1]), estimee: false };
+  }
+  if (Array.isArray(w.scanTaille) && w.scanTaille.length === 3) {
+    const [x, y, z] = w.scanTaille;
+    return { metres: diag(Math.max(x, z), y), estimee: false };
+  }
+  const m = w.model ?? {};
+  if (m.shape === 'monolith') {
+    // BoxGeometry(1.1, height, 1.1) — voir Artwork._buildMonolith
+    return { metres: diag(1.1, m.height ?? 4), estimee: false };
+  }
+  if (m.type === 'voxel') {
+    const [dx, dy] = m.dims ?? [16, 16, 16];
+    const cell = m.cell ?? 0.25;
+    return { metres: diag(dx * cell, dy * cell), estimee: false };
+  }
+  if (m.shape) {
+    // emprises des primitives, telles que `primitives.js` les construit
+    const t = Number.isFinite(m.size) ? m.size : 1.5;
+    const EMPRISES = {
+      box: [1, 1], sphere: [1.2, 1.2], plane: [1.6, 1],
+      cylinder: [1, 1.6], cone: [1.2, 1.6], torus: [1.64, 1.64],
+      eau: [1.6, 1], faisceau: [1.7, 6], lucioles: [1, 1]
+    };
+    const [l, h] = EMPRISES[m.shape] ?? [1, 1];
+    return { metres: diag(l * t, h * t), estimee: false };
+  }
+  if (m.url) {
+    // `fit` normalise le modèle à tant de mètres — c'est sa taille réelle
+    if (Number.isFinite(m.fit)) return { metres: diag(m.fit, m.fit), estimee: false };
+    return { metres: diag(1.5, 1.5), estimee: true };
+  }
+  return { metres: diag(1.5, 1.5), estimee: true };
+}
+
+/** Angle apparent (degrés) d'une ampleur donnée, vue de `distance` mètres. */
+export function angleApparent(metres, distance) {
+  if (!(distance > 0)) return 180;
+  return 2 * Math.atan(metres / (2 * distance)) * (180 / Math.PI);
+}
+
+/**
+ * TOUS LES POINTS D'ARRIVÉE d'une salle : son `spawn`, et le point de
+ * dépose de chaque portail qui y mène. On n'entre pas toujours par la
+ * grande porte, et une salle qui n'a de vue que depuis son spawn ment sur
+ * la moitié de ses entrées.
+ */
+export function arriveesDe(salleId, toutes) {
+  const points = [];
+  const s = toutes.find((r) => r.id === salleId);
+  if (s?.spawn) points.push({ nom: 'spawn', p: s.spawn });
+  for (const autre of toutes) {
+    for (const portail of autre.portals ?? []) {
+      if (portail.to !== salleId || !Array.isArray(portail.arrival)) continue;
+      points.push({ nom: `depuis ${autre.id}`, p: portail.arrival });
+    }
+  }
+  return points;
+}
+
+/**
+ * L'AMPLEUR À L'ARRIVÉE — ce qui manquait à la charte.
+ *
+ * La règle de recul dit « pas trop PRÈS » : une œuvre a besoin d'au moins
+ * 1,5 diagonale d'espace devant elle pour se voir en entier. Rien ne
+ * disait « pas trop LOIN », et c'est exactement ce qui s'est produit : le
+ * scan gaussien du labo, 4 m de nuage, se retrouvait cadré en plein centre
+ * du champ… à 28 m, dans une salle de 36 × 44. Il occupait 8° — une tache
+ * de quarante pixels entre deux grandes œuvres. Rien ne le signalait,
+ * puisqu'il passait le recul, la vista et la hiérarchie.
+ *
+ * On mesure donc, pour CHAQUE point d'arrivée d'une salle, l'angle de la
+ * plus ample de ses œuvres. Il en faut au moins UNE au-dessus du seuil :
+ * en arrivant quelque part, on doit avoir quelque chose à regarder.
+ */
+export function auditAmpleur() {
+  const oeuvres = new Map(toutesLesOeuvres().map((w) => [w.id, w]));
+  const toutes = salles();
+  const rapport = [];
+  for (const s of toutes) {
+    const habitants = (s.works ?? []).map((n) => oeuvres.get(n)).filter(Boolean)
+      .filter((w) => w.role !== 'decor' && !w.partOf);
+    if (!habitants.length) continue;
+    for (const arrivee of arriveesDe(s.id, toutes)) {
+      const [ax, , az] = arrivee.p;
+      let meilleure = null;
+      for (const w of habitants) {
+        const [x, , z] = w.position ?? [0, 0, 0];
+        const distance = Math.hypot(x - ax, z - az);
+        const { metres, estimee } = ampleurOeuvre(w);
+        const angle = angleApparent(metres, distance);
+        if (!meilleure || angle > meilleure.angle) {
+          meilleure = { oeuvre: w.id, angle, distance, metres, estimee };
+        }
+      }
+      rapport.push({
+        id: s.id, arrivee: arrivee.nom, ...meilleure,
+        suffisant: meilleure.angle >= CHARTE.angleMinimal
+      });
+    }
+  }
+  return rapport;
+}
+
+/**
  * LE RYTHME DU PARCOURS — la respiration des salles.
  *
  * La scénographie alterne COMPRESSION et DILATATION : un couloir bas qui
@@ -394,6 +524,15 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
   for (const v of auditVista()) {
     console.log(`  ${v.id.padEnd(14)} plus proche à ${v.plusProche.toFixed(1)} m`
       + ` (plafond ${v.plafond.toFixed(0)} m)  ` + (v.cadrable ? '✓' : '✗'));
+  }
+  console.log(`\nL'AMPLEUR À L'ARRIVÉE (au moins ${CHARTE.angleMinimal}° de champ)\n`);
+  for (const a of auditAmpleur()) {
+    console.log(`  ${a.id.padEnd(12)} ${a.arrivee.padEnd(20)}`
+      // une décimale : à l'unité près, 11,9 et 12,0 s'affichaient tous deux
+      // « 12° », l'un fautif et l'autre non — un rapport qui se contredit
+      + ` ${a.angle.toFixed(1).padStart(5)}°  ${a.oeuvre.padEnd(20)}`
+      + ` ${a.metres.toFixed(1)} m à ${a.distance.toFixed(0)} m`
+      + `${a.estimee ? ' (ampleur estimée)' : ''}  ` + (a.suffisant ? '✓' : '✗'));
   }
   console.log('\nLES BANCS (le repos regarde une œuvre)\n');
   for (const b of auditBancs()) {

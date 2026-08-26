@@ -1369,11 +1369,39 @@ muséographie, pas d'un goût :
 | le **recul** d'une œuvre murale | ≥ 1,5 × sa diagonale d'espace libre devant elle |
 | la **hiérarchie lumineuse** | l'accent le plus fort va aux œuvres — jamais à une lanterne ou une lune de décor |
 | la **vista d'entrée** | le premier regard (cadré par le moteur) trouve une œuvre entre 2 m et 80 % de la diagonale de la salle |
+| l'**ampleur à l'arrivée** | depuis CHAQUE entrée d'une salle (son spawn et chaque portail entrant), au moins une œuvre occupe ≥ 12° du champ |
 
 Les extérieurs (jardin, allée) sont exemptés des deux premières règles :
 leur « mur » est un lointain, leur lumière est le ciel. `node
 scripts/charte.mjs` imprime le rapport salle par salle ; une salle qui jure
 fait rougir la chaîne de tests avant de partir en ligne.
+
+**L'ampleur, et pourquoi 12°.** Le recul disait « pas trop PRÈS » ; rien ne
+disait « pas trop LOIN », et c'est exactement ce qui est arrivé : le scan
+gaussien, 4 m de nuage, se retrouvait cadré en plein centre du champ… à
+28 m, dans une salle de 36 × 44. Il occupait 8° — une tache de quarante
+pixels entre deux grandes œuvres. Il passait pourtant le recul, la vista et
+la hiérarchie : aucune règle ne parlait de la taille APPARENTE.
+
+Le seuil se déduit du recul plutôt que de sortir de nulle part : on regarde
+une œuvre entre 1,5 et 3 diagonales, soit de 37° à 19° de champ. Au-delà de
+3 diagonales on quitte le confort ; on laisse une fois et demie cette
+distance — 5 diagonales, soit 11,4°, arrondi à 12 — avant de dire qu'une
+œuvre a cessé d'être un sujet pour devenir un détail du décor.
+
+La mesure se fait depuis TOUS les points d'arrivée, pas seulement le spawn :
+on n'entre pas toujours par la grande porte, et une salle qui n'a de vue que
+depuis son spawn ment sur la moitié de ses entrées.
+
+Trois salles arrivent en dette sur cette règle neuve — `couloir-est` (son
+unique œuvre est un anneau d'1,2 m à 21 m du seuil : 3°), `entree` et
+`jardin` (leur unique œuvre est un banc d'écoute de 2,5 m, à 11° depuis les
+portes lointaines). Les corriger demande des choix d'auteur, pas de code :
+elles sont donc nommées dans `DETTE_AMPLEUR` (`test-charte.mjs`), avec leur
+raison. Le test n'exige pas qu'elles soient réparées — il exige que la dette
+ne GRANDISSE pas, et que les salles listées échouent encore : le jour où
+l'une est réparée, l'exemption devient fausse et le test le dit, plutôt que
+de laisser dormir une dispense qui ne protège plus rien.
 
 **Les cartels.** Toute œuvre (jamais le décor) porte sa plaque
 d'identification DANS le monde, pas seulement dans la fiche cliquable : une
