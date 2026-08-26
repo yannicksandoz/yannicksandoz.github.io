@@ -311,6 +311,26 @@ constantes des peintres (rangées de briques, largeur de planche, pas du
 râteau) sont désormais déduites de `SIZE` — la définition change, les
 proportions ne bougent pas.
 
+**Les coques aussi sont matière.** Le remède des voxels ne les touchait
+pas : un mur de salle n'est pas une construction voxel, sa tuile est posée
+en UV et non en projection monde. Mesuré sur un mur du belvédère (écart-type
+de luminance, carte retirée puis remise) : les taches venaient de l'ALBÉDO
+pour 3,3 sur 14 — et le relief pour **0,00**, c'est-à-dire rien. Deux causes,
+deux gestes :
+
+- `peindrePierre` n'avait que deux octaves, à 4 et 8 cellules par tuile de
+  deux mètres — soit des motifs de 50 et 25 cm. À cette taille la pierre ne
+  se lit pas comme une matière mais comme des nuages. Elle en a désormais
+  quatre : les basses fréquences rabotées de moitié pour que le mur ne soit
+  pas un aplat, et le grain qui manquait à 12 puis 6 cm, la taille d'un
+  éclat.
+- Sa tuile se répète tous les deux mètres : vingt-cinq copies en largeur sur
+  les cinquante mètres du belvédère. `patcherRepetition` y applique la même
+  décorrélation d'octaves que le grain des voxels, mais en UV — et sans
+  réécrire l'échantillonnage de three : on module SON résultat, donc son
+  chunk `map_fragment` reste le sien. Les matières photographiques (bois,
+  brique) gardent leur échelle physique : on n'y touche pas.
+
 Restait la **répétition du réseau**, visible dès qu'on longe une volée.
 C'est un problème étudié : [Quilez](https://www.shadertoy.com/view/4tsGzf)
 tire un décalage aléatoire par tuile et fond les tuiles voisines près des

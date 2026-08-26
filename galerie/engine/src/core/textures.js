@@ -80,12 +80,23 @@ function valueNoise(rand, period) {
    Autour de 0,9 de moyenne : la couleur du matériau reste maîtresse. */
 
 function peindrePierre(rand) {
+  // QUATRE OCTAVES, ET LES BASSES RABOTÉES. Deux octaves à 4 et 8 cellules
+  // par tuile donnaient, sur une tuile de deux mètres, des motifs de 50 et
+  // 25 cm : à cette taille la pierre ne se lit plus comme une matière mais
+  // comme des nuages. On garde les basses fréquences pour que le mur ne
+  // soit pas un aplat, mais on divise leur amplitude par deux et on ajoute
+  // ce qui manquait — du grain à 12 puis 6 cm, la taille d'un éclat.
   const n1 = valueNoise(rand, 4), n2 = valueNoise(rand, 8);
+  const n3 = valueNoise(rand, 16), n4 = valueNoise(rand, 32);
   const px = [];
   for (let y = 0; y < SIZE; y++) {
     for (let x = 0; x < SIZE; x++) {
       const f = x / SIZE * 4, g = y / SIZE * 4;
-      let v = 0.88 + (n1(f, g) - 0.5) * 0.18 + (n2(f * 2, g * 2) - 0.5) * 0.10;
+      let v = 0.88
+        + ((n1(f, g) - 0.5) * 0.09)
+        + ((n2(f * 2, g * 2) - 0.5) * 0.06)
+        + ((n3(f * 4, g * 4) - 0.5) * 0.07)
+        + ((n4(f * 8, g * 8) - 0.5) * 0.05);
       if (rand() < 0.03) v -= 0.10; // piqûres sombres éparses
       px.push(v);
     }
@@ -437,6 +448,51 @@ export function scaleObjetUV(geometry, metres = TILE, echelle = null) {
  * n'importe quel MeshStandardMaterial, en préservant un `onBeforeCompile`
  * déjà posé (le voxel en a un, pour sa couleur d'instance).
  */
+/**
+ * CASSER LA RÉPÉTITION D'UNE COQUE — le même remède que pour le grain des
+ * voxels, mais pour une texture posée en UV et non en projection monde.
+ *
+ * Un mur de coque répète sa tuile tous les deux mètres. Sur les cinquante
+ * mètres du belvédère, cela fait vingt-cinq copies identiques en largeur et
+ * autant en hauteur : l'œil ne voit plus de la pierre, il voit un carrelage
+ * de photocopies. On ajoute donc une SECONDE lecture de la même tuile, à
+ * une échelle dont le rapport à la première est irrationnel (le nombre
+ * d'or) et tournée d'un angle qui n'est pas un quart de tour. Deux réseaux
+ * incommensurables ne se réalignent jamais.
+ *
+ * On n'écrit pas par-dessus l'échantillonnage de three : on module SON
+ * résultat. Le chunk `map_fragment` reste le sien (donc ses corrections
+ * d'espace colorimétrique, ses variantes vidéo), et le patch ne dépend que
+ * de deux choses stables : l'existence de `map` et de `vMapUv`.
+ *
+ * Les tuiles procédurales tournent autour de 0,9 : diviser par cette
+ * moyenne garde la clarté du mur inchangée — on casse le motif, on ne
+ * repeint pas la salle.
+ */
+export function patcherRepetition(material, force = 0.45) {
+  if (!material || typeof document === 'undefined') return material;
+  const precedent = material.onBeforeCompile;
+  material.onBeforeCompile = (shader, renderer) => {
+    precedent?.call(material, shader, renderer);
+    shader.uniforms.uRepetForce = { value: force };
+    shader.fragmentShader = shader.fragmentShader
+      .replace('#include <common>', `#include <common>
+        uniform float uRepetForce;`)
+      .replace('#include <map_fragment>', `#include <map_fragment>
+        #ifdef USE_MAP
+          // nombre d'or et rotation de ~33° : ni les pas ni les axes des
+          // deux réseaux ne sont commensurables
+          mat2 repBiais = mat2(0.8391, -0.5440, 0.5440, 0.8391);
+          float repOctave = texture2D(map, repBiais * vMapUv * 1.6180339887 + 0.37).r;
+          diffuseColor.rgb *= mix(1.0, repOctave / 0.9, uRepetForce);
+        #endif`);
+    // deux matériaux au même programme ne doivent pas se partager le cache
+    material.customProgramCacheKey = () => `repet-${force}`;
+  };
+  material.needsUpdate = true;
+  return material;
+}
+
 export function patcherGrain(material, style = 'poli',
   { echelle = 1.4, force = 0.65, relief = 0.5 } = {}) {
   // hors navigateur (les suites au nœud construisent de vrais maillages

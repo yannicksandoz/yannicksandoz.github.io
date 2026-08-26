@@ -1,7 +1,8 @@
 import * as THREE from 'three';
 import { assetUrl, isWalkable } from './utils.js';
 import { buildSky, disposeSky, updateSkyUniforms } from './Sky.js';
-import { styleTexture, scaleBoxUV, scalePlaneUV, scaleWorldUV, scaleObjetUV, TILE }
+import { styleTexture, scaleBoxUV, scalePlaneUV, scaleWorldUV, scaleObjetUV,
+  patcherRepetition, TILE }
   from './textures.js';
 import { styleMatiere, jeuDeSurface } from './matieres.js';
 import { delaiDe, fermer, estFerme, tick as tickCooldown } from './Cooldown.js';
@@ -1163,6 +1164,11 @@ export function buildFloor(config) {
       metalness: Number.isFinite(opt.metalness) ? opt.metalness : 0.05
     })
   );
+  // Une TUILE PROCÉDURALE se répète tous les deux mètres : sur un sol de
+  // cinquante, c'est vingt-cinq copies dans chaque direction. On décorrèle
+  // (voir patcherRepetition). Les MATIÈRES photographiques, elles, ont leur
+  // propre échelle physique et leur relief — on n'y touche pas.
+  if (!matiere && map) patcherRepetition(plane.material, 0.45);
   plane.rotation.x = -Math.PI / 2;
   plane.receiveShadow = true;
   // le sol ne doit pas intercepter le sélecteur d'œuvres ni les rayons de
@@ -1418,6 +1424,10 @@ export function buildShell(config) {
           : (wallMatiere ? wallMatiere.roughness : 0.88),
         metalness: Number.isFinite(opt.metalness) ? opt.metalness : 0.04
       }));
+      // même remède qu'au sol : une tuile procédurale répétée vingt-cinq
+      // fois en largeur sur un mur de cinquante mètres n'est plus de la
+      // pierre, c'est un carrelage de photocopies (voir patcherRepetition)
+      if (!wallMatiere && wallMap) patcherRepetition(materials.get(color), 0.45);
     }
     return materials.get(color);
   };
