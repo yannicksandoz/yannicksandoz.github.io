@@ -36,6 +36,14 @@ export class QualityManager {
           maxTextureSize: 1024,
           shadows: false,
           shadowMapSize: 1024,
+          // SOURCES ÉTENDUES (corniches) : aucune sur mobile. Mesuré au
+          // belvédère, quatre bandeaux de 46 m coûtaient 26 % de l'image —
+          // chaque pixel de chaque surface y intègre une LTC par lampe, et
+          // le cube en présente beaucoup. Le TRAIT, lui, ne coûte presque
+          // rien : on garde donc la ligne de lumière, on retire la source.
+          // La salle garde sa lumière clé et ses ponctuelles : rien
+          // n'éteint, c'est le dégradé sur le mur qui s'en va.
+          sourcesEtendues: 0,
           envIntensity: 0.5
         }
       : {
@@ -53,6 +61,7 @@ export class QualityManager {
           maxTextureSize: 2048,
           shadows: true,
           shadowMapSize: 2048,
+          sourcesEtendues: 8,
           envIntensity: 0.5
         };
     this.profile.reducedMotion = this.reducedMotion;

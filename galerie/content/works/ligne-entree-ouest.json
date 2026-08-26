@@ -4,7 +4,7 @@
   "role": "decor",
   "position": [
     -10,
-    0.45,
+    0.03,
     -2
   ],
   "rotation": [
@@ -20,11 +20,12 @@
   "model": {
     "shape": "corniche",
     "longueur": 34,
-    "epaisseur": 0.12,
+    "epaisseur": 0.5,
     "color": "#c8d2ff",
-    "intensite": 7,
+    "intensite": 5,
     "mur": "ouest",
-    "inclinaison": 90
+    "inclinaison": 90,
+    "eclat": 0.34
   },
   "solid": false,
   "cartel": false

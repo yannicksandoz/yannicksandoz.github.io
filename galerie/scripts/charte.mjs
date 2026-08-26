@@ -159,6 +159,26 @@ export function auditSalles() {
       if (ligne.saturation > CHARTE.saturationMax) {
         ligne.fautes.push(`saturation ${ligne.saturation.toFixed(0)} %`);
       }
+      // LES FACES AUSSI. `wallColors` peint chaque paroi séparément — et
+      // l'audit ne lisait que `shell.color`. Les cinq faces du belvédère
+      // ont vécu là des mois entre 51 et 61 % de saturation, sous un
+      // plafond de 45, sans que rien ne le dise : la DA avait dérivé
+      // exactement là où l'on ne regardait pas. Une couleur posée dans la
+      // galerie est jugée, quel que soit le champ qui la porte.
+      for (const [face, teinteFace] of Object.entries(s.shell?.wallColors ?? {})) {
+        const tf = teinteEtSaturation(teinteFace);
+        ligne.saturation = Math.max(ligne.saturation, tf.saturation);
+        if (tf.saturation > CHARTE.saturationMax) {
+          ligne.fautes.push(`face ${face} à ${tf.saturation.toFixed(0)} % de saturation`);
+        }
+        if (!dehors) {
+          const ecartFace = clarte(teinteFace) - ligne.clarteSol;
+          const { vise, tolerance } = CHARTE.ecartMurSol;
+          if (Math.abs(ecartFace - vise) > tolerance) {
+            ligne.fautes.push(`face ${face} : écart au sol ${ecartFace.toFixed(1)}`);
+          }
+        }
+      }
     }
     const k = s.keyLight ?? {};
     const { intensite, marge, elevation, margeElevation } = CHARTE.lumiere;

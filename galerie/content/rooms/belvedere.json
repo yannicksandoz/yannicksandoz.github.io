@@ -19,15 +19,15 @@
     "width": 50,
     "depth": 50,
     "height": 50,
-    "color": "#4a3f63",
+    "color": "#4c465e",
     "ceiling": true,
     "texture": "pierre",
     "wallColors": {
-      "nord": "#3a4a86",
-      "sud": "#7a3f34",
-      "est": "#35704c",
-      "ouest": "#7a6330",
-      "plafond": "#453163"
+      "nord": "#3f4866",
+      "sud": "#60423c",
+      "est": "#33513f",
+      "ouest": "#514833",
+      "plafond": "#453957"
     },
     "textureRepeat": 1
   },

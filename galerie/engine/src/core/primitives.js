@@ -18,6 +18,25 @@ function preparerCorniches() {
 }
 
 /**
+ * COMBIEN DE SOURCES ÉTENDUES la machine peut porter — posé par l'App
+ * depuis le profil de qualité (voir Quality).
+ *
+ * Ce n'est pas un réglage d'esthète : mesuré au belvédère, quatre bandeaux
+ * de 46 m coûtaient 26 % du temps d'image, quand la gerbe et ses
+ * quarante-deux rais n'en coûtaient que 8. Chaque pixel de chaque surface
+ * intègre une LTC par lampe, et un cube de cinquante mètres présente
+ * beaucoup de surface. Le TRAIT, lui, ne coûte presque rien.
+ *
+ * À zéro (mobile), les corniches gardent donc leur ligne de lumière et
+ * perdent leur source : c'est le dégradé sur le mur qui s'en va, pas la
+ * lumière de la salle — la clé et les ponctuelles restent.
+ */
+let budgetSourcesEtendues = 8;
+export function setBudgetSourcesEtendues(n) {
+  budgetSourcesEtendues = Number.isFinite(n) ? Math.max(0, n) : 8;
+}
+
+/**
  * Primitives paramétriques du mode Objets.
  *
  * Elles vivent dans le cœur (et non dans l'éditeur) parce que le runtime
@@ -325,7 +344,14 @@ function buildFaisceau(size, model) {
  * regarde d'un bloc.
  */
 function buildGerbe(size, model) {
-  const nombre = Math.max(1, Math.min(Math.round(model.nombre ?? 42), 200));
+  // Sur une machine sans budget de sources étendues (mobile), la gerbe
+  // s'éclaircit : ses rais sont additifs et transparents, donc chacun
+  // repasse sur les pixels des autres — c'est du remplissage, exactement
+  // ce qui manque à un GPU de téléphone. Vingt rais au lieu de quarante-
+  // deux gardent l'éventail ; c'est sa forme qu'on lit, pas son compte.
+  const demande = Math.round(model.nombre ?? 42);
+  const nombre = Math.max(1, Math.min(
+    budgetSourcesEtendues > 0 ? demande : Math.ceil(demande / 2), 200));
   const portee = Number.isFinite(model.portee) ? model.portee : size * 8;
   const ouverture = THREE.MathUtils.degToRad(model.ouverture ?? 12);
   const rApex = model.rayonApex ?? 0.05;
@@ -472,7 +498,7 @@ function buildCorniche(size, model) {
   // donner une source étendue coûterait une lampe de plus par passerelle
   // pour un effet que personne ne verrait. Les lavages de mur, eux, la
   // gardent : c'est la surface léchée qui fait tout leur travail.
-  if (model.lampe !== false) {
+  if (model.lampe !== false && budgetSourcesEtendues > 0) {
     const lampe = new THREE.RectAreaLight(
       couleur, model.intensite ?? 12, longueur, Math.max(epaisseur, 0.5));
     // légèrement en avant de la fente : la lampe ne s'éclaire pas elle-même

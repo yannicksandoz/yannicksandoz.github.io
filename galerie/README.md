@@ -287,6 +287,33 @@ Trois réglages qui ne se devinent pas :
   APPARAISSAIT en cours d'ascension. L'architecture ne surgit pas — les
   lavages du belvédère et sa gerbe portent 130.
 
+**Le vrai coût, et ce qu'il fallait mesurer.** Un premier chiffrage avait
+donné « +5 % » pour tout le calque — il était juste pour des salles à six ou
+dix corniches, faux pour le belvédère. Mesuré là-bas, éteintes puis
+rallumées : la gerbe et ses quarante-deux rais coûtent **8 %**, les
+corniches **26 %**. Chaque pixel de chaque surface intègre une LTC par
+lampe, et un cube de cinquante mètres présente beaucoup de surface.
+
+Piège de mesure à connaître : mettre `intensity` à zéro ne montre RIEN.
+Three garde le poste de la lampe dans le programme, donc le shader coûte
+pareil ; seul `visible = false` la retire vraiment de la passe. Une lampe
+éteinte se paie encore.
+
+D'où `sourcesEtendues` dans le profil de qualité : **zéro sur mobile**. Les
+corniches y gardent leur ligne — le trait ne coûte presque rien — et
+perdent leur source. C'est le dégradé sur le mur qui s'en va, pas la
+lumière de la salle : la clé et les ponctuelles restent. La gerbe, elle,
+divise son nombre de rais : ils sont additifs et transparents, donc chacun
+repasse sur les pixels des autres, et c'est exactement ce qu'un GPU de
+téléphone n'aime pas.
+
+**Une ligne au sol s'ENCASTRE.** Posée à quarante-cinq centimètres et vue à
+hauteur d'œil, un bandeau de douze centimètres se réduit à deux pixels
+d'émissif pur : cela ne se lit plus comme une lumière d'architecte mais
+comme un laser en travers de la salle. Les lignes du sol vivent donc à
+trois centimètres, larges de cinquante, et sourdes — un jonc lumineux qu'on
+regarde de dessus, jamais de champ.
+
 Ces trois formes SONT une lumière : elles ne reçoivent pas d'accent. Le
 moteur leur donne `lightIntensity` 0 par défaut (`LUMINAIRES`, dans
 `Artwork.js`) et la charte connaît la même liste — un test vérifie que les
@@ -1456,6 +1483,14 @@ muséographie, pas d'un goût :
 | la **hiérarchie lumineuse** | l'accent le plus fort va aux œuvres — jamais à une lanterne ou une lune de décor |
 | la **vista d'entrée** | le premier regard (cadré par le moteur) trouve une œuvre entre 2 m et 80 % de la diagonale de la salle |
 | l'**ampleur à l'arrivée** | depuis CHAQUE entrée d'une salle (son spawn et chaque portail entrant), au moins une œuvre occupe ≥ 12° du champ |
+
+**Les faces aussi.** `wallColors` peint chaque paroi séparément, et l'audit
+ne lisait que `shell.color` : les cinq faces du belvédère ont vécu là entre
+51 et 61 % de saturation, sous un plafond de 45, sans que rien ne le dise.
+La DA avait dérivé exactement là où l'on ne regardait pas. Elles sont
+revenues dans la charte en gardant leur teinte à un degré près (37-38 % de
+saturation, L* 31 — le sol plus huit), et l'audit lit désormais chaque
+face : saturation ET écart de clarté au sol.
 
 Les extérieurs (jardin, allée) sont exemptés des deux premières règles :
 leur « mur » est un lointain, leur lumière est le ciel. `node

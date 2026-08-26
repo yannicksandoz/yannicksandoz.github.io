@@ -13,6 +13,7 @@ import { Spatialisation } from './Spatialisation.js';
 import { QualityManager } from './Quality.js';
 import { LoadingTracker, assetUrl } from './utils.js';
 import { setDefaultAnisotropy } from './textures.js';
+import { setBudgetSourcesEtendues } from './primitives.js';
 import { COUCHE_AUTO_ECLAIREE } from './Artwork.js';
 import { WATER_TIME } from './primitives.js';
 import { chauffer } from './cartels.js';
@@ -330,6 +331,8 @@ export class App {
       this.renderer.capabilities.getMaxAnisotropy() || 1
     );
     setDefaultAnisotropy(this.quality.profile.anisotropy);
+    // combien de sources étendues la machine peut porter (voir Quality)
+    setBudgetSourcesEtendues(this.quality.profile.sourcesEtendues ?? 8);
     // Ombres douces (PCF) — une seule source par pièce en projette (la
     // lumière clé, voir RoomManager) : le coût reste borné et prévisible.
     this.renderer.shadowMap.enabled = this.quality.profile.shadows;
