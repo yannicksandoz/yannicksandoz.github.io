@@ -1,0 +1,31 @@
+{
+  "id": "corniche-labo-ouest",
+  "title": "Corniche ouest",
+  "role": "decor",
+  "position": [
+    -17.2,
+    6.9,
+    0
+  ],
+  "rotation": [
+    0,
+    0,
+    0
+  ],
+  "scale": [
+    1,
+    1,
+    1
+  ],
+  "model": {
+    "shape": "corniche",
+    "longueur": 40,
+    "epaisseur": 0.12,
+    "color": "#cfd8ff",
+    "intensite": 12,
+    "mur": "ouest",
+    "inclinaison": 45
+  },
+  "solid": false,
+  "cartel": false
+}

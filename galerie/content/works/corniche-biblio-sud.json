@@ -1,0 +1,31 @@
+{
+  "id": "corniche-biblio-sud",
+  "title": "Corniche sud",
+  "role": "decor",
+  "position": [
+    0,
+    6.1,
+    10.2
+  ],
+  "rotation": [
+    0,
+    0,
+    0
+  ],
+  "scale": [
+    1,
+    1,
+    1
+  ],
+  "model": {
+    "shape": "corniche",
+    "longueur": 24,
+    "epaisseur": 0.12,
+    "color": "#ffe8cf",
+    "intensite": 10,
+    "mur": "sud",
+    "inclinaison": 35
+  },
+  "solid": false,
+  "cartel": false
+}

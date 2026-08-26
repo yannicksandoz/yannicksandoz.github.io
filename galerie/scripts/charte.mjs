@@ -46,6 +46,13 @@ import { fileURLToPath } from 'node:url';
 const ici = dirname(fileURLToPath(import.meta.url));
 const RACINE = join(ici, '..', 'content');
 
+/**
+ * Formes qui SONT une lumière : elles portent la leur et ne reçoivent pas
+ * d'accent. Doit rester identique à `LUMINAIRES` dans `core/Artwork.js` —
+ * `test-charte.mjs` vérifie que les deux listes ne divergent pas.
+ */
+export const LUMINAIRES = new Set(['corniche', 'faisceau', 'gerbe']);
+
 /** Salles à ciel ouvert : leur lumière est le ciel, pas une salle. */
 export const EXTERIEURS = new Set(['jardin', 'allee', 'annexe']);
 
@@ -244,7 +251,11 @@ export function auditHierarchie() {
   const rapport = [];
   for (const s of salles()) {
     const habitants = (s.works ?? []).map((n) => oeuvres.get(n)).filter(Boolean);
-    const accent = (w) => w.lightIntensity ?? 4;
+    // Le même défaut que le moteur, luminaires compris (voir Artwork :
+    // `accentParDefaut`). Si les deux divergent, c'est la charte qui ment :
+    // elle jugerait une lampe que la scène n'allume pas — ou l'inverse.
+    const accent = (w) => (Number.isFinite(w.lightIntensity) ? w.lightIntensity
+      : (LUMINAIRES.has(w.model?.shape) ? 0 : 4));
     const majeures = habitants.filter((w) => w.role !== 'decor' && !w.partOf);
     const decor = habitants.filter((w) => w.role === 'decor');
     if (!majeures.length) continue;      // salle de circulation : rien à juger

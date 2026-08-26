@@ -14,7 +14,10 @@
     "rock-large",
     "voxel",
     "banc",
-    "moon"
+    "moon",
+    "corniche-labo-ouest",
+    "corniche-labo-est",
+    "corniche-labo-nord"
   ],
   "portals": [
     {

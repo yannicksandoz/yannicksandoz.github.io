@@ -1,0 +1,31 @@
+{
+  "id": "ligne-couloir-ouest",
+  "title": "Ligne ouest",
+  "role": "decor",
+  "position": [
+    -3.5,
+    4.7,
+    0
+  ],
+  "rotation": [
+    0,
+    0,
+    0
+  ],
+  "scale": [
+    1,
+    1,
+    1
+  ],
+  "model": {
+    "shape": "corniche",
+    "longueur": 34,
+    "epaisseur": 0.12,
+    "color": "#cdd6ff",
+    "intensite": 10,
+    "mur": "ouest",
+    "inclinaison": 35
+  },
+  "solid": false,
+  "cartel": false
+}

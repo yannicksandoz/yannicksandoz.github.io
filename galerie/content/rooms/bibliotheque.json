@@ -53,7 +53,9 @@
     "rayonnage-6",
     "banc-bibliotheque",
     "lanterne-biblio-1",
-    "lanterne-biblio-2"
+    "lanterne-biblio-2",
+    "corniche-biblio-sud",
+    "corniche-biblio-est"
   ],
   "portals": [
     {
@@ -142,7 +144,7 @@
   "jetons": [
     [
       -11,
-      1.0,
+      1,
       8
     ]
   ],

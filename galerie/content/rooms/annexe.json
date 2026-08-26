@@ -16,7 +16,9 @@
   "works": [
     "echo",
     "lanterne-annexe",
-    "onde-stationnaire"
+    "onde-stationnaire",
+    "ligne-annexe-ouest",
+    "ligne-annexe-est"
   ],
   "portals": [
     {

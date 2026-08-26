@@ -18,7 +18,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { CHARTE, EXTERIEURS, clarte, teinteEtSaturation, ecartTeinte,
+import { CHARTE, EXTERIEURS, LUMINAIRES, clarte, teinteEtSaturation, ecartTeinte,
   auditSalles, auditAccrochage, auditRecul, auditHierarchie, auditVista,
   auditRythme, auditBancs, auditAmpleur, ampleurOeuvre, angleApparent,
   arriveesDe, salles } from './charte.mjs';
@@ -161,6 +161,23 @@ const DETTE_AMPLEUR = new Map([
   ['entree', ['depuis archives', 'depuis jardin', 'depuis labo']],
   ['jardin', ['depuis allee', 'depuis belvedere']]
 ]);
+
+test('la charte et le moteur s’accordent sur ce qu’est un luminaire', () => {
+  // Deux listes qui divergent, c'est une charte qui juge une lampe que la
+  // scène n'allume pas. C'est arrivé dans l'autre sens : quatorze corniches
+  // recevaient du moteur une lampe ponctuelle de 4 que personne n'avait
+  // demandée, et l'audit de hiérarchie l'a signalée — d'où cette garde.
+  const src = readFileSync(join(ici, '..', 'engine', 'src', 'core',
+    'Artwork.js'), 'utf8');
+  const m = src.match(/const LUMINAIRES = new Set\(\[([^\]]*)\]\)/);
+  assert.ok(m, 'LUMINAIRES introuvable dans Artwork.js');
+  const duMoteur = m[1].split(',').map((s) => s.trim().replace(/^['"]|['"]$/g, ''))
+    .filter(Boolean).sort();
+  assert.deepEqual(duMoteur, [...LUMINAIRES].sort(),
+    'les listes de luminaires du moteur et de la charte ont divergé');
+  assert.ok(src.includes('LUMINAIRES.has(config.model?.shape) ? 0 : 4'),
+    'le moteur doit refuser l’accent par défaut à un luminaire');
+});
 
 test('l’ampleur se mesure juste, quel que soit le type d’œuvre', () => {
   // un panneau mural : sa diagonale, échelle comprise

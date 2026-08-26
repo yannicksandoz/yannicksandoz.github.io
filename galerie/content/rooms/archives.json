@@ -49,7 +49,9 @@
     "stele-archives-3",
     "stele-archives-4",
     "lanterne-archives-1",
-    "lanterne-archives-2"
+    "lanterne-archives-2",
+    "corniche-archives-nord",
+    "corniche-archives-ouest"
   ],
   "portals": [
     {
@@ -136,7 +138,7 @@
   "jetons": [
     [
       10,
-      1.0,
+      1,
       -7
     ]
   ],

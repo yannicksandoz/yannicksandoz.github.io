@@ -1,0 +1,31 @@
+{
+  "id": "ligne-entree-est",
+  "title": "Ligne est",
+  "role": "decor",
+  "position": [
+    10,
+    0.45,
+    -2
+  ],
+  "rotation": [
+    0,
+    0,
+    0
+  ],
+  "scale": [
+    1,
+    1,
+    1
+  ],
+  "model": {
+    "shape": "corniche",
+    "longueur": 34,
+    "epaisseur": 0.12,
+    "color": "#c8d2ff",
+    "intensite": 7,
+    "mur": "est",
+    "inclinaison": 90
+  },
+  "solid": false,
+  "cartel": false
+}

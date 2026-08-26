@@ -260,6 +260,27 @@ visiteur peut déjà quitter. Le `LoadingTracker` tient donc **deux comptes**
 — tout, et l'essentiel — et la barre ne regarde que le second ; les
 préchargements continuent en silence derrière.
 
+**La lumière d'architecte.** Trois formes fabriquent la lumière qu'on VOIT,
+en plus de la lumière clé qui modèle :
+
+| Forme | Ce qu'elle fait |
+|---|---|
+| `corniche` | une LIGNE de lumière — une `RectAreaLight` de la taille exacte de sa fente. C'est le geste de l'architecture contemporaine : on ne voit jamais la source, on voit la surface qu'elle lèche, révélée par un dégradé et non par un point chaud. Elle éclaire **là où sa face regarde** : on la braque en nommant le mur qu'elle lave (`"mur": "nord"`) et son `inclinaison`, jamais en composant des angles d'Euler |
+| `faisceau` | un rai qui tombe, **avec sa face source** au sommet — un disque plein qui dit d'où vient la lumière. Sans lui, le fût se terminait par un anneau net découpé sur le vide : un tube flottant, pas un rai |
+| `gerbe` | des dizaines de rais partant d'UN point vers une direction nommée (`"vers": [1,-1,1]` : la grande diagonale d'un cube). Répartis en spirale d'or — régulier sans être en grille, et **déterministe**, sinon la gerbe changerait à chaque chargement et à chaque photo. Tous les rais fondus en une seule géométrie : un objet qu'on regarde d'un bloc ne vaut pas quarante-deux appels de rendu |
+
+Ces trois formes SONT une lumière : elles ne reçoivent pas d'accent. Le
+moteur leur donne `lightIntensity` 0 par défaut (`LUMINAIRES`, dans
+`Artwork.js`) et la charte connaît la même liste — un test vérifie que les
+deux ne divergent pas. Sans cette règle, quatorze corniches posées sans
+consigne avaient reçu chacune une lampe ponctuelle de 4 que personne
+n'avait demandée ; c'est l'audit de hiérarchie qui l'a vu, en signalant que
+le décor éclipsait les œuvres dans quatre salles.
+
+Coût mesuré du calque entier (mêmes pixels, lampes éteintes puis
+allumées) : **+5 % de temps de rendu**, sur un WebGL logiciel qui pénalise
+ces lampes bien plus qu'un vrai GPU.
+
 **Après une bascule, on regarde devant soi.** Une bascule de gravité fait
 une seule chose au regard : elle le **couche sur le nouvel horizon**. Le
 **cap du monde ne bouge pas d'un degré** — on arrive tourné exactement là où

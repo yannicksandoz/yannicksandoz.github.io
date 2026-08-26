@@ -1,0 +1,31 @@
+{
+  "id": "corniche-entree-nord",
+  "title": "Corniche nord",
+  "role": "decor",
+  "position": [
+    0,
+    8.6,
+    -21
+  ],
+  "rotation": [
+    0,
+    0,
+    0
+  ],
+  "scale": [
+    1,
+    1,
+    1
+  ],
+  "model": {
+    "shape": "corniche",
+    "longueur": 48,
+    "epaisseur": 0.12,
+    "color": "#cfd8ff",
+    "intensite": 14,
+    "mur": "nord",
+    "inclinaison": 45
+  },
+  "solid": false,
+  "cartel": false
+}

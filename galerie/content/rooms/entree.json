@@ -27,7 +27,10 @@
     "lanterne-entree-1",
     "lanterne-entree-2",
     "lanterne-entree-3",
-    "banc-entree"
+    "banc-entree",
+    "corniche-entree-nord",
+    "ligne-entree-ouest",
+    "ligne-entree-est"
   ],
   "portals": [
     {
@@ -155,7 +158,7 @@
   "jetons": [
     [
       24,
-      1.0,
+      1,
       -16
     ]
   ],

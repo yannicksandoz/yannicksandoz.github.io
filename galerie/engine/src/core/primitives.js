@@ -1,6 +1,21 @@
 import * as THREE from 'three';
+import { RectAreaLightUniformsLib } from 'three/examples/jsm/lights/RectAreaLightUniformsLib.js';
+import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { scaleObjetUV } from './textures.js';
 import { jeuDeSurface } from './matieres.js';
+
+/**
+ * Les tables de `RectAreaLight` (BRDF pré-intégrée) ne se chargent qu'une
+ * fois, et seulement si une corniche existe : une galerie sans lumière
+ * d'architecte n'en paie rien. `init()` touche au contexte WebGL — d'où le
+ * garde `document`, qui laisse les suites node importer ce module.
+ */
+let tablesPretes = false;
+function preparerCorniches() {
+  if (tablesPretes || typeof document === 'undefined') return;
+  tablesPretes = true;
+  RectAreaLightUniformsLib.init();
+}
 
 /**
  * Primitives paramétriques du mode Objets.
@@ -20,8 +35,15 @@ export const PRIMITIVES = {
   cone:     { label: 'Cône',     build: (s) => new THREE.ConeGeometry(s * 0.6, s * 1.6, 28) },
   torus:    { label: 'Tore',     build: (s) => new THREE.TorusGeometry(s * 0.6, s * 0.22, 18, 40) },
   eau:      { label: 'Eau',      build: (s) => new THREE.PlaneGeometry(s * 1.6, s, 48, 32) },
-  // fût ouvert, plus large au pied : un puits de lumière qui tombe
+  // fût ouvert, plus large au pied : un puits de lumière qui tombe.
+  // (buildFaisceau construit sa propre géométrie — il lui faut sa hauteur
+  // réelle et sa face source ; l'entrée reste ici pour le registre.)
   faisceau: { label: 'Faisceau', build: (s) => new THREE.CylinderGeometry(s * 0.25, s * 0.85, s * 6, 24, 1, true) },
+  // bandeau lumineux d'architecte : une ligne de lumière indirecte, posée
+  // dans une corniche ou le long d'un mur (buildCorniche fait le reste)
+  corniche: { label: 'Corniche', build: (s) => new THREE.PlaneGeometry(s, s * 0.12) },
+  // gerbe : des dizaines de rais partant d'UN point (buildGerbe fait le reste)
+  gerbe: { label: 'Gerbe', build: (s) => new THREE.SphereGeometry(s * 0.1, 8, 6) },
   // la géométrie réelle (essaim de points) se construit dans buildPrimitive
   lucioles: { label: 'Lucioles', build: (s) => new THREE.BoxGeometry(s, s, s) }
 };
@@ -135,7 +157,9 @@ export function buildPrimitive(model, echelle = null) {
     mesh.rotation.x = -Math.PI / 2; // une étendue d'eau est horizontale
     return mesh;
   }
-  if (model.shape === 'faisceau') return buildFaisceau(def, size, model);
+  if (model.shape === 'faisceau') return buildFaisceau(size, model);
+  if (model.shape === 'corniche') return buildCorniche(size, model);
+  if (model.shape === 'gerbe') return buildGerbe(size, model);
   if (model.shape === 'lucioles') return buildLucioles(size, model);
 
   return finishPrimitive(def, size, model, echelle);
@@ -149,13 +173,23 @@ export function buildPrimitive(model, echelle = null) {
  * vraie volumétrie, aucun coût : deux passes de triangles transparents.
  * `emissive` règle la force, `color` la teinte.
  */
-function buildFaisceau(def, size, model) {
+function buildFaisceau(size, model) {
+  // LE FAISCEAU A UNE SOURCE, ET ELLE SE VOIT. Le fût était un cylindre
+  // ouvert aux deux bouts : en l'air, il se terminait par un anneau net
+  // découpé sur le vide — un tube flottant, pas un rai de lumière. Un
+  // faisceau naît toujours de QUELQUE CHOSE : une trémie, un plafonnier,
+  // une fente. On lui donne donc sa face émettrice au sommet, et une
+  // hauteur qui traverse réellement le volume (`hauteur`, en mètres, au
+  // lieu des six fois la taille qu'il déduisait tout seul).
+  const hauteur = Number.isFinite(model.hauteur) ? model.hauteur : size * 6;
+  const rayonHaut = size * 0.25;
+  const groupe = new THREE.Group();
   const mat = new THREE.ShaderMaterial({
     uniforms: {
       uTime: WATER_TIME,
       uColor: { value: new THREE.Color(model.color ?? '#cbb4ff') },
       uForce: { value: model.emissive ?? 0.4 },
-      uHauteur: { value: size * 6 }
+      uHauteur: { value: hauteur }
     },
     transparent: true,
     depthWrite: false,
@@ -180,16 +214,279 @@ function buildFaisceau(def, size, model) {
       void main() {
         // plein au cœur du fût, évanoui sur la tranche
         float coeur = pow(abs(dot(normalize(vN), normalize(vVue))), 1.6);
-        // le pied se dissout, le sommet reste franc
-        float fondu = smoothstep(0.0, 0.45, vHaut);
+        // le pied se dissout ; le sommet aussi, mais sur trois fois moins
+        // de course : c'est là que la face source prend le relais, et un
+        // fût à pleine force contre elle ferait un bourrelet trop clair
+        float fondu = smoothstep(0.0, 0.45, vHaut) * (1.0 - smoothstep(0.88, 1.0, vHaut) * 0.35);
         float vie = 1.0 + 0.08 * sin(uTime * 0.55 + vHaut * 5.0);
         gl_FragColor = vec4(uColor, coeur * fondu * uForce * vie);
       }`
   });
-  const mesh = new THREE.Mesh(def.build(size), mat);
-  mesh.raycast = () => {};          // de la lumière : jamais une cible
-  mesh.userData.sansOmbre = true;   // …et jamais un cône d'ombre
-  return mesh;
+  const fut = new THREE.Mesh(
+    new THREE.CylinderGeometry(rayonHaut, size * 0.85, hauteur, 24, 1, true), mat);
+  groupe.add(fut);
+
+  // LA FACE SOURCE — un disque plein au sommet, tourné vers le bas. C'est
+  // lui qui donne au rai son origine : sans lui l'œil cherche d'où vient
+  // la lumière et ne trouve qu'une découpe. Dégradé radial pour que le
+  // bord ne fasse pas un cercle de carton.
+  const source = new THREE.Mesh(
+    new THREE.CircleGeometry(rayonHaut * 1.15, 32),
+    new THREE.ShaderMaterial({
+      uniforms: {
+        uColor: { value: new THREE.Color(model.emissiveColor ?? model.color ?? '#cbb4ff') },
+        uForce: { value: (model.emissive ?? 0.4) * 2.2 }
+      },
+      transparent: true,
+      depthWrite: false,
+      blending: THREE.AdditiveBlending,
+      side: THREE.DoubleSide,
+      vertexShader: /* glsl */ `
+        varying vec2 vUv;
+        void main() {
+          vUv = uv;
+          gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+        }`,
+      fragmentShader: /* glsl */ `
+        uniform vec3 uColor;
+        uniform float uForce;
+        varying vec2 vUv;
+        void main() {
+          float r = length(vUv - 0.5) * 2.0;      // 0 au centre, 1 au bord
+          float chute = 1.0 - smoothstep(0.35, 1.0, r);
+          gl_FragColor = vec4(uColor, chute * uForce);
+        }`
+    })
+  );
+  source.rotation.x = Math.PI / 2;   // la face regarde vers le bas
+  source.position.y = hauteur / 2;
+  groupe.add(source);
+
+  for (const o of [fut, source]) {
+    o.raycast = () => {};            // de la lumière : jamais une cible
+    o.userData.sansOmbre = true;     // …et jamais un cône d'ombre
+  }
+  groupe.userData.sansOmbre = true;
+  return groupe;
+}
+
+/**
+ * LA CORNICHE — une ligne de lumière, pas une lampe.
+ *
+ * C'est le geste de l'architecture contemporaine (Hadid, et les images de
+ * MIR qui l'ont mise en scène) : on ne voit JAMAIS la source, on voit la
+ * surface qu'elle lèche. La lumière sort d'une fente, court le long d'un
+ * mur, révèle la courbure d'un plan par un dégradé au lieu d'un point
+ * chaud. Une lampe ponctuelle ne sait pas faire ça — elle fabrique une
+ * tache et une ombre dure ; il faut une source ÉTENDUE.
+ *
+ * `RectAreaLight` en est une (three.js, MIT) : un rectangle qui émet par
+ * sa face, avec la bonne décroissance. Elle ne projette pas d'ombre, ce
+ * qui tombe bien — l'éclairage indirect n'en produit pas de franche.
+ *
+ * Dans le JSON :
+ *   "model": { "shape": "corniche", "longueur": 8, "epaisseur": 0.14,
+ *              "color": "#cfd8ff", "intensite": 12 }
+ *
+ * UNE CORNICHE ÉCLAIRE LÀ OÙ SA FACE REGARDE — c'est la `rotation` de
+ * l'œuvre qui l'oriente, comme on braque un vrai luminaire, et rien
+ * d'autre. Un premier essai séparait les deux (le bandeau à plat, la
+ * lumière en bas par un drapeau) : posée à 80 cm d'un mur et braquée
+ * droit vers le sol, elle ne le léchait qu'en rasant — deux points de
+ * luminance gagnés sur soixante-dix-sept, mesurés. Un lavage de mur se
+ * BRAQUE : `"rotation": [-55, 0, 0]` incline la ligne vers la paroi,
+ * `[-90, 0, 0]` la couche à plat pour tomber sur le sol.
+ */
+/**
+ * LA GERBE — un point qui éclate en quarante-deux rais.
+ *
+ * Un faisceau unique tombe d'un plafond ; une gerbe part d'un SOMMET et
+ * traverse le volume vers celui d'en face. Dans un cube de 50 m, c'est la
+ * grande diagonale — 86 m de lumière en travers de la pièce, qui donne
+ * enfin à voir la profondeur de la boîte. Les rais s'écartent doucement :
+ * de près on passe entre eux, de loin ils se referment en éventail.
+ *
+ * Dans le JSON :
+ *   "model": { "shape": "gerbe", "nombre": 42, "portee": 86,
+ *              "vers": [1, -1, 1], "ouverture": 13, "color": "#cbb4ff" }
+ *
+ * `vers` est une DIRECTION dans le repère de la salle : pour un cube, le
+ * vecteur qui joint deux sommets opposés. La nommer ainsi évite d'avoir à
+ * composer soi-même les angles d'Euler d'une diagonale — la même raison
+ * qui a fait nommer le mur des corniches plutôt que leurs degrés.
+ *
+ * Les rais se répartissent en SPIRALE D'OR (l'angle d'or, ≈ 137,5°) : la
+ * distribution est régulière sans être en grille, et surtout elle est
+ * déterministe — un tirage au hasard aurait donné une gerbe différente à
+ * chaque chargement, et à chaque photo path-tracée.
+ *
+ * Tous les rais sont FONDUS EN UNE SEULE GÉOMÉTRIE : quarante-deux
+ * maillages, ce serait quarante-deux appels de rendu pour un objet qu'on
+ * regarde d'un bloc.
+ */
+function buildGerbe(size, model) {
+  const nombre = Math.max(1, Math.min(Math.round(model.nombre ?? 42), 200));
+  const portee = Number.isFinite(model.portee) ? model.portee : size * 8;
+  const ouverture = THREE.MathUtils.degToRad(model.ouverture ?? 12);
+  const rApex = model.rayonApex ?? 0.05;
+  const rBout = model.rayonBout ?? 0.55;
+  const ANGLE_OR = Math.PI * (3 - Math.sqrt(5));
+
+  const morceaux = [];
+  for (let i = 0; i < nombre; i++) {
+    // racine carrée : sans elle les rais s'entassent au centre de l'éventail
+    const t = nombre === 1 ? 0 : i / (nombre - 1);
+    const ecart = Math.sqrt(t) * ouverture;
+    const azimut = i * ANGLE_OR;
+    const direction = new THREE.Vector3(
+      Math.sin(ecart) * Math.cos(azimut),
+      Math.sin(ecart) * Math.sin(azimut),
+      Math.cos(ecart)
+    );
+    const g = new THREE.CylinderGeometry(rApex, rBout, portee, 5, 1, true);
+    g.translate(0, portee / 2, 0);      // la base du rai à l'apex
+    // combien de chemin parcouru depuis l'apex : lu AVANT de coucher le rai,
+    // quand la longueur est encore portée par l'axe Y
+    const pos = g.attributes.position;
+    const along = new Float32Array(pos.count);
+    for (let v = 0; v < pos.count; v++) along[v] = pos.getY(v) / portee;
+    g.setAttribute('aLong', new THREE.BufferAttribute(along, 1));
+    g.rotateX(Math.PI / 2);             // l'axe du rai passe de Y à +Z
+    g.applyQuaternion(new THREE.Quaternion().setFromUnitVectors(
+      new THREE.Vector3(0, 0, 1), direction));
+    morceaux.push(g);
+  }
+  const geometrie = mergeGeometries(morceaux, false);
+  for (const g of morceaux) g.dispose();
+
+  const mat = new THREE.ShaderMaterial({
+    uniforms: {
+      uTime: WATER_TIME,
+      uColor: { value: new THREE.Color(model.color ?? '#cbb4ff') },
+      uForce: { value: model.emissive ?? 0.5 }
+    },
+    transparent: true,
+    depthWrite: false,
+    blending: THREE.AdditiveBlending,
+    side: THREE.DoubleSide,
+    vertexShader: /* glsl */ `
+      attribute float aLong;
+      varying float vLong;
+      varying vec3 vN, vVue;
+      void main() {
+        vLong = aLong;
+        vN = normalize(normalMatrix * normal);
+        vec4 mv = modelViewMatrix * vec4(position, 1.0);
+        vVue = normalize(-mv.xyz);
+        gl_Position = projectionMatrix * mv;
+      }`,
+    fragmentShader: /* glsl */ `
+      uniform vec3 uColor;
+      uniform float uForce, uTime;
+      varying float vLong;
+      varying vec3 vN, vVue;
+      void main() {
+        // plein au cœur du rai, évanoui sur sa tranche
+        float coeur = pow(abs(dot(normalize(vN), normalize(vVue))), 1.5);
+        // franc au départ, dissous au loin — un rai s'épuise en avançant
+        float chute = 1.0 - smoothstep(0.15, 1.0, vLong);
+        // chaque rai respire à son rythme : l'éventail vit sans clignoter
+        float vie = 1.0 + 0.07 * sin(uTime * 0.5 + vLong * 9.0);
+        gl_FragColor = vec4(uColor, coeur * chute * uForce * vie);
+      }`
+  });
+
+  const groupe = new THREE.Group();
+  const rais = new THREE.Mesh(geometrie, mat);
+  groupe.add(rais);
+
+  // L'APEX — le point d'où tout part, et qu'on doit voir briller.
+  const apex = new THREE.Mesh(
+    new THREE.SphereGeometry(Math.max(rApex * 3, 0.35), 16, 12),
+    new THREE.MeshBasicMaterial({
+      color: new THREE.Color(model.emissiveColor ?? model.color ?? '#e8e0ff'),
+      toneMapped: false
+    })
+  );
+  groupe.add(apex);
+
+  // orientée par `vers`, une direction de la salle — jamais des degrés
+  const vers = Array.isArray(model.vers) && model.vers.length === 3
+    ? new THREE.Vector3(...model.vers) : null;
+  if (vers && vers.lengthSq() > 1e-6) {
+    groupe.quaternion.setFromUnitVectors(
+      new THREE.Vector3(0, 0, 1), vers.normalize());
+    groupe.userData.orientationImposee = true;
+  }
+
+  for (const o of [rais, apex]) {
+    o.raycast = () => {};
+    o.userData.sansOmbre = true;
+  }
+  groupe.userData.sansOmbre = true;
+  return groupe;
+}
+
+/** Lacet d'une corniche selon le mur qu'elle lave (comme les fenêtres). */
+const LACET_MUR = { nord: 0, sud: Math.PI, ouest: -Math.PI / 2, est: Math.PI / 2 };
+
+function buildCorniche(size, model) {
+  preparerCorniches();
+  const longueur = Number.isFinite(model.longueur) ? model.longueur : size * 4;
+  const epaisseur = Number.isFinite(model.epaisseur) ? model.epaisseur : 0.14;
+  const couleur = new THREE.Color(model.color ?? '#d6dcff');
+  const groupe = new THREE.Group();
+
+  // LE BANDEAU VISIBLE : la fente elle-même, à peine plus qu'un trait.
+  // Émissif pur (jamais éclairé) : c'est une source, elle ne reçoit pas.
+  const bandeau = new THREE.Mesh(
+    new THREE.PlaneGeometry(longueur, epaisseur),
+    new THREE.MeshBasicMaterial({
+      color: couleur, toneMapped: false, side: THREE.DoubleSide
+    })
+  );
+  // demi-tour : la face du bandeau regarde alors du MÊME côté que la
+  // lumière (le -Z local). Invisible à l'œil — le bandeau se voit des deux
+  // côtés — mais c'est ce qui rend vraie la phrase « elle éclaire là où sa
+  // face regarde », et donc prévisible la rotation qu'on lui donne.
+  bandeau.rotation.y = Math.PI;
+  groupe.add(bandeau);
+
+  // LA SOURCE ÉTENDUE, de la taille exacte de la fente : c'est ce qui fait
+  // que le dégradé sur le mur suit la ligne, et pas un point.
+  // Une RectAreaLight émet vers son -Z local : on la laisse telle quelle,
+  // c'est le bandeau qu'on a retourné pour la rejoindre. Une rotation de
+  // -45° sur X braque donc l'ensemble vers le bas ET vers l'arrière — un
+  // lavage de mur depuis une corniche, exactement le geste voulu.
+  const lampe = new THREE.RectAreaLight(
+    couleur, model.intensite ?? 12, longueur, Math.max(epaisseur, 0.5));
+  // légèrement en avant de la fente : la lampe ne s'éclaire pas elle-même
+  lampe.position.z = -0.02;
+  groupe.add(lampe);
+  groupe.userData.lampeCorniche = lampe;
+
+  // LE MUR PLUTÔT QUE LES DEGRÉS. Poser vingt corniches en composant des
+  // angles d'Euler à la main, c'est vingt occasions de braquer une lampe
+  // vers le vide sans que rien ne le signale. On nomme donc le mur qu'elle
+  // lave — le même vocabulaire que les fenêtres de coque — et l'inclinaison
+  // se compose ici, une fois, en quaternions (sans ambiguïté d'ordre).
+  if (LACET_MUR[model.mur] !== undefined) {
+    const inclinaison = THREE.MathUtils.degToRad(model.inclinaison ?? 45);
+    const lacet = new THREE.Quaternion().setFromAxisAngle(
+      new THREE.Vector3(0, 1, 0), LACET_MUR[model.mur]);
+    const bascule = new THREE.Quaternion().setFromAxisAngle(
+      new THREE.Vector3(1, 0, 0), -inclinaison);
+    // basculée d'abord autour de sa propre longueur, puis tournée vers son mur
+    groupe.quaternion.copy(lacet.multiply(bascule));
+    groupe.userData.orientationImposee = true;
+  }
+
+  for (const o of [bandeau]) {
+    o.raycast = () => {};
+    o.userData.sansOmbre = true;
+  }
+  groupe.userData.sansOmbre = true;
+  return groupe;
 }
 
 /**

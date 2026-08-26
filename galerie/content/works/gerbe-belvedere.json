@@ -1,0 +1,36 @@
+{
+  "id": "gerbe-belvedere",
+  "title": "Gerbe",
+  "role": "decor",
+  "position": [
+    -24.4,
+    49.4,
+    -24.4
+  ],
+  "rotation": [
+    0,
+    0,
+    0
+  ],
+  "scale": [
+    1,
+    1,
+    1
+  ],
+  "model": {
+    "shape": "gerbe",
+    "nombre": 42,
+    "portee": 86,
+    "ouverture": 13,
+    "vers": [
+      1,
+      -1,
+      1
+    ],
+    "color": "#cbb4ff",
+    "emissive": 0.5,
+    "rayonBout": 0.6
+  },
+  "solid": false,
+  "cartel": false
+}

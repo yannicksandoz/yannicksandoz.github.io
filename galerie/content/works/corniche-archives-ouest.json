@@ -1,0 +1,31 @@
+{
+  "id": "corniche-archives-ouest",
+  "title": "Corniche ouest",
+  "role": "decor",
+  "position": [
+    -12.2,
+    6.4,
+    0
+  ],
+  "rotation": [
+    0,
+    0,
+    0
+  ],
+  "scale": [
+    1,
+    1,
+    1
+  ],
+  "model": {
+    "shape": "corniche",
+    "longueur": 17,
+    "epaisseur": 0.12,
+    "color": "#ffdcb8",
+    "intensite": 9,
+    "mur": "ouest",
+    "inclinaison": 25
+  },
+  "solid": false,
+  "cartel": false
+}

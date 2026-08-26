@@ -1,0 +1,31 @@
+{
+  "id": "corniche-biblio-est",
+  "title": "Corniche est",
+  "role": "decor",
+  "position": [
+    13.2,
+    6.1,
+    0
+  ],
+  "rotation": [
+    0,
+    0,
+    0
+  ],
+  "scale": [
+    1,
+    1,
+    1
+  ],
+  "model": {
+    "shape": "corniche",
+    "longueur": 18,
+    "epaisseur": 0.12,
+    "color": "#ffe0c0",
+    "intensite": 9,
+    "mur": "est",
+    "inclinaison": 30
+  },
+  "solid": false,
+  "cartel": false
+}

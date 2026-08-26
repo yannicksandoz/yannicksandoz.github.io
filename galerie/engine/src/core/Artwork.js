@@ -42,6 +42,28 @@ textureLoader.setCrossOrigin('anonymous');
  */
 export const COUCHE_AUTO_ECLAIREE = 3;
 
+/**
+ * Formes qui SONT une lumière : elles portent la leur (source étendue pour
+ * une corniche, rais additifs pour un faisceau ou une gerbe) et ne veulent
+ * pas d'accent en plus.
+ */
+const LUMINAIRES = new Set(['corniche', 'faisceau', 'gerbe']);
+
+/**
+ * Accent d'une œuvre, en l'absence de consigne.
+ *
+ * Quatre pour tout le monde — c'est ce que le moteur a toujours fait, et
+ * la charte le sait. Mais ZÉRO pour un luminaire : une corniche posée sans
+ * `lightIntensity` recevait une lampe ponctuelle de 4 en plus de sa propre
+ * ligne de lumière. Quatorze corniches, quatorze sources parasites que
+ * personne n'avait demandées — c'est l'audit de hiérarchie qui l'a vu, en
+ * signalant que le décor éclipsait les œuvres dans quatre salles.
+ */
+function accentParDefaut(config) {
+  if (Number.isFinite(config.lightIntensity)) return config.lightIntensity;
+  return LUMINAIRES.has(config.model?.shape) ? 0 : 4;
+}
+
 /** Libère géométries, matériaux et textures d'une sous-arborescence. */
 function disposeObject3D(root) {
   root.traverse((o) => {
@@ -168,7 +190,7 @@ export class Artwork {
     // belvédère, éteintes (intensité 0), coûtaient quand même onze
     // lumières au shader.
     this.light = null;
-    this.lightBaseIntensity = config.lightIntensity ?? 4;
+    this.lightBaseIntensity = accentParDefaut(config);
     if (this.lightBaseIntensity > 0) this._buildLight();
 
     // instanciation des modules déclarés dans la config
@@ -296,7 +318,7 @@ export class Artwork {
    * nulle coûte encore son poste dans le shader).
    */
   applyLight() {
-    this.lightBaseIntensity = this.config.lightIntensity ?? 4;
+    this.lightBaseIntensity = accentParDefaut(this.config);
     if (this.lightBaseIntensity > 0 && !this.light) this._buildLight();
     if (!this.light) return;
     if (this.lightBaseIntensity <= 0) {

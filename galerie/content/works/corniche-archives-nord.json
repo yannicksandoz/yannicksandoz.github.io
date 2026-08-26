@@ -1,0 +1,31 @@
+{
+  "id": "corniche-archives-nord",
+  "title": "Corniche nord",
+  "role": "decor",
+  "position": [
+    0,
+    6.4,
+    -9.2
+  ],
+  "rotation": [
+    0,
+    0,
+    0
+  ],
+  "scale": [
+    1,
+    1,
+    1
+  ],
+  "model": {
+    "shape": "corniche",
+    "longueur": 22,
+    "epaisseur": 0.12,
+    "color": "#ffe4c4",
+    "intensite": 11,
+    "mur": "nord",
+    "inclinaison": 30
+  },
+  "solid": false,
+  "cartel": false
+}

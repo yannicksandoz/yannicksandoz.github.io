@@ -54,7 +54,9 @@
   "works": [
     "lanterne-couloir-1",
     "lanterne-couloir-2",
-    "carillon-fenetres"
+    "carillon-fenetres",
+    "ligne-couloir-ouest",
+    "ligne-couloir-est"
   ],
   "portals": [
     {
@@ -142,7 +144,7 @@
   "jetons": [
     [
       2.5,
-      1.0,
+      1,
       -15
     ]
   ],
