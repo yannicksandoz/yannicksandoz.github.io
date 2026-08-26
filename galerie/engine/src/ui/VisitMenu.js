@@ -81,6 +81,8 @@ export class VisitMenu {
     el.innerHTML = `
       <div class="vm-panel" role="dialog" aria-modal="true" aria-label="${t('menu.label')}">
         <h2 id="vm-title">${t('menu.title')}</h2>
+        <button id="vm-x" class="vm-x" aria-label="${t('menu.resume')}"
+          title="${t('menu.resume')}">✕</button>
         <ul role="list">
           <li><button id="vm-derive">${t('menu.derive')}</button></li>
           <li><button id="vm-audio">${t('menu.audio')}</button></li>
@@ -138,6 +140,10 @@ export class VisitMenu {
     peindreLibelles(el);
 
     el.querySelector('#vm-close').addEventListener('click', () => this.hide());
+    // la croix en haut : le geste de fermeture universel, là où la main le
+    // cherche — le bouton « Reprendre la visite » du bas reste, pour la
+    // navigation clavier et pour qui lit le menu jusqu'au bout
+    el.querySelector('#vm-x').addEventListener('click', () => this.hide());
     // Chaque bouton porte son propre `lang` : le lecteur d'écran prononce
     // « English » à l'anglaise même quand la page est en français.
     for (const b of el.querySelectorAll('[data-lang]')) {
