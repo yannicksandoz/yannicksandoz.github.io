@@ -1,0 +1,32 @@
+{
+  "id": "lavage-bel-est",
+  "title": "Lavage est",
+  "role": "decor",
+  "position": [
+    24.3,
+    44,
+    0
+  ],
+  "rotation": [
+    0,
+    0,
+    0
+  ],
+  "scale": [
+    1,
+    1,
+    1
+  ],
+  "model": {
+    "shape": "corniche",
+    "longueur": 46,
+    "epaisseur": 0.16,
+    "color": "#d4f0e0",
+    "intensite": 16,
+    "mur": "est",
+    "inclinaison": 38
+  },
+  "solid": false,
+  "cartel": false,
+  "loadDistance": 130
+}

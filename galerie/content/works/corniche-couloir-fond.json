@@ -1,0 +1,31 @@
+{
+  "id": "corniche-couloir-fond",
+  "title": "Corniche du fond",
+  "role": "decor",
+  "position": [
+    0,
+    4.6,
+    -18.4
+  ],
+  "rotation": [
+    0,
+    0,
+    0
+  ],
+  "scale": [
+    1,
+    1,
+    1
+  ],
+  "model": {
+    "shape": "corniche",
+    "longueur": 7,
+    "epaisseur": 0.12,
+    "color": "#cdd6ff",
+    "intensite": 9,
+    "mur": "nord",
+    "inclinaison": 40
+  },
+  "solid": false,
+  "cartel": false
+}

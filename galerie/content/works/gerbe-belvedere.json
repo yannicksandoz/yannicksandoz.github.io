@@ -28,9 +28,10 @@
       1
     ],
     "color": "#cbb4ff",
-    "emissive": 0.5,
+    "emissive": 0.32,
     "rayonBout": 0.6
   },
   "solid": false,
-  "cartel": false
+  "cartel": false,
+  "loadDistance": 130
 }

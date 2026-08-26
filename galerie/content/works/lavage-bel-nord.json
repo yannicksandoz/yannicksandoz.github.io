@@ -1,0 +1,32 @@
+{
+  "id": "lavage-bel-nord",
+  "title": "Lavage nord",
+  "role": "decor",
+  "position": [
+    0,
+    44,
+    -24.3
+  ],
+  "rotation": [
+    0,
+    0,
+    0
+  ],
+  "scale": [
+    1,
+    1,
+    1
+  ],
+  "model": {
+    "shape": "corniche",
+    "longueur": 46,
+    "epaisseur": 0.16,
+    "color": "#cdd8ff",
+    "intensite": 16,
+    "mur": "nord",
+    "inclinaison": 38
+  },
+  "solid": false,
+  "cartel": false,
+  "loadDistance": 130
+}

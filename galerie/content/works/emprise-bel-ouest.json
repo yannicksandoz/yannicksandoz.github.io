@@ -1,0 +1,34 @@
+{
+  "id": "emprise-bel-ouest",
+  "title": "Emprise ouest",
+  "role": "decor",
+  "position": [
+    -24.4,
+    0.3,
+    0
+  ],
+  "rotation": [
+    0,
+    0,
+    0
+  ],
+  "scale": [
+    1,
+    1,
+    1
+  ],
+  "model": {
+    "shape": "corniche",
+    "longueur": 47,
+    "epaisseur": 0.09,
+    "color": "#b9c4e8",
+    "intensite": 12,
+    "mur": "ouest",
+    "inclinaison": 90,
+    "lampe": false,
+    "eclat": 0.5
+  },
+  "solid": false,
+  "cartel": false,
+  "loadDistance": 130
+}

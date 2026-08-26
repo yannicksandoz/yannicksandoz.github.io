@@ -120,7 +120,15 @@
     "gravite",
     "lucioles-bel-1",
     "lucioles-bel-2",
-    "gerbe-belvedere"
+    "gerbe-belvedere",
+    "lavage-bel-nord",
+    "lavage-bel-sud",
+    "lavage-bel-ouest",
+    "lavage-bel-est",
+    "emprise-bel-nord",
+    "emprise-bel-sud",
+    "emprise-bel-ouest",
+    "emprise-bel-est"
   ],
   "bascules": [
     {

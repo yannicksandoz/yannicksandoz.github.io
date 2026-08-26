@@ -170,5 +170,14 @@
   "ligne-couloir-est.json",
   "ligne-annexe-ouest.json",
   "ligne-annexe-est.json",
-  "gerbe-belvedere.json"
+  "gerbe-belvedere.json",
+  "lavage-bel-nord.json",
+  "lavage-bel-sud.json",
+  "lavage-bel-ouest.json",
+  "lavage-bel-est.json",
+  "emprise-bel-nord.json",
+  "emprise-bel-sud.json",
+  "emprise-bel-ouest.json",
+  "emprise-bel-est.json",
+  "corniche-couloir-fond.json"
 ]

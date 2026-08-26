@@ -269,6 +269,24 @@ en plus de la lumière clé qui modèle :
 | `faisceau` | un rai qui tombe, **avec sa face source** au sommet — un disque plein qui dit d'où vient la lumière. Sans lui, le fût se terminait par un anneau net découpé sur le vide : un tube flottant, pas un rai |
 | `gerbe` | des dizaines de rais partant d'UN point vers une direction nommée (`"vers": [1,-1,1]` : la grande diagonale d'un cube). Répartis en spirale d'or — régulier sans être en grille, et **déterministe**, sinon la gerbe changerait à chaque chargement et à chaque photo. Tous les rais fondus en une seule géométrie : un objet qu'on regarde d'un bloc ne vaut pas quarante-deux appels de rendu |
 
+Trois réglages qui ne se devinent pas :
+
+- **`eclat`** sépare la brillance de la fente de la couleur de la lumière.
+  Le bandeau sort du tone mapping (une source ne se compresse pas comme une
+  surface) et le bloom fleurit tout ce qui dépasse 0,55 : à pleine couleur,
+  le cœur de la ligne partait en blanc pur avec un halo. Posé à 0,62, il
+  rayonne sans brûler — mesuré, la luminance maximale du couloir est passée
+  de 255 saturé à 203.
+- **`"lampe": false`** donne le TRAIT SANS LA SOURCE. Une ligne qui borde
+  une passerelle dans le vide travaille par son dessin : elle raconte le
+  chemin, elle n'a rien à éclairer autour d'elle. Lui donner une source
+  étendue coûterait une lampe par passerelle pour un effet que personne ne
+  verrait.
+- **`loadDistance`** doit suivre la salle. Dans un cube de 50 m, une lumière
+  posée au plafond est à 57 m du spawn : au-delà des 50 m par défaut, elle
+  APPARAISSAIT en cours d'ascension. L'architecture ne surgit pas — les
+  lavages du belvédère et sa gerbe portent 130.
+
 Ces trois formes SONT une lumière : elles ne reçoivent pas d'accent. Le
 moteur leur donne `lightIntensity` 0 par défaut (`LUMINAIRES`, dans
 `Artwork.js`) et la charte connaît la même liste — un test vérifie que les

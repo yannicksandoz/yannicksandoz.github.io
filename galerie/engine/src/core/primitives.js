@@ -439,10 +439,18 @@ function buildCorniche(size, model) {
 
   // LE BANDEAU VISIBLE : la fente elle-même, à peine plus qu'un trait.
   // Émissif pur (jamais éclairé) : c'est une source, elle ne reçoit pas.
+  // L'ÉCLAT DE LA FENTE, séparé de la couleur de la lumière. Le bandeau
+  // sort du tone mapping (une source ne se laisse pas compresser comme une
+  // surface) et le bloom fleurit tout ce qui dépasse 0,55 : à pleine
+  // couleur, le cœur de la ligne partait en blanc pur avec un halo. On le
+  // pose donc juste au-dessus du seuil — assez pour qu'il rayonne, pas
+  // assez pour qu'il brûle. La LUMIÈRE, elle, garde sa teinte entière.
+  const eclat = Number.isFinite(model.eclat) ? model.eclat : 0.62;
   const bandeau = new THREE.Mesh(
     new THREE.PlaneGeometry(longueur, epaisseur),
     new THREE.MeshBasicMaterial({
-      color: couleur, toneMapped: false, side: THREE.DoubleSide
+      color: couleur.clone().multiplyScalar(eclat),
+      toneMapped: false, side: THREE.DoubleSide
     })
   );
   // demi-tour : la face du bandeau regarde alors du MÊME côté que la
@@ -458,12 +466,20 @@ function buildCorniche(size, model) {
   // c'est le bandeau qu'on a retourné pour la rejoindre. Une rotation de
   // -45° sur X braque donc l'ensemble vers le bas ET vers l'arrière — un
   // lavage de mur depuis une corniche, exactement le geste voulu.
-  const lampe = new THREE.RectAreaLight(
-    couleur, model.intensite ?? 12, longueur, Math.max(epaisseur, 0.5));
-  // légèrement en avant de la fente : la lampe ne s'éclaire pas elle-même
-  lampe.position.z = -0.02;
-  groupe.add(lampe);
-  groupe.userData.lampeCorniche = lampe;
+  // `"lampe": false` — LE TRAIT SANS LA SOURCE. Une ligne qui borde une
+  // passerelle dans le vide travaille par son DESSIN : elle raconte le
+  // chemin, elle n'a rien à éclairer autour d'elle (il n'y a rien). Lui
+  // donner une source étendue coûterait une lampe de plus par passerelle
+  // pour un effet que personne ne verrait. Les lavages de mur, eux, la
+  // gardent : c'est la surface léchée qui fait tout leur travail.
+  if (model.lampe !== false) {
+    const lampe = new THREE.RectAreaLight(
+      couleur, model.intensite ?? 12, longueur, Math.max(epaisseur, 0.5));
+    // légèrement en avant de la fente : la lampe ne s'éclaire pas elle-même
+    lampe.position.z = -0.02;
+    groupe.add(lampe);
+    groupe.userData.lampeCorniche = lampe;
+  }
 
   // LE MUR PLUTÔT QUE LES DEGRÉS. Poser vingt corniches en composant des
   // angles d'Euler à la main, c'est vingt occasions de braquer une lampe
