@@ -325,7 +325,15 @@ function buildVoxelMaterial() {
   // MONDE, projeté selon les trois axes (voir patcherGrain) : rien ne
   // s'étire, un pavé de six mètres et un cube de vingt-cinq centimètres
   // portent la même matière à la même taille réelle.
-  return patcherGrain(material, 'poli', { echelle: 1.3, force: 0.3, relief: 0.85 });
+  // L'ÉCHELLE DU GRAIN, VUE EN PEINTRE. À 1,3 m de période, sur des marches
+  // de 50 cm, le motif ne se lisait plus comme une matière mais comme un
+  // DAMIER : une tuile couvrait deux marches et demie, et l'œil comptait
+  // les tuiles au lieu de voir la pierre. Un grain doit être plus fin que
+  // le plus petit élément qu'il habille, sans quoi il le contredit. À
+  // 38 cm il passe sous la marche ; la force et le relief redescendent
+  // d'autant — un voxel a déjà ses arêtes franches pour dire son volume,
+  // il n'a pas besoin qu'on lui en peigne d'autres par-dessus.
+  return patcherGrain(material, 'poli', { echelle: 0.38, force: 0.16, relief: 0.3 });
 }
 
 /** Centre d'une cellule, dans le repère de l'objet (grille centrée, base à y=0). */

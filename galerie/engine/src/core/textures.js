@@ -39,7 +39,15 @@ export function setDefaultAnisotropy(n) { _anisotropy = n; }
 /** L'anisotropie courante — les matières photographiques la lisent aussi. */
 export function anisotropie() { return _anisotropy; }
 
-const SIZE = 32;
+// LA FINESSE DE LA TUILE. Trente-deux texels suffisaient tant qu'une
+// tuile couvrait deux mètres : un texel valait six centimètres, sous le
+// seuil de l'œil. Le grain triplanaire des voxels, lui, la répète tous
+// les 38 cm — un texel y vaut plus d'un centimètre, et de près la pierre
+// se lisait en pâtés de camouflage. À 128, le texel retombe à trois
+// millimètres. Les constantes des peintres (rangées de briques, largeur
+// de planche, pas du râteau) sont DÉDUITES de SIZE : la définition
+// change, les proportions ne bougent pas d'un poil.
+const SIZE = 128;
 
 /** PRNG déterministe (mulberry32) : les textures ne changent pas d'un build à l'autre. */
 function prng(seed) {
@@ -87,7 +95,7 @@ function peindrePierre(rand) {
 
 function peindreBrique(rand) {
   const px = new Array(SIZE * SIZE).fill(0.9);
-  const H = 8; // 4 rangées de briques par tuile
+  const H = SIZE / 4; // 4 rangées de briques par tuile
   for (let y = 0; y < SIZE; y++) {
     const row = Math.floor(y / H);
     const decal = (row % 2) * (SIZE / 4);
@@ -106,7 +114,7 @@ function peindreBrique(rand) {
 
 function peindrePlanches(rand) {
   const px = new Array(SIZE * SIZE).fill(0.9);
-  const W = 8; // 4 planches verticales par tuile
+  const W = SIZE / 4; // 4 planches verticales par tuile
   const teintes = [0.94, 0.87, 0.91, 0.84];
   for (let x = 0; x < SIZE; x++) {
     const planche = Math.floor(x / W);
@@ -171,7 +179,7 @@ function peindreRatisse(rand) {
   // légèrement ondulantes, l'arête éclairée d'un côté et l'ombre de
   // l'autre, sur un fond de gravier finement moucheté.
   const px = new Array(SIZE * SIZE).fill(0.92);
-  const PAS = 4; // un sillon tous les 4 texels
+  const PAS = SIZE / 8; // un sillon tous les huitièmes de tuile
   for (let y = 0; y < SIZE; y++) {
     for (let x = 0; x < SIZE; x++) {
       // l'ondulation est périodique sur la tuile : pas de couture
@@ -474,10 +482,38 @@ export function patcherGrain(material, style = 'poli',
         varying vec3 vGrainNrm;
         // la hauteur du grain en un point du MONDE : trois projections,
         // mélangées par la normale — aucune UV, aucune couture
+        // CASSER LE RÉSEAU. Une tuile répétée reste une tuile : à 38 cm de
+        // période, l'œil retrouvait les mêmes pâtés alignés en damier sur
+        // toute une volée de marches. C'est le problème classique de la
+        // répétition de texture. Quilez tire un décalage au hasard PAR
+        // TUILE et fond les tuiles voisines près des bords ; Heitz & Neyret
+        // (2018), repris en hex-tiling temps réel, mélangent trois patchs
+        // sur un réseau triangulaire avec un opérateur qui préserve
+        // l'histogramme. Les deux sont faits pour des textures STRUCTURÉES
+        // en projection simple : ici la projection est triplanaire (trois
+        // lectures déjà) et le grain est un scalaire de bruit, sans
+        // structure à préserver — le mélange de patchs coûterait neuf
+        // lectures pour résoudre un problème qu'on n'a pas.
+        //
+        // On décorrèle donc les OCTAVES : la même tuile lue à deux échelles
+        // dont le rapport est IRRATIONNEL (le nombre d'or), la seconde
+        // tournée d'un angle qui n'est pas un quart de tour. Deux réseaux
+        // dont ni les pas ni les axes ne sont commensurables ne se
+        // réalignent jamais : la période visible disparaît, pour six
+        // lectures au lieu de neuf.
+        const float OR = 1.6180339887;
+        const mat2 BIAIS = mat2(0.8391, -0.5440, 0.5440, 0.8391); // ~33°
+        float deuxOctaves(vec2 q) {
+          float a = texture2D(uGrain, q).r;
+          float b = texture2D(uGrain, BIAIS * q * OR + 0.37).r;
+          // 0,62 / 0,38 : l'octave fine détaille sans effacer la première,
+          // et la moyenne reste celle de la tuile — donc la clarté aussi
+          return a * 0.62 + b * 0.38;
+        }
         float grainEn(vec3 p, vec3 an) {
-          return texture2D(uGrain, p.zy / uGrainEchelle).r * an.x
-               + texture2D(uGrain, p.xz / uGrainEchelle).r * an.y
-               + texture2D(uGrain, p.xy / uGrainEchelle).r * an.z;
+          return deuxOctaves(p.zy / uGrainEchelle) * an.x
+               + deuxOctaves(p.xz / uGrainEchelle) * an.y
+               + deuxOctaves(p.xy / uGrainEchelle) * an.z;
         }`)
       // LE GRAIN EST CALCULÉ UNE FOIS, ET SERT DEUX FOIS. `color_fragment`
       // passe avant `normal_fragment_maps` dans le shader standard : on y

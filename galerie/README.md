@@ -281,6 +281,33 @@ Coût mesuré du calque entier (mêmes pixels, lampes éteintes puis
 allumées) : **+5 % de temps de rendu**, sur un WebGL logiciel qui pénalise
 ces lampes bien plus qu'un vrai GPU.
 
+**Le grain, et la fin du damier.** Le grain triplanaire des constructions
+voxel se répétait tous les 1,3 m : sur des marches de 50 cm, une tuile
+couvrait deux marches et demie et l'œil comptait les tuiles au lieu de voir
+la pierre. Un grain doit être **plus fin que le plus petit élément qu'il
+habille** — il est passé à 38 cm, avec force et relief réduits d'autant (un
+voxel a déjà ses arêtes pour dire son volume). La tuile elle-même est
+passée de 32 à **128 texels** : à 38 cm de période, un texel de 32 valait
+plus d'un centimètre et la pierre se lisait en pâtés de camouflage. Les
+constantes des peintres (rangées de briques, largeur de planche, pas du
+râteau) sont désormais déduites de `SIZE` — la définition change, les
+proportions ne bougent pas.
+
+Restait la **répétition du réseau**, visible dès qu'on longe une volée.
+C'est un problème étudié : [Quilez](https://www.shadertoy.com/view/4tsGzf)
+tire un décalage aléatoire par tuile et fond les tuiles voisines près des
+bords ; [Heitz & Neyret](https://inria.hal.science/hal-01824773/file/HPN2018.pdf),
+repris en [hex-tiling temps réel](https://jcgt.org/published/0011/03/05/paper-lowres.pdf),
+mélangent trois patchs sur un réseau triangulaire avec un opérateur qui
+préserve l'histogramme. Les deux visent des textures STRUCTURÉES en
+projection simple ; ici la projection est triplanaire (trois lectures
+déjà) et le grain est un scalaire de bruit, sans structure à préserver —
+le mélange de patchs coûterait neuf lectures pour un problème qu'on n'a
+pas. On décorrèle donc les **octaves** : la même tuile lue à deux échelles
+de rapport irrationnel (le nombre d'or), la seconde tournée de 33°. Deux
+réseaux dont ni les pas ni les axes ne sont commensurables ne se
+réalignent jamais — la période visible disparaît, pour six lectures.
+
 **Après une bascule, on regarde devant soi.** Une bascule de gravité fait
 une seule chose au regard : elle le **couche sur le nouvel horizon**. Le
 **cap du monde ne bouge pas d'un degré** — on arrive tourné exactement là où
