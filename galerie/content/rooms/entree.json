@@ -9,7 +9,7 @@
   "fogColor": "#090b16",
   "floor": {
     "size": 140,
-    "color": "#414a70",
+    "color": "#414a6f",
     "grid": false,
     "texture": "damier",
     "textureRepeat": 1
@@ -18,7 +18,7 @@
     "color": "#c8d4ff",
     "intensity": 2.4,
     "azimuth": 205,
-    "elevation": 40
+    "elevation": 52
   },
   "envIntensity": 1.5,
   "works": [
@@ -96,7 +96,7 @@
     "width": 60,
     "depth": 44,
     "height": 10,
-    "color": "#333a5c",
+    "color": "#525c89",
     "walls": [
       "nord"
     ],

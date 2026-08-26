@@ -1317,6 +1317,26 @@ texture supplémentaire. C'est ce qui a sorti tout le belvédère de l'aplat.
 Enfin l'**huisserie est d'une seule main** : chambranles de portail,
 dormants de baie et cadres d'œuvre partagent le même métal brossé.
 
+### La charte
+
+La direction artistique est ÉCRITE, en règles mesurables (`scripts/charte.mjs`,
+verrouillées par `test-charte.mjs`) — parce qu'une DA qui vit dans la tête de
+son auteur dérive à chaque salle ajoutée. Les règles viennent de la
+muséographie, pas d'un goût :
+
+| Règle | Mesure |
+|---|---|
+| le mur est **plus clair que le sol** | +8 L* (± 6) — le sol absorbe, le mur renvoie |
+| les surfaces sont **peu saturées** | ≤ 45 % — le contraste vient de la lumière, pas des murs |
+| une salle = **une teinte** | sol et mur à ≤ 15° l'un de l'autre |
+| une **lumière de référence** | intensité 2,4 (± 0,4), élévation 55° (± 12) |
+| l'**accrochage à hauteur d'œil** | centre à 1,50 m ; les très grands formats gardent leur bas à 0,90 m |
+
+Les extérieurs (jardin, allée) sont exemptés des deux premières règles :
+leur « mur » est un lointain, leur lumière est le ciel. `node
+scripts/charte.mjs` imprime le rapport salle par salle ; une salle qui jure
+fait rougir la chaîne de tests avant de partir en ligne.
+
 L'**image d'environnement** qui nourrit l'IBL se choisit dans
 `reglages.json` : `"environnement": "studio"` (le défaut, un studio neutre
 généré), `"aube"` ou `"appartement"` — deux panoramas HDR de Poly Haven

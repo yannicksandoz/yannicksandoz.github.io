@@ -67,7 +67,7 @@
   ],
   "floor": {
     "size": 48,
-    "color": "#3f4064",
+    "color": "#404166",
     "grid": false,
     "texture": "damier",
     "textureRepeat": 1
@@ -76,7 +76,7 @@
     "width": 36,
     "depth": 44,
     "height": 8,
-    "color": "#2c2c44",
+    "color": "#535380",
     "texture": "pierre"
   },
   "keyLight": {
