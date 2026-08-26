@@ -1455,6 +1455,11 @@ export function buildShell(config) {
     const m = new THREE.Mesh(g, mat);
     m.position.set(x, y, z);
     m.receiveShadow = true;
+    // ET projeter. Un mur qui ne projette pas, c'est une pièce sans
+    // aplomb : le plafond n'assombrit pas les angles, un retrait ne pose
+    // aucune ombre sur le sol voisin, et la lumière rasante traverse la
+    // coque comme si elle était en papier.
+    m.castShadow = true;
     m.userData.ignoreRaycast = true; // décor : jamais une cible de sélection
     group.add(m);
   };
@@ -1509,6 +1514,10 @@ export function buildShell(config) {
     m.position.set(x, 0, z);
     m.rotation.y = rotY;
     m.receiveShadow = true;
+    // un mur PERCÉ doit projeter : c'est ce qui dessine sur le sol la
+    // découpe de lumière d'une baie, la seule chose qui dise qu'il y a
+    // une ouverture plutôt qu'une image collée
+    m.castShadow = true;
     m.userData.ignoreRaycast = true;
     m.userData.mur = wall;      // l'éditeur vise un mur : il doit le nommer
     group.add(m);
@@ -1622,9 +1631,8 @@ export function buildKeyLight(config, profile) {
   if (profile?.shadows && opt.shadows !== false) {
     light.castShadow = true;
     light.shadow.mapSize.setScalar(profile.shadowMapSize ?? 1024);
-    // le biais normal évite l'acné d'ombre sans décoller les contacts
-    light.shadow.normalBias = 0.05;
     light.shadow.bias = -0.0002;
+    // le biais normal se règle avec la fenêtre : voir frameKeyLightShadow
   }
 
   const group = new THREE.Group();
@@ -1637,17 +1645,105 @@ export function buildKeyLight(config, profile) {
   return group;
 }
 
-/** Cadre la caméra d'ombre sur le sol de la pièce (recadrable à chaud). */
+/**
+ * LA CARTE D'OMBRE : une fenêtre serrée qui SUIT le visiteur.
+ *
+ * Elle était cadrée sur le `floor.size` — le grand plan décoratif, pas la
+ * pièce. À l'entrée, 140 m de sol : 144 m étalés sur 2048 texels, soit
+ * **7 cm par texel**. Un pied de banc large de huit centimètres tenait dans
+ * un texel : son ombre de contact n'existait pas. Mesuré partout, ça
+ * donnait 7 cm à l'entrée, 6,1 à l'annexe, 4,6 au jardin — d'où des objets
+ * posés nulle part, qui flottaient au-dessus du sol. C'est le premier
+ * défaut qu'on lit comme « pas fini ».
+ *
+ * On plafonne donc la fenêtre à `PORTEE_OMBRE` mètres autour du VISITEUR :
+ * 1,7 cm par texel quelle que soit la taille de la pièce, du couloir au
+ * belvédère de cinquante mètres. Ce qui sort de la fenêtre n'a pas d'ombre
+ * portée — mais c'est le lointain, où l'ombre ne se lit plus de toute
+ * façon, et l'occlusion ambiante continue d'y ancrer les objets.
+ *
+ * Le CALAGE SUR LA GRILLE (texel snapping) n'est pas une coquetterie : une
+ * fenêtre qui glisse en continu fait grouiller le bord des ombres à chaque
+ * pas. On arrondit donc le centre au texel près, DANS LE REPÈRE DE LA
+ * LUMIÈRE — arrondir en x/z du monde ne calerait rien, la lumière étant
+ * oblique.
+ */
+export const PORTEE_OMBRE = 17;   // demi-fenêtre, en mètres
+
+/** L'étendue utile d'une pièce : sa coque si elle en a une, sinon son sol. */
+function etendueUtile(config) {
+  const s = config?.shell;
+  if (Number(s?.width) > 0 && Number(s?.depth) > 0) {
+    return Math.max(Number(s.width), Number(s.depth));
+  }
+  return Number(config?.floor?.size) > 0 ? config.floor.size : FLOOR_DEFAULTS.size;
+}
+
+/** Cadre la caméra d'ombre (recadrable à chaud). */
 export function frameKeyLightShadow(group, config) {
   const light = group.userData.light;
   if (!light.castShadow) return;
-  const size = Number(config?.floor?.size) > 0 ? config.floor.size : FLOOR_DEFAULTS.size;
-  const half = size / 2 + 2;
+  const etendue = etendueUtile(config);
+  const half = Math.min(etendue / 2 + 2, PORTEE_OMBRE);
   const cam = light.shadow.camera;
   cam.left = -half; cam.right = half;
   cam.top = half; cam.bottom = -half;
-  cam.near = 1; cam.far = size * 2 + 30;
+  // la fenêtre suit le visiteur : la profondeur doit couvrir toute la
+  // pièce derrière lui, pas seulement la boîte cadrée
+  cam.near = 1; cam.far = etendue * 2 + 40;
   cam.updateProjectionMatrix();
+  group.userData.demiOmbre = half;
+  group.userData.suit = etendue / 2 + 2 > PORTEE_OMBRE;
+
+  // LE BIAIS SUIT LA FINESSE. Le biais normal décale le point testé le long
+  // de sa normale pour éviter l'acné d'auto-ombrage ; il doit valoir un peu
+  // plus d'un texel, pas davantage — sinon il décolle l'ombre de l'objet et
+  // le banc se remet à flotter. Il était figé à 5 cm, taillé pour les
+  // texels de 7 cm de l'entrée ; à 1,7 cm il mangeait trois texels.
+  const texel = (half * 2) / (light.shadow.mapSize.x || 1024);
+  light.shadow.normalBias = Math.min(0.05, Math.max(0.008, texel * 1.4));
+}
+
+const _centre = new THREE.Vector3();
+const _axe = new THREE.Vector3();
+const _base = new THREE.Matrix4();
+const _inverse = new THREE.Matrix4();
+const _origine = new THREE.Vector3(0, 0, 0);
+const _hautY = new THREE.Vector3(0, 1, 0);
+const _hautZ = new THREE.Vector3(0, 0, 1);
+
+/**
+ * Recentre la fenêtre d'ombre sur un point (la position du visiteur),
+ * calée sur la grille de texels. Ne fait rien si la pièce tient déjà
+ * entière dans la fenêtre. Renvoie true si quelque chose a bougé — la
+ * carte n'a alors besoin d'être redessinée que dans ce cas.
+ */
+export function suivreOmbre(group, cible) {
+  const light = group?.userData?.light;
+  if (!light?.castShadow || !group.userData.suit) return false;
+
+  const half = group.userData.demiOmbre ?? PORTEE_OMBRE;
+  const texel = (half * 2) / (light.shadow.mapSize.x || 1024);
+
+  // le repère de la lumière : on y arrondit, sinon le calage ne cale rien
+  _axe.copy(light.position).sub(light.target.position);
+  const dist = _axe.length() || 1;
+  _axe.divideScalar(dist);
+  // une lumière au zénith rend `lookAt` dégénéré (axe parallèle au haut) :
+  // on change alors de vecteur haut, le repère reste orthonormé
+  const haut = Math.abs(_axe.y) > 0.999 ? _hautZ : _hautY;
+  _base.lookAt(_axe, _origine, haut);            // colonnes = droite, haut, axe
+  _centre.set(cible.x, 0, cible.z);
+  _centre.applyMatrix4(_inverse.copy(_base).invert());
+  _centre.x = Math.round(_centre.x / texel) * texel;
+  _centre.y = Math.round(_centre.y / texel) * texel;
+  _centre.applyMatrix4(_base);
+
+  if (light.target.position.distanceToSquared(_centre) < 1e-8) return false;
+  light.target.position.copy(_centre);
+  light.position.copy(_centre).addScaledVector(_axe, dist);
+  light.target.updateMatrixWorld();
+  return true;
 }
 
 /** (Ré)oriente et re-règle la lumière clé depuis la config, sans recréer. */

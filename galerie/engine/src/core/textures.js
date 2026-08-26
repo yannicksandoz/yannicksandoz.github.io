@@ -143,13 +143,27 @@ function peindrePlanches(rand) {
 
 function peindreDalles(rand) {
   const px = new Array(SIZE * SIZE).fill(0.9);
-  const D = 16; // 2×2 dalles par tuile
+  // DEUX dalles par tuile, soit un mètre de côté : la taille d'une dalle
+  // de hall, celle qu'on enjambe. `16` était écrit en dur du temps où la
+  // tuile faisait 32 texels ; passée à 128, il donnait 8×8 dalles de
+  // 25 cm — un carrelage de salle de bains répété à l'infini, et c'est
+  // exactement ce qui datait les sols. Les autres peintres déduisaient
+  // déjà leurs constantes de SIZE ; celui-ci ne l'avait pas suivi.
+  const D = SIZE / 2;
+  // le joint doit rester un joint quelle que soit la définition : trois
+  // millimètres à l'échelle du monde, pas « un texel »
+  const JOINT = Math.max(1, Math.round(SIZE / 64));
   for (let y = 0; y < SIZE; y++) {
     for (let x = 0; x < SIZE; x++) {
-      const joint = x % D === 0 || y % D === 0;
+      const joint = x % D < JOINT || y % D < JOINT;
       const dalle = Math.floor(x / D) + Math.floor(y / D) * 2;
-      let v = joint ? 0.74
-        : 0.9 + ((dalle * 31 % 7) - 3) * 0.018 + (rand() - 0.5) * 0.045;
+      // chaque dalle a SON nuage : sans quoi quatre grands aplats voisins
+      // se lisent comme une seule surface rayée de croix
+      const nuage = valueNoise(prng(401 + dalle * 137), 3);
+      const v = joint ? 0.74
+        : 0.9 + ((dalle * 31 % 7) - 3) * 0.018
+          + (nuage((x % D) / D * 3, (y % D) / D * 3) - 0.5) * 0.09
+          + (rand() - 0.5) * 0.03;
       px[y * SIZE + x] = v;
     }
   }
@@ -334,7 +348,14 @@ export function styleTexture(style) {
 
   const tex = new THREE.CanvasTexture(canvas);
   tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
-  tex.magFilter = THREE.NearestFilter;              // les texels restent carrés
+  // LE FILTRE. NEAREST venait des tuiles de 32 texels : à cette
+  // définition, des carrés francs étaient un parti pris pixel-art. À 128,
+  // ce n'en est plus un — un joint de dalle et une veine de pierre ne
+  // gagnent rien à monter en marches d'escalier, et de près la surface se
+  // met à grouiller d'angles droits que la matière n'a pas. C'est
+  // d'ailleurs pour ça que `patcherGrain` en clonait déjà une copie
+  // adoucie. On lisse donc partout, et la matière redevient continue.
+  tex.magFilter = THREE.LinearFilter;
   tex.minFilter = THREE.LinearMipmapLinearFilter;   // le lointain ne grésille pas
   tex.generateMipmaps = true;
   tex.anisotropy = _anisotropy;

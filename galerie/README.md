@@ -2284,6 +2284,88 @@ Points d'appui : `this.artwork.bus` (GainNode de l'œuvre),
 `this.app.audio.ctx` (AudioContext partagé), `this.app.quality.profile`
 (profil de l'appareil), `this.app.controls` / `this.app.camera`.
 
+## Lumière : la profondeur d'ombre, mesurée
+
+Une galerie qui « fait daté » ne le doit presque jamais à ses formes : elle
+le doit à ses ombres. On a donc cessé de juger l'éclairage à l'œil et on l'a
+**mesuré**, avec un protocole simple : rendre deux fois la même image, avec
+et sans ombres portées. Les pixels qui s'éclaircissent quand on coupe les
+ombres SONT les pixels d'ombre ; leur rapport donne la **profondeur
+d'ombre**, et leur nombre la **surface ombrée**.
+
+Un rendu d'intérieur professionnel tient sa profondeur entre **0,35 et
+0,55**, sur 10 à 30 % de l'image. La galerie était à :
+
+| salle | profondeur | surface |
+|---|---|---|
+| entrée | 0,78 | 0,5 % |
+| labo | 0,90 | 0,0 % |
+| jardin | 0,86 | 0,9 % |
+| bibliothèque | 0,64 | 0,3 % |
+| archives | 0,80 | 2,1 % |
+
+Autrement dit : des ombres calculées à chaque image, puis effacées. Trois
+causes, toutes trouvées à la mesure.
+
+**1. La fenêtre d'ombre était cadrée sur le sol décoratif.** `floor.size`
+va jusqu'à 140 m à l'entrée : 144 m étalés sur 2048 texels, soit **7 cm par
+texel**. Un pied de banc large de huit centimètres tenait dans un texel —
+son ombre de contact n'existait pas. Elle est désormais plafonnée à 17 m
+autour du **visiteur** et **suit** ses pas : 1,7 cm par texel du couloir au
+belvédère de cinquante mètres. Le recentrage est calé sur la grille de
+texels *dans le repère de la lumière* — arrondir en x/z du monde ne calerait
+rien, la lumière étant oblique — sinon le bord des ombres grouille à chaque
+pas. Le biais normal, figé à 5 cm (taillé pour les texels de 7 cm), suit
+maintenant la finesse réelle : un peu plus d'un texel, pas davantage, sinon
+il décolle l'ombre de l'objet et le banc se remet à flotter.
+
+**2. Le remplissage noyait la clé.** Balayé salle par salle, le rapport
+remplissage/clé donne une courbe monotone et lisible : à l'entrée, diviser
+le remplissage par trois fait passer la profondeur de 0,78 à 0,49. Chaque
+salle a donc été recalibrée sur sa propre mesure — l'IBL divisé par deux à
+cinq selon la pièce, la clé remontée d'autant qu'il faut pour garder le
+niveau, mais **pas davantage** : c'est le contraste qu'on vient chercher.
+
+**3. Les murs de coque ne projetaient pas.** Ils recevaient l'ombre sans
+jamais en porter : aucune découpe de lumière au sol sous une baie, aucun
+aplomb dans les angles. Ils projettent désormais — c'est ce qui a fait
+passer la surface ombrée de 0,3 % à 11,3 % à la bibliothèque et de 2,1 % à
+11,9 % aux archives.
+
+**Et l'élévation descend de 55° à 40°.** Une lumière proche du zénith écrase
+tout : les ombres tombent sous les objets et ne disent rien, les murs
+reçoivent la lumière de face et redeviennent des aplats. Une lumière
+**rasante** allonge les ombres — mesuré, la surface ombrée double entre 52°
+et 30° — et surtout elle accroche le relief des matières, la seule chose qui
+distingue un mur de pierre d'un rectangle gris.
+
+Après : entrée 0,40 sur 3,8 % · archives 0,39 sur 11,9 % · bibliothèque 0,46
+sur 11,3 % · jardin 0,54. La charte (`scripts/charte.mjs`) porte les
+nouvelles bornes — clé 3,5 ± 0,8, élévation 40 ± 8 — pour que le réglage ne
+redérive pas en silence.
+
+## Matière : deux régressions de définition
+
+**Les dalles étaient un carrelage de salle de bains.** `peindreDalles`
+gardait `D = 16` écrit en dur, du temps où une tuile faisait 32 texels : il
+y dessinait 2×2 dalles d'un mètre. La tuile est passée à 128 — tous les
+autres peintres déduisent leurs constantes de `SIZE`, celui-ci ne l'a pas
+suivi — et il s'est mis à produire **8×8 dalles de 25 cm**, répétées à
+l'infini. Corrigé : `D = SIZE / 2`, un joint dont l'épaisseur suit la
+définition, et un nuage propre à chaque dalle pour que quatre voisines ne se
+lisent pas comme une seule surface rayée de croix.
+
+**Le filtre NEAREST n'était plus un parti pris.** Il venait des tuiles de
+32 texels, où des carrés francs étaient une esthétique pixel-art assumée. À
+128, un joint de dalle et une veine de pierre ne gagnent rien à monter en
+marches d'escalier — c'est d'ailleurs pour ça que `patcherGrain` en clonait
+déjà une copie adoucie. Lissage partout : la matière redevient continue.
+
+**Et le damier de l'entrée, du labo et du couloir a disparu.** Un
+échiquier qui carrelle une salle jusqu'à l'horizon, c'est la texture par
+défaut de toutes les démos 3D depuis 1995 ; c'était la première chose que
+voyait un visiteur. Remplacé par les dalles.
+
 ## Qualité adaptative & mobile
 
 Le `QualityManager` (`engine/src/core/Quality.js`) choisit un profil au

@@ -11,16 +11,16 @@
     "size": 140,
     "color": "#414a6f",
     "grid": false,
-    "texture": "damier",
+    "texture": "dalles",
     "textureRepeat": 1
   },
   "keyLight": {
     "color": "#c8d4ff",
-    "intensity": 2.4,
+    "intensity": 3.57,
     "azimuth": 205,
-    "elevation": 52
+    "elevation": 38
   },
-  "envIntensity": 1.5,
+  "envIntensity": 0.52,
   "works": [
     "pierre-entree-1",
     "pierre-entree-2",

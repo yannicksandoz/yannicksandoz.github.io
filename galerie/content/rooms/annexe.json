@@ -42,11 +42,11 @@
   },
   "keyLight": {
     "color": "#9f8cd8",
-    "intensity": 2,
+    "intensity": 2.83,
     "azimuth": 240,
-    "elevation": 48
+    "elevation": 38
   },
-  "envIntensity": 1.1,
+  "envIntensity": 0.5,
   "jetons": [
     [
       3,

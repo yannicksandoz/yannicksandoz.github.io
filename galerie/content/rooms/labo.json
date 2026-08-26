@@ -71,7 +71,7 @@
     "size": 48,
     "color": "#404166",
     "grid": false,
-    "texture": "damier",
+    "texture": "dalles",
     "textureRepeat": 1
   },
   "shell": {
@@ -83,9 +83,9 @@
   },
   "keyLight": {
     "color": "#c4b8ff",
-    "intensity": 2.6,
+    "intensity": 3.67,
     "azimuth": 40,
-    "elevation": 60
+    "elevation": 42
   },
   "vistas": [
     {
@@ -121,7 +121,7 @@
       }
     }
   ],
-  "envIntensity": 1.15,
+  "envIntensity": 0.52,
   "jetons": [
     [
       -14,

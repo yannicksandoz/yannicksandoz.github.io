@@ -15,11 +15,11 @@
   },
   "keyLight": {
     "color": "#d8ffd8",
-    "intensity": 2.4,
+    "intensity": 3.84,
     "azimuth": 15,
-    "elevation": 55
+    "elevation": 42
   },
-  "envIntensity": 1.5,
+  "envIntensity": 0.3,
   "works": [
     "chemin-allee",
     "buisson-allee-1",

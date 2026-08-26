@@ -15,11 +15,11 @@
   },
   "keyLight": {
     "color": "#fff3da",
-    "intensity": 2.6,
+    "intensity": 4.2,
     "azimuth": 130,
-    "elevation": 52
+    "elevation": 40
   },
-  "envIntensity": 2,
+  "envIntensity": 0.36,
   "works": [
     "pierre-jardin-1",
     "pierre-jardin-2",

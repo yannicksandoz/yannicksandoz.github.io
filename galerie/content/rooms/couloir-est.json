@@ -11,7 +11,7 @@
     "size": 42,
     "color": "#474d6e",
     "grid": false,
-    "texture": "damier",
+    "texture": "dalles",
     "textureRepeat": 1
   },
   "shell": {
@@ -46,11 +46,11 @@
   },
   "keyLight": {
     "color": "#aab4e8",
-    "intensity": 2.3,
+    "intensity": 3.25,
     "azimuth": 90,
-    "elevation": 65
+    "elevation": 44
   },
-  "envIntensity": 1.05,
+  "envIntensity": 0.47,
   "works": [
     "lanterne-couloir-1",
     "lanterne-couloir-2",

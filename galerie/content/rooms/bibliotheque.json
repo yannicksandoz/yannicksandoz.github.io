@@ -39,11 +39,11 @@
   },
   "keyLight": {
     "color": "#ffcf9e",
-    "intensity": 2.4,
+    "intensity": 3.12,
     "azimuth": 205,
-    "elevation": 50
+    "elevation": 38
   },
-  "envIntensity": 1.1,
+  "envIntensity": 0.66,
   "works": [
     "rayonnage-1",
     "rayonnage-2",

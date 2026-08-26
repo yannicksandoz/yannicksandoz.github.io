@@ -60,7 +60,27 @@ export const CHARTE = {
   ecartMurSol: { vise: 8, tolerance: 6 },   // L* : le mur au-dessus du sol
   saturationMax: 45,                        // %
   ecartTeinteMax: 15,                       // degrés
-  lumiere: { intensite: 2.4, marge: 0.4, elevation: 55, margeElevation: 12 },
+  // LA LUMIÈRE CLÉ, recalibrée sur une mesure et non sur une intention.
+  //
+  // On rend deux fois la même image, avec et sans ombres portées : les
+  // pixels qui s'éclaircissent quand on coupe les ombres SONT les pixels
+  // d'ombre, et leur rapport donne la PROFONDEUR D'OMBRE. Un rendu
+  // d'intérieur tient la sienne entre 0,35 et 0,55 ; la galerie était à
+  // 0,64–0,90, avec 0 à 2 % de l'image ombrée au lieu de 10 à 30. Autrement
+  // dit : des ombres calculées, puis noyées par le remplissage.
+  //
+  // Deux corrections, mesurées salle par salle : le remplissage (IBL)
+  // divisé par deux à cinq, et la clé remontée d'autant qu'il faut pour que
+  // la salle garde son niveau — mais PAS davantage, c'est le contraste
+  // qu'on vient chercher. D'où une clé qui vit désormais autour de 3,5.
+  //
+  // L'ÉLÉVATION descend de 55° à 40°. Une lumière proche du zénith écrase
+  // tout : les ombres tombent sous les objets et ne disent rien, les murs
+  // reçoivent la lumière de face et redeviennent des aplats. Une lumière
+  // RASANTE allonge les ombres — mesuré, la surface ombrée double entre 52°
+  // et 30° — et surtout elle accroche le relief des matières, la seule
+  // chose qui distingue un mur de pierre d'un rectangle gris.
+  lumiere: { intensite: 3.5, marge: 0.8, elevation: 40, margeElevation: 8 },
   accrochage: { centre: 1.5, basMinimum: 0.9 },
   // L'ANGLE MINIMAL d'une œuvre depuis un point d'arrivée, en degrés.
   // Il se DÉDUIT de la règle de recul : on regarde une œuvre entre 1,5 et

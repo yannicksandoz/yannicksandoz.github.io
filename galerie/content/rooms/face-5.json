@@ -25,11 +25,11 @@
   },
   "keyLight": {
     "color": "#ff8b72",
-    "intensity": 2.4,
+    "intensity": 3.39,
     "azimuth": 315,
-    "elevation": 55
+    "elevation": 42
   },
-  "envIntensity": 1.2,
+  "envIntensity": 0.54,
   "works": [
     "lanterne-face-5"
   ],

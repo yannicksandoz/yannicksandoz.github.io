@@ -8,7 +8,7 @@ import {
   BloomFleur, PasseSortie, tailleBloom, copieSceneNecessaire
 } from './PasseSortie.js';
 import { VistaManager } from './Vista.js';
-import { FOG_DENSITY } from './RoomManager.js';
+import { FOG_DENSITY, suivreOmbre } from './RoomManager.js';
 import { AudioEngine } from './AudioEngine.js';
 import { Spatialisation } from './Spatialisation.js';
 import { QualityManager } from './Quality.js';
@@ -765,6 +765,11 @@ export class App {
       this._ombreAcc += dt;
       if (this.renderer.shadowMap.enabled && this._ombreAcc >= 1 / 30) {
         this._ombreAcc = 0;
+        // la fenêtre d'ombre suit le visiteur dans les grandes pièces, calée
+        // sur la grille de texels (voir suivreOmbre) : c'est ce qui permet
+        // 1,7 cm par texel au belvédère comme dans un couloir
+        const cle = this.rooms?.current?.keyLight;
+        if (cle) suivreOmbre(cle, camPos);
         this.renderer.shadowMap.needsUpdate = true;
       }
 

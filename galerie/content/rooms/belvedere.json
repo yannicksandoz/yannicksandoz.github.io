@@ -33,11 +33,11 @@
   },
   "keyLight": {
     "color": "#e0c4ff",
-    "intensity": 2.8,
+    "intensity": 3.96,
     "azimuth": 315,
-    "elevation": 58
+    "elevation": 46
   },
-  "envIntensity": 1.5,
+  "envIntensity": 0.68,
   "works": [
     "escalier-r1",
     "palier-r1",

@@ -38,11 +38,11 @@
   },
   "keyLight": {
     "color": "#9fd8d0",
-    "intensity": 2.2,
+    "intensity": 3.35,
     "azimuth": 210,
-    "elevation": 55
+    "elevation": 40
   },
-  "envIntensity": 1.15,
+  "envIntensity": 0.34,
   "works": [
     "stele-archives-1",
     "stele-archives-2",
