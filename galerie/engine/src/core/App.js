@@ -9,6 +9,7 @@ import {
 } from './PasseSortie.js';
 import { VistaManager } from './Vista.js';
 import { FOG_DENSITY, suivreOmbre } from './RoomManager.js';
+import { budgetLampes } from './ombres.js';
 import { AudioEngine } from './AudioEngine.js';
 import { Spatialisation } from './Spatialisation.js';
 import { QualityManager } from './Quality.js';
@@ -785,6 +786,16 @@ export class App {
           this.ombresSales = false;
           this.renderer.shadowMap.needsUpdate = true;
         }
+      }
+
+      // le budget de lampes proches (voir ombres.js) : trois fois par
+      // seconde, pas à chaque image — trier dix lampes est gratuit, mais
+      // il n'y a aucune raison de le faire à 120 Hz
+      this._lampesAcc = (this._lampesAcc ?? 1) + dt;
+      if (this._lampesAcc >= 0.35) {
+        this._lampesAcc = 0;
+        const salle = this.rooms?.current;
+        if (salle) budgetLampes(salle, camPos, this.quality.profile.lampesProches);
       }
 
       this.vistas?.update(dt); // la pièce apparue se rend avant la vraie

@@ -263,3 +263,61 @@ export function ombreDeContact(rx, rz, y = 0.02) {
   m.raycast = () => {};
   return m;
 }
+
+/* -------------------------------------------------- budget de lampes --- */
+
+const _posLampe = new THREE.Vector3();
+
+/**
+ * LE BUDGET DE LAMPES PROCHES — canal 4, la moitié qui manquait.
+ *
+ * Le rendu forward de three évalue CHAQUE lampe visible sur CHAQUE pixel
+ * de chaque surface éclairée : le coût d'une salle est proportionnel à son
+ * compte de lampes, pas à leur portée. Or la plupart des ponctuelles de la
+ * galerie portent à 14 m, et les flaques de seuil à 5 m : au belvédère
+ * (50 m, 13 portails), un pixel payait 27 lampes dont une vingtaine ne
+ * pouvaient rien lui apporter. C'est ce qui a mis un M1 Max à genoux.
+ *
+ * On ne garde donc VISIBLES que les N ponctuelles et M cônes les plus
+ * proches du visiteur — les autres existent, simplement le shader ne les
+ * intègre pas. Deux précautions font tout le sérieux de la chose :
+ *
+ *   • les comptes sont budgétés PAR TYPE et restent PLEINS tant que la
+ *     salle a de quoi : three compile un programme par combinaison de
+ *     comptes (NUM_POINT_LIGHTS × NUM_SPOT_LIGHTS…) — un budget global
+ *     qui ferait varier le mélange recompilerait les matériaux en pleine
+ *     marche, une saccade à chaque pas ;
+ *
+ *   • un COLLANT de 15 % : une lampe tenue ne cède sa place que si une
+ *     autre est nettement plus proche — sans lui, marcher à équidistance
+ *     de deux lanternes les ferait clignoter.
+ *
+ * La clé, l'hémisphérique et les sources étendues ne sont pas budgétées
+ * ici : la clé est le soleil, et les étendues ont leur propre robinet
+ * (`budgetSourcesEtendues`). Ce qu'on éteint au loin, ce sont des lampes
+ * de POCHE — leur flaque à 40 m couvre trois pixels d'écran.
+ */
+export function budgetLampes(room, camPos, { points = 6, cones = 6 } = {}) {
+  if (!room?.group) return;
+  const P = [], S = [];
+  room.group.traverse((o) => {
+    if (o.isPointLight) P.push(o);
+    else if (o.isSpotLight) S.push(o);
+  });
+  const appliquer = (liste, n) => {
+    if (liste.length <= n) {
+      for (const l of liste) l.visible = true;
+      return;
+    }
+    for (const l of liste) {
+      l.getWorldPosition(_posLampe);
+      let d2 = _posLampe.distanceToSquared(camPos);
+      if (l.visible) d2 *= 0.85;   // le collant : les tenues tiennent
+      l.userData.d2Budget = d2;
+    }
+    liste.sort((a, b) => a.userData.d2Budget - b.userData.d2Budget);
+    liste.forEach((l, i) => { l.visible = i < n; });
+  };
+  appliquer(P, points);
+  appliquer(S, cones);
+}

@@ -24,7 +24,8 @@
     "color": "#ffe9c4",
     "intensite": 16,
     "mur": "ouest",
-    "inclinaison": 45
+    "inclinaison": 45,
+    "lampe": false
   },
   "solid": false,
   "cartel": false,

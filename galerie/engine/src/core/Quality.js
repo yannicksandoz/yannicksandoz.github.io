@@ -44,6 +44,8 @@ export class QualityManager {
           // La salle garde sa lumière clé et ses ponctuelles : rien
           // n'éteint, c'est le dégradé sur le mur qui s'en va.
           sourcesEtendues: 0,
+          // lampes de poche intégrées par pixel : voir budgetLampes (ombres.js)
+          lampesProches: { points: 4, cones: 3 },
           envIntensity: 0.5
         }
       : {
@@ -67,6 +69,7 @@ export class QualityManager {
           // reste borné au bureau, où la mémoire ne manque pas.
           shadowMapSize: 4096,
           sourcesEtendues: 8,
+          lampesProches: { points: 6, cones: 6 },
           envIntensity: 0.5
         };
     this.profile.reducedMotion = this.reducedMotion;
