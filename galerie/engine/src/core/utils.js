@@ -46,11 +46,25 @@ export function slugify(name) {
  * Comptabilise les chargements en cours pour la barre de progression de
  * l'écran d'accueil. Chaque promesse suivie incrémente le total, puis le
  * compteur « terminé » quand elle se résout (succès ou échec).
+ *
+ * DEUX COMPTES, PAS UN. Le chargement paresseux ne distingue pas ce qu'il
+ * faut POUR ENTRER de ce qu'on prend D'AVANCE : à l'entrée, les œuvres des
+ * salles voisines sont déjà à portée (50 m) et se chargent aussi. Un scan
+ * gaussien voisin, c'est 1,3 Mo (bibliothèque + nuage de taches) et une
+ * dizaine de secondes — pendant lesquelles la barre de l'accueil attendait
+ * une salle où le visiteur n'est même pas.
+ *
+ * Le compte ESSENTIEL ne retient que la salle d'arrivée : c'est lui que la
+ * barre affiche, et lui qui décide qu'on a fini. Les préchargements
+ * continuent en silence derrière — ils comptent dans `total`, jamais dans
+ * `essentiels`.
  */
 export class LoadingTracker {
   constructor() {
     this.total = 0;
     this.done = 0;
+    this.essentiels = 0;
+    this.faits = 0;
     this._listeners = [];
   }
 
@@ -58,18 +72,27 @@ export class LoadingTracker {
     this._listeners.push(fn);
   }
 
-  track(promise) {
+  /**
+   * @param {Promise} promise
+   * @param {boolean} essentiel — false pour un préchargement (salle voisine) :
+   *   il se fait, mais ne retient pas l'écran d'accueil.
+   */
+  track(promise, essentiel = true) {
     this.total++;
+    if (essentiel) this.essentiels++;
     this._emit();
     promise.catch(() => {}).finally(() => {
       this.done++;
+      if (essentiel) this.faits++;
       this._emit();
     });
     return promise;
   }
 
   _emit() {
-    for (const fn of this._listeners) fn(this.done, this.total);
+    for (const fn of this._listeners) {
+      fn(this.done, this.total, this.faits, this.essentiels);
+    }
   }
 }
 

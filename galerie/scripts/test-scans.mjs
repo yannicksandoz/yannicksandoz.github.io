@@ -117,6 +117,46 @@ test('scans.js garde les deux choix qui ne se voient pas', () => {
     'GitHub Pages n’envoie pas les en-têtes COOP/COEP');
   assert.ok(src.includes('prise-scan'), 'le pavé de préhension a disparu');
 });
+test('rien de ce groupe ne projette d’ombre', () => {
+  const src = readFileSync(join(ici, '..', 'engine', 'src', 'core',
+    'scans.js'), 'utf8');
+  // La passe d’ombre ne lit que `position` : les 21 000 taches s’y écrasent
+  // sur le quad d’origine, et le pavé de préhension — invisible — porterait
+  // pourtant une ombre carrée bien nette.
+  assert.ok(/visionneuse\.traverse\(\(o\) => \{ o\.userData\.sansOmbre = true; \}\)/
+    .test(src), 'le nuage doit être exclu du calcul d’ombre');
+  assert.ok(src.includes('prise.userData.sansOmbre = true'),
+    'le pavé de préhension doit être exclu du calcul d’ombre');
+});
+test('un scan qui ÉCHOUE redevient visible', () => {
+  const src = readFileSync(join(ici, '..', 'engine', 'src', 'core',
+    'Artwork.js'), 'utf8');
+  // Le scan cache sa silhouette d’attente (le splat arrive sans écran
+  // devant). S’il n’arrive jamais, la cacher efface l’œuvre : plus rien à
+  // voir, rien à cliquer, aucun signe d’échec.
+  // borne de fin cherchée À PARTIR du début du bloc : `_clearMediaError`
+  // est aussi APPELÉ plus haut, et un indexOf global rendait une tranche vide
+  const debut = src.indexOf('setMediaError(message)');
+  const bloc = src.slice(debut, src.indexOf('_clearMediaError()', debut));
+  assert.ok(bloc.length > 0, 'bloc setMediaError introuvable');
+  assert.ok(bloc.includes('material.visible = true'),
+    'l’échec doit rallumer la silhouette');
+  assert.ok(src.includes('cfg.scan ?? cfg.image'),
+    'le message d’erreur doit nommer le fichier du scan');
+});
+test('une œuvre de salle VOISINE ne retient pas l’écran d’accueil', () => {
+  const src = readFileSync(join(ici, '..', 'engine', 'src', 'core',
+    'Artwork.js'), 'utf8');
+  assert.ok(src.includes('const essentiel = this.room ? this.room.isCurrent : true'),
+    'le préchargement doit se distinguer de la salle d’arrivée');
+  // les quatre chargements suivis passent le drapeau
+  for (const appel of ['taille: cfg.scanTaille }), essentiel',
+    'this._resolve(cfg.image)), essentiel',
+    'this._loadModelMesh(cfg.model, essentiel)',
+    'engine.load(this._resolve(s.file)), essentiel']) {
+    assert.ok(src.includes(appel), `chargement non marqué : ${appel}`);
+  }
+});
 test('la bibliothèque est déclarée, en MIT', () => {
   const p = JSON.parse(readFileSync(join(ici, '..', 'package.json'), 'utf8'));
   assert.ok(p.dependencies['@mkkellogg/gaussian-splats-3d']);

@@ -242,6 +242,24 @@ machine), **dérive** marche/arrêt, **couper le son** (au gain du bus
 maître : tout continue de jouer, revenir au son reprend où l'on en est).
 Icônes SVG dessinées dans le projet, aucun ajout au bundle.
 
+**La barre de l'accueil ne ment pas.** Elle a menti de deux façons
+opposées, et les deux se lisaient comme une panne. D'abord elle
+**reculait** : le total grandit à mesure que les chargements s'ajoutent,
+donc `fait / attendu` redescend — la règle monotone a réglé ça. Puis elle
+était **pleine trop tôt** : le premier fichier suivi vaut 1/1, soit 100 % ;
+la barre se remplissait en une seconde, puis restait pleine et grise
+pendant tout le vrai chargement. Elle a donc aujourd'hui les deux phases
+qu'a réellement le démarrage — *lire la galerie* (jusqu'à 45 %), puis
+*charger la salle d'arrivée* (jusqu'à 92 %) — et les derniers pour-cent
+n'appartiennent qu'à la fin, celle qui la verdit.
+
+Et elle **n'attend que la salle d'arrivée**. Les œuvres des salles voisines
+sont déjà à portée (50 m) et se chargent d'avance : un scan gaussien à
+côté, c'est 1,3 Mo et une dizaine de secondes ajoutées à un écran que le
+visiteur peut déjà quitter. Le `LoadingTracker` tient donc **deux comptes**
+— tout, et l'essentiel — et la barre ne regarde que le second ; les
+préchargements continuent en silence derrière.
+
 **Après une bascule, on regarde devant soi.** Une bascule de gravité fait
 une seule chose au regard : elle le **couche sur le nouvel horizon**. Le
 **cap du monde ne bouge pas d'un degré** — on arrive tourné exactement là où
@@ -617,7 +635,17 @@ au code du moteur** :
   "scanTaille": [4, 2, 4],         // pavé de préhension invisible (mètres) :
                                    // les taches ne se piquent pas au rayon,
                                    // c'est lui que visent clics et gizmo
+                                   // (il suit `scale`, comme le nuage)
   "solid": false,                  // un nuage de taches ne bloque pas le pas
+  // ÉCHELLE : une capture arrive à sa taille de terrain. Dans une salle de
+  // 36 × 44 m, un nuage de 4 m posé au fond se lit comme une tache — c'est
+  // `scale` qui lui donne sa présence, et il n'y a pas de honte à agrandir
+  // un scan pour qu'il tienne le volume qu'on lui a donné.
+  //
+  // Un scan ne porte PAS d'ombre : la passe d'ombre ne lit que la position
+  // des sommets, où les milliers de taches s'écrasent toutes sur le même
+  // carré (voir `core/scans.js`). Sa lumière d'accent, elle, éclaire le sol
+  // autour de lui — c'est elle qui l'ancre dans la salle.
 
   // — audio : autant de pistes que voulu, lues en boucle —
   "baseGain": 1,                   // volume de référence de l'objet

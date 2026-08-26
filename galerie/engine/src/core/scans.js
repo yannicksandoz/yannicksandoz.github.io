@@ -52,6 +52,13 @@ export async function creerScan(url, options = {}) {
     showLoadingUI: false,
     splatAlphaRemovalThreshold: 5
   });
+  // AUCUNE OMBRE PORTÉE. Une tache gaussienne n'a pas de silhouette : le
+  // nuage est dessiné par un shader qui déplie un quad par tache, et la
+  // passe d'ombre, elle, ne connaît que l'attribut `position` — les 21 000
+  // instances s'y écrasent toutes sur le même carré de 2 m à l'origine du
+  // maillage, qui projette une ombre carrée là où il n'y a rien. Les scans
+  // s'excluent donc du calcul (voir `_setMesh`, qui respecte `sansOmbre`).
+  visionneuse.traverse((o) => { o.userData.sansOmbre = true; });
   groupe.add(visionneuse);
 
   // le pavé de préhension : invisible à l'image, plein pour les rayons
@@ -62,6 +69,9 @@ export async function creerScan(url, options = {}) {
     new THREE.MeshBasicMaterial({ colorWrite: false, depthWrite: false })
   );
   prise.name = 'prise-scan';
+  // invisible à l'image ET à la lumière : sans cela, le pavé de préhension
+  // projetait au sol l'ombre franche d'une boîte que personne ne voit.
+  prise.userData.sansOmbre = true;
   groupe.add(prise);
   groupe.userData.priseScan = prise;
 

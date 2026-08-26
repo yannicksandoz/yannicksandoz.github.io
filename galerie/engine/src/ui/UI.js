@@ -121,25 +121,67 @@ export class UI {
 
   /** Branche la barre de progression sur le LoadingTracker de l'App. */
   bindLoading(tracker) {
-    // LA CIBLE BOUGE, LA BARRE NON. Le total du tracker grandit à mesure
-    // que les préchargements s'ajoutent (salle d'arrivée, puis salles
-    // adjacentes) : une barre qui suit `done/total` au pied de la lettre
-    // RECULE après avoir presque fini, et sur un vrai réseau elle semble ne
-    // jamais atteindre son but. Deux règles la rendent honnête :
+    // LA CIBLE BOUGE, LA BARRE NON. Le total du tracker grandit à mesure que
+    // les chargements s'ajoutent : une barre qui suit `fait/attendu` au pied
+    // de la lettre RECULE après avoir presque fini. Trois règles la rendent
+    // honnête, et chacune corrige une façon différente de mentir :
+    //
     //   • elle ne recule jamais (progression monotone) ;
-    //   • quand tout ce qui est demandé est arrivé et que rien de neuf ne
-    //     s'ajoute pendant 400 ms, c'est FINI — et fini reste fini, les
-    //     chargements paresseux d'après appartiennent à la visite.
+    //   • elle ne compte QUE la salle d'arrivée (voir LoadingTracker) — un
+    //     scan gaussien préchargé dans la salle voisine, c'est 1,3 Mo et une
+    //     dizaine de secondes de retard sur un écran qu'on peut déjà quitter ;
+    //   • ELLE N'ATTEINT PAS LE BOUT AVANT LA FIN. Le premier fichier suivi
+    //     donne 1/1 = 100 % : la barre se remplissait donc entièrement dès la
+    //     première seconde, puis restait pleine et grise pendant tout le vrai
+    //     chargement — pleine mais pas finie, ce qui se lit comme une panne.
+    //     Elle plafonne à 92 % tant que tout n'est pas là ; les 8 % restants
+    //     n'appartiennent qu'à la fin, et la fin verdit la barre.
+    //
+    // Fini reste fini : les chargements paresseux d'après appartiennent à la
+    // visite, plus à l'accueil.
+    // DEUX PHASES, PARCE QU'IL Y EN A DEUX. Un compte seul ne peut pas être
+    // honnête au démarrage : le premier fichier suivi vaut 1/1, donc 100 %.
+    // Or le chargement a bien deux temps, et le second ne commence qu'une
+    // fois le premier fini :
+    //   1. LIRE LA GALERIE (works.json, rooms.json, réglages) — on ne sait
+    //      pas encore ce qu'il y aura à charger ; la barre monte jusqu'à
+    //      LECTURE et s'y arrête. C'est `setReady` qui la clôt ;
+    //   2. CHARGER LA SALLE D'ARRIVÉE — là seulement le rapport
+    //      `faits / essentiels` veut dire quelque chose ; il occupe le reste,
+    //      moins les derniers pour-cent qui n'appartiennent qu'à la fin.
+    const LECTURE = 45;
+    const PLAFOND_AVANT_FIN = 92;
     let plafond = 0;
     let fini = false;
     let verrou = null;
-    tracker.onChange((done, total) => {
+    this._peindreBarre = (faits, essentiels) => {
       if (!this.loadBarFill || fini) return;
-      const pct = total > 0 ? Math.round((done / total) * 100) : 0;
-      plafond = Math.max(plafond, pct);
+      let brut;
+      if (this._configPrete) {
+        // La phase 2 compte À PARTIR DE ZÉRO : au moment où la galerie est
+        // lue, le seul suivi terminé est works.json lui-même — un rapport
+        // brut vaudrait 1/1 et remplirait la barre avant que la salle
+        // d'arrivée ait seulement demandé son premier fichier. On repart
+        // donc du compte de ce moment-là (`_base`).
+        const [baseFaits, baseEssentiels] = this._base ?? [0, 0];
+        const restant = essentiels - baseEssentiels;
+        const part = restant > 0 ? (faits - baseFaits) / restant : 0;
+        brut = LECTURE + part * (PLAFOND_AVANT_FIN - LECTURE);
+      } else {
+        brut = (essentiels > 0 ? faits / essentiels : 0) * LECTURE;
+      }
+      plafond = Math.max(plafond, Math.min(Math.round(brut), PLAFOND_AVANT_FIN));
       this.loadBarFill.style.width = `${plafond}%`;
+    };
+    tracker.onChange((done, total, faits, essentiels) => {
+      if (!this.loadBarFill || fini) return;
+      this._dernierCompte = [faits, essentiels];
+      this._peindreBarre(faits, essentiels);
       clearTimeout(verrou);
-      if (total > 0 && done >= total) {
+      // Fini : tout ce que la salle d'arrivée demandait est là, et la
+      // galerie est lue. Sans cette seconde condition, le tout premier
+      // fichier (1/1) déclencherait la fin avant même que la scène existe.
+      if (this._configPrete && essentiels > 0 && faits >= essentiels) {
         verrou = setTimeout(() => {
           fini = true;
           this.loadBarFill.style.width = '100%';
@@ -151,6 +193,11 @@ export class UI {
 
   /** Le bouton « Entrer » reste désactivé tant que la config n'est pas lue. */
   setReady() {
+    // La galerie est lue : la barre passe de la phase « lecture » à la phase
+    // « salle d'arrivée » (voir bindLoading), et repart du compte courant.
+    this._configPrete = true;
+    this._base = this._dernierCompte ?? [0, 0];
+    if (this._dernierCompte) this._peindreBarre?.(...this._dernierCompte);
     this.enterBtn.disabled = false;
     this.enterBtn.textContent = t('enter.enter');
     document.getElementById('enter-audio')?.removeAttribute('aria-disabled');

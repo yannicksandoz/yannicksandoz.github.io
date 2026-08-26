@@ -367,6 +367,11 @@ export class Artwork {
 
   async _loadVisual() {
     const cfg = this.config;
+    // Une œuvre d'une salle VOISINE se charge d'avance, mais elle ne fait
+    // pas patienter l'écran d'accueil : le visiteur entre dans SA salle
+    // (voir LoadingTracker). Décidé à l'instant de la demande — la salle
+    // courante peut changer pendant le téléchargement.
+    const essentiel = this.room ? this.room.isCurrent : true;
     try {
       if (cfg.scan) {
         // un SCAN gaussien (splatting) : la bibliothèque de rendu vit dans
@@ -374,12 +379,12 @@ export class Artwork {
         // œuvre qui en a besoin — voir `core/scans.js`
         const { creerScan } = await import('./scans.js');
         const holder = await this.app.loading.track(
-          creerScan(this._resolve(cfg.scan), { taille: cfg.scanTaille })
+          creerScan(this._resolve(cfg.scan), { taille: cfg.scanTaille }), essentiel
         );
         this._setMesh(holder);
       } else if (cfg.image) {
         const tex = await this.app.loading.track(
-          textureLoader.loadAsync(this._resolve(cfg.image))
+          textureLoader.loadAsync(this._resolve(cfg.image)), essentiel
         );
         capTextureSize(tex, this.app.quality.profile.maxTextureSize);
         tex.colorSpace = THREE.SRGBColorSpace;
@@ -401,7 +406,7 @@ export class Artwork {
           : buildVoxelMeshMerged(cfg.model);
         if (mesh) this._setMesh(mesh);
       } else if (cfg.model?.url) {
-        this._setMesh(await this._loadModelMesh(cfg.model));
+        this._setMesh(await this._loadModelMesh(cfg.model, essentiel));
       } else if (cfg.model?.shape === 'monolith') {
         this._setMesh(this._buildMonolith(cfg.model));
       } else if (isPrimitive(cfg.model?.shape)) {
@@ -416,7 +421,8 @@ export class Artwork {
       // échec non fatal : l'œuvre garde son placeholder, la visite continue.
       // Cause fréquente pour une URL distante : CORS refusé, 404 ou réseau.
       console.error(`[galerie] Visuel de « ${cfg.id} » impossible à charger :`, err);
-      this.setMediaError(`visuel illisible (${cfg.image ?? cfg.video ?? cfg.model?.url ?? '?'})`);
+      this.setMediaError(
+        `visuel illisible (${cfg.scan ?? cfg.image ?? cfg.video ?? cfg.model?.url ?? '?'})`);
     }
   }
 
@@ -425,12 +431,12 @@ export class Artwork {
    * jouées en boucle ; l'échelle est normalisée si la config le demande
    * (`fit`), ce qui évite qu'un modèle en centimètres soit invisible.
    */
-  async _loadModelMesh(model) {
+  async _loadModelMesh(model, essentiel = true) {
     const { object3d, animations, triangles } = await this.app.loading.track(
       loadModel(this._resolve(model.url), {
         kind: model.type ?? modelKind(model.url),
         mtlUrl: model.mtl ? this._resolve(model.mtl) : undefined
-      })
+      }), essentiel
     );
     this.modelTriangles = triangles;
     if (triangles > 150000) {
@@ -488,6 +494,12 @@ export class Artwork {
       this._placeholder.material.color.set(0x1c0c10);
       this._placeholder.material.emissive.set(0x4a1020);
       this._placeholder.material.emissiveIntensity = 0.6;
+      // Un scan (comme un modèle procédural) cache sa silhouette d'attente :
+      // le splat arrive sans écran devant lui. Mais s'il N'ARRIVE PAS, cacher
+      // la silhouette revient à effacer l'œuvre — plus rien à voir, plus rien
+      // à cliquer, et aucun signe que quelque chose a échoué. L'échec la
+      // rallume : c'est le seul moment où elle a quelque chose à dire.
+      this._placeholder.material.visible = true;
     }
   }
 
@@ -686,8 +698,10 @@ export class Artwork {
     if (!stemCfgs.length && !this.config.videoSound) return;
 
     try {
+      const essentiel = this.room ? this.room.isCurrent : true;
       const buffers = await Promise.all(
-        stemCfgs.map((s) => this.app.loading.track(engine.load(this._resolve(s.file))))
+        stemCfgs.map((s) => this.app.loading.track(
+          engine.load(this._resolve(s.file)), essentiel))
       );
       const ctx = engine.ctx;
 
