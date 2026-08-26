@@ -120,7 +120,10 @@ export class QualityManager {
     this._acc += dt;
     if (this._acc < 3) return;
     this._acc = 0;
-    if (this._fps >= 50) return;
+    if (this._fps >= 50) {
+      this._remonter(app);
+      return;
+    }
     if (this._finition(app)) {
       this._fps = 55; // laisse la mesure se re-stabiliser avant le cran suivant
       return;
@@ -129,9 +132,48 @@ export class QualityManager {
     this._downgrade(app);
   }
 
+  /**
+   * LA REMONTÉE — le gouverneur cesse d'être une trappe.
+   *
+   * Il ne descendait que : une salle lourde (le belvédère d'avant sa cure)
+   * coupait l'anticrénelage puis l'occlusion ambiante, et TOUT LE RESTE DE
+   * LA VISITE restait dégradé — au jardin, à 120 fps, plus d'occlusion de
+   * contact, et les objets semblaient flotter. Désormais, après 12 s
+   * STABLES au-dessus de 72 fps, la FINITION remonte d'un cran (GTAO,
+   * puis MSAA), jamais plus haut que le profil d'origine. L'hystérésis est
+   * large — on remonte à 72, on descend à 50 — et un cran repris qui
+   * refait chuter redescendra par le chemin normal : pas d'oscillation,
+   * seulement une porte de sortie. Les crans de SURVIE (densité, grain,
+   * ombres…) ne remontent pas : y avoir touché dit une machine qui n'a
+   * pas les moyens de la finition.
+   */
+  _remonter(app) {
+    if (this._fps < 72) { this._stable = 0; return; }
+    this._stable = (this._stable ?? 0) + 3;
+    if (this._stable < 12) return;
+    this._stable = 0;
+    const p = this.profile;
+    const origine = this._origine ??= { msaa: p.msaa || (this.isMobile ? 2 : 4),
+      gtao: !this.isMobile && p.tier === 'desktop' };
+    if (origine.gtao && app.gtao && !app.gtao.enabled) {
+      app.gtao.enabled = true;
+      p.gtao = true;
+      console.info('[galerie] FPS rétablis → occlusion ambiante réactivée');
+      this._fps = 60; // laisse la mesure encaisser le cran repris
+      return;
+    }
+    if (p.msaa < origine.msaa) {
+      p.msaa = origine.msaa;
+      app.setMsaa?.(p.msaa);
+      console.info(`[galerie] FPS rétablis → anticrénelage ×${p.msaa}`);
+      this._fps = 60;
+    }
+  }
+
   /** Étage 1 — la finition, cran par cran. Rend true si un cran a été pris. */
   _finition(app) {
     const p = this.profile;
+    this._origine ??= { msaa: p.msaa, gtao: !!p.gtao };
     // L'anticrénelage d'abord : il coûte de la bande passante à chaque
     // pixel, et une image nette mais crénelée reste plus lisible qu'une
     // image lissée et molle (baisser la densité, elle, floute tout).

@@ -7,6 +7,7 @@ import { EDITOR_AVAILABLE } from '../editorLoader.js';
 import { isWalkable } from './utils.js';
 import { scaleObjetUV } from './textures.js';
 import { jeuDeSurface, habillerModele } from './matieres.js';
+import { ombreDeContact } from './ombres.js';
 import { creerCartel, tournerVersCamera, disposerCartel } from './cartels.js';
 
 // crossOrigin « anonymous » : indispensable pour les médias distants, dont
@@ -825,6 +826,46 @@ export class Artwork {
     // construction, l'œuvre n'était qu'un placeholder et le cône partait
     // d'une ouverture par défaut.
     if (this.accentDirige) this._poserLumiere();
+    this._poserContact(mesh);
+  }
+
+  /**
+   * L'OMBRE DE CONTACT (canal 2 du moteur d'ombres — voir ombres.js).
+   *
+   * Un objet arrondi posé au sol surplombe son contact : l'ombre portée
+   * commence sous le renflement et l'œil lit un JOUR entre l'objet et son
+   * ombre — mesuré au cube-étalon, la carte n'y est pour rien (2 cm de
+   * biais). Ce qui ancre l'objet, c'est l'assombrissement à son pied. On
+   * le garantit ici, sur tous les profils, pour zéro coût par frame.
+   *
+   * Qui y a droit : ce qui est POSÉ — un objet dont le groupe vit près du
+   * sol, d'empreinte raisonnable, droit sur ses pieds. Ni les luminaires
+   * (une corniche ne se pose pas), ni les lueurs, ni l'eau, ni les masses
+   * foulables (leur empreinte est une architecture, pas un pied), ni ce
+   * qui pend à un mur. `"contact": false` l'enlève, `"contact": true`
+   * force pour un cas que la règle rate.
+   */
+  _poserContact(mesh) {
+    if (this._contact) { this.group.remove(this._contact); this._contact = null; }
+    const cfg = this.config;
+    if (cfg.contact === false) return;
+    const forme = cfg.model?.shape;
+    if (['corniche', 'faisceau', 'gerbe', 'lucioles', 'eau', 'plane'].includes(forme)) return;
+    if (cfg.selfLit || isWalkable(cfg)) return;
+    const aPlat = Math.abs(this.group.rotation.x) < 0.02
+      && Math.abs(this.group.rotation.z) < 0.02;
+    const auSol = (cfg.position?.[1] ?? 1.8) <= 0.9;
+    if (!cfg.contact && !(aPlat && auSol)) return;
+
+    const boite = new THREE.Box3().setFromObject(mesh);
+    if (boite.isEmpty()) return;
+    const t = boite.getSize(new THREE.Vector3());
+    const empreinte = Math.max(t.x, t.z);
+    if (empreinte < 0.15 || empreinte > 6) return;
+    // l'ombre déborde un peu de l'empreinte — l'occlusion réelle fait pareil
+    const ombre = ombreDeContact(t.x * 0.62, t.z * 0.62,
+      -this.group.position.y + 0.02);
+    if (ombre) { this.group.add(ombre); this._contact = ombre; }
   }
 
   /**
