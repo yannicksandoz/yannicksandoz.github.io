@@ -192,6 +192,36 @@ html, body {
   outline: 2px solid var(--accent); outline-offset: 2px;
 }
 
+/* ------------------------------------------- toolbox (haut de l'écran) --- */
+/* Les gestes fréquents de la visite, à un clic et sans rien figer :
+   plein écran, carte, capture, dérive, son. Centrée entre le badge de
+   pièce (gauche) et la minimap/progression (droite), même altitude. */
+#toolbox {
+  position: fixed;
+  top: max(1rem, env(safe-area-inset-top, 0px));
+  left: 50%; transform: translateX(-50%);
+  z-index: 24;
+  display: flex; gap: 0.5rem;
+}
+#toolbox button {
+  width: 2.4rem; height: 2.4rem; border-radius: 50%; padding: 0;
+  display: grid; place-items: center;
+  background: rgba(12, 12, 22, 0.7); color: rgba(232, 230, 240, 0.65);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  cursor: pointer;
+  transition: color 0.3s, border-color 0.3s;
+}
+#toolbox button:hover { color: var(--accent); border-color: rgba(159, 140, 255, 0.4); }
+#toolbox button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+#toolbox button[aria-pressed="true"] {
+  color: var(--accent); border-color: rgba(159, 140, 255, 0.55);
+  background: rgba(159, 140, 255, 0.14);
+}
+#toolbox button.tb-fait { color: #9fe8b8; border-color: rgba(159, 232, 184, 0.5); }
+@media (pointer: coarse) {
+  #toolbox button { width: 3rem; height: 3rem; }
+}
+
 /* ---------------------------------------------------------- crédits --- */
 #credits-corner {
   position: fixed; right: 1rem; bottom: 4rem; z-index: 14;
@@ -254,6 +284,18 @@ html, body {
   #joystick { width: 6.2rem; height: 6.2rem; }
   .enter-inner { padding: 1.2rem; }
   .enter-inner .tip { display: none; }
+  /* la ligne du haut est prise (badge de pièce à gauche, progression et
+     minimap à droite) : la toolbox descend d'un cran, alignée à gauche
+     sous le badge — cinq pastilles centrées ne tiendraient pas */
+  #room-badge-name {
+    max-width: 40vw; overflow: hidden;
+    text-overflow: ellipsis; white-space: nowrap;
+  }
+  #toolbox {
+    top: calc(max(1rem, env(safe-area-inset-top, 0px)) + 3.6rem);
+    left: max(1rem, env(safe-area-inset-left, 0px));
+    transform: none; gap: 0.4rem;
+  }
 }
 
 /* --------------------------------------------- prefers-reduced-motion --- */
@@ -349,7 +391,13 @@ html, body {
   display: flex; align-items: center; justify-content: center;
 }
 #visit-menu[hidden] { display: none; }
-.vm-panel { position: relative; width: min(24rem, 92vw); font-size: 1.05rem; line-height: 1.6; }
+/* `margin: auto` : centré quand il tient, ancré en haut et DÉFILABLE en
+   entier quand l'écran est plus bas que lui — un centrage flex nu coupe
+   le haut d'un enfant trop grand, hors de portée du défilement. */
+.vm-panel {
+  position: relative; width: min(24rem, 92vw); font-size: 1.05rem;
+  line-height: 1.6; margin: auto; padding: 2rem 0;
+}
 .vm-x {
   position: absolute; top: 0.8rem; right: 0.9rem;
   width: 2.2rem; height: 2.2rem; padding: 0;
@@ -362,17 +410,29 @@ html, body {
 .vm-panel h2 { font-weight: 300; letter-spacing: 0.15em; font-size: 1.4rem; margin-bottom: 1rem; }
 .vm-panel ul { list-style: none; padding: 0; }
 .vm-panel li { margin: 0.35rem 0; }
-.vm-panel li button, #vm-close {
+/* Le lien « Vue liste (2D) » (#vm-liste) s'habille COMME les boutons : un
+   lien nu au milieu de boutons se lisait comme une note de bas de page —
+   personne ne le voyait. C'est une entrée du menu comme les autres. */
+.vm-panel li button, .vm-panel li > a, #vm-close {
   display: block; width: 100%; text-align: left;
   padding: 0.7rem 1rem; border-radius: 0.5rem;
   background: rgba(255, 255, 255, 0.05); color: var(--fg);
   border: 1px solid rgba(255, 255, 255, 0.14);
-  font-size: 1.05rem; cursor: pointer;
+  font-size: 1.05rem; cursor: pointer; text-decoration: none;
 }
-.vm-panel li button:hover, #vm-close:hover { background: rgba(159, 140, 255, 0.15); }
-.vm-panel button:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+.vm-panel li button:hover, .vm-panel li > a:hover, #vm-close:hover {
+  background: rgba(159, 140, 255, 0.15);
+}
+.vm-panel button:focus-visible, .vm-panel li > a:focus-visible {
+  outline: 3px solid var(--accent); outline-offset: 2px;
+}
+/* têtes de groupe : Visite / Affichage / Aide et mémoire */
+.vm-groupe {
+  color: var(--dim); font-size: 0.72rem; letter-spacing: 0.18em;
+  text-transform: uppercase; margin: 1.1rem 0 0.35rem;
+}
 #vm-keys-help { margin: 0.5rem 0 0.3rem 1rem; color: var(--dim); font-size: 0.92rem; }
-#vm-settings-panel { margin: 0.5rem 0 0.3rem 1rem; font-size: 0.92rem; }
+#vm-memoire-panel { margin: 0.5rem 0 0.3rem 1rem; font-size: 0.92rem; }
 .vm-subhead {
   color: var(--dim); font-size: 0.8rem; letter-spacing: 0.12em;
   text-transform: uppercase; margin-bottom: 0.3rem;
@@ -406,7 +466,11 @@ html, body {
   display: flex; align-items: center; gap: 0.5rem;
   margin-top: 1.2rem; font-size: 0.92rem; color: var(--dim);
 }
+/* dans le groupe Affichage, la langue est une LIGNE du menu, pas un pied
+   de panneau — et ses pastilles ne prennent pas la largeur des boutons */
+.vm-panel li .vm-lang { margin-top: 0.15rem; padding: 0.35rem 0; }
 .vm-lang button {
+  display: inline-block; width: auto; text-align: center;
   padding: 0.3rem 0.8rem; border-radius: 2rem; cursor: pointer;
   background: transparent; color: var(--dim);
   border: 1px solid rgba(255, 255, 255, 0.14); font-size: 0.9rem;
@@ -752,11 +816,8 @@ body.editing #minimap { display: none; }
 .vm-rooms button { font-size: 0.9rem; color: var(--dim); }
 .vm-rooms button:hover, .vm-rooms button:focus-visible { color: var(--fg); }
 .vm-rooms button[aria-current="true"] { color: var(--accent); }
-#vm-liste {
-  display: inline-block; padding: 0.45rem 0;
-  color: inherit; text-decoration: none; font-size: 1rem;
-}
-#vm-liste:hover, #vm-liste:focus-visible { color: var(--fg); }
+/* #vm-liste : plus de règle propre — il porte l'habit commun des entrées
+   du menu (.vm-panel li > a), voilà pourquoi on le voit désormais. */
 .liste-lien { color: var(--accent); }
 .liste-lien:hover, .liste-lien:focus-visible { color: var(--fg); }
 

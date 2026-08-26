@@ -83,7 +83,8 @@ export class VisitMenu {
         <h2 id="vm-title">${t('menu.title')}</h2>
         <button id="vm-x" class="vm-x" aria-label="${t('menu.resume')}"
           title="${t('menu.resume')}">✕</button>
-        <ul role="list">
+        <p class="vm-groupe" id="vm-g-visite">${t('menu.groupe.visite')}</p>
+        <ul role="list" aria-labelledby="vm-g-visite">
           <li><button id="vm-derive">${t('menu.derive')}</button></li>
           <li><button id="vm-audio">${t('menu.audio')}</button></li>
           <li>
@@ -94,6 +95,29 @@ export class VisitMenu {
               <ul class="vm-rooms" role="list">${pieces}</ul>
             </div>
           </li>
+          <li><a id="vm-liste" href="liste.html">${t('menu.liste')}</a></li>
+          <li><button id="vm-share">${t('menu.share')}</button></li>
+          ${this.app.tipjar ? `<li><button id="vm-finish">${t('menu.finish')}</button></li>` : ''}
+        </ul>
+        <p class="vm-groupe" id="vm-g-affichage">${t('menu.groupe.affichage')}</p>
+        <ul role="list" aria-labelledby="vm-g-affichage">
+          ${pleinEcranDispo ? `<li><button id="vm-fullscreen">${document.fullscreenElement ? t('menu.fullscreen.exit') : t('menu.fullscreen')}</button></li>` : ''}
+          <li>
+            <label class="vm-check">
+              <input type="checkbox" id="vm-minimap" ${minimapActive() ? 'checked' : ''}>
+              ${t('menu.settings.minimap')}
+            </label>
+          </li>
+          <li>
+            <div class="vm-lang" role="group" aria-label="${t('menu.lang')}">
+              <span id="vm-lang-label">${t('menu.lang')}</span>
+              <button data-lang="fr" lang="fr" aria-pressed="${lang() === 'fr'}">Français</button>
+              <button data-lang="en" lang="en" aria-pressed="${lang() === 'en'}">English</button>
+            </div>
+          </li>
+        </ul>
+        <p class="vm-groupe" id="vm-g-systeme">${t('menu.groupe.systeme')}</p>
+        <ul role="list" aria-labelledby="vm-g-systeme">
           <li>
             <button id="vm-keys" aria-expanded="false" aria-controls="vm-keys-help">${t('menu.keys')}</button>
             <div id="vm-keys-help" hidden>
@@ -103,33 +127,20 @@ export class VisitMenu {
               <p>${t('menu.keys.focus')}</p>
             </div>
           </li>
-          <li><button id="vm-share">${t('menu.share')}</button></li>
-          ${pleinEcranDispo ? `<li><button id="vm-fullscreen">${document.fullscreenElement ? t('menu.fullscreen.exit') : t('menu.fullscreen')}</button></li>` : ''}
-          <li><a id="vm-liste" href="liste.html">${t('menu.liste')}</a></li>
           <li>
-            <button id="vm-settings" aria-expanded="false" aria-controls="vm-settings-panel">${t('menu.settings')}</button>
-            <div id="vm-settings-panel" hidden>
-              <label class="vm-check">
-                <input type="checkbox" id="vm-minimap" ${minimapActive() ? 'checked' : ''}>
-                ${t('menu.settings.minimap')}
-              </label>
-              <p class="vm-subhead">${t('menu.settings.memory')}</p>
+            <button id="vm-memoire" aria-expanded="false" aria-controls="vm-memoire-panel">${t('menu.settings.memory')}</button>
+            <div id="vm-memoire-panel" hidden>
               <p class="vm-note">${t('menu.settings.memory.note')}</p>
               <button id="vm-forget" class="vm-danger">${t('menu.settings.forget')}</button>
-              <p class="vm-subhead">${t('menu.settings.dev')}</p>
-              <label class="vm-check">
-                <input type="checkbox" id="vm-fps" ${fpsMeterEnabled() ? 'checked' : ''}>
-                ${t('menu.settings.fps')}
-              </label>
             </div>
           </li>
-          ${this.app.tipjar ? `<li><button id="vm-finish">${t('menu.finish')}</button></li>` : ''}
+          <li>
+            <label class="vm-check">
+              <input type="checkbox" id="vm-fps" ${fpsMeterEnabled() ? 'checked' : ''}>
+              ${t('menu.settings.fps')}
+            </label>
+          </li>
         </ul>
-        <div class="vm-lang" role="group" aria-label="${t('menu.lang')}">
-          <span id="vm-lang-label">${t('menu.lang')}</span>
-          <button data-lang="fr" lang="fr" aria-pressed="${lang() === 'fr'}">Français</button>
-          <button data-lang="en" lang="en" aria-pressed="${lang() === 'en'}">English</button>
-        </div>
         <button id="vm-close">${t('menu.resume')}</button>
       </div>`;
     document.body.appendChild(el);
@@ -150,9 +161,9 @@ export class VisitMenu {
       b.addEventListener('click', () => setLang(b.dataset.lang));
     }
     el.querySelector('#vm-audio').addEventListener('click', () => this._toAudioTour());
-    // même pli accordéon pour les pièces, le clavier et les réglages
+    // même pli accordéon pour les pièces, le clavier et la mémoire
     for (const [btn, panel] of [['#vm-rooms', '#vm-rooms-list'],
-      ['#vm-keys', '#vm-keys-help'], ['#vm-settings', '#vm-settings-panel']]) {
+      ['#vm-keys', '#vm-keys-help'], ['#vm-memoire', '#vm-memoire-panel']]) {
       el.querySelector(btn).addEventListener('click', (e) => {
         const help = el.querySelector(panel);
         const expanded = e.currentTarget.getAttribute('aria-expanded') === 'true';

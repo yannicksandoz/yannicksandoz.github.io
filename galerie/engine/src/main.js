@@ -11,6 +11,7 @@ import { UI } from './ui/UI.js';
 import { t, initLang } from './core/i18n.js';
 import { mountProgression, pointDeVue } from './core/Progression.js';
 import { mountBoussole } from './ui/Boussole.js';
+import { mountToolbox } from './ui/Toolbox.js';
 import { mountDerive } from './core/Derive.js';
 import { mountJetons } from './core/Jetons.js';
 import { mountMemoire } from './core/Memoire.js';
@@ -151,6 +152,7 @@ async function boot() {
     mountProgression(app).montrerBadge();
     mountJetons(app);     // avant la dérive : elle lit le porte-monnaie
     mountBoussole(app);
+    mountToolbox(app);
     mountDerive(app);
     if (minimapActive()) mountMinimap(app);
   } else {
@@ -172,6 +174,7 @@ async function boot() {
       mountProgression(app).montrerBadge();
       mountJetons(app);   // avant la dérive : elle lit le porte-monnaie
       mountBoussole(app);
+      mountToolbox(app);
       mountDerive(app);
       if (minimapActive()) mountMinimap(app);
     }

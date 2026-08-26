@@ -35,6 +35,7 @@ export class AudioEngine {
     this.lointain = new Lointain();
     this.premieres = new Premieres();
     this.unlocked = false;
+    this.sonCoupe = false;
     this._cache = new Map();
     // url → nombre d'œuvres et d'ambiances qui s'en servent (voir load)
     this._usages = new Map();
@@ -49,7 +50,9 @@ export class AudioEngine {
       // ne parle plus de lui
       this._listener = null;
       this.master = this.ctx.createGain();
-      this.master.gain.value = 1;
+      // le son a pu être coupé AVANT le déblocage (toolbox visible dès
+      // l'entrée directe) : le choix survit à la naissance du contexte
+      this.master.gain.value = this.sonCoupe ? 0 : 1;
       this.master.connect(this.ctx.destination);
       this.unlocked = true;
 
@@ -131,6 +134,21 @@ export class AudioEngine {
     }
     if (this.ctx.state === 'suspended') this.ctx.resume().catch(() => {});
     this._playSilentBlip();
+  }
+
+  /**
+   * Coupe (ou rend) le son, au bus maître : la visite continue en silence,
+   * tout joue encore — revenir au son reprend exactement où l'on en est.
+   * Une petite rampe (80 ms) évite le clic de la coupure sèche. Choisi
+   * AVANT le premier geste, l'état attend la naissance du contexte (unlock).
+   */
+  couperLeSon(coupe) {
+    this.sonCoupe = Boolean(coupe);
+    if (!this.master || !this.ctx) return;
+    const g = this.master.gain;
+    const maintenant = this.ctx.currentTime;
+    g.cancelScheduledValues(maintenant);
+    g.setTargetAtTime(this.sonCoupe ? 0 : 1, maintenant, 0.08);
   }
 
   /** Buffer d'un échantillon muet : réveille la sortie audio d'iOS. */

@@ -217,6 +217,12 @@ export class Derive {
       this._suiv.setAttribute('aria-label', t('derive.next'));
     }
     this._barre.classList.toggle('en-cours', this.active);
+    // L'état de la dérive intéresse d'autres coins de l'interface (le
+    // bouton de la toolbox) sans qu'ils aient à connaître ce module :
+    // un événement du document suffit, chacun s'y abonne s'il veut.
+    document.dispatchEvent(new CustomEvent('galerie:derive', {
+      detail: { active: this.active }
+    }));
   }
 
   /* ---------------------------------------------------------- marche --- */

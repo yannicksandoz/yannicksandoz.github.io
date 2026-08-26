@@ -228,12 +228,19 @@ mêmes réglages.
 description, un lien externe optionnel (`link`) et, pour les œuvres qui ont
 une image, une **vue détail** plein écran.
 
-**Menu de la visite** (Échap ou ☰) : le **plan en grand** et la liste des
-pièces visitées, pour sauter directement dans l'une d'elles, visite audio, **partage** (Web Share sur
-mobile, copie du lien sinon) avec **lien profond** `?room=pièce` /
+**Menu de la visite** (Échap ou ☰, croix ✕ pour refermer) : rangé en trois
+groupes — *Visite* (visite guidée, visite audio, pièces avec le **plan en
+grand**, vue liste 2D, **partage** avec **lien profond** `?room=pièce` /
 `?work=œuvre` — celui qui l'ouvre arrive au même endroit, **sans écran
-d'accueil** (l'audio se débloque au premier geste, règle des navigateurs) —,
-**plein écran**, vue liste, raccourcis, langue, « Terminer la visite ».
+d'accueil** —, « Terminer la visite »), *Affichage* (plein écran, minimap,
+langue), *Aide et mémoire* (raccourcis, mémoire de visite, FPS).
+
+**Toolbox** (la rangée d'icônes en haut de l'écran) : les gestes fréquents
+de la visite, sans rien figer — **plein écran**, **carte**, **capture
+d'écran** (une frame rendue exprès puis lue en PNG, rien ne quitte la
+machine), **dérive** marche/arrêt, **couper le son** (au gain du bus
+maître : tout continue de jouer, revenir au son reprend où l'on en est).
+Icônes SVG dessinées dans le projet, aucun ajout au bundle.
 
 **Après une bascule, on regarde devant soi.** Une bascule de gravité fait
 une seule chose au regard : elle le **couche sur le nouvel horizon**. Le
