@@ -161,7 +161,7 @@ export class QualityManager {
       console.info(`[galerie] FPS bas (${this._fps.toFixed(0)}) → pixelRatio ${p.pixelRatio}`);
     } else if (p.grain) {
       p.grain = false;
-      app.grainPass.enabled = false;
+      app.sortie.grainActif = false;
       console.info('[galerie] FPS bas → grain désactivé');
     } else if (app.vistas?.live) {
       app.vistas.live = false;
@@ -170,8 +170,10 @@ export class QualityManager {
       p.shadows = false;
       app.setShadowsEnabled?.(false);
       console.info('[galerie] FPS bas → ombres désactivées');
-    } else if (app.bloom.enabled) {
-      app.bloom.enabled = false;
+    } else if (app.sortie.bloomActif) {
+      // le bloom n'est plus une passe : c'est la sortie qui décide de lui
+      // demander sa fleur ou non (voir PasseSortie.js)
+      app.sortie.bloomActif = false;
       console.info('[galerie] FPS bas → bloom désactivé');
     }
     this._fps = 45; // laisse le temps à la mesure de se re-stabiliser

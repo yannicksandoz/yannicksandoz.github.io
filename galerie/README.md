@@ -16,7 +16,7 @@ scène in-browser** permet de composer ces espaces à partir de médias importé
 données, aucun backend — un simple serveur de fichiers suffit.
 
 **Stack** : [Vite](https://vitejs.dev) · [Three.js](https://threejs.org)
-(EffectComposer : bloom + grain) · Web Audio API · modules ES.
+(EffectComposer : scène MSAA + sortie unique) · Web Audio API · modules ES.
 
 ## Deux modes
 
@@ -2307,6 +2307,31 @@ lancement puis l'ajuste en continu :
   lui-même serait ruineux : il la clone pour ses deux tampons ping-pong et
   chaque passe plein écran paierait le rendu ×4 plus une résolution complète
   — c'est ce qui faisait tomber un M1 Max à 35 fps ;
+- **une seule passe de sortie** (`engine/src/core/PasseSortie.js`) : bloom,
+  courbe de tons, encodage sRGB, grain, vignettage et aberration chromatique
+  tiennent dans **un** quad plein écran. Mesuré au belvédère sous profil
+  mobile, la trame ne tient plus aux appels de dessin — 49 par image, six
+  mille triangles — mais au **pixel** ; or la chaîne relisait puis
+  réécrivait l'image entière quatre fois par trame (recopie de la cible
+  MSAA, mélange additif du bloom, `OutputPass`, passe de grain). Sur un GPU
+  à tuiles, chacune de ces passes coûte le chargement **et** le rangement de
+  la tuile complète. Le bloom n'est donc plus une passe mais un **outil** que
+  la sortie appelle pour se faire calculer sa fleur, et la passe de scène ne
+  recopie sa cible que si quelqu'un lit la chaîne entre elle et la sortie —
+  l'AO sur bureau, le warp pendant un franchissement de portail (règle pure
+  et testée : `copieSceneNecessaire`, suite `test-sortie.mjs`). Deux passes
+  au repos sur mobile là où il y en avait cinq. Mesuré à la même caméra,
+  deux campagnes concordantes : **−47 %** de temps d'image à l'entrée,
+  **−45 %** au labo, **−13 %** au belvédère — l'économie est un *forfait*,
+  elle pèse donc d'autant plus que la salle est légère ;
+- **la pyramide du bloom respecte enfin le profil** : `bloomResScale` ne
+  servait à rien. Il ne passait que par le vecteur de résolution du
+  constructeur, et `UnrealBloomPass.setSize` — appelé par le composer dès le
+  premier dimensionnement — l'écrasait par « la moitié de l'écran ». Sur un
+  iPhone à densité 1,5 la pyramide tournait à 293 × 633 là où le profil
+  demandait 147 × 317 : **neuf fois trop de pixels**, à chaque image, pour un
+  flou dont c'est le métier de tout perdre. Le profil bureau (0,5) retrouve
+  exactement le comportement d'avant ;
 - **occlusion ambiante** (GTAO, desktop) : calculée à **demi-résolution**
   (l'occlusion est un signal basse fréquence), mélangée plein cadre — elle
   ancre bancs, pierres et marches au sol par une ombre de contact douce.
@@ -2317,7 +2342,7 @@ lancement puis l'ajuste en continu :
 - **anisotropie** ×16 sur desktop (4 mobile/GPU modeste) : parquet et sable
   ratissé restent nets aux angles rasants ;
 - **aberration chromatique** : une pointe (nulle au centre, en carré de
-  l'excentricité) dans la passe grain/vignette — un bord d'objectif, pas un
+  l'excentricité) dans la passe de sortie — un bord d'objectif, pas un
   filtre ;
 - **gouverneur FPS** : deux étages. Sous **50 fps** pendant 3 s, la finition
   se replie cran par cran (MSAA ×4→×2→0, puis GTAO) — sur un écran ProMotion,
