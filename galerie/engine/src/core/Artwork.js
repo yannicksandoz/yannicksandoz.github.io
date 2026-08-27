@@ -9,6 +9,33 @@ import { scaleObjetUV } from './textures.js';
 import { jeuDeSurface, habillerModele } from './matieres.js';
 import { ombreDeContact } from './ombres.js';
 import { estFluide } from './style.js';
+import { ajouterLigne, patcherArbreLignes } from './lignes-lumiere.js';
+
+/**
+ * CE QUI FAIT QU'UNE LIGNE ÉCLAIRE AUTANT QUE LA SOURCE ÉTENDUE QU'ELLE
+ * REMPLACE — et ce n'est pas un réglage, c'est une conversion d'unités.
+ *
+ * `RectAreaLight` prend son intensité pour une RADIANCE : three.js écrit
+ * `directDiffuse += couleur·intensité · albédo · facteurDeForme`, où le
+ * facteur de forme est la part de l'hémisphère que le rectangle occupe.
+ * Pour un ruban mince de hauteur h, ce facteur vaut h·(n·V)/π — le même
+ * (n·V) que notre ligne. Notre injection, elle, écrit
+ * `directDiffuse += E · albédo/π` avec E = I·(n·V), I en puissance par
+ * unité de LONGUEUR. Les deux se rejoignent donc exactement pour
+ *
+ *     I = intensité × h
+ *
+ * où h est la hauteur du rectangle que la corniche posait au bureau, soit
+ * `max(épaisseur, 0.5)` (voir `buildCorniche`). Rien à accorder à l'œil :
+ * la ligne rend la MÊME lumière que la source étendue, répartie
+ * correctement sur toute sa longueur au lieu d'être tassée au centre.
+ *
+ * Le premier essai divisait par la longueur au lieu de multiplier par la
+ * hauteur — vingt et une fois trop sombre sur le bandeau du labo, et
+ * l'écran ne bougeait presque pas. C'est ce qui a fait écrire ce
+ * paragraphe plutôt qu'une constante.
+ */
+const HAUTEUR_FENTE = 0.5;
 import { lancerBoucle } from './son-bornes.js';
 import { creerCartel, tournerVersCamera, disposerCartel } from './cartels.js';
 
@@ -888,7 +915,15 @@ export class Artwork {
     // d'une ouverture par défaut.
     if (this.accentDirige) this._poserLumiere();
     this._poserContact(mesh);
-    if (this.config.model?.shape === 'corniche') this._courberCorniche(mesh);
+    if (this.config.model?.shape === 'corniche') {
+      this._courberCorniche(mesh);
+      // APRÈS la flexion : le segment déclaré est celui du trait courbé
+      this._declarerLigneCorniche(mesh);
+    }
+    // Les matériaux nés ici (modèle importé, primitive, voxel) doivent
+    // recevoir les lignes comme ceux de la coque — sans quoi une œuvre
+    // resterait noire dans une salle éclairée.
+    patcherArbreLignes(mesh);
   }
 
   /**
@@ -950,6 +985,80 @@ export class Artwork {
       const moyen = sommeCreux / pos.count;
       lampe.position.add(new THREE.Vector3(0, -moyen, 0)
         .applyQuaternion(groupe.quaternion.clone().invert()));
+    }
+  }
+
+  /**
+   * LA CORNICHE COMME LIGNE DE LUMIÈRE (profil sans sources étendues).
+   *
+   * On ne pose pas de lampe : on déclare le SEGMENT que le bandeau dessine
+   * et le shader l'intègre analytiquement (voir `lignes-lumiere.js`). On
+   * lit les sommets APRÈS la flexion — la lumière suit donc le trait
+   * courbé, pas une corde tendue par-dessus le creux du couronnement.
+   *
+   * Trois sous-segments : sur le plus long bandeau de la galerie (58 m,
+   * creux de 2,4 m), une corde unique s'écarterait du trait de 1,2 m au
+   * milieu ; en trois morceaux l'écart tombe sous 15 cm, ce qu'aucun
+   * lavage de mur ne montre. Au-delà on paierait des opérations pour rien.
+   */
+  _declarerLigneCorniche(groupe) {
+    const marque = groupe?.userData?.ligneLumiere;
+    const bandeau = groupe?.userData?.bandeau;
+    if (!marque || !bandeau) return;
+    const pos = bandeau.geometry.attributes.position;
+    const colonnes = bandeau.geometry.parameters?.widthSegments ?? 1;
+    const parRangee = colonnes + 1;
+    if (pos.count < parRangee * 2) return;
+
+    // le milieu de la fente à une colonne donnée : moyenne des deux rangées
+    const point = (col) => {
+      const haut = col, bas = col + parRangee;
+      return [(pos.getX(haut) + pos.getX(bas)) / 2,
+        (pos.getY(haut) + pos.getY(bas)) / 2,
+        (pos.getZ(haut) + pos.getZ(bas)) / 2];
+    };
+
+    // COMBIEN DE MORCEAUX — la géométrie décide, pas une constante.
+    // Une corniche de salle couverte est DROITE : un seul segment la rend
+    // exactement, et découper coûterait des opérations pour rien. Une
+    // corniche à ciel ouvert plonge avec le couronnement — jusqu'à 2,4 m
+    // sur les 58 m de l'entrée — et une corde unique s'écarterait du trait
+    // d'autant. On mesure donc la flèche réelle du bandeau et l'on
+    // subdivise juste assez pour la ramener sous quinze centimètres, ce
+    // qu'aucun lavage de mur ne montre. Sans ce calcul, quatre corniches
+    // à trois morceaux dépassaient le plafond de huit segments du shader
+    // et une salle perdait un mur entier.
+    const fleche = (c0, c1) => {
+      const A = point(c0), B = point(c1);
+      const d = [B[0] - A[0], B[1] - A[1], B[2] - A[2]];
+      const L2 = d[0] * d[0] + d[1] * d[1] + d[2] * d[2];
+      if (L2 < 1e-9) return 0;
+      let pire = 0;
+      for (let c = c0 + 1; c < c1; c++) {
+        const P = point(c);
+        const w = [P[0] - A[0], P[1] - A[1], P[2] - A[2]];
+        const t = (w[0] * d[0] + w[1] * d[1] + w[2] * d[2]) / L2;
+        const e = [w[0] - d[0] * t, w[1] - d[1] * t, w[2] - d[2] * t];
+        pire = Math.max(pire, Math.hypot(e[0], e[1], e[2]));
+      }
+      return pire;
+    };
+    let MORCEAUX = 1;
+    while (MORCEAUX < 3 && fleche(0, colonnes) / MORCEAUX > 0.15) MORCEAUX++;
+    MORCEAUX = Math.min(MORCEAUX, Math.max(1, colonnes));
+    // LA PUISSANCE PAR UNITÉ DE LONGUEUR. `force` est l'intensité que la
+    // source étendue recevait ; on la répartit sur la longueur, et le
+    // facteur de calibrage rejoint la clarté mesurée au bureau (voir le
+    // README : profil mobile contre profil bureau, même cadrage).
+    const parMetre = (marque.force ?? 12) * Math.max(marque.epaisseur, HAUTEUR_FENTE);
+    for (let m = 0; m < MORCEAUX; m++) {
+      const c0 = Math.round(colonnes * m / MORCEAUX);
+      const c1 = Math.round(colonnes * (m + 1) / MORCEAUX);
+      if (c1 <= c0) continue;
+      ajouterLigne({
+        objet: bandeau, a: point(c0), b: point(c1),
+        couleur: marque.couleur, intensite: parMetre
+      });
     }
   }
 

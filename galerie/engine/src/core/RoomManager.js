@@ -8,6 +8,7 @@ import { styleMatiere, jeuDeSurface } from './matieres.js';
 import { estFluide, materiauFluide, dessinerCouronne, courberParoi, loiParoi,
   loiCouronne } from './style.js';
 import { aDesSourcesEtendues } from './primitives.js';
+import { patcherArbreLignes } from './lignes-lumiere.js';
 import { delaiDe, fermer, estFerme, tick as tickCooldown } from './Cooldown.js';
 import { lancerBoucle } from './son-bornes.js';
 import { reverbDePiece } from './reverb-reglages.js';
@@ -615,6 +616,11 @@ export class RoomManager {
       reverbDePiece(room.config, this.app.reglages), { instant });
     this.orientRoom(room, plane);
     this._applyPolicy();
+    // LA COQUE AUSSI REÇOIT LES LIGNES. Les œuvres se greffent à leur
+    // chargement (Artwork._setMesh) ; murs, sol et plafond naissent ici, et
+    // ce sont EUX que la corniche lave — sans cette passe, la salle
+    // resterait noire autour d'objets éclairés.
+    patcherArbreLignes(room.group);
     this._placeCamera(arrival ?? room.config.spawn ?? [0, 2.2, 10]);
     // Un portail dans lequel on ATTERRIT est désarmé : il ne se re-déclenche
     // qu'une fois sa zone quittée — sinon, arrivée près du portail de retour

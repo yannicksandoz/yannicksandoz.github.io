@@ -44,7 +44,15 @@ export class QualityManager {
           // La salle garde sa lumière clé et ses ponctuelles : rien
           // n'éteint, c'est le dégradé sur le mur qui s'en va.
           sourcesEtendues: 0,
-          // lampes de poche intégrées par pixel : voir budgetLampes (ombres.js)
+          // Lampes intégrées par pixel : voir budgetLampes (ombres.js).
+          // Les corniches ne prennent plus d'emplacement de cône — elles
+          // sont devenues des lignes analytiques (voir lignes-lumiere.js).
+          // Essayé de rendre ces emplacements aux accents des œuvres, en
+          // montant à {5, 4} : mesuré, cela ne rapporte RIEN (le labo passe
+          // de 28,3 à 28,4 de clarté moyenne, le belvédère de 48,2 à 48,4)
+          // pour deux lampes de plus intégrées sur chaque pixel. Ce qui
+          // manque encore dans ces deux salles n'est pas un accent de plus,
+          // c'est qu'elles sont vastes et sans plafond.
           lampesProches: { points: 4, cones: 3 },
           // aucun accent ne projette sur téléphone : les ombres y sont
           // déjà coupées (shadows: false)

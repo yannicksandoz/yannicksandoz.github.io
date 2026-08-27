@@ -16,6 +16,7 @@ import { QualityManager } from './Quality.js';
 import { LoadingTracker, assetUrl } from './utils.js';
 import { setDefaultAnisotropy } from './textures.js';
 import { setBudgetSourcesEtendues, setEclatLuminaires } from './primitives.js';
+import { majLignes, activerLignes } from './lignes-lumiere.js';
 import { COUCHE_AUTO_ECLAIREE } from './Artwork.js';
 import { WATER_TIME } from './primitives.js';
 import { chauffer } from './cartels.js';
@@ -310,6 +311,10 @@ export class App {
     setDefaultAnisotropy(this.quality.profile.anisotropy);
     // combien de sources étendues la machine peut porter (voir Quality)
     setBudgetSourcesEtendues(this.quality.profile.sourcesEtendues ?? 8);
+    // Sans sources étendues, les corniches deviennent des lignes de
+    // lumière analytiques (voir lignes-lumiere.js) — c'est le profil
+    // téléphone. Avec, rien ne change : le bureau garde ses LTC.
+    activerLignes((this.quality.profile.sourcesEtendues ?? 8) === 0);
     // le trait d'une fente compense ce que le bloom ne peut plus lui
     // donner : à un quart de résolution, une ligne de douze centimètres
     // sort de la passe de flou (voir setEclatLuminaires)
@@ -813,6 +818,13 @@ export class App {
           if (change) this.ombresSales = true;
         }
       }
+
+      // LES LIGNES DE LUMIÈRE, transportées en espace vue (lignes-lumiere.js).
+      // À CHAQUE image, contrairement au budget de lampes ci-dessus : ce
+      // sont des UNIFORMES de shader, pas une attribution de lampes — les
+      // laisser d'une frame en retard ferait glisser le lavage sur les murs
+      // pendant qu'on tourne la tête. Le coût est de quelques matrices.
+      majLignes(this.camera);
 
       this.vistas?.update(dt); // la pièce apparue se rend avant la vraie
       this._reglerCopieScene();

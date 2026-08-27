@@ -567,17 +567,21 @@ function buildCorniche(size, model) {
       // au hasard de la distance. On voyait trois halos violets sans
       // rapport avec la ligne.
       //
-      // Un lavage se fait avec UN cône, comme un vrai projecteur de mur :
-      // braqué dans la même direction que la source étendue qu'il
-      // remplace, très ouvert, pénombre au maximum — le dégradé revient,
-      // pour une seule lampe au lieu de trois.
-      const lampe = new THREE.SpotLight(couleur, force * 0.45,
-        Math.max(9, longueur * 1.1), Math.PI * 0.42, 1, 1.1);
-      lampe.position.set(0, 0, -0.05);
-      lampe.target.position.set(0, 0, -1);   // le -Z du groupe : sa face
-      lampe.name = 'corniche-lavage';
-      groupe.add(lampe, lampe.target);
-      groupe.userData.lavageCorniche = lampe;
+      // Deuxième essai, celui-ci : UN cône très ouvert, braqué comme la
+      // source qu'il remplaçait. Raté aussi, et pour une raison de
+      // géométrie qu'aucun réglage ne rattrape — un cône part d'un POINT.
+      // Mesuré : la même puissance concentrée au milieu d'un bandeau de
+      // 40 m donne 1,99 fois trop au centre du mur et presque rien aux
+      // extrémités. Et le cône concourait pour trois emplacements
+      // seulement : une salle à quatre corniches en perdait une.
+      //
+      // Ce qu'il fallait, c'est garder la LIGNE. L'éclairement d'un
+      // segment uniforme a une forme close en une quinzaine d'opérations,
+      // sans texture ni emplacement de lampe (voir `lignes-lumiere.js`).
+      // On ne pose donc aucune lampe ici : on laisse la marque, et
+      // `Artwork` déclarera le segment une fois le bandeau plié sur son
+      // voile — la lumière suit alors exactement le trait qu'on voit.
+      groupe.userData.ligneLumiere = { longueur, epaisseur, couleur: couleur.clone(), force };
     }
   }
 

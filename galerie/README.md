@@ -1629,6 +1629,96 @@ quarante centimètres à un mètre soixante — et la seconde lanterne de
 l'allée est passée franchement à l'est, où elle alterne avec la première.
 Les trente-cinq lignes de force de la galerie sont franches.
 
+**La lumière du téléphone — une corniche pour le prix d'un point.**
+« Les lumières quasi inexistantes sur mon iPhone 13 », et le MacBook
+correct. Mesuré avant de toucher à quoi que ce soit, profil iPhone contre
+profil bureau, même cadrage, six salles : le labo tombait de 63,8 à **10,3**
+de clarté moyenne avec **86,8 % de l'image en noir pur**, les archives de
+107 à 18, la bibliothèque de 124 à 31. Les salles ouvertes, elles, tenaient.
+Le partage était net : ce qui s'effondrait, ce sont les salles CLOSES —
+celles qui ne vivent que de leurs corniches.
+
+La cause est dans `Quality` : `sourcesEtendues: 0` sur mobile. Une
+`RectAreaLight` intègre une BRDF pré-tabulée (LTC) par pixel et par lampe,
+et quatre bandeaux de 46 m coûtaient 26 % du temps d'image — le profil
+téléphone les coupait donc toutes. À la place, un cône par corniche. Or un
+cône part d'un POINT, et une corniche est une LIGNE : mesuré, la même
+puissance concentrée au milieu d'un bandeau de 40 m donne **1,99 fois trop
+au centre** du mur et presque rien aux extrémités. Pire, chaque cône
+concourait pour trois emplacements seulement : une salle à quatre corniches
+en perdait une au hasard de la distance.
+
+**Ce que fait un moteur de jeu à cet endroit : il garde la ligne.**
+L'éclairement d'un segment uniforme n'a pas besoin d'être approché, il a une
+forme close. Pour une surface de normale n et un segment d'extrémités a et
+b relatives au point, E = I·(n·V) où V = ∫x̂/r² ds. En posant d̂ la direction
+du segment, s₀ = −(a·d̂), p = a + s₀d̂ le pied de la perpendiculaire et
+h² = |p|², l'intégrale se sépare en deux morceaux élémentaires :
+
+    V = (p/h²)·((L−s₀)/r_b + s₀/rₐ)  +  d̂·(1/rₐ − 1/r_b)
+
+Une quinzaine d'opérations, aucune texture, aucun emplacement de lampe.
+`npm test` la confronte à une intégration numérique à 120 000 pas sur mille
+configurations tirées au hasard, segments quasi ponctuels et cas à cheval
+sur l'horizon compris : **erreur relative maximale sous 10⁻⁴**. La loi n'est
+pas empruntée, elle est redérivée et vérifiée à chaque exécution.
+
+Trois choses la rendent juste plutôt que seulement rapide :
+
+- **L'horizon.** La forme close intègre tout le segment, y compris la part
+  passée derrière la surface. On le coupe donc sur le plan n·x = 0 avant de
+  l'évaluer — sinon un mur reçoit de la lumière par l'arrière.
+- **La face.** Une corniche n'éclaire que devant elle. Sans cette porte, la
+  ligne rayonnait aussi vers l'arrière et les salles couvertes passaient à
+  **1,15 et 1,31 fois** la clarté du bureau, le plafond recevant une lumière
+  qui n'existe pas. On pondère par le cosinus d'émission pris au point du
+  segment le plus proche. *Essayé aussi, et abandonné :* la moyenne de trois
+  points. Plus sombre, et à tort — l'intégrale est en 1/r², l'énergie vient
+  du voisinage du point proche, et les extrémités d'un bandeau de 40 m sont
+  loin ET rasantes. Les archives tombaient de 84,7 à 72,1.
+- **La courbe.** En style fluide le bandeau est plié sur son voile ; on lit
+  ses sommets APRÈS la flexion, si bien que la lumière suit le trait qu'on
+  voit. Le nombre de morceaux se décide sur la flèche mesurée du bandeau :
+  une corniche de salle couverte est droite et vaut un seul segment, celle
+  de l'entrée plonge de 2,4 m sur 58 m et en demande trois. Sans ce calcul,
+  quatre corniches à trois morceaux dépassaient le plafond de huit segments
+  du shader et une salle perdait un mur entier.
+
+Et une conversion d'unités, qui n'est pas un réglage : three.js écrit pour
+une source rectangulaire `directDiffuse += couleur·intensité · albédo ·
+facteurDeForme`, et pour un ruban mince de hauteur h ce facteur vaut
+h·(n·V)/π — le même (n·V). Notre injection écrivant E·albédo/π avec
+E = I·(n·V), les deux se rejoignent exactement pour **I = intensité × h**.
+Le premier essai divisait par la longueur au lieu de multiplier par la
+hauteur : vingt et une fois trop sombre, et l'écran ne bougeait presque pas.
+
+**Le relevé, après.** Profil iPhone 13, même cadrage, clarté moyenne et part
+de noir pur :
+
+| salle | avant | après | bureau | noir avant → après |
+|---|---|---|---|---|
+| labo | 10,3 | **28,3** | 63,9 | 86,8 % → 31,4 % |
+| archives | 18,4 | **84,7** | 107,2 | 34,5 % → 0,6 % |
+| bibliothèque | 31,3 | **93,4** | 123,7 | 11,5 % → 0 % |
+| couloir-est | 40,1 | **61,4** | 67,7 | 12,1 % → 2,7 % |
+| entrée | 49,6 | **51,1** | 56 | 25 % → 24,8 % |
+| belvédère | 47,9 | **48,1** | 80 | 14 % → 13,3 % |
+
+Le coût, mesuré sur le même rastériseur logiciel avec et sans les lignes
+(seuls les rapports ont un sens) : **+9 % au labo, +12 % à la
+bibliothèque** — pour quatre cônes retirés en échange. Le profil bureau,
+lui, n'est pas touché du tout : sans sources étendues coupées, aucun
+matériau n'est greffé et il garde exactement les programmes qu'il avait.
+
+Ce qui reste en écart, et pourquoi : le labo (0,44 du bureau) et le
+belvédère (0,60) sont vastes et sans plafond, et le téléphone y intègre
+moins d'accents par pixel. Essayé de leur rendre des emplacements de lampe
+maintenant libres, de {4, 3} à {5, 4} : cela ne rapporte RIEN — le labo
+passe de 28,3 à 28,4 — pour deux lampes de plus sur chaque pixel. On ne
+paie pas ce qui ne se voit pas. Ce qui manque là n'est pas un accent de
+plus ; ce serait un éclairement d'ambiance précalculé par salle, et c'est
+un autre chantier.
+
 **Le scan invisible sur Firefox et Safari.** *Onde stationnaire* se
 chargeait, son cartel s'affichait, et l'œuvre n'était nulle part — sur
 Firefox et Safari seulement, et sans un mot dans la console. Le nuage
