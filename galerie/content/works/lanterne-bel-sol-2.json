@@ -3,9 +3,9 @@
   "title": "Lanterne",
   "description": "",
   "position": [
-    -12.5,
-    1.1,
-    7.5
+    -9.5,
+    0.836,
+    5.7
   ],
   "rotation": [
     0,
@@ -13,9 +13,9 @@
     0
   ],
   "scale": [
-    0.5,
-    1.2,
-    0.5
+    0.38,
+    0.912,
+    0.38
   ],
   "modules": [],
   "role": "decor",

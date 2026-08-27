@@ -3,9 +3,9 @@
   "title": "Lavage est",
   "role": "decor",
   "position": [
-    24.2,
-    47.5,
-    0
+    18.392,
+    36.1,
+    0.0
   ],
   "rotation": [
     0,
@@ -13,14 +13,14 @@
     0
   ],
   "scale": [
-    1,
-    1,
-    1
+    0.76,
+    0.76,
+    0.76
   ],
   "model": {
     "shape": "corniche",
-    "longueur": 48.4,
-    "epaisseur": 0.16,
+    "longueur": 36.784,
+    "epaisseur": 0.122,
     "color": "#d4f0e0",
     "intensite": 16,
     "mur": "est",

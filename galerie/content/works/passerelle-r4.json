@@ -3,9 +3,9 @@
   "title": "Palier",
   "description": "",
   "position": [
-    23,
-    6.06,
-    16
+    17.48,
+    4.606,
+    12.16
   ],
   "rotation": [
     0,
@@ -28,7 +28,7 @@
       2,
       6
     ],
-    "cell": 0.5,
+    "cell": 0.38,
     "palette": [
       "#3e3852"
     ],

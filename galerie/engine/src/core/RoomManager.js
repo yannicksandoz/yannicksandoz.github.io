@@ -1378,6 +1378,36 @@ export function planMur(shell, wall) {
 }
 
 /**
+ * OÙ SE POSE UNE BAIE, dans le repère de la pièce.
+ *
+ * La coque place ses ouvertures à `x + décalage` sur les murs nord/sud et
+ * à `z + décalage` sur est/ouest — un seul signe pour les quatre. Les
+ * apparitions tenaient leur propre table, qui inversait sud et ouest : sur
+ * un mur ouest, le carreau se posait quatre mètres à côté de son trou.
+ * Une seule fonction, donc, et `normale` dit vers où regarde l'intérieur —
+ * de quoi décoller de la paroi ce qui se pose en applique.
+ */
+export function ancrageBaie(shell, wall, offset = 0) {
+  const p = planMur(shell, wall);
+  if (!p) return null;
+  const NORMALES = {
+    nord: [0, 1], sud: [0, -1], est: [-1, 0], ouest: [1, 0]
+  };
+  // Le trou est percé à `x = décalage` dans le repère du mur, puis la
+  // plaque est TOURNÉE. Sur nord/sud (rotation nulle) le long du mur reste
+  // l'axe x. Sur est/ouest la plaque pivote d'un quart de tour : le long
+  // du mur devient −z. Ce signe-là n'est pas une convention qu'on choisit,
+  // c'est ce que fait la rotation — et c'est lui qui doit régner partout.
+  return {
+    x: p.x + (p.axe === 'x' ? offset : 0),
+    z: p.z + (p.axe === 'z' ? -offset : 0),
+    normale: NORMALES[wall],
+    height: p.height,
+    length: p.length
+  };
+}
+
+/**
  * Silhouette d'une ouverture, dans le repère du mur — de quoi en dessiner
  * l'aperçu pendant qu'on la trace, sans réécrire les trois formes ailleurs.
  * Null si l'ouverture, bornée au mur, n'a plus de surface.
@@ -1621,9 +1651,14 @@ export function buildShell(config) {
       // vitre invisible : elle couvre TOUTE la hauteur du mur et déborde en
       // largeur — bornée à la baie, un rayon rasant l'appui passait à côté
       // et le visiteur se retrouvait coincé derrière la fenêtre
-      const dx = rotY === 0 ? b.c : 0;
-      const dz = rotY === 0 ? 0 : b.c;
-      verre(b.wl + 2 * FT, h, x + dx, h / 2, z + dz, rotY);
+      // Le mur est TOURNÉ après avoir été percé : sur est/ouest, le long du
+      // mur devient −z. La vitre calculait ce décalage pour son compte, du
+      // mauvais signe, et se posait donc à deux décalages de son trou — sur
+      // le mur ouest du couloir, quatre mètres plus loin : on traversait la
+      // baie, et on butait contre rien, ailleurs. Un seul ancrage, celui
+      // que consultent aussi les apparitions.
+      const anc = ancrageBaie(opt, wall, b.c);
+      verre(b.wl + 2 * FT, h, anc.x, h / 2, anc.z, rotY);
     }
   };
 

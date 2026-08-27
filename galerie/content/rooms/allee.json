@@ -73,9 +73,9 @@
       "label": "Belvédère",
       "plane": "plafond",
       "arrival": [
-        -11,
-        2.2,
-        -8
+        -8.36,
+        1.672,
+        -6.08
       ]
     }
   ],

@@ -3,9 +3,9 @@
   "title": "Lavage sud",
   "role": "decor",
   "position": [
-    0,
-    47.5,
-    24.2
+    0.0,
+    36.1,
+    18.392
   ],
   "rotation": [
     0,
@@ -13,14 +13,14 @@
     0
   ],
   "scale": [
-    1,
-    1,
-    1
+    0.76,
+    0.76,
+    0.76
   ],
   "model": {
     "shape": "corniche",
-    "longueur": 48.4,
-    "epaisseur": 0.16,
+    "longueur": 36.784,
+    "epaisseur": 0.122,
     "color": "#ffd8c8",
     "intensite": 16,
     "mur": "sud",

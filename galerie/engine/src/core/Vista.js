@@ -1,6 +1,7 @@
 import * as THREE from 'three';
-import { SHELL_DEFAULTS, FOG_DENSITY, silhouetteOuverture, planMur }
+import { FOG_DENSITY, silhouetteOuverture, planMur, ancrageBaie }
   from './RoomManager.js';
+import { estFluide, materiauFluide } from './style.js';
 
 /**
  * Le CARREAU d'une apparition — à la silhouette de sa baie.
@@ -16,9 +17,20 @@ import { SHELL_DEFAULTS, FOG_DENSITY, silhouetteOuverture, planMur }
  * suspendu, il n'a pas de découpe à suivre.
  */
 function geometrieDeBaie(room, cfg, baie, bw, bh) {
-  if (!baie) return new THREE.PlaneGeometry(bw, bh);
-  const plan = planMur(room.config.shell, cfg.wall ?? 'nord');
-  const forme = plan && silhouetteOuverture(baie, plan.length, plan.height);
+  let forme = null;
+  if (baie) {
+    const plan = planMur(room.config.shell, cfg.wall ?? 'nord');
+    forme = plan && silhouetteOuverture(baie, plan.length, plan.height);
+  } else if (estFluide()) {
+    // Apparition EN APPLIQUE — elle ne remplit aucune ouverture, elle est
+    // posée sur un mur plein. Rectangulaire, elle redevenait la fenêtre
+    // d'avant au milieu d'une galerie qui n'en a plus : c'est la baie que
+    // l'auteur voyait « avec l'ancien design » aux archives. On lui donne
+    // la même silhouette qu'à une vraie baie, en la décrivant comme telle.
+    forme = silhouetteOuverture(
+      { shape: 'rect', offset: 0, width: bw, height: bh, sill: 0 },
+      bw * 4, bh * 4);
+  }
   if (!forme) return new THREE.PlaneGeometry(bw, bh);
   const geo = new THREE.ShapeGeometry(forme, 24);
   geo.computeBoundingBox();
@@ -104,7 +116,9 @@ const _sphere = new THREE.Sphere();
  * périmée au bord de l'écran pendant une rotation.
  */
 function rayonBaie(v) {
-  return Math.hypot(v.cfg.width ?? 4, v.cfg.height ?? 2.2) / 2 + 0.5;
+  // les dimensions POSÉES, pas celles écrites : une apparition qui a adopté
+  // sa baie n'a plus la taille de sa propre configuration
+  return Math.hypot(v.bw ?? v.cfg.width ?? 4, v.bh ?? v.cfg.height ?? 2.2) / 2 + 0.5;
 }
 
 export class VistaManager {
@@ -147,8 +161,6 @@ export class VistaManager {
   _create(room, cfg) {
     const shell = room.config.shell && room.config.shell !== true
       ? room.config.shell : {};
-    const w = Number(shell.width) > 0 ? shell.width : SHELL_DEFAULTS.width;
-    const d = Number(shell.depth) > 0 ? shell.depth : SHELL_DEFAULTS.depth;
     // baie « en applique » (par défaut) ou carreau logé dans une ouverture
     // de la coque : le carreau recule au plan médian du mur et déborde de
     // deux centimètres, si bien qu'aucun jour ne se voit sur les bords.
@@ -170,19 +182,28 @@ export class VistaManager {
       ? (shell.windows ?? []).find((o) => (o.wall ?? 'nord') === (cfg.wall ?? 'nord')
         && Math.abs((o.offset ?? 0) - offset) < 0.01)
       : null;
-    const bw = (baieDeLaCoque?.width ?? cfg.width ?? 4) + (fill ? 0.04 : 0);
-    const bh = (baieDeLaCoque?.height ?? cfg.height ?? 2.2) + (fill ? 0.04 : 0);
+    // dimensions NOMINALES du trou (sans le débord) : c'est sur elles que
+    // se calcule le centre, sinon le carreau se centre sur une hauteur qui
+    // n'est pas la sienne et se pose de travers dans son ouverture
+    const bwNom = baieDeLaCoque?.width ?? cfg.width ?? 4;
+    const bhNom = baieDeLaCoque?.height ?? cfg.height ?? 2.2;
+    const bw = bwNom + (fill ? 0.04 : 0);
+    const bh = bhNom + (fill ? 0.04 : 0);
     const sill = baieDeLaCoque?.sill ?? cfg.sill ?? 1;
 
-    // cadre local de la baie sur son mur, +Z vers l'intérieur de la pièce
-    const FRAMES = {
-      nord: { pos: [offset, 0, -d / 2 + inset], rotY: 0 },
-      sud: { pos: [-offset, 0, d / 2 - inset], rotY: 180 },
-      est: { pos: [w / 2 - inset, 0, offset], rotY: -90 },
-      ouest: { pos: [-w / 2 + inset, 0, -offset], rotY: 90 }
+    // Où se pose le carreau : L'ANCRAGE DE LA COQUE, pas une table
+    // parallèle. Les apparitions tenaient la leur, qui inversait sud et
+    // ouest — sur un mur ouest de couloir, le carreau se posait quatre
+    // mètres à côté de son trou. `inset` décolle ensuite l'applique de la
+    // paroi, le long de la normale intérieure.
+    const ROT = { nord: 0, sud: 180, est: -90, ouest: 90 };
+    const wall = cfg.wall ?? 'nord';
+    const a = ancrageBaie(room.config.shell, wall, offset);
+    if (!a || ROT[wall] === undefined) return null;
+    const f = {
+      pos: [a.x + a.normale[0] * inset, 0, a.z + a.normale[1] * inset],
+      rotY: ROT[wall]
     };
-    const f = FRAMES[cfg.wall ?? 'nord'];
-    if (!f) return null;
 
     let material, rt = null;
     if (this.app.renderer) {
@@ -216,7 +237,7 @@ export class VistaManager {
     const mesh = new THREE.Mesh(
       geometrieDeBaie(room, cfg, baieDeLaCoque, bw, bh), material);
     // le centre reste celui de la baie NOMINALE : le débord se répartit
-    mesh.position.set(f.pos[0], sill + (cfg.height ?? 2.2) / 2, f.pos[2]);
+    mesh.position.set(f.pos[0], sill + bhNom / 2, f.pos[2]);
     mesh.rotation.y = THREE.MathUtils.degToRad(f.rotY);
     mesh.userData.ignoreRaycast = true;
     mesh.name = `apparition-${cfg.room}`;
@@ -226,28 +247,55 @@ export class VistaManager {
     // la même magie. Un carreau logé dans une ouverture, lui, a déjà le
     // dormant de la coque : un second cadre ferait doublon.
     if (!fill) {
-      const frameMat = new THREE.MeshStandardMaterial({
-        color: 0x241f38, roughness: 0.5, metalness: 0.3,
-        emissive: 0x9f8cff, emissiveIntensity: 0.35
-      });
       const T = 0.14, D = 0.3;
-      const bar = (bx, by, x, y) => {
-        const b = new THREE.Mesh(new THREE.BoxGeometry(bx, by, D), frameMat);
-        b.position.set(x, y, 0);
-        b.userData.ignoreRaycast = true;
-        mesh.add(b);
-      };
-      // les barreaux MORDENT sur la baie (T/2 au lieu de T) : deux faces
-      // qui se touchent exactement grésillent, deux faces qui s'emboîtent
-      // se tiennent tranquilles
-      bar(bw + 2 * T, T, 0, bh / 2 + T / 4);
-      bar(bw + 2 * T, T, 0, -bh / 2 - T / 4);
-      bar(T, bh, -bw / 2 - T / 4, 0);
-      bar(T, bh, bw / 2 + T / 4, 0);
+      if (estFluide()) {
+        // le même anneau adouci que les portails et les dormants de baie :
+        // quatre barreaux droits autour d'un carreau oblong auraient remis
+        // les angles durs qu'on vient de retirer partout
+        const dehors = silhouetteOuverture(
+          { shape: 'rect', offset: 0, width: bw + 2 * T, height: bh + 2 * T, sill: 0 },
+          (bw + 2 * T) * 4, (bh + 2 * T) * 4);
+        const dedans = silhouetteOuverture(
+          { shape: 'rect', offset: 0, width: bw, height: bh, sill: 0 },
+          bw * 4, bh * 4);
+        if (dehors && dedans) {
+          dehors.holes.push(new THREE.Path(dedans.getPoints(48)));
+          const anneau = new THREE.Mesh(
+            new THREE.ExtrudeGeometry(dehors,
+              { depth: D, bevelEnabled: true, bevelSize: 0.05, bevelThickness: 0.05,
+                bevelSegments: 2, curveSegments: 24 }),
+            materiauFluide());
+          anneau.geometry.center();
+          anneau.userData.ignoreRaycast = true;
+          mesh.add(anneau);
+        }
+      } else {
+        const frameMat = new THREE.MeshStandardMaterial({
+          color: 0x241f38, roughness: 0.5, metalness: 0.3,
+          emissive: 0x9f8cff, emissiveIntensity: 0.35
+        });
+        const bar = (bx, by, x, y) => {
+          const b = new THREE.Mesh(new THREE.BoxGeometry(bx, by, D), frameMat);
+          b.position.set(x, y, 0);
+          b.userData.ignoreRaycast = true;
+          mesh.add(b);
+        };
+        // les barreaux MORDENT sur la baie (T/2 au lieu de T) : deux faces
+        // qui se touchent exactement grésillent, deux faces qui s'emboîtent
+        // se tiennent tranquilles
+        bar(bw + 2 * T, T, 0, bh / 2 + T / 4);
+        bar(bw + 2 * T, T, 0, -bh / 2 - T / 4);
+        bar(T, bh, -bw / 2 - T / 4, 0);
+        bar(T, bh, bw / 2 + T / 4, 0);
+      }
     }
     // `camAt` : d'où la baie a été peinte la dernière fois — null tant
     // qu'elle ne l'a jamais été (elle passe alors en tête de file)
-    return { cfg, mesh, rt, camAt: null };
+    // `bw`/`bh` : les dimensions RÉELLEMENT posées (celles de la baie quand
+    // l'apparition en remplit une). La caméra de rendu doit s'y accorder,
+    // sinon l'ailleurs est étiré dans son ouverture — c'est le décalage qui
+    // restait visible au couloir après avoir pourtant recalé la découpe.
+    return { cfg, mesh, rt, camAt: null, bw, bh };
   }
 
   /**
@@ -339,7 +387,8 @@ export class VistaManager {
     _mat.multiply(_inv).multiply(camWorld.matrixWorld);
     _mat.decompose(this._camera.position, this._camera.quaternion, _scale);
     this._camera.fov = camWorld.fov;
-    this._camera.aspect = (vista.cfg.width ?? 4) / (vista.cfg.height ?? 2.2);
+    this._camera.aspect = (vista.bw ?? vista.cfg.width ?? 4)
+      / (vista.bh ?? vista.cfg.height ?? 2.2);
     this._camera.updateProjectionMatrix();
 
     // la pièce cible prend la scène le temps d'une passe

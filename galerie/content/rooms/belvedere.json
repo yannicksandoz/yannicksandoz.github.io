@@ -2,9 +2,9 @@
   "id": "belvedere",
   "title": "Belvédère",
   "spawn": [
-    0,
-    2.2,
-    14
+    0.0,
+    1.672,
+    10.64
   ],
   "fogColor": "#1d2748",
   "fogDensity": 0.014,
@@ -16,9 +16,9 @@
     "textureRepeat": 1
   },
   "shell": {
-    "width": 50,
-    "depth": 50,
-    "height": 50,
+    "width": 38.0,
+    "depth": 38.0,
+    "height": 38.0,
     "color": "#4c465e",
     "ceiling": true,
     "texture": "pierre",
@@ -128,20 +128,20 @@
   "bascules": [
     {
       "position": [
-        23.32,
-        8,
-        6
+        17.723,
+        6.08,
+        4.56
       ],
-      "radius": 2.2,
+      "radius": 1.672,
       "transferts": [
         {
           "depuis": "sol",
           "vers": "est",
           "label": "Mur est",
           "arrival": [
-            10.5,
-            3.88,
-            6
+            7.98,
+            2.949,
+            4.56
           ]
         },
         {
@@ -149,9 +149,9 @@
           "vers": "sol",
           "label": "Retour au sol",
           "arrival": [
-            23.32,
-            10.2,
-            6
+            17.723,
+            7.752,
+            4.56
           ]
         }
       ],
@@ -159,20 +159,20 @@
     },
     {
       "position": [
-        17,
-        10.5,
-        -23.32
+        12.92,
+        7.98,
+        -17.723
       ],
-      "radius": 2.2,
+      "radius": 1.672,
       "transferts": [
         {
           "depuis": "est",
           "vers": "nord",
           "label": "Mur nord",
           "arrival": [
-            13.5,
-            3.88,
-            -10.5
+            10.26,
+            2.949,
+            -7.98
           ]
         },
         {
@@ -180,9 +180,9 @@
           "vers": "est",
           "label": "Retour au mur est",
           "arrival": [
-            10.5,
-            10.2,
-            -23.32
+            7.98,
+            7.752,
+            -17.723
           ]
         }
       ],
@@ -190,20 +190,20 @@
     },
     {
       "position": [
-        7.5,
-        1.7,
-        -21
+        5.7,
+        1.292,
+        -15.96
       ],
-      "radius": 2.2,
+      "radius": 1.672,
       "transferts": [
         {
           "depuis": "nord",
           "vers": "sol",
           "label": "Sol",
           "arrival": [
-            7.5,
-            3.9,
-            -18
+            5.7,
+            2.964,
+            -13.68
           ]
         },
         {
@@ -211,9 +211,9 @@
           "vers": "nord",
           "label": "Retour au mur nord",
           "arrival": [
-            7.5,
-            6.2,
-            -1.7
+            5.7,
+            4.712,
+            -1.292
           ]
         }
       ],
@@ -221,20 +221,20 @@
     },
     {
       "position": [
-        -23.32,
-        8,
-        -2
+        -17.723,
+        6.08,
+        -1.52
       ],
-      "radius": 2.2,
+      "radius": 1.672,
       "transferts": [
         {
           "depuis": "sol",
           "vers": "ouest",
           "label": "Mur ouest",
           "arrival": [
-            -10.5,
-            3.88,
-            -2
+            -7.98,
+            2.949,
+            -1.52
           ]
         },
         {
@@ -242,9 +242,9 @@
           "vers": "sol",
           "label": "Retour au sol (ouest)",
           "arrival": [
-            -23.32,
-            10.2,
-            -2
+            -17.723,
+            7.752,
+            -1.52
           ]
         }
       ],
@@ -252,20 +252,20 @@
     },
     {
       "position": [
-        -12,
-        8,
-        23.32
+        -9.12,
+        6.08,
+        17.723
       ],
-      "radius": 2.2,
+      "radius": 1.672,
       "transferts": [
         {
           "depuis": "sol",
           "vers": "sud",
           "label": "Mur sud",
           "arrival": [
-            -12,
-            3.88,
-            10.5
+            -9.12,
+            2.949,
+            7.98
           ]
         },
         {
@@ -273,9 +273,9 @@
           "vers": "sol",
           "label": "Retour au sol (sud)",
           "arrival": [
-            -12,
-            10.2,
-            23.32
+            -9.12,
+            7.752,
+            17.723
           ]
         }
       ],
@@ -283,20 +283,20 @@
     },
     {
       "position": [
-        -17,
-        48.3,
-        6
+        -12.92,
+        36.708,
+        4.56
       ],
-      "radius": 2.2,
+      "radius": 1.672,
       "transferts": [
         {
           "depuis": "ouest",
           "vers": "plafond",
           "label": "Plafond",
           "arrival": [
-            -14.5,
-            3.9,
-            -6
+            -11.02,
+            2.964,
+            -4.56
           ]
         },
         {
@@ -304,9 +304,9 @@
           "vers": "ouest",
           "label": "Retour au mur ouest",
           "arrival": [
-            -48.3,
-            10.2,
-            6
+            -36.708,
+            7.752,
+            4.56
           ]
         }
       ],
@@ -314,20 +314,20 @@
     },
     {
       "position": [
-        17,
-        12,
-        23.32
+        12.92,
+        9.12,
+        17.723
       ],
-      "radius": 2.2,
+      "radius": 1.672,
       "transferts": [
         {
           "depuis": "est",
           "vers": "sud",
           "label": "Mur sud",
           "arrival": [
-            14.5,
-            3.88,
-            12
+            11.02,
+            2.949,
+            9.12
           ]
         },
         {
@@ -335,9 +335,9 @@
           "vers": "est",
           "label": "Retour au mur est",
           "arrival": [
-            12,
-            10.2,
-            23.32
+            9.12,
+            7.752,
+            17.723
           ]
         }
       ],
@@ -345,20 +345,20 @@
     },
     {
       "position": [
-        -23.32,
-        12,
-        -17
+        -17.723,
+        9.12,
+        -12.92
       ],
-      "radius": 2.2,
+      "radius": 1.672,
       "transferts": [
         {
           "depuis": "nord",
           "vers": "ouest",
           "label": "Mur ouest",
           "arrival": [
-            -12,
-            3.88,
-            -14.5
+            -9.12,
+            2.949,
+            -11.02
           ]
         },
         {
@@ -366,9 +366,9 @@
           "vers": "nord",
           "label": "Retour au mur nord",
           "arrival": [
-            -23.32,
-            10.2,
-            -12
+            -17.723,
+            7.752,
+            -9.12
           ]
         }
       ],
@@ -376,20 +376,20 @@
     },
     {
       "position": [
-        5,
-        48.3,
-        17
+        3.8,
+        36.708,
+        12.92
       ],
-      "radius": 2.2,
+      "radius": 1.672,
       "transferts": [
         {
           "depuis": "sud",
           "vers": "plafond",
           "label": "Plafond",
           "arrival": [
-            5,
-            3.9,
-            -14.5
+            3.8,
+            2.964,
+            -11.02
           ]
         },
         {
@@ -397,9 +397,9 @@
           "vers": "sud",
           "label": "Retour au mur sud",
           "arrival": [
-            5,
-            10.2,
-            48.3
+            3.8,
+            7.752,
+            36.708
           ]
         }
       ],
@@ -407,20 +407,20 @@
     },
     {
       "position": [
-        -5,
-        48.3,
-        -17
+        -3.8,
+        36.708,
+        -12.92
       ],
-      "radius": 2.2,
+      "radius": 1.672,
       "transferts": [
         {
           "depuis": "nord",
           "vers": "plafond",
           "label": "Plafond",
           "arrival": [
-            -5,
-            3.9,
-            14.5
+            -3.8,
+            2.964,
+            11.02
           ]
         },
         {
@@ -428,9 +428,9 @@
           "vers": "nord",
           "label": "Retour au mur nord",
           "arrival": [
-            -5,
-            10.2,
-            -48.3
+            -3.8,
+            7.752,
+            -36.708
           ]
         }
       ],
@@ -438,20 +438,20 @@
     },
     {
       "position": [
-        -23.32,
-        19,
-        17
+        -17.723,
+        14.44,
+        12.92
       ],
-      "radius": 2.2,
+      "radius": 1.672,
       "transferts": [
         {
           "depuis": "sud",
           "vers": "ouest",
           "label": "Mur ouest",
           "arrival": [
-            -19,
-            3.88,
-            14.5
+            -14.44,
+            2.949,
+            11.02
           ]
         },
         {
@@ -459,9 +459,9 @@
           "vers": "sud",
           "label": "Retour au mur sud",
           "arrival": [
-            -23.32,
-            10.2,
-            19
+            -17.723,
+            7.752,
+            14.44
           ]
         }
       ],
@@ -469,20 +469,20 @@
     },
     {
       "position": [
-        17,
-        48.3,
-        -15
+        12.92,
+        36.708,
+        -11.4
       ],
-      "radius": 2.2,
+      "radius": 1.672,
       "transferts": [
         {
           "depuis": "est",
           "vers": "plafond",
           "label": "Plafond",
           "arrival": [
-            14.5,
-            3.9,
-            15
+            11.02,
+            2.964,
+            11.4
           ]
         },
         {
@@ -490,9 +490,9 @@
           "vers": "est",
           "label": "Retour au mur est",
           "arrival": [
-            48.3,
-            10.2,
-            -15
+            36.708,
+            7.752,
+            -11.4
           ]
         }
       ],
@@ -500,20 +500,20 @@
     },
     {
       "position": [
-        -15,
-        17,
-        4.2
+        -11.4,
+        12.92,
+        3.192
       ],
-      "radius": 2.2,
+      "radius": 1.672,
       "transferts": [
         {
           "depuis": "sol",
           "vers": "plafond",
           "label": "Tour inverse (plafond)",
           "arrival": [
-            -15,
-            19.2,
-            3.5
+            -11.4,
+            14.592,
+            2.66
           ]
         }
       ],
@@ -521,20 +521,20 @@
     },
     {
       "position": [
-        -15,
-        33,
-        -4.2
+        -11.4,
+        25.08,
+        -3.192
       ],
-      "radius": 2.2,
+      "radius": 1.672,
       "transferts": [
         {
           "depuis": "plafond",
           "vers": "sol",
           "label": "Tour inverse (sol)",
           "arrival": [
-            -15,
-            19.2,
-            3.5
+            -11.4,
+            14.592,
+            2.66
           ]
         }
       ],
@@ -543,53 +543,53 @@
   ],
   "jetons": [
     [
-      19,
-      1,
-      -5
+      14.44,
+      0.76,
+      -3.8
     ],
     [
-      -16,
-      1,
-      16
+      -12.16,
+      0.76,
+      12.16
     ]
   ],
   "portals": [
     {
       "to": "couloir-est",
       "position": [
-        0,
-        0,
-        21.5
+        0.0,
+        0.0,
+        16.34
       ],
       "rotationY": 180,
       "label": "Couloir",
       "arrival": [
-        0,
-        2.2,
-        -6
+        0.0,
+        1.672,
+        -4.56
       ]
     },
     {
       "to": "entree",
       "position": [
-        -21.5,
-        0,
-        12.5
+        -16.34,
+        0.0,
+        9.5
       ],
       "rotationY": 90,
       "label": "Entrée",
       "arrival": [
-        0,
-        2.2,
-        12
+        0.0,
+        1.672,
+        9.12
       ]
     },
     {
       "to": "labo",
       "position": [
-        25,
-        16,
-        -14
+        19.0,
+        12.16,
+        -10.64
       ],
       "rotation": [
         0,
@@ -598,17 +598,17 @@
       ],
       "label": "Labo",
       "arrival": [
-        0,
-        2.2,
-        16
+        0.0,
+        1.672,
+        12.16
       ]
     },
     {
       "to": "archives",
       "position": [
-        -15,
-        12.5,
-        -25
+        -11.4,
+        9.5,
+        -19.0
       ],
       "rotation": [
         90,
@@ -617,17 +617,17 @@
       ],
       "label": "Archives",
       "arrival": [
-        0,
-        2.2,
-        6
+        0.0,
+        1.672,
+        4.56
       ]
     },
     {
       "to": "jardin",
       "position": [
-        -25,
-        16,
-        16
+        -19.0,
+        12.16,
+        12.16
       ],
       "rotation": [
         180,
@@ -636,17 +636,17 @@
       ],
       "label": "Jardin",
       "arrival": [
-        0,
-        2.2,
-        10
+        0.0,
+        1.672,
+        7.6
       ]
     },
     {
       "to": "bibliotheque",
       "position": [
-        15,
-        37.5,
-        25
+        11.4,
+        28.5,
+        19.0
       ],
       "rotation": [
         -90,
@@ -655,17 +655,17 @@
       ],
       "label": "Bibliothèque",
       "arrival": [
-        0,
-        2.2,
-        6
+        0.0,
+        1.672,
+        4.56
       ]
     },
     {
       "to": "allee",
       "position": [
-        -11,
-        50,
-        11
+        -8.36,
+        38.0,
+        8.36
       ],
       "rotation": [
         -180,
@@ -674,23 +674,23 @@
       ],
       "label": "Allée",
       "arrival": [
-        0,
-        2.2,
-        9
+        0.0,
+        1.672,
+        6.84
       ]
     },
     {
       "to": "face-1",
       "label": "Face 1",
       "arrival": [
-        0,
-        2.2,
-        8
+        0.0,
+        1.672,
+        6.08
       ],
       "position": [
-        14,
-        0,
-        -18
+        10.64,
+        0.0,
+        -13.68
       ],
       "rotationY": -37.9
     },
@@ -698,14 +698,14 @@
       "to": "face-2",
       "label": "Face 2",
       "arrival": [
-        0,
-        2.2,
-        8
+        0.0,
+        1.672,
+        6.08
       ],
       "position": [
-        25,
-        6,
-        14
+        19.0,
+        4.56,
+        10.64
       ],
       "rotation": [
         -126.384,
@@ -717,14 +717,14 @@
       "to": "face-3",
       "label": "Face 3",
       "arrival": [
-        0,
-        2.2,
-        8
+        0.0,
+        1.672,
+        6.08
       ],
       "position": [
-        12,
-        6,
-        -25
+        9.12,
+        4.56,
+        -19.0
       ],
       "rotation": [
         -90,
@@ -736,14 +736,14 @@
       "to": "face-4",
       "label": "Face 4",
       "arrival": [
-        0,
-        2.2,
-        8
+        0.0,
+        1.672,
+        6.08
       ],
       "position": [
-        -25,
-        8,
-        -14
+        -19.0,
+        6.08,
+        -10.64
       ],
       "rotation": [
         -50.528,
@@ -755,14 +755,14 @@
       "to": "face-5",
       "label": "Face 5",
       "arrival": [
-        0,
-        2.2,
-        8
+        0.0,
+        1.672,
+        6.08
       ],
       "position": [
-        16,
-        8,
-        25
+        12.16,
+        6.08,
+        19.0
       ],
       "rotation": [
         -90,
@@ -774,14 +774,14 @@
       "to": "face-6",
       "label": "Face 6",
       "arrival": [
-        0,
-        2.2,
-        8
+        0.0,
+        1.672,
+        6.08
       ],
       "position": [
-        8,
-        50,
-        16
+        6.08,
+        38.0,
+        12.16
       ],
       "rotation": [
         -180,

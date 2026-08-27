@@ -3,9 +3,9 @@
   "title": "Escalier",
   "description": "",
   "position": [
-    8,
-    0,
-    -4
+    6.08,
+    0.0,
+    -3.04
   ],
   "rotation": [
     -180,
@@ -28,7 +28,7 @@
       12,
       24
     ],
-    "cell": 0.5,
+    "cell": 0.38,
     "palette": [
       "#6c6288"
     ],
