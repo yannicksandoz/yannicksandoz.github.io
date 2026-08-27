@@ -1269,9 +1269,17 @@ const WALL_T = 0.35; // épaisseur des murs
  *   rect   : une baie droite (le comportement historique, et le défaut) ;
  *   arche  : droite jusqu'aux naissances, puis un demi-cercle ;
  *   cercle : un oculus, inscrit dans la largeur ou la hauteur — la plus
- *            petite des deux, pour qu'il tienne toujours dans le mur.
+ *            petite des deux, pour qu'il tienne toujours dans le mur ;
+ *   oblong : la silhouette des PORTAILS — un rectangle dont les angles
+ *            sont mangés jusqu'à devenir un stade. C'est la forme du mode
+ *            fluide : dans un mur qui n'a plus une seule arête franche,
+ *            une baie rectangulaire cassait le voile en quatre coins durs.
+ *
+ * En mode fluide, une baie `rect` est DESSINÉE oblongue sans rien changer
+ * au JSON — même contrat que le couronnement ondulé ou les murs cintrés :
+ * le style transforme, il ne migre pas le contenu.
  */
-export const FORMES_OUVERTURE = ['rect', 'arche', 'cercle'];
+export const FORMES_OUVERTURE = ['rect', 'arche', 'cercle', 'oblong'];
 
 /** Géométrie d'une baie, bornée au mur. Null si elle n'a plus de surface. */
 function baie(o, length, height) {
@@ -1280,10 +1288,11 @@ function baie(o, length, height) {
   const sill = Math.max(0, Math.min(height - 0.2, o.sill ?? 1.1));
   const top = Math.min(height, (o.sill ?? 1.1) + (o.height ?? 1.8));
   if (to <= from || top <= sill) return null;
-  return {
-    forme: FORMES_OUVERTURE.includes(o.shape) ? o.shape : 'rect',
-    c: (from + to) / 2, wl: to - from, sill, top
-  };
+  let forme = FORMES_OUVERTURE.includes(o.shape) ? o.shape : 'rect';
+  // le mod fluide arrondit les baies droites, comme il arrondit les
+  // chambranles de portail : c'est la même main sur toute l'huisserie
+  if (forme === 'rect' && estFluide()) forme = 'oblong';
+  return { forme, c: (from + to) / 2, wl: to - from, sill, top };
 }
 
 /**
@@ -1315,6 +1324,26 @@ function contourBaie(b, marge = 0, height = Infinity) {
     p.absarc(b.c, naissance, demi, Math.PI, 0, true);
     p.lineTo(b.c + demi, bas);
     p.lineTo(b.c - demi, bas);
+    return p;
+  }
+  if (b.forme === 'oblong') {
+    // LA BAIE DES RÉFÉRENCES : un stade, pas un rectangle. Le rayon mange
+    // 85 % de la plus petite demi-dimension — assez pour que les angles
+    // aient disparu, pas assez pour qu'une baie large devienne un ovale
+    // mou. Comme les autres formes, elle se dilate analytiquement : `demi`,
+    // `bas` et `haut` portent déjà la marge, le rayon suit.
+    const demiH = (haut - bas) / 2;
+    const r = Math.max(0.02, Math.min(demi, demiH) * 0.85);
+    const g = b.c - demi, d = b.c + demi;
+    p.moveTo(g + r, bas);
+    p.lineTo(d - r, bas);
+    p.quadraticCurveTo(d, bas, d, bas + r);
+    p.lineTo(d, haut - r);
+    p.quadraticCurveTo(d, haut, d - r, haut);
+    p.lineTo(g + r, haut);
+    p.quadraticCurveTo(g, haut, g, haut - r);
+    p.lineTo(g, bas + r);
+    p.quadraticCurveTo(g, bas, g + r, bas);
     return p;
   }
   p.moveTo(b.c - demi, bas);
@@ -1465,8 +1494,11 @@ export function buildShell(config) {
   // le cadre d'une baie est un DORMANT : même métal brossé que les
   // chambranles de portail, pour que l'huisserie de la galerie soit d'une
   // seule main d'un bout à l'autre
-  const cadreSurface = jeuDeSurface('metal');
-  const frameMat = new THREE.MeshStandardMaterial({
+  // …sauf en mode fluide : là, l'huisserie est la MÊME coque blanche satinée
+  // que l'anneau des portails. Un dormant de métal brossé dans un mur qui
+  // ondule redevenait le coin dur qu'on venait de supprimer.
+  const cadreSurface = estFluide() ? null : jeuDeSurface('metal');
+  const frameMat = estFluide() ? materiauFluide() : new THREE.MeshStandardMaterial({
     color: new THREE.Color(opt.frameColor ?? '#4a4668'),
     map: cadreSurface?.map ?? null,
     bumpMap: cadreSurface?.bumpMap ?? null,

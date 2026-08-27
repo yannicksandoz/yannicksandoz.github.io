@@ -23,15 +23,15 @@
         "wall": "nord",
         "offset": -7,
         "width": 4,
-        "height": 2,
-        "sill": 1.3
+        "height": 2.4,
+        "sill": 1.0
       },
       {
         "wall": "nord",
         "offset": 7,
         "width": 4,
-        "height": 2,
-        "sill": 1.3
+        "height": 2.4,
+        "sill": 2.9
       }
     ],
     "texture": "bois",

@@ -23,15 +23,15 @@
         "wall": "ouest",
         "offset": 0,
         "width": 5,
-        "height": 1.9,
-        "sill": 1.2
+        "height": 2.2,
+        "sill": 3.4
       },
       {
         "wall": "est",
         "offset": -5,
         "width": 3.5,
-        "height": 1.9,
-        "sill": 1.2
+        "height": 3.6,
+        "sill": 0.9
       }
     ],
     "texture": "brique-vraie",

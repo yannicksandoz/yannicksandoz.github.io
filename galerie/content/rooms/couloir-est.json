@@ -24,22 +24,22 @@
         "wall": "est",
         "offset": -8,
         "width": 3,
-        "height": 1.7,
-        "sill": 1.1
+        "height": 1.6,
+        "sill": 2.4
       },
       {
         "wall": "est",
         "offset": 4,
         "width": 3,
-        "height": 1.7,
-        "sill": 1.1
+        "height": 2.6,
+        "sill": 0.9
       },
       {
         "wall": "ouest",
         "offset": -2,
         "width": 3,
-        "height": 1.7,
-        "sill": 1.1
+        "height": 2.0,
+        "sill": 1.7
       }
     ],
     "texture": "brique-vraie",
