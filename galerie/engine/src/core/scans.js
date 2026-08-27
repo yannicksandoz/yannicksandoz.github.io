@@ -48,11 +48,20 @@ export async function creerScan(url, options = {}) {
   // que Firefox et Safari refusent — et le nuage reste invisible sans le
   // moindre message. Voir `scan-memoire.js` : le contournement ne vit que
   // le temps de faire naître ce worker.
-  const retirer = poserContournementScan();
+  const { retirer, applique } = poserContournementScan(globalThis, (message) => {
+    // Le tri meurt DANS son worker, longtemps après que `creerScan` a rendu
+    // la main : sans ce relais, l'œuvre resterait invisible et muette.
+    console.error(`[galerie] Scan « ${url} » : le worker de tri est mort `
+      + `(${message}). Les taches ne seront pas dessinées.`);
+  });
   let visionneuse;
   try {
     visionneuse = new DropInViewer({
       sharedMemoryForWorkers: false,
+      // Sans SIMD : la variante non partagée AVEC SIMD exigerait Safari
+      // 16.4+, et trier vingt mille taches sans SIMD coûte moins d'une
+      // milliseconde — la portabilité vaut plus que cette milliseconde.
+      enableSIMDInSort: false,
       gpuAcceleratedSort: false,
       freeIntermediateSplatData: true
     });
@@ -62,6 +71,14 @@ export async function creerScan(url, options = {}) {
     });
   } finally {
     retirer();
+  }
+  if (!applique()) {
+    // Le trieur est passé sans être réécrit : le motif de `scan-memoire.js`
+    // ne reconnaît plus le source (nouveau minifieur ? bibliothèque mise à
+    // jour ?). On le CRIE — la dernière fois, cette régression fut muette.
+    console.warn('[galerie] Scan : le contournement mémoire n\'a pas trouvé '
+      + 'le worker de tri — les scans risquent d\'être invisibles sur '
+      + 'Firefox et Safari. Voir engine/src/core/scan-memoire.js.');
   }
   // AUCUNE OMBRE PORTÉE. Une tache gaussienne n'a pas de silhouette : le
   // nuage est dessiné par un shader qui déplie un quad par tache, et la

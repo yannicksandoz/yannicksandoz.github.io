@@ -1648,23 +1648,56 @@ d'aucun de ces étages — d'où le symptôme exact.
 L'option `sharedMemoryForWorkers: false` que la galerie posait déjà ne
 suffit pas : elle change la façon de TRANSMETTRE les tableaux, jamais
 l'allocation. Le contournement (`core/scan-memoire.js`) fait les deux
-gestes qui vont ensemble — réécrire `shared: true` en `shared: false` dans
-le source du worker au moment où la bibliothèque l'assemble en `Blob`, et
+gestes qui vont ensemble — réécrire l'allocation en `shared: false` dans le
+source du worker au moment où la bibliothèque l'assemble en `Blob`, et
 obtenir le binaire WASM qui importe une mémoire ordinaire, seule variante
 compatible. Ce second point passe par la seule porte ouverte : 0.4.7 ne
 choisit cette variante que pour les iOS antérieurs à 16.4, d'après
 `navigator.userAgent`. On se déclare donc iOS 16.3 le temps de cette
-lecture — qui suit la création du blob dans le même tour synchrone, si
-bien que la feinte dure moins d'une microtâche. En contexte isolé, où la
-voie partagée fonctionne partout, le correctif ne s'arme pas.
+lecture — qui suit la création du blob dans le même tour synchrone, si bien
+que la feinte dure moins d'une microtâche. En contexte isolé, où la voie
+partagée fonctionne partout, le correctif ne s'arme pas.
 
-Vérifié en mesurant, et sur le chemin qui compte : `localhost` n'étant pas
-isolé, Chromium exécute désormais exactement le code que Firefox et Safari
-exécuteront. **21 853 taches chargées, 21 853 rendues.** `npm test` tient
-les deux bouts — que la substitution morde encore, et que le paquet
-installé porte encore le défaut qui la justifie. Le jour où l'amont
-allouera selon `useSharedMemory`, la suite rougira : c'est le signal pour
-supprimer `scan-memoire.js`, pas pour rafistoler le test.
+**La première version de ce correctif n'a rien réparé, et la leçon vaut
+d'être écrite.** Elle cherchait la chaîne littérale `shared: true,`. Elle
+mordait en développement et jamais en production : le texte du worker vient
+du bundle MINIFIÉ, où esbuild écrit `shared:!0`. Un contournement qui ne
+mord plus ne fait pas de bruit — il rend exactement le symptôme qu'il
+devait guérir. D'où trois changements de méthode. La réécriture est
+désormais un MOTIF, `/([{,(]\s*shared\s*:\s*)(?:!0|true)\b/g`, confronté
+dans la suite à l'orthographe relevée dans `dist/` ET au vrai esbuild
+appliqué au vrai source. Un mouchard `applique()` avertit en console si un
+trieur passe sans être réécrit. Et un second relaie les erreurs du worker
+lui-même : `[galerie] Scan « … » : le worker de tri est mort (…)`. La panne
+d'origine était muette ; elle ne peut plus l'être.
+
+**Vérifié par une expérience contrôlée, faute de Firefox.** Le proxy de
+l'atelier bloque tout téléchargement de navigateur — mesurer sur Chromium
+seul ne prouvait rien, puisque c'est précisément le navigateur qui TOLÈRE
+l'allocation fautive. On lui a donc emprunté le refus des autres : un garde
+injecté dans le worker fait lever `new WebAssembly.Memory({ shared: true })`
+exactement comme Firefox et Safari hors isolation, et l'on compare deux
+conditions sur le même bundle de production.
+
+| | source du worker | taches dessinées | console |
+|---|---|---|---|
+| correctif **actif** | `shared:false` | **21 853** | rien |
+| correctif **désarmé** (témoin) | `shared:!0` | **0** | « le worker de tri est mort » |
+
+Le témoin reproduit le symptôme de l'auteur au pixel près — nuage absent,
+cartel présent — et le correctif le lève. Le binaire finalement retenu,
+`SorterWasmNoSIMDNonShared`, a été décodé octet par octet : import mémoire
+à drapeau `0x00` (non partagée), **zéro opcode atomique** (il n'a donc
+structurellement pas besoin de mémoire partagée) et zéro opcode SIMD (donc
+pas de plancher Safari 16.4). Le reste du chemin a été inventorié pour les
+autres trous de compatibilité — `requestIdleCallback` (absent de Safari),
+`OffscreenCanvas`, `structuredClone`, `Atomics` : aucun n'apparaît dans le
+morceau `scans` servi. Et aucune CSP ne vient bloquer les workers `blob:`.
+
+`npm test` tient les deux bouts — que la substitution morde encore, et que
+le paquet installé porte encore le défaut qui la justifie. Le jour où
+l'amont allouera selon `useSharedMemory`, la suite rougira : c'est le
+signal pour supprimer `scan-memoire.js`, pas pour rafistoler le test.
 
 **Les seuils, et les corniches.** Deux fautes revenaient à la main, salle
 après salle : un portail planté dans un escalier, et un bandeau lumineux
