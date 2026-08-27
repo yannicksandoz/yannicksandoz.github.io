@@ -22,14 +22,14 @@
       {
         "wall": "ouest",
         "offset": 0,
-        "width": 5,
+        "width": 6.5,
         "height": 2.2,
         "sill": 3.4
       },
       {
         "wall": "est",
         "offset": -5,
-        "width": 3.5,
+        "width": 2.6,
         "height": 3.6,
         "sill": 0.9
       }

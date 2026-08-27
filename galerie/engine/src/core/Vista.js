@@ -1,5 +1,42 @@
 import * as THREE from 'three';
-import { SHELL_DEFAULTS, FOG_DENSITY } from './RoomManager.js';
+import { SHELL_DEFAULTS, FOG_DENSITY, silhouetteOuverture, planMur }
+  from './RoomManager.js';
+
+/**
+ * Le CARREAU d'une apparition — à la silhouette de sa baie.
+ *
+ * Logée dans une ouverture, l'apparition doit en épouser la découpe : une
+ * baie oblongue (mode fluide) laissait voir les quatre coins d'un carreau
+ * rectangulaire, et l'ailleurs semblait collé de travers sur le mur. On
+ * reprend donc le contour même de la baie — la fonction qui sert déjà à
+ * la dessiner dans la coque — puis on recentre, et on remet les UV à
+ * l'échelle du carreau : la cible de rendu se lit toujours de 0 à 1.
+ *
+ * Sans baie (apparition en applique), un simple plan : c'est un tableau
+ * suspendu, il n'a pas de découpe à suivre.
+ */
+function geometrieDeBaie(room, cfg, baie, bw, bh) {
+  if (!baie) return new THREE.PlaneGeometry(bw, bh);
+  const plan = planMur(room.config.shell, cfg.wall ?? 'nord');
+  const forme = plan && silhouetteOuverture(baie, plan.length, plan.height);
+  if (!forme) return new THREE.PlaneGeometry(bw, bh);
+  const geo = new THREE.ShapeGeometry(forme, 24);
+  geo.computeBoundingBox();
+  const b = geo.boundingBox;
+  const cx = (b.min.x + b.max.x) / 2, cy = (b.min.y + b.max.y) / 2;
+  const lx = Math.max(1e-4, b.max.x - b.min.x), ly = Math.max(1e-4, b.max.y - b.min.y);
+  geo.translate(-cx, -cy, 0);
+  // ShapeGeometry pose ses UV en MÈTRES (les coordonnées de la forme) :
+  // sans ce recadrage, la lucarne montrerait un texel étiré de la cible
+  const uv = geo.attributes.uv;
+  for (let i = 0; i < uv.count; i++) {
+    uv.setXY(i, (uv.getX(i) - b.min.x) / lx, (uv.getY(i) - b.min.y) / ly);
+  }
+  uv.needsUpdate = true;
+  // le carreau déborde d'un chouia, comme le plan qu'il remplace
+  geo.scale(bw / lx, bh / ly, 1);
+  return geo;
+}
 
 /**
  * Apparitions — une pièce d'ailleurs, vivante, sur un plan de la pièce
@@ -117,10 +154,25 @@ export class VistaManager {
     // deux centimètres, si bien qu'aucun jour ne se voit sur les bords.
     const fill = cfg.frame === false;
     const inset = fill ? 0 : INSET;
-    const bw = (cfg.width ?? 4) + (fill ? 0.04 : 0);
-    const bh = (cfg.height ?? 2.2) + (fill ? 0.04 : 0);
-    const sill = cfg.sill ?? 1;
     const offset = cfg.offset ?? 0;
+
+    // L'APPARITION SUIT SA BAIE, elle ne la répète pas.
+    //
+    // Une apparition « logée » (frame: false) remplit une ouverture de la
+    // coque, mais elle portait sa PROPRE largeur, hauteur et appui. Deux
+    // descriptions du même trou : au premier changement de baie elles ont
+    // divergé, et le carreau s'est retrouvé de travers dans son ouverture.
+    // On adopte donc la baie du même mur au même décalage — sa géométrie
+    // ET sa silhouette, qui n'est plus forcément un rectangle (oblong en
+    // mode fluide). Sans baie correspondante, l'apparition reste ce
+    // qu'elle a toujours été : un carreau en applique.
+    const baieDeLaCoque = fill
+      ? (shell.windows ?? []).find((o) => (o.wall ?? 'nord') === (cfg.wall ?? 'nord')
+        && Math.abs((o.offset ?? 0) - offset) < 0.01)
+      : null;
+    const bw = (baieDeLaCoque?.width ?? cfg.width ?? 4) + (fill ? 0.04 : 0);
+    const bh = (baieDeLaCoque?.height ?? cfg.height ?? 2.2) + (fill ? 0.04 : 0);
+    const sill = baieDeLaCoque?.sill ?? cfg.sill ?? 1;
 
     // cadre local de la baie sur son mur, +Z vers l'intérieur de la pièce
     const FRAMES = {
@@ -161,7 +213,8 @@ export class VistaManager {
       });
     }
 
-    const mesh = new THREE.Mesh(new THREE.PlaneGeometry(bw, bh), material);
+    const mesh = new THREE.Mesh(
+      geometrieDeBaie(room, cfg, baieDeLaCoque, bw, bh), material);
     // le centre reste celui de la baie NOMINALE : le débord se répartit
     mesh.position.set(f.pos[0], sill + (cfg.height ?? 2.2) / 2, f.pos[2]);
     mesh.rotation.y = THREE.MathUtils.degToRad(f.rotY);

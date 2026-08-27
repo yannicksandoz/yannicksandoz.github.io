@@ -15,7 +15,7 @@ import { Spatialisation } from './Spatialisation.js';
 import { QualityManager } from './Quality.js';
 import { LoadingTracker, assetUrl } from './utils.js';
 import { setDefaultAnisotropy } from './textures.js';
-import { setBudgetSourcesEtendues } from './primitives.js';
+import { setBudgetSourcesEtendues, setEclatLuminaires } from './primitives.js';
 import { COUCHE_AUTO_ECLAIREE } from './Artwork.js';
 import { WATER_TIME } from './primitives.js';
 import { chauffer } from './cartels.js';
@@ -310,6 +310,11 @@ export class App {
     setDefaultAnisotropy(this.quality.profile.anisotropy);
     // combien de sources étendues la machine peut porter (voir Quality)
     setBudgetSourcesEtendues(this.quality.profile.sourcesEtendues ?? 8);
+    // le trait d'une fente compense ce que le bloom ne peut plus lui
+    // donner : à un quart de résolution, une ligne de douze centimètres
+    // sort de la passe de flou (voir setEclatLuminaires)
+    const fleur = this.quality.profile.bloomResScale ?? 0.5;
+    setEclatLuminaires(fleur >= 0.5 ? 1 : 0.5 / fleur * 0.85);
     // Ombres douces (PCF) — une seule source par pièce en projette (la
     // lumière clé, voir RoomManager) : le coût reste borné et prévisible.
     this.renderer.shadowMap.enabled = this.quality.profile.shadows;

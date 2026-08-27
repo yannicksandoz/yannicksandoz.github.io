@@ -41,6 +41,27 @@ export function setBudgetSourcesEtendues(n) {
 export function aDesSourcesEtendues() { return budgetSourcesEtendues > 0; }
 
 /**
+ * COMBIEN LE TRAIT D'UNE FENTE DOIT BRÛLER — et pourquoi ça dépend de la
+ * machine.
+ *
+ * Le bandeau d'une corniche est un TRAIT de douze centimètres. Ce qui en
+ * fait un néon, ce n'est pas sa couleur : c'est la fleur du bloom autour
+ * de lui. Or le bloom se calcule à une fraction de la résolution — la
+ * moitié au bureau, le QUART sur téléphone — et à cette taille-là une
+ * ligne de douze centimètres vue de vingt mètres ne couvre plus un texel :
+ * elle disparaît de la passe de flou, et le néon redevient un fil gris.
+ * C'est ce qu'on voyait à l'entrée sur mobile.
+ *
+ * On compense donc là où le bloom ne suit pas : le trait brûle un peu plus
+ * fort quand il a moins de fleur à attendre. L'auteur garde la main —
+ * `eclat` dans le JSON reste sa valeur de référence, celle du bureau.
+ */
+let eclatLuminaires = 1;
+export function setEclatLuminaires(f) {
+  eclatLuminaires = Number.isFinite(f) && f > 0 ? f : 1;
+}
+
+/**
  * Primitives paramétriques du mode Objets.
  *
  * Elles vivent dans le cœur (et non dans l'éditeur) parce que le runtime
@@ -491,7 +512,7 @@ function buildCorniche(size, model) {
   // À 0,34 le bandeau passe sous le seuil du bloom (0,55) : il cesse de
   // fleurir en halo et redevient un TRAIT — la ligne de lumière de la DA
   // reste, la brûlure s'en va. La lampe, elle, ne bouge pas d'un lumen.
-  const eclat = Number.isFinite(model.eclat) ? model.eclat : 0.34;
+  const eclat = (Number.isFinite(model.eclat) ? model.eclat : 0.34) * eclatLuminaires;
   // en mode fluide, le trait est subdivisé : Artwork le pliera sur la
   // courbe du voile qu'il longe (voir Artwork._courberCorniche) — un plan
   // de deux triangles ne peut pas suivre une onde
@@ -536,23 +557,27 @@ function buildCorniche(size, model) {
       // trait mais n'éclairerait plus RIEN. Tant qu'un soleil traversait
       // la coque, cela passait ; depuis qu'une pièce close n'est éclairée
       // que par ses propres sources (voir ombres.coqueClose), la salle
-      // serait NOIRE sur téléphone. Trois ponctuelles réparties le long de
-      // la fente rendent le lavage pour une fraction du coût d'une LTC —
-      // et le budget de lampes proches les gère comme les autres.
-      const n = 3;
-      const relais = [];
-      for (let i = 0; i < n; i++) {
-        // le flux d'une source étendue se répartit sur ses relais : chacune
-        // en porte le tiers, avec une décroissance douce pour que le mur
-        // reste léché de bout en bout plutôt que taché de trois halos
-        const l = new THREE.PointLight(couleur, force * 0.09 / n,
-          Math.max(6, longueur * 0.9), 1.2);
-        l.position.set((i / (n - 1) - 0.5) * longueur * 0.72, 0, -0.25);
-        l.name = 'corniche-relais';
-        groupe.add(l);
-        relais.push(l);
-      }
-      groupe.userData.relaisCorniche = relais;
+      // serait NOIRE sur téléphone — et le bandeau, sans lavage à côté de
+      // lui, se lit comme un fil gris au lieu d'un néon.
+      //
+      // Premier essai : trois ponctuelles réparties le long de la fente.
+      // Raté, et pour deux raisons mesurées — une ponctuelle fait une
+      // TACHE ronde, pas un dégradé de mur ; et le budget de lampes
+      // proches (quatre points sur mobile) n'en gardait qu'une partie,
+      // au hasard de la distance. On voyait trois halos violets sans
+      // rapport avec la ligne.
+      //
+      // Un lavage se fait avec UN cône, comme un vrai projecteur de mur :
+      // braqué dans la même direction que la source étendue qu'il
+      // remplace, très ouvert, pénombre au maximum — le dégradé revient,
+      // pour une seule lampe au lieu de trois.
+      const lampe = new THREE.SpotLight(couleur, force * 0.45,
+        Math.max(9, longueur * 1.1), Math.PI * 0.42, 1, 1.1);
+      lampe.position.set(0, 0, -0.05);
+      lampe.target.position.set(0, 0, -1);   // le -Z du groupe : sa face
+      lampe.name = 'corniche-lavage';
+      groupe.add(lampe, lampe.target);
+      groupe.userData.lavageCorniche = lampe;
     }
   }
 

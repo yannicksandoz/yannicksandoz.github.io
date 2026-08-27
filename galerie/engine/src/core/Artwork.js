@@ -72,6 +72,18 @@ const RECUL_REFERENCE = 1.65;
 const GAIN_ACCENT = 2.6;
 
 /**
+ * LE GAIN D'UN LUMINAIRE — ce qui fait qu'une lanterne éclaire.
+ *
+ * Un accent doit poser une flaque SUR une œuvre à deux mètres ; une
+ * lanterne doit teindre TOUT ce qui l'entoure, murs compris. Les deux ne
+ * peuvent pas partager la même échelle, et jusqu'ici ils la partageaient :
+ * les lanternes de la galerie sont réglées entre 2 et 3, quand une corniche
+ * de salle close en demande cent. Facteur calibré à la mesure de la clarté
+ * d'un mur voisin, pas choisi à l'œil — voir le journal de la sonde.
+ */
+const GAIN_LUMINAIRE = 14;
+
+/**
  * Accent d'une œuvre, en l'absence de consigne.
  *
  * Quatre pour tout le monde — c'est ce que le moteur a toujours fait, et
@@ -354,6 +366,16 @@ export class Artwork {
   /** L'œuvre est-elle éclairée par un cône ? */
   get accentDirige() { return !!this.light?.isSpotLight; }
 
+  /**
+   * L'objet EST-IL une lampe ? Un luminaire s'auto-éclaire (`selfLit`) ou
+   * porte une forme qui est une source (corniche, faisceau, gerbe) : sa
+   * lampe rayonne pour la salle, elle ne le met pas en valeur, lui.
+   */
+  get estLuminaire() {
+    return Boolean(this.config.selfLit)
+      || LUMINAIRES.has(this.config.model?.shape);
+  }
+
   /** Portée, décroissance, ouverture et position de la lampe. */
   _poserLumiere() {
     const cfg = this.config;
@@ -361,8 +383,27 @@ export class Artwork {
     const off = Array.isArray(cfg.lightOffset) ? cfg.lightOffset : [];
     if (!this.accentDirige) {
       this.light.distance = Math.max(0, n(cfg.lightDistance, 14));
-      this.light.decay = Math.max(0, n(cfg.lightDecay, 1.8));
+      this.light.decay = Math.max(0, n(cfg.lightDecay, this.estLuminaire ? 1.35 : 1.8));
       this.light.position.set(n(off[0], 0), n(off[1], 0.4), n(off[2], 1.6));
+      // UNE LANTERNE DOIT LAVER SON MUR.
+      //
+      // `lightIntensity` veut dire « la lumière REÇUE par l'œuvre » — la
+      // doctrine des accents, et la raison du gain de recul plus bas. Pour
+      // un LUMINAIRE (un objet auto-éclairé qui porte sa lampe), ce même
+      // nombre doit vouloir dire l'inverse : la lumière qu'il RÉPAND
+      // autour de lui. Personne n'avait fait la traduction, et une
+      // lanterne réglée à 2,4 posait 0,7 lux sur un mur à deux mètres —
+      // dans une salle close, littéralement rien. Résultat mesuré : des
+      // lanternes qui brillent sans rien éclairer, pas une flaque sur un
+      // mur de la galerie.
+      //
+      // Le gain est calibré à la mesure (clarté du mur voisin), et la
+      // décroissance adoucie : une bougie dans une lanterne diffuse, elle
+      // ne tombe pas en 1/d². L'auteur garde la main — poser
+      // `lightDecay` ou monter `lightIntensity` fait ce qu'on croit.
+      if (this.estLuminaire) {
+        this.light.intensity = this.lightBaseIntensity * GAIN_LUMINAIRE;
+      }
       return;
     }
     // LE RECUL DU PROJECTEUR. On le pose sur un arc de rayon `jet` à 30° de
