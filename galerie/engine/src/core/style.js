@@ -221,17 +221,10 @@ export function courberParoi(geometry, {
   amplitude = null, arete = 1.4
 } = {}) {
   const g = tesseler(geometry, arete);
-  const A = amplitude ?? Math.min(0.55, length * 0.03);
-  const phase = (length * 4.71) % (Math.PI * 2);
+  const loi = loiParoi({ length, height, sink, zones, plafonne, amplitude });
   const pos = g.attributes.position;
   for (let i = 0; i < pos.count; i++) {
-    const x = pos.getX(i), y = pos.getY(i);
-    const t = Math.min(1, Math.max(0, (x + length / 2) / length));
-    const yn = Math.min(1, Math.max(0, (y + sink) / (height + sink)));
-    const profil = plafonne ? Math.sin(Math.PI * yn) : Math.pow(yn, 1.5);
-    const onde = 0.6 + 0.4 * Math.sin(Math.PI * 2 * 1.3 * t + phase);
-    let f = A * Math.sin(Math.PI * t) * profil * onde;
-    for (const [za, zb] of zones) f *= masqueZone(x, za, zb);
+    const f = loi(pos.getX(i), pos.getY(i));
     if (f) pos.setZ(i, pos.getZ(i) + sens * f);
   }
   pos.needsUpdate = true;
@@ -239,6 +232,29 @@ export function courberParoi(geometry, {
   g.computeBoundingBox();
   g.computeBoundingSphere();
   return g;
+}
+
+/**
+ * LA LOI DU VOILE, seule : (x, y) → flèche non signée, dans le repère du
+ * mur (x le long, centré ; y la hauteur). C'est la même fonction que suit
+ * courberParoi — exportée pour que tout ce qui S'ACCROCHE au mur (une
+ * corniche lumineuse, demain une plinthe) épouse exactement sa courbe au
+ * lieu de flotter devant. Fonction pure, sans géométrie.
+ */
+export function loiParoi({
+  length, height, sink = 0, zones = [], plafonne = false, amplitude = null
+} = {}) {
+  const A = amplitude ?? Math.min(0.55, length * 0.03);
+  const phase = (length * 4.71) % (Math.PI * 2);
+  return (x, y) => {
+    const t = Math.min(1, Math.max(0, (x + length / 2) / length));
+    const yn = Math.min(1, Math.max(0, (y + sink) / (height + sink)));
+    const profil = plafonne ? Math.sin(Math.PI * yn) : Math.pow(yn, 1.5);
+    const onde = 0.6 + 0.4 * Math.sin(Math.PI * 2 * 1.3 * t + phase);
+    let f = A * Math.sin(Math.PI * t) * profil * onde;
+    for (const [za, zb] of zones) f *= masqueZone(x, za, zb);
+    return f;
+  };
 }
 
 /** 0 dans [a, b], 1 au-delà de la marge, fondu C¹ entre les deux. */

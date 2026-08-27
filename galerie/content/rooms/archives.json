@@ -40,13 +40,8 @@
       "plafond": "#344545"
     }
   },
-  "keyLight": {
-    "color": "#9fd8d0",
-    "intensity": 3.35,
-    "azimuth": 210,
-    "elevation": 40
-  },
-  "envIntensity": 0.45,
+  "keyLight": false,
+  "envIntensity": 0.25,
   "works": [
     "stele-archives-1",
     "stele-archives-2",

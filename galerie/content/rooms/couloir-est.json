@@ -48,13 +48,8 @@
       "plafond": "#383c51"
     }
   },
-  "keyLight": {
-    "color": "#aab4e8",
-    "intensity": 3.25,
-    "azimuth": 150,
-    "elevation": 44
-  },
-  "envIntensity": 0.47,
+  "keyLight": false,
+  "envIntensity": 0.25,
   "works": [
     "lanterne-couloir-1",
     "lanterne-couloir-2",

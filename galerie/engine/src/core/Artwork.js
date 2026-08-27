@@ -8,6 +8,7 @@ import { isWalkable } from './utils.js';
 import { scaleObjetUV } from './textures.js';
 import { jeuDeSurface, habillerModele } from './matieres.js';
 import { ombreDeContact } from './ombres.js';
+import { estFluide } from './style.js';
 import { creerCartel, tournerVersCamera, disposerCartel } from './cartels.js';
 
 // crossOrigin « anonymous » : indispensable pour les médias distants, dont
@@ -827,6 +828,46 @@ export class Artwork {
     // d'une ouverture par défaut.
     if (this.accentDirige) this._poserLumiere();
     this._poserContact(mesh);
+    if (this.config.model?.shape === 'corniche') this._courberCorniche(mesh);
+  }
+
+  /**
+   * En mode fluide, une corniche ÉPOUSE le voile qu'elle longe : le mur
+   * n'est plus un plan (style.courberParoi), un trait resté droit
+   * flotterait devant lui ou s'y noierait. La coque a mémorisé la loi de
+   * chaque mur (shell.userData.courbures) ; on transporte chaque sommet du
+   * bandeau dans le repère de la pièce, on lui applique la MÊME flèche que
+   * le mur au même endroit, et on revient. La RectAreaLight, elle, reste
+   * droite — une source rectangulaire ne se plie pas, et son lavage sur un
+   * mur doucement bombé reste juste à l'œil.
+   */
+  _courberCorniche(groupe) {
+    if (!estFluide()) return;
+    const c = this.room?.shell?.userData?.courbures?.[this.config.model?.mur];
+    const bandeau = groupe.userData?.bandeau;
+    if (!c || !bandeau) return;
+    this.room.group.updateWorldMatrix(true, false);
+    bandeau.updateWorldMatrix(true, false);
+    const versPiece = new THREE.Matrix4().copy(this.room.group.matrixWorld)
+      .invert().multiply(bandeau.matrixWorld);
+    const retour = versPiece.clone().invert();
+    const cs = Math.cos(c.rotY), sn = Math.sin(c.rotY);
+    const pos = bandeau.geometry.attributes.position;
+    const v = new THREE.Vector3();
+    for (let i = 0; i < pos.count; i++) {
+      v.fromBufferAttribute(pos, i).applyMatrix4(versPiece);
+      // coordonnée LOCALE du mur le long de sa longueur (rotation inverse)
+      const lx = (v.x - c.x) * cs - (v.z - c.z) * sn;
+      const f = c.loi(lx, v.y) * c.sens;
+      // la normale locale +z du mur, tournée dans la pièce : (sin, 0, cos)
+      v.x += sn * f;
+      v.z += cs * f;
+      v.applyMatrix4(retour);
+      pos.setXYZ(i, v.x, v.y, v.z);
+    }
+    pos.needsUpdate = true;
+    bandeau.geometry.computeBoundingBox();
+    bandeau.geometry.computeBoundingSphere();
   }
 
   /**

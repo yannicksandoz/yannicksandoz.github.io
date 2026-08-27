@@ -33,6 +33,10 @@ const _prevPos = new THREE.Vector3();
 const _delta = new THREE.Vector3();
 const _tryDir = new THREE.Vector3();
 const _local = new THREE.Vector3();
+const _camAvant = new THREE.Vector3();   // pivot première personne : l'état
+const _cibleAvant = new THREE.Vector3(); // d'avant l'orbite de la frame
+const _offre = new THREE.Vector3();
+const _pan = new THREE.Vector3();
 export class Controls {
   constructor(app) {
     this.app = app;
@@ -221,20 +225,50 @@ export class Controls {
       }
     }
     this.orbit.enabled = !this.locked && !this.dragging;
-    this.orbit.update();
+    if (this.app.editor?.enabled) {
+      // en édition, la VRAIE orbite est l'outil : on inspecte une œuvre en
+      // tournant autour d'elle
+      this.orbit.update();
+    } else {
+      // — PIVOTER SUR SOI-MÊME — En visite, tourner le regard ne doit PAS
+      // déplacer le corps : OrbitControls fait pourtant voyager la caméra
+      // autour de la cible (jusqu'à des mètres de course), et ce voyage
+      // suffisait à franchir un portail « par erreur » en se retournant.
+      // On décompose donc le geste d'orbite en ses trois composantes et on
+      // le recompose l'œil FIXE :
+      //   pan      = déplacement de la cible (seul l'orbite-pan la bouge),
+      //   rotation = changement de DIRECTION œil→cible,
+      //   zoom     = changement de LONGUEUR — converti en pas en avant.
+      // La cible tourne autour de la caméra, jamais l'inverse : une
+      // caméra en première personne, avec l'inertie d'orbite intacte.
+      _camAvant.copy(this.app.camera.position);
+      _cibleAvant.copy(this.orbit.target);
+      this.orbit.update();
+      const cam = this.app.camera.position;
+      _offre.copy(this.orbit.target).sub(cam);            // œil → cible, après
+      const lApres = _offre.length() || 1e-6;
+      const lAvant = _cibleAvant.distanceTo(_camAvant) || lApres;
+      _pan.copy(this.orbit.target).sub(_cibleAvant);      // la cible ne bouge qu'au pan
+      cam.copy(_camAvant).add(_pan)
+        .addScaledVector(_offre, (lAvant - lApres) / lApres); // le zoom avance l'œil
+      this.orbit.target.copy(cam).add(_offre);
+    }
     // APRÈS l'orbite : tout le déplacement de la frame est passé (clavier,
     // joystick, pan à deux doigts) — on le corrige d'un seul geste, par
     // rapport à la position de FIN de frame précédente.
     this._collide();
     this._keepInside();
     this._followGround(dt);
+    // Marche-t-on vraiment ? Depuis que la rotation pivote sur l'œil, la
+    // caméra ne se déplace HORIZONTALEMENT qu'en marchant (clavier, pan,
+    // zoom-pas) — c'est donc elle qui le dit, et non plus la cible (qui,
+    // elle, voyage désormais à chaque regard). Le suivi de sol ne touche
+    // que la hauteur : il ne compte pas. Les zones (portails, bascules)
+    // ne s'ouvrent qu'à qui avance.
+    const dxm = this.app.camera.position.x - this._lastPos.x;
+    const dzm = this.app.camera.position.z - this._lastPos.z;
+    this.walking = dxm * dxm + dzm * dzm > 1e-6;
     this._lastPos.copy(this.app.camera.position);
-    // Marche-t-on vraiment ? La cible d'orbite ne se déplace qu'à la
-    // translation. Tourner la caméra fait pourtant VOYAGER la caméra (elle
-    // orbite autour de la cible) : sans ce départage, un simple coup d'œil
-    // en arrivant dans une pièce poussait la tête dans le portail d'à côté
-    // et l'on repartait aussitôt. Les zones ne s'ouvrent qu'à qui avance.
-    this.walking = this.orbit.target.distanceToSquared(this._lastTarget) > 1e-6;
     this._lastTarget.copy(this.orbit.target);
   }
 

@@ -41,13 +41,8 @@
       "plafond": "#4b3a2d"
     }
   },
-  "keyLight": {
-    "color": "#ffcf9e",
-    "intensity": 3.12,
-    "azimuth": 205,
-    "elevation": 38
-  },
-  "envIntensity": 0.66,
+  "keyLight": false,
+  "envIntensity": 0.25,
   "works": [
     "rayonnage-1",
     "rayonnage-2",

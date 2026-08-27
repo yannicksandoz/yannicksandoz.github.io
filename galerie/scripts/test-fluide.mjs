@@ -30,11 +30,12 @@ register('data:text/javascript,'
     }`), import.meta.url);
 
 const { setStyle, styleCourant, estFluide, patcherStries, dessinerCouronne,
-  tesseler, courberParoi, serpentinVoxel } =
+  tesseler, courberParoi, loiParoi, serpentinVoxel } =
   await import('../engine/src/core/style.js');
 const { buildPrimitive } = await import('../engine/src/core/primitives.js');
 const { buildVoxelMeshMerged, buildVoxelCollider } =
   await import('../engine/src/core/voxel.js');
+const ombres = await import('../engine/src/core/ombres.js');
 const tex = await import('../engine/src/core/textures.js');
 
 const ici = dirname(fileURLToPath(import.meta.url));
@@ -410,6 +411,33 @@ test('le rendu fusionné et le collider serpentent d\'un même mouvement', () =>
   assert.ok(Math.max(...a.map((c) => Math.abs(c[0]))) > 0.15,
     'et le serpent a réellement décalé la masse');
   setStyle('brut');
+});
+
+test('loiParoi est LA loi de courberParoi — ce qui s\'accroche au mur le suit', () => {
+  const opts = { length: 20, height: 6, zones: [[2, 4]], plafonne: false };
+  const g = courberParoi(murEssai(), { ...opts, sens: 1 });
+  const loi = loiParoi(opts);
+  const pos = g.attributes.position;
+  // chaque sommet du mur courbé vit à z = loi(x, y) ± épaisseur/2 (les
+  // tranches tesselées échantillonnent l'intérieur de l'épaisseur)
+  for (let i = 0; i < pos.count; i += 7) {
+    const d = pos.getZ(i) - loi(pos.getX(i), pos.getY(i));
+    assert.ok(d > -0.151 && d < 0.151,
+      `sommet ${i} : écart à la loi ${d.toFixed(4)}`);
+  }
+});
+
+test('coqueClose : plafond + quatre murs = plus jamais de soleil dedans', () => {
+  const { coqueClose, buildKeyLight } = ombres;
+  assert.equal(coqueClose({ shell: { ceiling: true } }), true, 'close');
+  assert.equal(coqueClose({ shell: { ceiling: true, walls: ['nord'] } }), false, 'ouverte au sud');
+  assert.equal(coqueClose({ shell: {} }), false, 'à ciel ouvert');
+  assert.equal(coqueClose({}), false, 'sans coque');
+  // le moteur éteint la clé d'une coque close MÊME si le JSON en rédige une
+  const close = { shell: { ceiling: true }, keyLight: { intensity: 3 } };
+  assert.equal(buildKeyLight(close, { shadows: false }), null, 'clé refusée');
+  assert.ok(buildKeyLight({ shell: {} , keyLight: { intensity: 3 } }, { shadows: false }),
+    'une pièce ouverte garde la sienne');
 });
 
 test('ruban plat : la largeur reste horizontale, l\'épaisseur verticale', () => {

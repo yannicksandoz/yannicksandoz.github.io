@@ -69,14 +69,20 @@ export const FACES_HABITEES = new Set(['belvedere']);
  * propre lanterne. Dans un volume clos, un « soleil » n'a aucun droit
  * d'exister — la lumière clé y peignait trois pans depuis une direction
  * impossible, et l'œil le lit immédiatement comme un décor truqué. Règle :
- * `keyLight: false`, la lanterne porte la chambre. Les salles closes de la
- * galerie (archives, bibliothèque…) gardent leur clé : elle y joue le rôle
- * des rails de spots d'un plafond de musée, un artifice assumé QUE des
- * luminaires visibles (corniches) justifient. Ici il n'y a rien à voir qui
- * l'excuse.
+ * `keyLight: false`, la lanterne porte la chambre. La règle vaut pour TOUTE
+ * coque close (plafond + quatre murs), plus seulement les six faces : la
+ * doctrine « la clé joue les rails de spots » est abandonnée — un soleil
+ * dans une boîte scellée fabriquait des ombres impossibles (le jeton du
+ * labo), et le moteur l'éteint désormais lui-même (ombres.coqueClose).
+ * La charte tient le CONTENU au même niveau d'honnêteté que le moteur.
  */
-export const CHAMBRES_CLOSES = new Set(
-  ['face-1', 'face-2', 'face-3', 'face-4', 'face-5', 'face-6']);
+export function coqueCloseContenu(s) {
+  const coque = s?.shell;
+  if (!coque || coque === false) return false;
+  const o = coque === true ? {} : coque;
+  if (!o.ceiling) return false;
+  return !Array.isArray(o.walls) || o.walls.length >= 4;
+}
 
 export const CHARTE = {
   ecartMurSol: { vise: 8, tolerance: 6 },   // L* : le mur au-dessus du sol
@@ -238,8 +244,11 @@ export function auditSalles() {
         }
       }
     }
-    if (CHAMBRES_CLOSES.has(s.id) && s.keyLight !== false) {
+    if (coqueCloseContenu(s) && s.keyLight !== false) {
       ligne.fautes.push('chambre close avec un soleil');
+    }
+    if (coqueCloseContenu(s) && (s.envIntensity ?? 1) > 0.3) {
+      ligne.fautes.push(`coque close à l'IBL de plein ciel (${s.envIntensity})`);
     }
     const k = s.keyLight || {};
     const { intensite, marge, elevation, margeElevation } = CHARTE.lumiere;

@@ -5,7 +5,8 @@ import { styleTexture, scaleBoxUV, scalePlaneUV, scaleWorldUV, scaleObjetUV,
   patcherRepetition, TILE }
   from './textures.js';
 import { styleMatiere, jeuDeSurface } from './matieres.js';
-import { estFluide, materiauFluide, dessinerCouronne, courberParoi } from './style.js';
+import { estFluide, materiauFluide, dessinerCouronne, courberParoi, loiParoi }
+  from './style.js';
 import { aDesSourcesEtendues } from './primitives.js';
 import { delaiDe, fermer, estFerme, tick as tickCooldown } from './Cooldown.js';
 import { reverbDePiece } from './reverb-reglages.js';
@@ -131,7 +132,8 @@ export class RoomManager {
   applyKeyLight(room) {
     const cfg = room.config;
     this.applyAmbient(room);
-    const wanted = cfg.keyLight !== false;
+    // même règle que buildKeyLight : une coque close n'a jamais de soleil
+    const wanted = cfg.keyLight !== false && !coqueClose(cfg);
     // les ombres se décident par pièce (défaut : le profil) — les activer
     // ou les couper alloue/libère une carte d'ombre : on reconstruit
     const ombresVoulues = Boolean(this.app.quality?.profile?.shadows)
@@ -407,7 +409,11 @@ export class RoomManager {
     const scene = this.app.scene;
     if (!('environmentIntensity' in scene)) return;
     const base = this.app.envBaseIntensity ?? 0.5;
-    scene.environmentIntensity = base * (room?.config.envIntensity ?? 1);
+    let env = room?.config.envIntensity ?? 1;
+    // coque close : l'IBL n'est plus un ciel, c'est un fond de radiosité —
+    // plafonné pour que les VRAIES sources de la pièce fassent la lumière
+    if (coqueClose(room?.config)) env = Math.min(env, ENV_CLOS);
+    scene.environmentIntensity = base * env;
   }
 
   /** Reconstruit le sol d'une pièce après édition (taille, couleur, absence). */
@@ -1385,10 +1391,9 @@ function murPerce(length, height, ouvertures, sink,
   geo.translate(0, 0, -WALL_T / 2);   // le mur est centré sur son plan
   if (courbe) {
     // mode fluide : le mur devient un VOILE cintré (style.courberParoi) —
-    // les bandes des baies restent planes pour que chambranles, vitres et
-    // portails posent affleurants
-    const zones = ouvertures.map((b) => [b.c - b.wl / 2 - 0.5, b.c + b.wl / 2 + 0.5]);
-    geo = courberParoi(geo, { length, height, sink, zones, ...courbe });
+    // les bandes des baies (courbe.zones) restent planes pour que
+    // chambranles, vitres et portails posent affleurants
+    geo = courberParoi(geo, { length, height, sink, ...courbe });
   }
   return geo;
 }
@@ -1534,14 +1539,29 @@ export function buildShell(config) {
   const mur = (wall, length, x, z, rotY) => {
     const ouvertures = winsOf(wall)
       .map((o) => baie(o, length, h)).filter(Boolean);
+    // les bandes PLANES autour des baies — partagées entre la courbure du
+    // mur et tout ce qui s'y accroche (corniches)
+    const zones = ouvertures.map((b) => [b.c - b.wl / 2 - 0.5, b.c + b.wl / 2 + 0.5]);
+    // le voile bombe vers l'EXTÉRIEUR de la pièce : il agrandit le volume
+    // au lieu de venir mordre sur les œuvres accrochées près des murs
+    const sens = (wall === 'sud' || wall === 'est') ? 1 : -1;
     const geo = murPerce(length, h, ouvertures, SINK, {
       couronneFluide: estFluide() && !opt.ceiling,
-      // le voile bombe vers l'EXTÉRIEUR de la pièce : il agrandit le volume
-      // au lieu de venir mordre sur les œuvres accrochées près des murs
       courbe: estFluide()
-        ? { plafonne: !!opt.ceiling, sens: (wall === 'sud' || wall === 'est') ? 1 : -1 }
+        ? { plafonne: !!opt.ceiling, sens, zones }
         : null
     });
+    if (estFluide()) {
+      // la loi du voile, consultable par les œuvres accrochées au mur
+      // (Artwork courbe ses corniches avec) — coordonnées LOCALES du mur :
+      // x le long (centré), y la hauteur ; `rotY` et `sens` disent comment
+      // revenir au repère de la pièce
+      group.userData.courbures ??= {};
+      group.userData.courbures[wall] = {
+        loi: loiParoi({ length, height: h, sink: SINK, zones, plafonne: !!opt.ceiling }),
+        sens, rotY, x, z
+      };
+    }
     if (wallMap || wallMatiere) scaleWorldUV(geo, TILE / repMur);
     const m = new THREE.Mesh(geo, matFor(wall));
     m.position.set(x, 0, z);
@@ -1655,8 +1675,8 @@ export {
   KEYLIGHT_DEFAULTS, buildKeyLight, orientKeyLight, frameKeyLightShadow,
   suivreOmbre, PORTEE_OMBRE
 } from './ombres.js';
-import { buildKeyLight, orientKeyLight, frameKeyLightShadow, disposeKeyLight }
-  from './ombres.js';
+import { buildKeyLight, orientKeyLight, frameKeyLightShadow, disposeKeyLight,
+  coqueClose, ENV_CLOS } from './ombres.js';
 
 /* ---------------------------------------------------- lumière ambiante --- */
 

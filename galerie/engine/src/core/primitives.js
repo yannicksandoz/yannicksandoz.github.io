@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { estFluide } from './style.js';
 import { RectAreaLightUniformsLib } from 'three/examples/jsm/lights/RectAreaLightUniformsLib.js';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { scaleObjetUV } from './textures.js';
@@ -491,13 +492,17 @@ function buildCorniche(size, model) {
   // fleurir en halo et redevient un TRAIT — la ligne de lumière de la DA
   // reste, la brûlure s'en va. La lampe, elle, ne bouge pas d'un lumen.
   const eclat = Number.isFinite(model.eclat) ? model.eclat : 0.34;
+  // en mode fluide, le trait est subdivisé : Artwork le pliera sur la
+  // courbe du voile qu'il longe (voir Artwork._courberCorniche) — un plan
+  // de deux triangles ne peut pas suivre une onde
   const bandeau = new THREE.Mesh(
-    new THREE.PlaneGeometry(longueur, epaisseur),
+    new THREE.PlaneGeometry(longueur, epaisseur, estFluide() ? 72 : 1, 1),
     new THREE.MeshBasicMaterial({
       color: couleur.clone().multiplyScalar(eclat),
       toneMapped: false, side: THREE.DoubleSide
     })
   );
+  groupe.userData.bandeau = bandeau;
   // demi-tour : la face du bandeau regarde alors du MÊME côté que la
   // lumière (le -Z local). Invisible à l'œil — le bandeau se voit des deux
   // côtés — mais c'est ce qui rend vraie la phrase « elle éclaire là où sa

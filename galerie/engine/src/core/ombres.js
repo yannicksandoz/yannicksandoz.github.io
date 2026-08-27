@@ -52,8 +52,30 @@ import * as THREE from 'three';
  */
 export const KEYLIGHT_DEFAULTS = { color: '#b8c2ff', intensity: 2, azimuth: 35, elevation: 55 };
 
+/**
+ * Une coque CLOSE : plafond ET quatre murs. Là-dedans, aucun soleil n'a
+ * de sens physique — la pièce n'est éclairée QUE par ses propres sources
+ * (lanternes, corniches, accents). La règle vaut pour TOUTES les pièces,
+ * pas seulement les six chambres du cube : c'est le moteur qui la tient,
+ * quel que soit ce que dit le JSON — un `keyLight` rédigé reste dans le
+ * contenu comme mémoire d'auteur, mais ne s'allume pas tant que le toit
+ * est fermé. (Le plafond-verrière laissait passer la clé par choix de
+ * rendu ; c'est précisément ce qui fabriquait des ombres impossibles —
+ * un soleil dans une boîte scellée.)
+ */
+export function coqueClose(config) {
+  const s = config?.shell;
+  if (!s || s === false) return false;
+  const o = s === true ? {} : s;
+  if (!o.ceiling) return false;
+  return !Array.isArray(o.walls) || o.walls.length >= 4;
+}
+
+/** Le plafond d'IBL d'une pièce close : un fond de radiosité, pas un ciel. */
+export const ENV_CLOS = 0.25;
+
 export function buildKeyLight(config, profile) {
-  if (config?.keyLight === false) return null;
+  if (config?.keyLight === false || coqueClose(config)) return null;
   const opt = { ...KEYLIGHT_DEFAULTS, ...(config?.keyLight ?? {}) };
 
   const light = new THREE.DirectionalLight(new THREE.Color(opt.color), opt.intensity);

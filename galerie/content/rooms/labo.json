@@ -86,12 +86,7 @@
       "plafond": "#33334f"
     }
   },
-  "keyLight": {
-    "color": "#c4b8ff",
-    "intensity": 3.67,
-    "azimuth": 40,
-    "elevation": 42
-  },
+  "keyLight": false,
   "vistas": [
     {
       "room": "jardin",
@@ -126,7 +121,7 @@
       }
     }
   ],
-  "envIntensity": 0.52,
+  "envIntensity": 0.25,
   "jetons": [
     [
       -14,
