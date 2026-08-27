@@ -32,6 +32,7 @@
  */
 import * as THREE from 'three';
 import { DropInViewer } from '@mkkellogg/gaussian-splats-3d';
+import { poserContournementScan } from './scan-memoire.js';
 
 /**
  * Charge un scan : rend un groupe { visionneuse, pavé de préhension }.
@@ -43,15 +44,25 @@ export async function creerScan(url, options = {}) {
   const groupe = new THREE.Group();
   groupe.name = 'scan';
 
-  const visionneuse = new DropInViewer({
-    sharedMemoryForWorkers: false,
-    gpuAcceleratedSort: false,
-    freeIntermediateSplatData: true
-  });
-  await visionneuse.addSplatScene(url, {
-    showLoadingUI: false,
-    splatAlphaRemovalThreshold: 5
-  });
+  // Hors contexte isolé, le worker de tri alloue une mémoire WASM partagée
+  // que Firefox et Safari refusent — et le nuage reste invisible sans le
+  // moindre message. Voir `scan-memoire.js` : le contournement ne vit que
+  // le temps de faire naître ce worker.
+  const retirer = poserContournementScan();
+  let visionneuse;
+  try {
+    visionneuse = new DropInViewer({
+      sharedMemoryForWorkers: false,
+      gpuAcceleratedSort: false,
+      freeIntermediateSplatData: true
+    });
+    await visionneuse.addSplatScene(url, {
+      showLoadingUI: false,
+      splatAlphaRemovalThreshold: 5
+    });
+  } finally {
+    retirer();
+  }
   // AUCUNE OMBRE PORTÉE. Une tache gaussienne n'a pas de silhouette : le
   // nuage est dessiné par un shader qui déplie un quad par tache, et la
   // passe d'ombre, elle, ne connaît que l'attribut `position` — les 21 000

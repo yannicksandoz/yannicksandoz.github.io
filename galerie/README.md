@@ -1629,6 +1629,43 @@ quarante centimètres à un mètre soixante — et la seconde lanterne de
 l'allée est passée franchement à l'est, où elle alterne avec la première.
 Les trente-cinq lignes de force de la galerie sont franches.
 
+**Le scan invisible sur Firefox et Safari.** *Onde stationnaire* se
+chargeait, son cartel s'affichait, et l'œuvre n'était nulle part — sur
+Firefox et Safari seulement, et sans un mot dans la console. Le nuage
+n'était pas absent : il n'était pas TRIÉ.
+
+GaussianSplats3D range ses taches par profondeur dans un worker
+WebAssembly, et ce worker alloue sa mémoire ainsi, quoi qu'on demande :
+`new WebAssembly.Memory({ initial: n, maximum: n, shared: true })`. Une
+mémoire WASM partagée est adossée à un SharedArrayBuffer, et le
+SharedArrayBuffer exige un contexte isolé — les en-têtes COOP/COEP, que
+GitHub Pages n'envoie pas. Chromium tolère l'allocation hors isolation ;
+Firefox et Safari la refusent. L'appel lève, mais il lève DANS le worker,
+dans un `onmessage`, hors de toute promesse : la page ne voit rien, le tri
+ne rend jamais d'indices, et rien ne se dessine. Le cartel, lui, ne dépend
+d'aucun de ces étages — d'où le symptôme exact.
+
+L'option `sharedMemoryForWorkers: false` que la galerie posait déjà ne
+suffit pas : elle change la façon de TRANSMETTRE les tableaux, jamais
+l'allocation. Le contournement (`core/scan-memoire.js`) fait les deux
+gestes qui vont ensemble — réécrire `shared: true` en `shared: false` dans
+le source du worker au moment où la bibliothèque l'assemble en `Blob`, et
+obtenir le binaire WASM qui importe une mémoire ordinaire, seule variante
+compatible. Ce second point passe par la seule porte ouverte : 0.4.7 ne
+choisit cette variante que pour les iOS antérieurs à 16.4, d'après
+`navigator.userAgent`. On se déclare donc iOS 16.3 le temps de cette
+lecture — qui suit la création du blob dans le même tour synchrone, si
+bien que la feinte dure moins d'une microtâche. En contexte isolé, où la
+voie partagée fonctionne partout, le correctif ne s'arme pas.
+
+Vérifié en mesurant, et sur le chemin qui compte : `localhost` n'étant pas
+isolé, Chromium exécute désormais exactement le code que Firefox et Safari
+exécuteront. **21 853 taches chargées, 21 853 rendues.** `npm test` tient
+les deux bouts — que la substitution morde encore, et que le paquet
+installé porte encore le défaut qui la justifie. Le jour où l'amont
+allouera selon `useSharedMemory`, la suite rougira : c'est le signal pour
+supprimer `scan-memoire.js`, pas pour rafistoler le test.
+
 **Les seuils, et les corniches.** Deux fautes revenaient à la main, salle
 après salle : un portail planté dans un escalier, et un bandeau lumineux
 qui coupait une fenêtre en deux. Les déplacer une fois de plus n'apprend
