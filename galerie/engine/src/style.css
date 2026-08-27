@@ -581,6 +581,35 @@ html, body {
 }
 #derive-btn { padding: 0.45rem 1.1rem; }
 
+/* Le jeton, en un bouton : un rond, le symbole, et la phrase en info-bulle.
+   Rond parce qu'il n'a qu'une chose à dire — pas un réglage, un achat. */
+#derive-jeton {
+  position: relative;
+  width: 2.2rem; height: 2.2rem; padding: 0;
+  display: flex; align-items: center; justify-content: center;
+  color: var(--accent);
+}
+.derive-jeton-glyphe { font-size: 1.15rem; line-height: 1; }
+/* la phrase, au-dessus du rond, dès qu'on le vise — au pointeur comme au
+   clavier : une info-bulle native ne parle qu'à la souris */
+.derive-jeton-mot {
+  position: absolute; bottom: calc(100% + 0.45rem); left: 50%;
+  transform: translateX(-50%);
+  white-space: nowrap; pointer-events: none;
+  font-size: 0.72rem; letter-spacing: 0.04em;
+  color: var(--fg); background: rgba(8, 8, 16, 0.88);
+  border: 1px solid rgba(255, 255, 255, 0.14); border-radius: 0.8rem;
+  padding: 0.28rem 0.7rem;
+  opacity: 0; transition: opacity 0.18s ease;
+}
+#derive-jeton:hover .derive-jeton-mot,
+#derive-jeton:focus-visible .derive-jeton-mot { opacity: 1; }
+#derive-jeton[disabled] {
+  color: rgba(232, 230, 240, 0.28);
+  border-color: rgba(255, 255, 255, 0.08);
+  cursor: default;
+}
+
 /* ——— Les deux bords de la visite : reculer à gauche, avancer à droite ———
    Deux pastilles côte à côte ne disaient pas la direction ; deux BORDS, si.
    La flèche tient toute la hauteur de l'écran, le fond reste presque
@@ -629,6 +658,9 @@ html, body {
   pointer-events: none;
 }
 .derive-prix[hidden] { display: none; }
+/* Sans jeton en poche, le ◈ s'éteint : la flèche marche encore, mais elle
+   saute l'œuvre inconnue au lieu de l'acheter — autant que ça se voie. */
+.derive-prix.sans-jeton { color: rgba(232, 230, 240, 0.3); }
 /* Sur un écran étroit, la bande mange la vue : on l'affine et on la décale
    du bas, là où vivent la barre et le pouce. */
 @media (max-width: 640px) {

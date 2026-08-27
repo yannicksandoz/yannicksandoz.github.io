@@ -1534,6 +1534,22 @@ la verticale. Lettres de 4,5 cm : lisibles à deux ou trois mètres, la
 distance d'un cartel réel — s'approcher pour lire est le geste muséal
 voulu, celui qui rapproche aussi du son. `"cartel": false` y renonce.
 
+**La visite guidée a UN seul ordre, et le jeton s'y dépense à sa place.**
+La dérive parcourait la liste des œuvres DÉCOUVERTES, tandis que le jeton ◈
+débloquait « la première inconnue de la galerie ». Deux ordres différents,
+donc, et le fil sautait : on visitait la 3, la 7, la 9, puis le ◈ ramenait à
+la 4 — et comme la nouvelle venue s'insérait à son rang dans la liste des
+découvertes, le curseur désignait soudain une autre œuvre. Un seul ordre
+désormais, celui du catalogue, et il ne bouge jamais : chaque pas va au rang
+suivant. Connu, on y vole ; inconnu, il coûte un jeton — et **la flèche le
+dit à chaque pas**, plus seulement au bout du fil. Sans jeton en poche, le
+◈ s'éteint et le pas saute jusqu'au prochain rang connu : la visite ne bute
+jamais sur une porte fermée. Mesuré : les rangs visités montent 0, 1, 2, 3,
+4, 5, 8 pendant que le solde descend 4, 3, 2, 1, 0 — les jetons se dépensent
+à la suite. Et le geste a enfin son bouton : un **rond, le symbole ◈**, qui
+dit « Voir une œuvre inconnue (1 jeton) » dès qu'on le vise, au pointeur
+comme au clavier.
+
 **Une apparition est une FENÊTRE, pas une caméra.** On peignait la lucarne
 avec le champ du visiteur — soixante degrés écrasés dans un carreau qui n'en
 occupe que quarante : tout y paraissait grossi, et le grossissement changeait

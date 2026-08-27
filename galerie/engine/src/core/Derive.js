@@ -156,10 +156,32 @@ export class Derive {
     lecture.setAttribute('aria-pressed', 'false');
     lecture.addEventListener('click', () => (this.active ? this.arreter() : this.demarrer()));
 
-    barre.append(lecture);
+    // LE JETON, EN UN BOUTON. Dépenser un ◈ demandait jusqu'ici de lancer
+    // la visite, d'aller au bout du fil, et de reconnaître un petit losange
+    // sous un chevron. C'est beaucoup de conditions pour un geste qui tient
+    // en une phrase : « voir une œuvre inconnue, un jeton ». Un rond, le
+    // symbole, et la phrase en info-bulle.
+    const jeton = document.createElement('button');
+    jeton.id = 'derive-jeton';
+    jeton.type = 'button';
+    const glyphe = document.createElement('span');
+    glyphe.className = 'derive-jeton-glyphe';
+    glyphe.textContent = '◈';
+    glyphe.setAttribute('aria-hidden', 'true');
+    // …et la PHRASE, au-dessus, dès qu'on le vise. Une info-bulle ne se
+    // découvre qu'au survol d'un pointeur ; ici le mot paraît aussi au
+    // clavier, et sur un écran tactile au moment du contact.
+    const mot = document.createElement('span');
+    mot.className = 'derive-jeton-mot';
+    jeton.append(glyphe, mot);
+    jeton._mot = mot;
+    jeton.addEventListener('click', () => this.ouvrirInconnue());
+
+    barre.append(lecture, jeton);
     document.body.appendChild(barre);
     this._prec = prec;
     this._lecture = lecture;
+    this._jeton = jeton;
     this._suiv = suiv;
     // la barre AVANT de peindre : _peindre la consulte, et une exception
     // ici laisserait la dérive à moitié construite (bouton figé sur
@@ -170,8 +192,30 @@ export class Derive {
     return barre;
   }
 
-  /** Le parcours du jour : les œuvres indexées, dans l'ordre des salles. */
+  /**
+   * LE FIL : TOUTES les œuvres, dans l'ordre de la galerie — pas seulement
+   * celles qu'on a trouvées.
+   *
+   * La dérive parcourait la liste des œuvres DÉCOUVERTES, et le jeton
+   * débloquait « la première inconnue de la galerie ». Deux ordres
+   * différents, donc, et le résultat sautait : on visitait la 3, la 7, la
+   * 9, puis le jeton ramenait à la 4 — et comme la nouvelle venue
+   * s'insérait à son rang dans la liste des découvertes, le curseur
+   * désignait soudain une autre œuvre. C'est le « drôle d'ordre » de
+   * l'auteur, et le « on n'utilise pas les jetons à la suite ».
+   *
+   * Un seul ordre, désormais, celui du catalogue, et il ne bouge jamais :
+   * chaque pas va au rang suivant. S'il est connu, on y vole ; s'il est
+   * inconnu, il coûte un jeton — et la flèche le dit AVANT qu'on la
+   * pousse. Sans jeton, le pas saute jusqu'au prochain rang connu : la
+   * visite ne se bloque pas, elle passe.
+   */
   get parcours() {
+    return this.app.progression?.parcours ?? [];
+  }
+
+  /** Les œuvres indexées — ce que la visite peut montrer sans rien payer. */
+  get connues() {
     return this.app.progression?.indexees ?? [];
   }
 
@@ -181,8 +225,33 @@ export class Derive {
     return prog ? prog.parcours.filter((a) => !prog.estDecouverte(a)) : [];
   }
 
+  _estConnue(a) {
+    return Boolean(a) && Boolean(this.app.progression?.estDecouverte(a));
+  }
+
+  /**
+   * Le RANG que viserait un pas de `pas` depuis la position courante, et ce
+   * qu'il en coûte. `paye: true` veut dire « ce rang est inconnu, il faudra
+   * un jeton » ; sans jeton en poche on saute au prochain rang connu.
+   */
+  _prochainPas(pas = +1) {
+    const liste = this.parcours;
+    const n = liste.length;
+    if (!n) return null;
+    const voisin = ((this._i + pas) % n + n) % n;
+    if (this._estConnue(liste[voisin])) return { rang: voisin, paye: false };
+    const jetons = this.app.jetons?.compte ?? 0;
+    if (jetons > 0) return { rang: voisin, paye: true };
+    // pas de jeton : on cherche le prochain rang CONNU dans le même sens
+    for (let k = 2; k <= n; k++) {
+      const r = ((this._i + pas * k) % n + n) % n;
+      if (this._estConnue(liste[r])) return { rang: r, paye: false };
+    }
+    return null;                       // rien de connu : la visite est vide
+  }
+
   _peindre() {
-    const n = this.parcours.length;
+    const connues = this.connues.length;
     const jetons = this.app.jetons?.compte ?? 0;
     const resteInconnues = this.inconnues.length > 0;
     this._lecture.textContent = this.active
@@ -190,32 +259,49 @@ export class Derive {
     this._lecture.setAttribute('aria-pressed', String(this.active));
     // Rien à rejouer NI à débloquer : le bouton le dit plutôt que de
     // lancer une visite vide — le pointeur, lui, montre où chercher.
-    const vide = n === 0 && (jetons === 0 || !resteInconnues);
+    const vide = connues === 0 && (jetons === 0 || !resteInconnues);
     this._lecture.disabled = vide;
-    this._lecture.title = vide ? t('derive.empty') : t('derive.title', { n });
+    this._lecture.title = vide
+      ? t('derive.empty') : t('derive.title', { n: connues });
+
+    // LE BOUTON ROND ◈ : ouvrir une œuvre inconnue, tout de suite, sans
+    // passer par la flèche ni attendre la fin du fil. Il dit son prix en
+    // toutes lettres — un jeton — et s'éteint quand il n'y a plus rien à
+    // ouvrir ou plus de quoi payer.
+    const peutOuvrir = resteInconnues && jetons > 0;
+    this._jeton.disabled = !peutOuvrir;
+    this._jeton.title = !resteInconnues ? t('derive.revealNone')
+      : (jetons === 0 ? t('derive.needToken') : t('derive.reveal', { n: jetons }));
+    this._jeton.setAttribute('aria-label', this._jeton.title);
+    this._jeton._mot.textContent = this._jeton.title;
+
     // les flèches paraissent DÈS que la visite est active : ▸ est aussi la
     // porte vers une œuvre non découverte (contre un jeton ◈)
     for (const b of [this._prec, this._suiv]) b.hidden = !this.active;
     this._prec.setAttribute('aria-label', t('derive.prev'));
-    // ▸ affiche son PRIX quand le prochain pas est un déblocage : pas de
-    // boîte de dialogue — on voit ce qu'on dépense avant de cliquer
-    const prochainEstInconnue = this.active && resteInconnues
-      && (n === 0 || this._i >= n - 1);
-    if (prochainEstInconnue) {
-      // le prix s'affiche SOUS le chevron, pas à la place : la flèche reste
-      // une flèche, et l'on voit ce qu'on dépense avant de la pousser
+    // ▸ DIT SON PRIX à chaque pas, pas seulement au bout du fil : le rang
+    // suivant est-il une œuvre qu'on n'a pas encore trouvée ? Alors le
+    // pas coûte un jeton, et le ◈ paraît sous le chevron — pas de boîte
+    // de dialogue, on voit ce qu'on dépense avant de pousser.
+    const liste = this.parcours;
+    const voisin = liste.length
+      ? liste[((this._i + 1) % liste.length + liste.length) % liste.length] : null;
+    const inconnuDevant = this.active && Boolean(voisin) && !this._estConnue(voisin);
+    if (inconnuDevant) {
       this._suiv._prix.textContent = '◈';
       this._suiv._prix.hidden = false;
-      this._suiv.disabled = jetons === 0;
+      // sans jeton, la flèche SAUTE au prochain rang connu : elle reste
+      // active, et le ◈ s'éteint pour dire qu'il n'achètera rien
+      this._suiv._prix.classList.toggle('sans-jeton', jetons === 0);
       this._suiv.title = jetons === 0
         ? t('derive.needToken') : t('derive.unlock', { n: jetons });
       this._suiv.setAttribute('aria-label', this._suiv.title);
     } else {
       this._suiv._prix.hidden = true;
-      this._suiv.disabled = false;
       this._suiv.title = '';
       this._suiv.setAttribute('aria-label', t('derive.next'));
     }
+    this._suiv.disabled = false;
     this._barre.classList.toggle('en-cours', this.active);
     // L'état de la dérive intéresse d'autres coins de l'interface (le
     // bouton de la toolbox) sans qu'ils aient à connaître ce module :
@@ -229,8 +315,9 @@ export class Derive {
 
   demarrer() {
     if (this.active) return;
-    const n = this.parcours.length;
-    if (n === 0 && !((this.app.jetons?.compte ?? 0) > 0 && this.inconnues.length)) return;
+    const connues = this.connues.length;
+    if (connues === 0
+      && !((this.app.jetons?.compte ?? 0) > 0 && this.inconnues.length)) return;
     this.active = true;
     this._aRendre = false;                // une remise des commandes en attente
     this.app.activeFocus?.release?.();
@@ -241,29 +328,66 @@ export class Derive {
     // l'œuvre la plus proche semblait malin, mais on tombait au milieu du
     // fil (« pourquoi la n° 4 d'abord ? ») : une visite guidée commence au
     // commencement, et les flèches servent à sauter.
-    this._i = 0;
+    const liste = this.parcours;
+    const premier = liste.findIndex((a) => this._estConnue(a));
+    this._i = premier >= 0 ? premier : 0;
     this._phase = 'idle';
     // rien de découvert mais un jeton en poche : la visite S'OUVRE sur un
     // déblocage — c'est tout l'intérêt du jeton
-    if (n === 0) this._versInconnue();
+    if (connues === 0) this._versInconnue(0);
     this._peindre();
   }
 
   /**
-   * Dépense un jeton ◈ et vole vers la PROCHAINE œuvre non découverte du
-   * catalogue. Elle est marquée découverte à l'arrivée (elle a été payée) :
-   * elle prend son nom au catalogue et son rang dans le parcours.
+   * Dépense un jeton ◈ pour l'œuvre inconnue du RANG `rang` (par défaut la
+   * première inconnue qui suit la position courante). Elle est marquée
+   * découverte à l'arrivée — elle a été payée : elle prend alors son nom au
+   * catalogue, et le fil se cale sur elle.
    */
-  _versInconnue() {
-    const cibles = this.inconnues;
-    if (!cibles.length || !this.app.jetons?.depenser(1)) return false;
-    // La PROCHAINE du catalogue, pas la plus proche : la galerie a un
-    // ordre, le catalogue l'affiche (n° 1, 2, 3…) et le jeton le suit —
-    // sans quoi l'on débloquait la n° 6 sans rien connaître des cinq
-    // premières, et les numéros ne voulaient plus rien dire.
-    this._deblocage = cibles[0];
+  _versInconnue(rang = null) {
+    const liste = this.parcours;
+    if (!liste.length) return false;
+    let cible = null;
+    if (rang !== null && liste[rang] && !this._estConnue(liste[rang])) {
+      cible = liste[rang];
+    } else {
+      // LA PROCHAINE INCONNUE APRÈS SOI, pas la première de la galerie :
+      // le jeton doit avancer le fil, jamais le faire revenir en arrière.
+      // C'est là qu'il se dépensait « pas à la suite » — on visitait la 3,
+      // la 7, la 9, et le ◈ ramenait à la 4.
+      const n = liste.length;
+      const depart = liste.length ? this._i : 0;
+      for (let k = 1; k <= n; k++) {
+        const a = liste[(depart + k) % n];
+        if (!this._estConnue(a)) { cible = a; break; }
+      }
+    }
+    if (!cible || !this.app.jetons?.depenser(1)) return false;
+    this._deblocage = cible;
     this._phase = 'idle';
     return true;
+  }
+
+  /**
+   * Le bouton rond ◈ : ouvrir une œuvre inconnue tout de suite. Lance la
+   * visite si elle dort — sans quoi le jeton serait dépensé pour une
+   * caméra qui ne bouge pas.
+   */
+  ouvrirInconnue() {
+    if (!this.inconnues.length || (this.app.jetons?.compte ?? 0) === 0) return false;
+    if (!this.active) {
+      this.active = true;
+      this._aRendre = false;
+      this.app.activeFocus?.release?.();
+      this.app.controls.locked = true;
+      this.app.controls.resyncCollision?.();
+      const liste = this.parcours;
+      const premier = liste.findIndex((a) => this._estConnue(a));
+      this._i = premier >= 0 ? premier : 0;
+    }
+    const ok = this._versInconnue();
+    this._peindre();
+    return ok;
   }
 
   arreter() {
@@ -292,29 +416,26 @@ export class Derive {
     this._aller(-1);
   }
 
+  /**
+   * UN PAS SUR LE FIL, dans l'ordre du catalogue.
+   *
+   * Le rang voisin est-il connu ? on y vole. Inconnu ? il coûte un jeton,
+   * et `_prochainPas` l'a déjà dit à la flèche. Sans jeton, on saute au
+   * prochain rang connu du même côté : la visite ne bute jamais sur une
+   * porte fermée, elle passe devant.
+   */
   _aller(pas) {
     if (!this.active) { this.demarrer(); return; }
-    const n = this.parcours.length;
-    // au bout du connu, ▸ propose l'inconnu — contre un jeton
-    if (pas > 0 && (n === 0 || this._i >= n - 1) && this.inconnues.length) {
-      if (this._versInconnue()) { this._peindre(); return; }
-      if (n === 0) return;   // pas de jeton, rien de découvert : sur place
+    const cap = this._prochainPas(pas);
+    if (!cap) return;                       // rien de connu, rien à payer
+    if (cap.paye) {
+      if (this._versInconnue(cap.rang)) { this._peindre(); return; }
+      return;                               // le jeton a filé entre-temps
     }
-    if (n === 0) return;
-    this._i = ((this._i + pas) % n + n) % n;
+    this._i = cap.rang;
     this._deblocage = null;
     this._phase = 'idle';   // la prochaine frame prépare le vol
-  }
-
-  _plusProche() {
-    const liste = this.parcours;
-    const cam = this.app.camera.position;
-    let best = 0, bd = Infinity;
-    liste.forEach((a, i) => {
-      const d = a.group.getWorldPosition(new THREE.Vector3()).distanceTo(cam);
-      if (d < bd) { bd = d; best = i; }
-    });
-    return best;
+    this._peindre();
   }
 
   /* ------------------------------------------------------------ tick --- */
@@ -338,7 +459,17 @@ export class Derive {
 
     const liste = this.parcours;
     // une œuvre payée d'un jeton prime sur le fil du parcours
-    const cible = this._deblocage ?? liste[Math.min(this._i, liste.length - 1)];
+    // Le fil porte TOUTES les œuvres : on ne s'arrête que sur celles qu'on
+    // connaît, ou sur celle qu'un jeton vient d'ouvrir. Une inconnue non
+    // payée sous le curseur (la mémoire a changé sous nos pieds) ne se
+    // montre pas — on passe à la suivante.
+    let cible = this._deblocage ?? liste[Math.min(this._i, liste.length - 1)];
+    if (!this._deblocage && cible && !this._estConnue(cible)) {
+      const cap = this._prochainPas(+1);
+      if (!cap || cap.paye) return this.arreter();
+      this._i = cap.rang;
+      cible = liste[this._i];
+    }
     if (!cible) return this.arreter();
 
     if (this._phase === 'idle') {
