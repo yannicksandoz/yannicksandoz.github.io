@@ -179,10 +179,12 @@ test('elle ONDULE — plusieurs vagues, pas une seule arche', () => {
   assert.ok(bascules >= 3, `la pente ne bascule que ${bascules} fois`);
 });
 
-test('l\'amplitude est plafonnée : un mur de 30 m de haut ne perd pas plus d\'1,50 m', () => {
+test('l\'amplitude est plafonnée : un mur de 30 m de haut ne perd pas plus de 2,40 m', () => {
+  // le plafond existe pour qu'un mur très haut ne perde pas son sommet
+  // entier : 24 % de la hauteur, borné à 2,40 m
   const pts = hauteurs(20, 30);
   const bas = Math.min(...pts.map((q) => q.y));
-  assert.ok(bas >= 30 - 1.51, `creux ${(30 - bas).toFixed(2)}`);
+  assert.ok(bas >= 30 - 2.41, `creux ${(30 - bas).toFixed(2)}`);
 });
 
 test('murPerce est bien câblé : couronne fluide SEULEMENT sans plafond', () => {
@@ -466,7 +468,12 @@ test('loiCouronne est LA loi du couronnement — la corniche suit le sommet', ()
   let max = 0;
   for (let x = -L / 2; x <= L / 2; x += 0.25) max = Math.max(max, creux(x));
   assert.ok(max > 0.5, `l'ondulation dépasse le demi-mètre (${max.toFixed(2)} m)`);
-  assert.ok(max <= 1.5 + 1e-9, `plafonnée à 1,5 m (${max.toFixed(2)})`);
+  assert.ok(max <= 2.4 + 1e-9, `plafonnée à 2,4 m (${max.toFixed(2)})`);
+  // …et le creux ne remonte JAMAIS au-dessus du sommet nominal : les murs
+  // voisins comptent sur la pleine hauteur pour fermer l'angle
+  let mini = Infinity;
+  for (let x = -L / 2; x <= L / 2; x += 0.25) mini = Math.min(mini, creux(x));
+  assert.ok(mini >= -1e-9, `creux toujours positif (${mini.toFixed(3)})`);
 });
 
 test('coqueClose : plafond + quatre murs = plus jamais de soleil dedans', () => {

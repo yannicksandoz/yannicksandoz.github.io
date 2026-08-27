@@ -337,13 +337,30 @@ export function serpentinVoxel(dims, cell) {
  * Artwork.courberCorniche la suit.
  */
 export function loiCouronne({ length, height }) {
-  const A = Math.min(height * 0.16, 1.5);
+  // PLUS PROFILÉ, PLUS SINUEUX. Une porteuse de 2,2 périodes sur soixante
+  // mètres de mur donne une longueur d'onde de vingt-sept mètres : de face,
+  // la ligne se relit comme un seul affaissement mou, à peine ridé. Trois
+  // périodes et demie, une harmonique par-dessus, et le double d'amplitude :
+  // le sommet monte et redescend plusieurs fois sur la longueur — c'est un
+  // profil, plus une pente.
+  const A = Math.min(height * 0.24, 2.4);
   const phase = (length * 7.13) % (Math.PI * 2);
+  // Le creux reste POSITIF partout (0,62 − 0,38 − 0,18 = 0,06) : la ligne
+  // ne remonte jamais au-dessus du sommet nominal, où les angles des murs
+  // voisins l'attendent. L'enveloppe sin(π t) l'annule aux deux bouts.
+  const forme = (t) => Math.sin(Math.PI * t) * (
+    0.62
+    + 0.38 * Math.sin(Math.PI * 2 * 3.4 * t + phase)
+    + 0.18 * Math.sin(Math.PI * 2 * 6.1 * t + 1.4 * phase));
+  // on RELÈVE la crête plutôt que de la supposer : elle dépend de la phase,
+  // donc de la longueur du mur, et deux murs voisins doivent creuser autant
+  let crete = 0;
+  for (let i = 0; i <= 240; i++) crete = Math.max(crete, forme(i / 240));
+  const g = crete > 1e-6 ? A / crete : 0;
   return (x) => {
     // la forme se trace de DROITE à gauche : t = 0 au bord +length/2
     const t = Math.min(1, Math.max(0, (length / 2 - x) / length));
-    const porteuse = 0.65 + 0.35 * Math.sin(Math.PI * 2 * 2.2 * t + phase);
-    return A * Math.sin(Math.PI * t) * porteuse;
+    return g * forme(t);
   };
 }
 

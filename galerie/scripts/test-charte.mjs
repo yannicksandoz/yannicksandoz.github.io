@@ -22,7 +22,9 @@ import { CHARTE, EXTERIEURS, LUMINAIRES, clarte, teinteEtSaturation, ecartTeinte
   auditSalles, auditAccrochage, auditRecul, auditHierarchie, auditVista,
   auditRythme, auditBancs, auditAmpleur, ampleurOeuvre, angleApparent,
   arriveesDe, salles, auditDecor, auditLignes, empriseAuSol,
-  occupationVoxel, LABYRINTHES } from './charte.mjs';
+  occupationVoxel, LABYRINTHES, auditCouronnement, GARDE_COURONNE }
+  from './charte.mjs';
+import { setStyle, loiCouronne } from '../engine/src/core/style.js';
 
 let ok = 0, ko = 0;
 const test = (nom, fn) => {
@@ -408,6 +410,40 @@ test('un voxel vaut ses cellules pleines, pas sa grille', () => {
   assert.equal(occ.bas, 0.25);
   assert.equal(occ.haut, 0.5);
   assert.equal(occupationVoxel({ dims, cell: 0.25, cells: [4096, 0] }), null);
+});
+
+titre('le couronnement');
+test('rien d\'accroché ne dépasse la crête du mur', () => {
+  // un mur à ciel ouvert ondule : ce qui s'y pose doit rester dessous, à
+  // l'endroit précis où il est posé — sinon il flotte sur le ciel
+  const dehors = auditCouronnement().filter((c) => !c.sous);
+  assert.deepEqual(dehors.map((c) => `${c.salle} · ${c.quoi} : ${c.degagement} m`), []);
+});
+test('la règle regarde bien les murs à ciel ouvert', () => {
+  const r = auditCouronnement();
+  assert.ok(r.length >= 4, `${r.length} accroches mesurées seulement`);
+  assert.ok(r.every((c) => c.sommet > 0 && c.sommet < 40));
+  // et jamais une salle couverte : sous plafond, il n'y a pas de crête
+  assert.ok(!r.some((c) => c.salle === 'labo' || c.salle === 'archives'));
+});
+test('la crête ONDULE — plusieurs ventres, et les angles à pleine hauteur', () => {
+  setStyle('fluide');
+  const L = 60.35, H = 10;
+  const f = loiCouronne({ length: L, height: H });
+  assert.ok(Math.abs(f(L / 2)) < 1e-9 && Math.abs(f(-L / 2)) < 1e-9,
+    'les extrémités gardent la pleine hauteur');
+  const vals = [];
+  for (let i = 0; i <= 400; i++) vals.push(f(L / 2 - (i / 400) * L));
+  assert.ok(Math.min(...vals) >= -1e-9, 'le creux ne remonte jamais au-dessus du sommet');
+  const creux = Math.max(...vals);
+  assert.ok(creux > H * 0.2, `l'affaissement se voit (${creux.toFixed(2)} m)`);
+  let inflexions = 0, avant = null;
+  for (let i = 1; i < vals.length - 1; i++) {
+    const s = Math.sign(vals[i + 1] - vals[i]);
+    if (avant !== null && s !== 0 && s !== avant) inflexions++;
+    if (s !== 0) avant = s;
+  }
+  assert.ok(inflexions >= 4, `la ligne monte et redescend (${inflexions} inflexions)`);
 });
 
 titre('le décor se tait');

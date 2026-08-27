@@ -42,6 +42,7 @@
 import { readFileSync, readdirSync, existsSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { setStyle, loiCouronne } from '../engine/src/core/style.js';
 
 const ici = dirname(fileURLToPath(import.meta.url));
 const RACINE = join(ici, '..', 'content');
@@ -817,6 +818,57 @@ export function auditLignes() {
   return rapport;
 }
 
+/**
+ * RIEN NE DÉPASSE LE COURONNEMENT.
+ *
+ * Un mur à ciel ouvert n'a pas de sommet droit : il ondule (style.js,
+ * `loiCouronne`). Ce qui s'y accroche — une baie, une apparition — doit
+ * donc rester SOUS la ligne, à l'endroit précis où il est posé, sinon il
+ * sort du mur et flotte sur le ciel. C'est arrivé à l'écran du milieu de
+ * l'entrée : son haut culminait à 8,80 m là où le voile ne montait qu'à
+ * 8,01. Personne ne pouvait le voir venir — la loi est dans le moteur, le
+ * contenu ne parle qu'en appuis et en hauteurs. Elle est mesurée ici.
+ *
+ * `WALL_T` (0,35 m) : les murs nord/sud portent sur la largeur PLUS
+ * l'épaisseur, est/ouest sur la profondeur MOINS — voir `planMur`.
+ */
+export const GARDE_COURONNE = 0.4;      // mètres de dégagement exigés
+const WALL_T = 0.35;
+
+export function auditCouronnement() {
+  setStyle('fluide');
+  const rapport = [];
+  for (const s of salles()) {
+    const coque = s.shell;
+    if (!coque || coque === true || coque.ceiling) continue;   // couvert : pas de crête
+    const murs = Array.isArray(coque.walls) ? coque.walls : ['nord', 'sud', 'est', 'ouest'];
+    const h = Number(coque.height) || 4;
+    const longueurDe = (mur) => (mur === 'nord' || mur === 'sud'
+      ? (Number(coque.width) || 20) + WALL_T
+      : (Number(coque.depth) || 20) - WALL_T);
+    const accroches = [
+      ...(coque.windows ?? []).map((o) => ({ quoi: `baie ${o.wall}`, ...o })),
+      ...(s.vistas ?? []).map((v) => ({ quoi: `apparition ${v.room}`, ...v }))
+    ];
+    for (const a of accroches) {
+      const mur = a.wall ?? 'nord';
+      if (!murs.includes(mur)) continue;
+      const length = longueurDe(mur);
+      const creux = loiCouronne({ length, height: h });
+      const x = a.offset ?? 0;
+      const sommet = h - creux(x);
+      const haut = (a.sill ?? 1.1) + (a.height ?? 1.8);
+      rapport.push({
+        salle: s.id, quoi: a.quoi, mur, offset: x,
+        haut: +haut.toFixed(2), sommet: +sommet.toFixed(2),
+        degagement: +(sommet - haut).toFixed(2),
+        sous: sommet - haut >= GARDE_COURONNE
+      });
+    }
+  }
+  return rapport;
+}
+
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
   console.log('\nLES SALLES\n');
   console.log('  salle           sol    mur   écart  sat.  teinte  verdict');
@@ -873,6 +925,16 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
   }
   const serrees = auditLignes().filter((l) => !l.franche);
   console.log(`\n  ${serrees.length} ligne(s) serrée(s)`);
+
+  const cour = auditCouronnement();
+  if (cour.length) {
+    console.log(`\nLE COURONNEMENT (≥ ${GARDE_COURONNE} m sous la crête)\n`);
+    for (const c of cour) {
+      console.log(`  ${c.salle.padEnd(13)} ${c.quoi.padEnd(24)} ${c.mur.padEnd(6)}`
+        + ` x=${String(c.offset).padStart(5)}  haut ${c.haut} m`
+        + `  crête ${c.sommet} m  dégagement ${c.degagement} m  ${c.sous ? '✓' : '✗'}`);
+    }
+  }
 
   const rythme = auditRythme();
   console.log('\nLE RYTHME (compression → dilatation, par passage)\n');

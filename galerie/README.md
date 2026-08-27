@@ -1484,6 +1484,7 @@ muséographie, pas d'un goût :
 | la **vista d'entrée** | le premier regard (cadré par le moteur) trouve une œuvre entre 2 m et 80 % de la diagonale de la salle |
 | l'**ampleur à l'arrivée** | depuis CHAQUE entrée d'une salle (son spawn et chaque portail entrant), au moins une œuvre occupe ≥ 12° du champ |
 | les **lignes de force** | sur l'axe d'une arrivée vers une porte, ou d'une porte à l'autre, tout objet laisse ≥ 1,20 m de passage |
+| le **couronnement** | sur un mur à ciel ouvert, tout ce qui s'accroche reste ≥ 0,40 m sous la crête ondulée, à son propre décalage |
 
 **Les faces aussi.** `wallColors` peint chaque paroi séparément, et l'audit
 ne lisait que `shell.color` : les cinq faces du belvédère ont vécu là entre
@@ -1533,6 +1534,24 @@ socle posée à côté d'elle (1,15 m), qui pivote vers le visiteur autour de
 la verticale. Lettres de 4,5 cm : lisibles à deux ou trois mètres, la
 distance d'un cartel réel — s'approcher pour lire est le geste muséal
 voulu, celui qui rapproche aussi du son. `"cartel": false` y renonce.
+
+**Le couronnement ondule — et rien ne le dépasse.** Le sommet d'un mur à
+ciel ouvert ne s'affaisse plus d'un bloc : sa porteuse passe de 2,2 à 3,4
+périodes, une harmonique à 6,1 s'y ajoute, et l'amplitude double (24 % de
+la hauteur, plafonnée à 2,40 m). Sur les soixante mètres de l'entrée, la
+longueur d'onde tombe de vingt-sept à dix-huit mètres : la ligne monte et
+redescend cinq fois au lieu de plonger une. Le creux reste positif partout
+(0,62 − 0,38 − 0,18 = 0,06) et s'annule aux deux bouts — les angles gardent
+leur pleine hauteur pour recevoir les murs voisins.
+
+Ce qui a fait apparaître une faute qu'on ne pouvait pas voir venir : la loi
+vit dans le moteur, le contenu ne parle qu'en appuis et en hauteurs, et rien
+ne les confrontait. L'écran du milieu de l'entrée culminait à 8,80 m là où
+le voile ne montait qu'à 8,01 — il sortait du mur et flottait sur le ciel.
+`auditCouronnement` mesure désormais, pour CHAQUE accroche d'un mur
+découvert, le dégagement sous la crête à son propre décalage. Deux fautes
+relevées : l'écran de l'entrée (descendu à 4,15 m d'appui, 1,26 m de
+dégagement) et l'apparition du jardin, qui dépassait d'un centimètre.
 
 **La visite guidée a UN seul ordre, et le jeton s'y dépense à sa place.**
 La dérive parcourait la liste des œuvres DÉCOUVERTES, tandis que le jeton ◈
