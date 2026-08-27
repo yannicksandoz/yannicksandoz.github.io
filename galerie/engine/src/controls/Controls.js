@@ -99,6 +99,41 @@ export class Controls {
     this._lastTarget = this.orbit.target.clone();
     this.walking = false;
 
+    // — PIVOTER SUR SOI-MÊME — En visite, tourner le regard ne doit PAS
+    // déplacer le corps : OrbitControls fait voyager la caméra autour de
+    // la cible (des mètres de course), et ce voyage suffisait à franchir
+    // un portail « par erreur » en se retournant. On décompose chaque
+    // geste d'orbite en ses trois composantes et on le recompose l'œil
+    // FIXE :
+    //   pan      = déplacement de la cible (seul l'orbite-pan la bouge),
+    //   rotation = changement de DIRECTION œil→cible,
+    //   zoom     = changement de LONGUEUR — converti en pas en avant.
+    // La cible tourne autour de la caméra, jamais l'inverse : une caméra
+    // en première personne, avec l'inertie d'orbite intacte.
+    //
+    // C'est UPDATE LUI-MÊME qu'on enveloppe, pas son appel dans la boucle :
+    // avec `enableDamping`, les gestionnaires d'événements d'OrbitControls
+    // appellent update() directement à chaque pointermove — recomposer
+    // seulement dans la boucle laissait fuir un mouvement par événement,
+    // et l'œil dérivait d'un bon mètre par tour. En édition, la vraie
+    // orbite reste l'outil (on inspecte une œuvre en tournant autour).
+    const orbiteBrute = this.orbit.update.bind(this.orbit);
+    this.orbit.update = () => {
+      if (this.app.editor?.enabled) return orbiteBrute();
+      _camAvant.copy(this.app.camera.position);
+      _cibleAvant.copy(this.orbit.target);
+      const r = orbiteBrute();
+      const cam = this.app.camera.position;
+      _offre.copy(this.orbit.target).sub(cam);           // œil → cible, après
+      const lApres = _offre.length() || 1e-6;
+      const lAvant = _cibleAvant.distanceTo(_camAvant) || lApres;
+      _pan.copy(this.orbit.target).sub(_cibleAvant);     // la cible ne bouge qu'au pan
+      cam.copy(_camAvant).add(_pan)
+        .addScaledVector(_offre, (lAvant - lApres) / lApres); // le zoom avance l'œil
+      this.orbit.target.copy(cam).add(_offre);
+      return r;
+    };
+
     window.addEventListener('keydown', (e) => {
       // `e.target` n'est pas toujours un élément (événement synthétique,
       // touche reçue par la fenêtre) : demander `matches` sans vérifier
@@ -225,34 +260,7 @@ export class Controls {
       }
     }
     this.orbit.enabled = !this.locked && !this.dragging;
-    if (this.app.editor?.enabled) {
-      // en édition, la VRAIE orbite est l'outil : on inspecte une œuvre en
-      // tournant autour d'elle
-      this.orbit.update();
-    } else {
-      // — PIVOTER SUR SOI-MÊME — En visite, tourner le regard ne doit PAS
-      // déplacer le corps : OrbitControls fait pourtant voyager la caméra
-      // autour de la cible (jusqu'à des mètres de course), et ce voyage
-      // suffisait à franchir un portail « par erreur » en se retournant.
-      // On décompose donc le geste d'orbite en ses trois composantes et on
-      // le recompose l'œil FIXE :
-      //   pan      = déplacement de la cible (seul l'orbite-pan la bouge),
-      //   rotation = changement de DIRECTION œil→cible,
-      //   zoom     = changement de LONGUEUR — converti en pas en avant.
-      // La cible tourne autour de la caméra, jamais l'inverse : une
-      // caméra en première personne, avec l'inertie d'orbite intacte.
-      _camAvant.copy(this.app.camera.position);
-      _cibleAvant.copy(this.orbit.target);
-      this.orbit.update();
-      const cam = this.app.camera.position;
-      _offre.copy(this.orbit.target).sub(cam);            // œil → cible, après
-      const lApres = _offre.length() || 1e-6;
-      const lAvant = _cibleAvant.distanceTo(_camAvant) || lApres;
-      _pan.copy(this.orbit.target).sub(_cibleAvant);      // la cible ne bouge qu'au pan
-      cam.copy(_camAvant).add(_pan)
-        .addScaledVector(_offre, (lAvant - lApres) / lApres); // le zoom avance l'œil
-      this.orbit.target.copy(cam).add(_offre);
-    }
+    this.orbit.update();
     // APRÈS l'orbite : tout le déplacement de la frame est passé (clavier,
     // joystick, pan à deux doigts) — on le corrige d'un seul geste, par
     // rapport à la position de FIN de frame précédente.
