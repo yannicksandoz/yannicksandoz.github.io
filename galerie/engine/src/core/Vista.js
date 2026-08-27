@@ -34,17 +34,24 @@ function geometrieDeBaie(room, cfg, baie, bw, bh) {
   if (!forme) return new THREE.PlaneGeometry(bw, bh);
   const geo = new THREE.ShapeGeometry(forme, 24);
   geo.computeBoundingBox();
-  const b = geo.boundingBox;
-  const cx = (b.min.x + b.max.x) / 2, cy = (b.min.y + b.max.y) / 2;
-  const lx = Math.max(1e-4, b.max.x - b.min.x), ly = Math.max(1e-4, b.max.y - b.min.y);
-  geo.translate(-cx, -cy, 0);
+  // On RELÈVE les bornes avant de bouger quoi que ce soit : `translate`
+  // déplace aussi la boîte englobante, et `geo.boundingBox` est une
+  // référence, pas une copie. Le recadrage des UV lisait donc un minimum
+  // déjà recentré — la lucarne échantillonnait de −0,67 à +0,33 au lieu de
+  // 0 à 1, et montrait un texel de bord étalé sur tout le carreau. C'est
+  // le « tout est zoomé » de l'apparition du couloir.
+  const minX = geo.boundingBox.min.x, maxX = geo.boundingBox.max.x;
+  const minY = geo.boundingBox.min.y, maxY = geo.boundingBox.max.y;
+  const cx = (minX + maxX) / 2, cy = (minY + maxY) / 2;
+  const lx = Math.max(1e-4, maxX - minX), ly = Math.max(1e-4, maxY - minY);
   // ShapeGeometry pose ses UV en MÈTRES (les coordonnées de la forme) :
   // sans ce recadrage, la lucarne montrerait un texel étiré de la cible
   const uv = geo.attributes.uv;
   for (let i = 0; i < uv.count; i++) {
-    uv.setXY(i, (uv.getX(i) - b.min.x) / lx, (uv.getY(i) - b.min.y) / ly);
+    uv.setXY(i, (uv.getX(i) - minX) / lx, (uv.getY(i) - minY) / ly);
   }
   uv.needsUpdate = true;
+  geo.translate(-cx, -cy, 0);
   // le carreau déborde d'un chouia, comme le plan qu'il remplace
   geo.scale(bw / lx, bh / ly, 1);
   return geo;
@@ -102,6 +109,8 @@ const _mat = new THREE.Matrix4();
 const _inv = new THREE.Matrix4();
 const _scale = new THREE.Vector3();
 const _pos = new THREE.Vector3();
+const _oeil = new THREE.Vector3();
+const _axeY = new THREE.Vector3(0, 1, 0);
 const _dir = new THREE.Vector3();
 const _toCam = new THREE.Vector3();
 const _frustum = new THREE.Frustum();
@@ -376,20 +385,48 @@ export class VistaManager {
     const target = rooms.get(vista.cfg.room);
     if (!target || target === current) return;
 
-    // pose de la caméra : ancre ∘ baie⁻¹ ∘ caméra du visiteur — le
-    // déplacement devant la baie devient déplacement derrière l'ancre
+    // UNE FENÊTRE N'EST PAS UNE CAMÉRA.
+    //
+    // On rendait la lucarne avec le champ du visiteur — soixante degrés
+    // écrasés dans un carreau qui n'en occupe que quarante : tout ce qui
+    // s'y voyait était grossi, et le grossissement changeait avec la
+    // taille de la baie. Le rendu juste est le TRONC DE VISION ASYMÉTRIQUE
+    // de la stéréoscopie et de la CAVE : l'œil est le sommet, le carreau
+    // est la fenêtre du tronc, et la perspective qu'on peint est celle
+    // qu'on aurait en regardant par un vrai trou dans le mur. La parallaxe
+    // en découle toute seule — se décaler d'un pas découvre le côté de la
+    // pièce d'en face, exactement comme à sa fenêtre.
     const a = vista.cfg.anchor ?? {};
     const anchorPos = a.position ?? target.config.spawn ?? [0, 2, 8];
-    _mat.makeRotationY(THREE.MathUtils.degToRad(a.rotationY ?? 0));
-    _mat.setPosition(anchorPos[0], anchorPos[1] ?? 0, anchorPos[2]);
     vista.mesh.updateWorldMatrix(true, false);
     _inv.copy(vista.mesh.matrixWorld).invert();
-    _mat.multiply(_inv).multiply(camWorld.matrixWorld);
-    _mat.decompose(this._camera.position, this._camera.quaternion, _scale);
-    this._camera.fov = camWorld.fov;
-    this._camera.aspect = (vista.bw ?? vista.cfg.width ?? 4)
-      / (vista.bh ?? vista.cfg.height ?? 2.2);
-    this._camera.updateProjectionMatrix();
+    // l'œil, exprimé DANS le repère du carreau (+Z regarde la pièce)
+    _oeil.copy(camWorld.position).applyMatrix4(_inv);
+    // ancre ∘ baie⁻¹ : ce qui transporte le repère du carreau là-bas
+    _mat.makeRotationY(THREE.MathUtils.degToRad(a.rotationY ?? 0));
+    _mat.setPosition(anchorPos[0], anchorPos[1] ?? 0, anchorPos[2]);
+    _mat.multiply(_inv);
+    // La caméra prend la POSITION de l'œil transporté et, pour orientation,
+    // celle de l'ANCRE : transporter le repère du carreau par ancre ∘ baie⁻¹
+    // laisse exactement la rotation de l'ancre — le quart de tour du mur
+    // ouest s'annule. (Le décomposer de la matrice composée le laissait, et
+    // la lucarne regardait de côté, vers le ciel.)
+    this._camera.position.copy(camWorld.position).applyMatrix4(_mat);
+    this._camera.quaternion.setFromAxisAngle(
+      _axeY, THREE.MathUtils.degToRad(a.rotationY ?? 0));
+
+    const bw = vista.bw ?? vista.cfg.width ?? 4;
+    const bh = vista.bh ?? vista.cfg.height ?? 2.2;
+    // le nez contre la vitre, la distance tend vers zéro et le tronc
+    // explose : on garde le visiteur à dix centimètres au moins
+    const d = Math.max(0.1, _oeil.z);
+    const k = this._camera.near / d;
+    this._camera.projectionMatrix.makePerspective(
+      (-bw / 2 - _oeil.x) * k, (bw / 2 - _oeil.x) * k,
+      (bh / 2 - _oeil.y) * k, (-bh / 2 - _oeil.y) * k,
+      this._camera.near, this._camera.far
+    );
+    this._camera.projectionMatrixInverse.copy(this._camera.projectionMatrix).invert();
 
     // la pièce cible prend la scène le temps d'une passe
     const scene = this.app.scene;

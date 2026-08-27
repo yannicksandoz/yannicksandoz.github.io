@@ -283,12 +283,35 @@ export function serpentinVoxel(dims, cell) {
   const long = Math.max(lx, lz), larg = Math.min(lx, lz);
   if (long < 5 || long < larg * 2.2) return null;
   const axe = lx >= lz ? 0 : 2;
-  const A = Math.min(1.1, larg * 0.22);
+  // L'AMPLITUDE SE PREND SUR LA LONGUEUR, plus sur la largeur : une volée
+  // étroite ne doit pas se contenter d'un frisson de dix centimètres. Elle
+  // reste bornée par sa propre largeur — c'est ce qui garantit qu'une
+  // marche recouvre encore largement la précédente : le décalage latéral
+  // d'un pas au suivant vaut au pire A·8,3/nombre de marches, soit un
+  // cinquième de la largeur pour une volée de trente marches.
+  const A = Math.min(long * 0.17, larg * 0.7);
   const phase = ((dims[0] * 3 + dims[1] * 5 + dims[2] * 7) % 13) / 13 * Math.PI * 2;
+  // DEUX ONDES plutôt qu'une : la porteuse donne le grand S, l'harmonique
+  // le repentir en son milieu — une vraie sinuosité, pas un arc. L'enveloppe
+  // sin(π t) s'annule aux deux bouts : les extrémités de la volée ne bougent
+  // pas d'un millimètre, et les connexions du labyrinthe tiennent.
+  // TROIS lobes : gauche, droite, gauche. Une porteuse à deux lobes ne
+  // faisait qu'un S — un arc, pas un serpent ; il faut au moins trois
+  // ventres pour que le regard lise une sinuosité en montant.
+  const forme = (t) => Math.sin(Math.PI * t) * (
+    0.70 * Math.sin(Math.PI * 3 * t + phase)
+    + 0.32 * Math.sin(Math.PI * 5 * t + 1.6 * phase));
+  // Le maximum du couple dépend de la phase : on le RELÈVE une fois pour
+  // toutes plutôt que de le supposer. Sans ça, l'amplitude réelle valait
+  // selon la volée la moitié ou les trois quarts de celle qu'on croyait
+  // demander, et deux escaliers voisins ondulaient inégalement.
+  let crete = 0;
+  for (let i = 0; i <= 240; i++) crete = Math.max(crete, Math.abs(forme(i / 240)));
+  const g = crete > 1e-6 ? A / crete : 0;
   return {
     axe,
-    decalage: (t) => A * Math.sin(Math.PI * 2 * t + phase) * Math.sin(Math.PI * t),
-    gonflement: (t) => 1 + 0.22 * Math.sin(Math.PI * t)
+    decalage: (t) => g * forme(t),
+    gonflement: (t) => 1 + 0.34 * Math.sin(Math.PI * t)
   };
 }
 

@@ -3,9 +3,9 @@
   "title": "Pilier",
   "description": "",
   "position": [
-    4.56,
-    35.948,
-    8.55
+    2.88,
+    22.704,
+    5.4
   ],
   "rotation": [
     -180,
@@ -13,9 +13,9 @@
     0
   ],
   "scale": [
-    0.912,
-    2.736,
-    0.912
+    0.576,
+    1.728,
+    0.576
   ],
   "modules": [],
   "role": "decor",
@@ -24,7 +24,7 @@
     "color": "#2b2440",
     "roughness": 0.9,
     "metalness": 0.05,
-    "emissive": 0.04,
+    "emissive": 0.018,
     "texture": "pierre"
   },
   "lightIntensity": 0,

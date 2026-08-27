@@ -3,9 +3,9 @@
   "title": "Gerbe",
   "role": "decor",
   "position": [
-    -18.544,
-    37.544,
-    -18.544
+    -11.712,
+    23.712,
+    -11.712
   ],
   "rotation": [
     0,
@@ -13,14 +13,14 @@
     0
   ],
   "scale": [
-    0.76,
-    0.76,
-    0.76
+    0.48,
+    0.48,
+    0.48
   ],
   "model": {
     "shape": "gerbe",
     "nombre": 7,
-    "portee": 25.84,
+    "portee": 34.0,
     "ouverture": 13,
     "vers": [
       1,
@@ -28,8 +28,8 @@
       1
     ],
     "color": "#cbb4ff",
-    "emissive": 0.32,
-    "rayonBout": 0.6
+    "emissive": 0.144,
+    "rayonBout": 0.789
   },
   "solid": false,
   "cartel": false,

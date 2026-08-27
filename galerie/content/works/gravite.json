@@ -4,7 +4,7 @@
   "description": "Un tore suspendu au centre d'un cube qui n'a pas décidé où est le bas. Six faces, douze arêtes, une volée par arête : montez, et au sommet l'espace pivote autour de vous — le mur devient sol, la pièce se relit entière. Le labyrinthe n'a pas de plan : il a six.",
   "position": [
     0.0,
-    19.0,
+    12.0,
     0.0
   ],
   "rotation": [
@@ -13,20 +13,20 @@
     20
   ],
   "scale": [
-    2.28,
-    2.28,
-    2.28
+    1.44,
+    1.44,
+    1.44
   ],
   "model": {
     "shape": "torus",
     "color": "#d8a8ff",
     "roughness": 0.35,
     "metalness": 0.5,
-    "emissive": 0.35,
+    "emissive": 0.158,
     "texture": "metal"
   },
   "lightColor": "#d8a8ff",
-  "lightIntensity": 9,
+  "lightIntensity": 4.05,
   "loadDistance": 240,
   "modules": [
     {

@@ -3,9 +3,9 @@
   "title": "Décor",
   "description": "",
   "position": [
-    -1.9,
-    2.66,
-    -5.7
+    -1.2,
+    1.68,
+    -3.6
   ],
   "rotation": [
     0,
@@ -13,19 +13,19 @@
     0
   ],
   "scale": [
-    0.76,
-    0.76,
-    0.76
+    0.48,
+    0.48,
+    0.48
   ],
   "modules": [],
   "role": "decor",
   "model": {
     "shape": "lucioles",
-    "size": 8.36,
+    "size": 11.0,
     "count": 24,
     "seed": 23,
     "color": "#ffd97a",
-    "emissive": 0.95,
+    "emissive": 0.427,
     "dotSize": 0.2
   },
   "lightIntensity": 0,

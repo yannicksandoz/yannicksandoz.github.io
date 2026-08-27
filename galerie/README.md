@@ -1534,6 +1534,22 @@ la verticale. Lettres de 4,5 cm : lisibles à deux ou trois mètres, la
 distance d'un cartel réel — s'approcher pour lire est le geste muséal
 voulu, celui qui rapproche aussi du son. `"cartel": false` y renonce.
 
+**Une apparition est une FENÊTRE, pas une caméra.** On peignait la lucarne
+avec le champ du visiteur — soixante degrés écrasés dans un carreau qui n'en
+occupe que quarante : tout y paraissait grossi, et le grossissement changeait
+avec la taille de la baie. Le rendu juste est le **tronc de vision
+asymétrique** de la stéréoscopie et des CAVE : l'œil est le sommet, le
+carreau est la fenêtre du tronc, et l'on peint exactement la perspective
+qu'un vrai trou dans le mur donnerait. La parallaxe en découle toute seule —
+un pas de côté découvre le flanc de la pièce d'en face. S'y ajoutaient deux
+fautes qui rendaient la lucarne illisible : la caméra héritait de la
+rotation du MUR en plus de celle de l'ancre (elle regardait de travers, vers
+le ciel), et le recadrage des UV lisait une boîte englobante que
+`geometry.translate` venait de déplacer sous ses pieds — `boundingBox` est
+une référence, pas une copie. Le carreau échantillonnait de −0,67 à +0,33
+au lieu de 0 à 1 : un texel de bord étalé sur toute la baie. C'est le
+« tout zoom dans l'image » du couloir.
+
 **Les lignes de force.** Un visiteur ne suit pas le plan qu'on lui dessine :
 il suit l'axe le plus court entre là où il est et là où il va. Les
 urbanistes appellent ça une *desire line* — le sentier que les pas creusent

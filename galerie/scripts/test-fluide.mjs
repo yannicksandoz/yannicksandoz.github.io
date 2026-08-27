@@ -376,9 +376,29 @@ test('serpentinVoxel : allongé seulement, extrémités fixes, milieu qui gonfle
   assert.ok(s && s.axe === 2, 'l\'escalier serpente le long de sa montée');
   assert.ok(Math.abs(s.decalage(0)) < 1e-9 && Math.abs(s.decalage(1)) < 1e-9,
     'les connexions du labyrinthe tiennent');
+  const larg = 7 * 0.5;
   let max = 0;
-  for (let t = 0; t <= 1; t += 0.02) max = Math.max(max, Math.abs(s.decalage(t)));
-  assert.ok(max > 0.25, `l'ondulation est franche (${max.toFixed(2)} m)`);
+  for (let t = 0; t <= 1; t += 0.005) max = Math.max(max, Math.abs(s.decalage(t)));
+  // l'ondulation doit se VOIR : au moins la moitié de la largeur de la volée
+  assert.ok(max > larg * 0.5, `l'ondulation est franche (${max.toFixed(2)} m)`);
+  // …sans jamais dépasser la largeur, sinon la volée se déchire
+  assert.ok(max <= larg * 0.71, `bornée par sa largeur (${max.toFixed(2)} m)`);
+  // DEUX ONDES, pas une : une simple sinusoïde n'a qu'un maximum de chaque
+  // signe ; on exige au moins trois changements de sens
+  let sens = 0, avant = null;
+  for (let t = 0.02; t <= 0.98; t += 0.005) {
+    const d = s.decalage(t + 0.005) - s.decalage(t);
+    const signe = Math.sign(d);
+    if (avant !== null && signe !== 0 && signe !== avant) sens++;
+    if (signe !== 0) avant = signe;
+  }
+  assert.ok(sens >= 3, `la volée serpente vraiment (${sens} inflexions)`);
+  // une marche recouvre encore largement la précédente : 32 marches ici
+  let pas = 0;
+  for (let i = 0; i < 32; i++) {
+    pas = Math.max(pas, Math.abs(s.decalage((i + 1) / 32) - s.decalage(i / 32)));
+  }
+  assert.ok(pas < larg * 0.45, `le pas latéral reste franchissable (${pas.toFixed(2)} m)`);
   assert.ok(s.gonflement(0.5) > 1.1, 'la forme gonfle en son milieu');
   assert.ok(Math.abs(s.gonflement(0) - 1) < 1e-9, 'sans gonfler ses extrémités');
   setStyle('brut');

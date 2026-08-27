@@ -3,8 +3,8 @@
   "title": "Lavage ouest",
   "role": "decor",
   "position": [
-    -18.392,
-    36.1,
+    -11.616,
+    22.8,
     0.0
   ],
   "rotation": [
@@ -13,16 +13,16 @@
     0
   ],
   "scale": [
-    0.76,
-    0.76,
-    0.76
+    0.48,
+    0.48,
+    0.48
   ],
   "model": {
     "shape": "corniche",
-    "longueur": 36.784,
-    "epaisseur": 0.122,
+    "longueur": 48.4,
+    "epaisseur": 0.161,
     "color": "#ffe9c4",
-    "intensite": 16,
+    "intensite": 7.2,
     "mur": "ouest",
     "inclinaison": 45,
     "lampe": false

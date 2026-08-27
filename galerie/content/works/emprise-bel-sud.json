@@ -4,8 +4,8 @@
   "role": "decor",
   "position": [
     0.0,
-    0.023,
-    18.544
+    0.015,
+    11.712
   ],
   "rotation": [
     0,
@@ -13,16 +13,16 @@
     0
   ],
   "scale": [
-    0.76,
-    0.76,
-    0.76
+    0.48,
+    0.48,
+    0.48
   ],
   "model": {
     "shape": "corniche",
-    "longueur": 35.72,
-    "epaisseur": 0.38,
+    "longueur": 47.0,
+    "epaisseur": 0.5,
     "color": "#b9c4e8",
-    "intensite": 12,
+    "intensite": 5.4,
     "mur": "sud",
     "inclinaison": 90,
     "lampe": false,
