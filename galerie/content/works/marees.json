@@ -3,9 +3,9 @@
   "title": "Triptyque des marées",
   "description": "Trois strates sonores aux rayons concentriques : la nappe grave s'entend de loin, l'arpège apparaît à mi-distance, les scintillements ne se révèlent qu'au plus près. Démo : StemMixer (un rayon par stem) + FocusCamera.",
   "position": [
-    0,
+    5.5,
     3.15,
-    -16
+    -18.5
   ],
   "image": "textures/marees.png",
   "size": [
@@ -54,7 +54,7 @@
   ],
   "rotation": [
     0,
-    0,
+    -12,
     0
   ],
   "scale": [

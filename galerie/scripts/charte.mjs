@@ -123,8 +123,25 @@ export const CHARTE = {
   // 3 diagonales elle sort du confort ; on laisse une fois et demie cette
   // distance — 5 diagonales, soit 11,4°, arrondi à 12 — avant de dire
   // qu'elle a cessé d'être un sujet pour devenir un détail du décor.
-  angleMinimal: 12
+  angleMinimal: 12,
+  // LE PASSAGE SUR UNE LIGNE DE FORCE, en mètres.
+  // Une ligne de force est l'axe qu'un visiteur emprunte sans y penser :
+  // son point d'arrivée vers une porte, une porte vers la suivante. Les
+  // urbanistes l'appellent « desire line », la syntaxe spatiale « ligne
+  // axiale ». Rien ne doit s'y planter : ou l'axe est franc, ou l'objet
+  // s'écarte assez pour qu'on le CONTOURNE en le regardant — il devient
+  // alors un incident du parcours, ce que Cullen appelle la vision
+  // sérielle, et non un obstacle. 1,20 m : la largeur d'un passage à deux,
+  // et le double de l'épaule d'un visiteur.
+  passageLigne: 1.2
 };
+
+/**
+ * Salles-LABYRINTHE : l'obstruction y est le sujet. Mesurer la franchise
+ * d'un axe entre deux portails du belvédère reviendrait à reprocher à un
+ * dédale d'être un dédale.
+ */
+export const LABYRINTHES = new Set(['belvedere']);
 
 /* ------------------------------------------------------------ couleurs -- */
 
@@ -639,6 +656,167 @@ export function auditBancs() {
   return rapport;
 }
 
+/**
+ * EMPRISE AU SOL d'une œuvre : demi-largeur horizontale et hauteur.
+ *
+ * `ampleurOeuvre` rend une DIAGONALE — bonne pour l'angle apparent, muette
+ * sur la place que l'objet prend par terre. Ici on veut les deux mesures
+ * séparément : de quoi savoir si l'on passe à côté, et si l'objet est au
+ * sol plutôt que suspendu ou peint à plat.
+ */
+export function empriseAuSol(w) {
+  const s = w.scale ?? [1, 1, 1];
+  const [sx, sy, sz] = [s[0] ?? 1, s[1] ?? 1, s[2] ?? 1];
+  const h = Math.max(sx, sz);
+  // `bas` et `haut` sont RELATIFS à la position : la plupart des formes se
+  // centrent sur elle, un voxel repose dessus.
+  const centre = (largeur, hauteur) => ({
+    rayon: (largeur * h) / 2, bas: -(hauteur * sy) / 2, haut: (hauteur * sy) / 2
+  });
+
+  const m = w.model ?? {};
+  // Une nappe d'EAU est horizontale : large au sol, sans épaisseur. Comptée
+  // comme un volume, le bassin du jardin barrait trois lignes de force
+  // qu'on longe en réalité sans même ralentir.
+  if (m.shape === 'eau') {
+    const t = Number.isFinite(m.size) ? m.size : 1.5;
+    return { rayon: (1.6 * t * h) / 2, bas: -0.05, haut: 0.05 };
+  }
+  // Un GALET est une dalle : large comme sa `size`, épaisse de quelques
+  // centimètres (`epaisseur`). Comptée cubique, la margelle du bassin —
+  // 7,4 m de large, 24 cm d'épais — barrait deux lignes de force qu'on
+  // enjambe sans y penser.
+  if (m.shape === 'galet') {
+    const t = Number.isFinite(m.size) ? m.size : 1.5;
+    const ep = Math.max(0.02, Number(m.epaisseur) || t * 0.1);
+    return { rayon: (1.6 * t * h) / 2, bas: -(ep * sy) / 2, haut: (ep * sy) / 2 };
+  }
+  if (Array.isArray(w.size) && w.size.length === 2) return centre(w.size[0], w.size[1]);
+  if (Array.isArray(w.scanTaille) && w.scanTaille.length === 3) {
+    const [x, y, z] = w.scanTaille;
+    return centre(Math.max(x, z), y);
+  }
+  if (m.shape === 'monolith') return centre(1.1, m.height ?? 4);
+  if (m.type === 'voxel') {
+    // On lit les CELLULES PLEINES, pas la grille : une grille de 16³ à
+    // 0,25 m fait quatre mètres de large, mais la sculpture du labo n'en
+    // occupe qu'une poignée — comptée pleine, elle serrait une ligne
+    // qu'elle laisse en fait entièrement libre.
+    const occ = occupationVoxel(m);
+    if (occ) {
+      return { rayon: (occ.largeur * h) / 2, bas: occ.bas * sy, haut: occ.haut * sy };
+    }
+    const [dx, dy, dz] = m.dims ?? [16, 16, 16];
+    const cell = m.cell ?? 0.25;
+    return { rayon: (Math.max(dx, dz) * cell * h) / 2, bas: 0, haut: dy * cell * sy };
+  }
+  if (m.shape) {
+    const t = Number.isFinite(m.size) ? m.size : 1.5;
+    const EMPRISES = {
+      box: [1, 1], sphere: [1.2, 1.2], plane: [1.6, 1],
+      cylinder: [1, 1.6], cone: [1.2, 1.6], torus: [1.64, 1.64],
+      faisceau: [1.7, 6], lucioles: [1, 1]
+    };
+    const [l, ha] = EMPRISES[m.shape] ?? [1, 1];
+    return centre(l * t, ha * t);
+  }
+  if (m.url && Number.isFinite(m.fit)) return centre(m.fit, m.fit);
+  return centre(1.5, 1.5);
+}
+
+/**
+ * L'emprise RÉELLE d'un modèle voxel : les bornes de ses cellules pleines,
+ * lues dans le RLE (`voxel.js` : longueur, valeur, longueur, valeur…, et
+ * l'indice linéaire vaut x + dims[0]·(y + dims[1]·z)). En mètres, dans le
+ * repère de l'objet — la grille est centrée en x/z, posée en y.
+ */
+export function occupationVoxel(m) {
+  const dims = m.dims ?? [16, 16, 16];
+  const cell = m.cell ?? 0.25;
+  const total = dims[0] * dims[1] * dims[2];
+  const rle = m.cells ?? [];
+  let i = 0, vu = false;
+  let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity;
+  let z0 = Infinity, z1 = -Infinity;
+  for (let k = 0; k + 1 < rle.length && i < total; k += 2) {
+    const run = rle[k], valeur = rle[k + 1];
+    if (valeur) {
+      for (let n = 0; n < run && i + n < total; n++) {
+        const idx = i + n;
+        const x = idx % dims[0];
+        const y = Math.floor(idx / dims[0]) % dims[1];
+        const z = Math.floor(idx / (dims[0] * dims[1]));
+        if (x < x0) x0 = x; if (x > x1) x1 = x;
+        if (y < y0) y0 = y; if (y > y1) y1 = y;
+        if (z < z0) z0 = z; if (z > z1) z1 = z;
+        vu = true;
+      }
+    }
+    i += run;
+  }
+  if (!vu) return null;
+  return {
+    largeur: Math.max(x1 - x0 + 1, z1 - z0 + 1) * cell,
+    bas: y0 * cell, haut: (y1 + 1) * cell
+  };
+}
+
+/**
+ * LES LIGNES DE FORCE : d'un point d'arrivée à chaque porte, et d'une porte
+ * à l'autre. Pour chacune, le passage le plus serré que laisse un objet
+ * planté à moins de `passageLigne` de l'axe.
+ *
+ * On ne juge que ce qui BARRE : un tapis (haut < 0,35 m) se traverse, une
+ * suspension (bas > 2 m) se passe dessous, un luminaire d'ambiance n'est
+ * pas de la matière. Et on ne juge pas les deux mètres qui touchent les
+ * extrémités : à l'aplomb d'une porte, tout objet est « sur l'axe ».
+ */
+export function auditLignes() {
+  const oeuvres = new Map(toutesLesOeuvres().map((w) => [w.id, w]));
+  const rapport = [];
+  for (const s of salles()) {
+    if (LABYRINTHES.has(s.id)) continue;
+    const noeuds = [];
+    if (s.spawn) noeuds.push({ nom: 'départ', p: s.spawn });
+    for (const p of s.portals ?? []) {
+      noeuds.push({ nom: p.to ?? 'portail', p: p.position ?? [0, 0, 0] });
+    }
+    const corps = (s.works ?? []).map((n) => oeuvres.get(n)).filter(Boolean)
+      .filter((w) => !LUMINAIRES.has(w.model?.shape) && w.model?.shape !== 'lucioles')
+      .map((w) => {
+        const { rayon, bas, haut } = empriseAuSol(w);
+        const [x, y, z] = w.position ?? [0, 0, 0];
+        return { id: w.id, x, z, rayon, bas: y + bas, haut: y + haut };
+      })
+      .filter((c) => c.haut >= 0.35 && c.bas <= 2.0);
+
+    for (let i = 0; i < noeuds.length; i++) {
+      for (let j = i + 1; j < noeuds.length; j++) {
+        const A = noeuds[i], B = noeuds[j];
+        const dx = B.p[0] - A.p[0], dz = B.p[2] - A.p[2];
+        const L = Math.hypot(dx, dz);
+        if (L < 3) continue;
+        const ux = dx / L, uz = dz / L;
+        let pire = null;
+        for (const c of corps) {
+          const t = (c.x - A.p[0]) * ux + (c.z - A.p[2]) * uz;
+          if (t < 1.2 || t > L - 1.2) continue;
+          const ex = A.p[0] + ux * t - c.x, ez = A.p[2] + uz * t - c.z;
+          const passage = Math.hypot(ex, ez) - c.rayon;
+          if (!pire || passage < pire.passage) pire = { id: c.id, passage };
+        }
+        rapport.push({
+          salle: s.id, ligne: `${A.nom} → ${B.nom}`, longueur: L,
+          objet: pire?.id ?? null,
+          passage: pire ? pire.passage : Infinity,
+          franche: !pire || pire.passage >= CHARTE.passageLigne
+        });
+      }
+    }
+  }
+  return rapport;
+}
+
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
   console.log('\nLES SALLES\n');
   console.log('  salle           sol    mur   écart  sat.  teinte  verdict');
@@ -685,6 +863,17 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
       ? `→ ${b.vers} (${b.angle.toFixed(0)}°, ${b.distance.toFixed(1)} m)`
       : 'aucune œuvre à portée'}  ${b.regarde ? '✓' : '✗'}`);
   }
+  console.log(`\nLES LIGNES DE FORCE (≥ ${CHARTE.passageLigne} m de passage)\n`);
+  for (const l of auditLignes()) {
+    if (l.franche && !l.objet) continue;      // rien à dire d'un axe vide
+    console.log(`  ${l.salle.padEnd(13)} ${l.ligne.padEnd(26)}`
+      + ` ${l.longueur.toFixed(0).padStart(3)} m  `
+      + (l.objet ? `${l.objet.padEnd(20)} passage ${l.passage.toFixed(2)} m  ` : '')
+      + (l.franche ? '✓' : '✗'));
+  }
+  const serrees = auditLignes().filter((l) => !l.franche);
+  console.log(`\n  ${serrees.length} ligne(s) serrée(s)`);
+
   const rythme = auditRythme();
   console.log('\nLE RYTHME (compression → dilatation, par passage)\n');
   for (const p of rythme.passages.sort((a, b) => b.rapport - a.rapport)) {

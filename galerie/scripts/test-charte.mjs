@@ -21,7 +21,8 @@ import { fileURLToPath } from 'node:url';
 import { CHARTE, EXTERIEURS, LUMINAIRES, clarte, teinteEtSaturation, ecartTeinte,
   auditSalles, auditAccrochage, auditRecul, auditHierarchie, auditVista,
   auditRythme, auditBancs, auditAmpleur, ampleurOeuvre, angleApparent,
-  arriveesDe, salles, auditDecor } from './charte.mjs';
+  arriveesDe, salles, auditDecor, auditLignes, empriseAuSol,
+  occupationVoxel, LABYRINTHES } from './charte.mjs';
 
 let ok = 0, ko = 0;
 const test = (nom, fn) => {
@@ -369,6 +370,45 @@ test('les voix de la bibliothèque et du couloir sont générées', () => {
   assert.ok(gen.includes('carillon-fenetres.wav'));
 });
 
+
+titre('les lignes de force');
+test('aucun objet ne se plante sur un axe de visite', () => {
+  // Une ligne de force est l'axe qu'on emprunte sans y penser : l'arrivée
+  // vers une porte, une porte vers la suivante. Ou elle est franche, ou
+  // l'objet s'écarte assez pour qu'on le CONTOURNE en le regardant.
+  const serrees = auditLignes().filter((l) => !l.franche);
+  assert.deepEqual(serrees.map((l) => `${l.salle} · ${l.ligne} : ${l.objet}`
+    + ` à ${l.passage.toFixed(2)} m`), []);
+});
+test('la règle juge vraiment quelque chose', () => {
+  // une règle qui ne regarde rien passe toujours : on exige qu'elle ait
+  // trouvé des axes ET des objets à leur bord
+  const lignes = auditLignes();
+  assert.ok(lignes.length >= 20, `${lignes.length} lignes seulement`);
+  assert.ok(lignes.filter((l) => l.objet).length >= 10,
+    'aucun objet mesuré au bord d’un axe : la règle est aveugle');
+  assert.ok(!lignes.some((l) => LABYRINTHES.has(l.salle)),
+    'le belvédère est un dédale : son obstruction est le sujet');
+});
+test('une dalle et une nappe d’eau ne sont pas des volumes', () => {
+  // c'est ce qui faisait accuser la margelle du bassin — 7,4 m de large,
+  // 24 cm d'épais — de barrer trois axes qu'on enjambe sans y penser
+  const dalle = empriseAuSol({ model: { shape: 'galet', size: 7.4, epaisseur: 0.24 } });
+  assert.ok(dalle.haut - dalle.bas < 0.3, `épaisseur ${dalle.haut - dalle.bas}`);
+  assert.ok(dalle.rayon > 3, 'mais elle reste large');
+  const eau = empriseAuSol({ model: { shape: 'eau', size: 2 } });
+  assert.ok(eau.haut - eau.bas < 0.2);
+});
+test('un voxel vaut ses cellules pleines, pas sa grille', () => {
+  // deux cellules dans une grille de 16³ : 4 m de grille, 50 cm de matière
+  const dims = [16, 16, 16];
+  const cells = [17, 0, 2, 1, 4077, 0];      // indices 17 et 18 → x=1,2 ; y=1 ; z=0
+  const occ = occupationVoxel({ dims, cell: 0.25, cells });
+  assert.equal(occ.largeur, 0.5);
+  assert.equal(occ.bas, 0.25);
+  assert.equal(occ.haut, 0.5);
+  assert.equal(occupationVoxel({ dims, cell: 0.25, cells: [4096, 0] }), null);
+});
 
 titre('le décor se tait');
 test('aucun objet de décor au-dessus de 45 % de saturation', () => {

@@ -1483,6 +1483,7 @@ muséographie, pas d'un goût :
 | la **hiérarchie lumineuse** | l'accent le plus fort va aux œuvres — jamais à une lanterne ou une lune de décor |
 | la **vista d'entrée** | le premier regard (cadré par le moteur) trouve une œuvre entre 2 m et 80 % de la diagonale de la salle |
 | l'**ampleur à l'arrivée** | depuis CHAQUE entrée d'une salle (son spawn et chaque portail entrant), au moins une œuvre occupe ≥ 12° du champ |
+| les **lignes de force** | sur l'axe d'une arrivée vers une porte, ou d'une porte à l'autre, tout objet laisse ≥ 1,20 m de passage |
 
 **Les faces aussi.** `wallColors` peint chaque paroi séparément, et l'audit
 ne lisait que `shell.color` : les cinq faces du belvédère ont vécu là entre
@@ -1532,6 +1533,43 @@ socle posée à côté d'elle (1,15 m), qui pivote vers le visiteur autour de
 la verticale. Lettres de 4,5 cm : lisibles à deux ou trois mètres, la
 distance d'un cartel réel — s'approcher pour lire est le geste muséal
 voulu, celui qui rapproche aussi du son. `"cartel": false` y renonce.
+
+**Les lignes de force.** Un visiteur ne suit pas le plan qu'on lui dessine :
+il suit l'axe le plus court entre là où il est et là où il va. Les
+urbanistes appellent ça une *desire line* — le sentier que les pas creusent
+dans la pelouse à côté de l'allée pavée ; la syntaxe spatiale de Bill
+Hillier l'appelle *ligne axiale*, et montre que ce qui explique le
+déplacement dans un musée est exactement ce qui l'explique dans une ville :
+la longueur des vues directes et leurs intersections. Gordon Cullen, lui,
+ajoute ce qu'on doit en faire — sa *vision sérielle* raconte une promenade
+comme une suite de plans, où un objet qu'on contourne devient un incident
+qui donne le rythme, à condition qu'on le contourne en le REGARDANT plutôt
+qu'en le subissant.
+
+D'où la règle, en une phrase : **sur une ligne de force, ou l'axe est
+franc, ou l'objet s'écarte assez pour qu'on en fasse le tour.** 1,20 m de
+passage — la largeur d'un croisement à deux. `auditLignes` mesure chaque
+axe (arrivée → porte, porte → porte) et le passage le plus serré qu'un
+objet y laisse.
+
+Le relevé a trouvé quatre serrages, et un vrai défaut de composition : le
+*Triptyque des marées*, panneau de 9 × 4,5 m planté à six mètres du mur
+nord du labo, se tenait **devant la porte de l'annexe** — 18 % de la ligne
+d'œil coupée depuis l'arrivée, et trois axes barrés. Il a glissé à l'est,
+reculé contre le mur et pivoté de douze degrés vers celui qui entre : la
+porte se voit, et le panneau est devenu ce qu'on longe pour l'atteindre.
+Trois autres objets (deux bancs, une stèle) ont bougé du minimum calculé —
+quarante centimètres à un mètre soixante — et la seconde lanterne de
+l'allée est passée franchement à l'est, où elle alterne avec la première.
+Les trente-cinq lignes de force de la galerie sont franches.
+
+Deux formes mentaient sur leur volume et faisaient accuser des objets
+qu'on enjambe : la **margelle** du bassin (7,4 m de large, 24 cm d'épais)
+et la **nappe d'eau**, comptées cubiques ; et un **voxel** valait sa grille
+plutôt que ses cellules pleines — 4 m annoncés pour une poignée de cubes.
+`empriseAuSol` lit désormais l'épaisseur d'une dalle et décode le RLE d'un
+voxel. Le **belvédère** est explicitement hors règle : dans un dédale,
+l'obstruction est le sujet.
 
 **Le rythme.** La scénographie fait l'échelle par le contraste — un couloir
 qui débouche sur un hall rend le hall immense. `auditRythme` mesure chaque
