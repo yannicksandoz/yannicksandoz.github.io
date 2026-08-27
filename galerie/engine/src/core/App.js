@@ -9,7 +9,7 @@ import {
 } from './PasseSortie.js';
 import { VistaManager } from './Vista.js';
 import { FOG_DENSITY, suivreOmbre } from './RoomManager.js';
-import { budgetLampes } from './ombres.js';
+import { budgetLampes, coqueClose } from './ombres.js';
 import { AudioEngine } from './AudioEngine.js';
 import { Spatialisation } from './Spatialisation.js';
 import { QualityManager } from './Quality.js';
@@ -795,7 +795,18 @@ export class App {
       if (this._lampesAcc >= 0.35) {
         this._lampesAcc = 0;
         const salle = this.rooms?.current;
-        if (salle) budgetLampes(salle, camPos, this.quality.profile.lampesProches);
+        if (salle) {
+          // dans une coque close, les accents les plus proches deviennent
+          // les projeteurs de la salle (voir ombres.budgetLampes) : sans
+          // eux, plus rien n'y porte d'ombre. Un changement d'attribution
+          // salit les cartes — elles se redessinent à la frame suivante.
+          const clos = this.quality.profile.shadows && coqueClose(salle.config);
+          const change = budgetLampes(salle, camPos, {
+            ...this.quality.profile.lampesProches,
+            projecteurs: clos ? (this.quality.profile.projecteursOmbre ?? 0) : 0
+          });
+          if (change) this.ombresSales = true;
+        }
       }
 
       this.vistas?.update(dt); // la pièce apparue se rend avant la vraie

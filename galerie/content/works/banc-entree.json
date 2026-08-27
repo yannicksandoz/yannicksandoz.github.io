@@ -68,7 +68,9 @@
         "rolloff": 2,
         "maxDistance": 100,
         "refDistance": 1
-      }
+      },
+      "debut": "0:04.5",
+      "fin": "5:42.5"
     }
   ],
   "lightDecay": 0.75,

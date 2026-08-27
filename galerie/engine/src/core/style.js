@@ -304,6 +304,26 @@ export function serpentinVoxel(dims, cell) {
  * La forme arrive au point (length/2, hauteur-…) : on trace de droite à
  * gauche. Le creux est relatif — 12 % de la hauteur, plafonné à 1,20 m.
  */
+/**
+ * LA LOI DU COURONNEMENT, seule : x (le long du mur, centré) → de combien
+ * le sommet est DESCENDU à cet endroit, en mètres (0 aux extrémités).
+ *
+ * Exportée pour la même raison que loiParoi : ce qui s'accroche au haut
+ * d'un mur — une corniche lumineuse — doit suivre l'ondulation au lieu de
+ * la traverser. Une seule loi, deux usages : dessinerCouronne la trace,
+ * Artwork.courberCorniche la suit.
+ */
+export function loiCouronne({ length, height }) {
+  const A = Math.min(height * 0.16, 1.5);
+  const phase = (length * 7.13) % (Math.PI * 2);
+  return (x) => {
+    // la forme se trace de DROITE à gauche : t = 0 au bord +length/2
+    const t = Math.min(1, Math.max(0, (length / 2 - x) / length));
+    const porteuse = 0.65 + 0.35 * Math.sin(Math.PI * 2 * 2.2 * t + phase);
+    return A * Math.sin(Math.PI * t) * porteuse;
+  };
+}
+
 export function dessinerCouronne(forme, length, height, segments = 48) {
   // L'ONDULATION, pas l'affaissement. La première version était UNE arche
   // en creux : de loin, elle se relisait comme une droite qui plonge un
@@ -316,14 +336,11 @@ export function dessinerCouronne(forme, length, height, segments = 48) {
   //
   // La phase est SEMÉE PAR LA LONGUEUR du mur : deux murs différents
   // ondulent différemment, le même mur ondule pareil à chaque build.
-  const A = Math.min(height * 0.16, 1.5);
-  const phase = (length * 7.13) % (Math.PI * 2);
+  const creux = loiCouronne({ length, height });
   forme.lineTo(length / 2, height);
   for (let i = 1; i <= segments; i++) {
-    const t = i / segments;
-    const porteuse = 0.65 + 0.35 * Math.sin(Math.PI * 2 * 2.2 * t + phase);
-    forme.lineTo(length / 2 - t * length,
-      height - A * Math.sin(Math.PI * t) * porteuse);
+    const x = length / 2 - (i / segments) * length;
+    forme.lineTo(x, height - creux(x));
   }
   return forme;
 }

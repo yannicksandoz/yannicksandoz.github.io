@@ -9,6 +9,7 @@ import { scaleObjetUV } from './textures.js';
 import { jeuDeSurface, habillerModele } from './matieres.js';
 import { ombreDeContact } from './ombres.js';
 import { estFluide } from './style.js';
+import { lancerBoucle } from './son-bornes.js';
 import { creerCartel, tournerVersCamera, disposerCartel } from './cartels.js';
 
 // crossOrigin « anonymous » : indispensable pour les médias distants, dont
@@ -770,7 +771,25 @@ export class Artwork {
         varying vec3 vPos, vNormal, vView;
         void main() {
           float bands = smoothstep(0.42, 0.5, abs(fract(vPos.y * 1.6 - uTime * 0.12) - 0.5));
-          float fresnel = pow(1.0 - abs(dot(normalize(vView), normalize(vNormal))), 2.2);
+          // LE CARRÉ NOIR QUI CLIGNOTAIT AU MILIEU DE LA STÈLE.
+          //
+          // pow(x, 2.2) d'un x NÉGATIF ne vaut rien : le résultat est un
+          // NaN, et un NaN se rend en pixel noir. Or, vu de face, le
+          // produit scalaire regard·normale vaut 1 — à l'arrondi près, il
+          // le DÉPASSE, et « 1 - |dot| » devient négatif d'un milliardième.
+          // C'est donc au CENTRE de la face qu'on regarde, précisément là
+          // où le fresnel devrait s'éteindre, que la tache apparaissait ;
+          // et l'ondulation audio, qui remue les sommets, la faisait
+          // clignoter. On borne le calcul avant de l'élever à la puissance.
+          //
+          // Même prudence sur les deux normalisations : une longueur nulle
+          // (sommet exactement dans l'œil, échelle écrasée) donnerait un
+          // vecteur NaN, et la stèle entière virerait au noir.
+          float lv = length(vView), ln = length(vNormal);
+          vec3 vue = lv > 1e-6 ? vView / lv : vec3(0.0, 0.0, 1.0);
+          vec3 nor = ln > 1e-6 ? vNormal / ln : vec3(0.0, 0.0, 1.0);
+          float incidence = clamp(1.0 - abs(dot(vue, nor)), 0.0, 1.0);
+          float fresnel = pow(incidence, 2.2);
           vec3 col = uColor * 0.05
                    + uColor * bands * (0.25 + uAudio * 2.8)
                    + uColor * fresnel * (0.25 + uAudio * 1.4);
@@ -854,6 +873,7 @@ export class Artwork {
     const cs = Math.cos(c.rotY), sn = Math.sin(c.rotY);
     const pos = bandeau.geometry.attributes.position;
     const v = new THREE.Vector3();
+    let sommeCreux = 0;
     for (let i = 0; i < pos.count; i++) {
       v.fromBufferAttribute(pos, i).applyMatrix4(versPiece);
       // coordonnée LOCALE du mur le long de sa longueur (rotation inverse)
@@ -862,12 +882,34 @@ export class Artwork {
       // la normale locale +z du mur, tournée dans la pièce : (sin, 0, cos)
       v.x += sn * f;
       v.z += cs * f;
+      // …et le COURONNEMENT : sur un mur à ciel ouvert, le sommet ondule
+      // de plus d'un mètre. Une corniche posée à hauteur fixe passait
+      // au-dessus du mur par endroits et s'y noyait ailleurs — c'est ce
+      // qu'on voyait dans l'entrée. Elle descend maintenant d'autant que
+      // le sommet, donc garde son retrait sous l'arête sur toute sa course.
+      if (c.couronne) {
+        const creux = c.couronne(lx);
+        sommeCreux += creux;
+        v.y -= creux;
+      }
       v.applyMatrix4(retour);
       pos.setXYZ(i, v.x, v.y, v.z);
     }
     pos.needsUpdate = true;
     bandeau.geometry.computeBoundingBox();
     bandeau.geometry.computeBoundingSphere();
+
+    // LA SOURCE, elle, ne se plie pas : une RectAreaLight est un rectangle
+    // rigide. On la descend du creux MOYEN de la portion qu'elle longe —
+    // sans quoi son lavage resterait accroché en haut du mur pendant que
+    // le trait, lui, plonge. L'écart résiduel se lit comme un dégradé, ce
+    // qu'un lavage de mur est déjà.
+    const lampe = groupe.userData.lampeCorniche;
+    if (lampe && c.couronne && pos.count) {
+      const moyen = sommeCreux / pos.count;
+      lampe.position.add(new THREE.Vector3(0, -moyen, 0)
+        .applyQuaternion(groupe.quaternion.clone().invert()));
+    }
   }
 
   /**
@@ -895,11 +937,26 @@ export class Artwork {
     if (cfg.selfLit || isWalkable(cfg)) return;
     const aPlat = Math.abs(this.group.rotation.x) < 0.02
       && Math.abs(this.group.rotation.z) < 0.02;
-    const auSol = (cfg.position?.[1] ?? 1.8) <= 0.9;
-    if (!cfg.contact && !(aPlat && auSol)) return;
 
     const boite = new THREE.Box3().setFromObject(mesh);
     if (boite.isEmpty()) return;
+
+    // EST-IL POSÉ ? — on mesure le BAS RÉEL du maillage, plus la hauteur de
+    // son ORIGINE.
+    //
+    // Un repère se met où l'auteur veut : le monolithe a le sien au CENTRE,
+    // à 2,40 m, alors que sa base touche le plancher. L'ancien critère
+    // (`position[1] <= 0.9`) le déclarait donc « en l'air » et lui refusait
+    // sa tache de contact — comme au rocher du labo. C'étaient les deux
+    // objets qui « se détachaient du sol » : ils n'avaient rien sous eux.
+    // Ici la boîte est déjà construite : on lui demande son plancher.
+    this.group.updateWorldMatrix(true, true);
+    const dansGroupe = boite.clone()
+      .applyMatrix4(new THREE.Matrix4().copy(this.group.matrixWorld).invert());
+    const basPiece = this.group.position.y + dansGroupe.min.y;
+    const auSol = basPiece <= 0.35;
+    if (!cfg.contact && !(aPlat && auSol)) return;
+
     const t = boite.getSize(new THREE.Vector3());
     const empreinte = Math.max(t.x, t.z);
     if (empreinte < 0.15 || empreinte > 6) return;
@@ -996,9 +1053,10 @@ export class Artwork {
         s.gain.gain.setTargetAtTime(s.cfg.gain ?? 1, t0, 0.12);
         const src = ctx.createBufferSource();
         src.buffer = s.buffer;
-        src.loop = true;
         src.connect(s.gain);
-        src.start(t0);
+        // « debut » / « fin » : la part du fichier qui est l'œuvre — un
+        // silence d'amorce ne se réécoute pas à chaque tour de boucle
+        lancerBoucle(src, s.cfg, t0);
         s.source = src;
       }
     } else {
@@ -1188,6 +1246,10 @@ export class Artwork {
    * et intensité de la lumière d'appoint.
    */
   setAudioLevel(level, { pulseScale = 0, emissiveBoost = 0, lightBoost = 2.5 } = {}) {
+    // un niveau NaN (analyseur muet, bande vide) se propagerait dans une
+    // ÉCHELLE et dans une uniform de shader : l'œuvre disparaîtrait sans
+    // rien dire. Un niveau qui n'est pas un nombre vaut zéro.
+    if (!Number.isFinite(level)) level = 0;
     this.audioLevel = level;
     if (this.mesh && pulseScale) {
       this.mesh.scale.setScalar(this.baseScale * (1 + level * pulseScale));

@@ -277,6 +277,7 @@ export function ombreDeContact(rx, rz, y = 0.02) {
       fog: false
     })
   );
+  m.name = 'ombre-contact';     // nommée : une sonde doit pouvoir la compter
   m.rotation.x = -Math.PI / 2;
   m.position.y = y;
   m.renderOrder = 1;            // après le sol, sans écrire la profondeur
@@ -319,7 +320,8 @@ const _posLampe = new THREE.Vector3();
  * (`budgetSourcesEtendues`). Ce qu'on éteint au loin, ce sont des lampes
  * de POCHE — leur flaque à 40 m couvre trois pixels d'écran.
  */
-export function budgetLampes(room, camPos, { points = 6, cones = 6 } = {}) {
+export function budgetLampes(room, camPos,
+  { points = 6, cones = 6, projecteurs = 0 } = {}) {
   if (!room?.group) return;
   const P = [], S = [];
   room.group.traverse((o) => {
@@ -342,4 +344,43 @@ export function budgetLampes(room, camPos, { points = 6, cones = 6 } = {}) {
   };
   appliquer(P, points);
   appliquer(S, cones);
+
+  /* LE PROJETEUR D'UNE PIÈCE CLOSE.
+   *
+   * Une coque fermée n'a plus de soleil (coqueClose), et une RectAreaLight
+   * — la source d'une corniche — ne projette JAMAIS d'ombre dans three.js.
+   * Résultat : plus rien n'y portait d'ombre, et les objets flottaient
+   * exactement comme on venait de le corriger ailleurs. Ce sont donc les
+   * ACCENTS qui projettent, comme les spots d'un vrai musée : les `n` plus
+   * proches, pas davantage — chaque carte coûte un rendu de la salle, même
+   * si la cadence à la demande de l'App en limite la fréquence.
+   *
+   * `S` est déjà trié par distance quand le budget a mordu ; sinon on le
+   * trie ici, pour que « les plus proches » veuille toujours dire la même
+   * chose. Un changement d'état salit les ombres : la carte se redessine.
+   */
+  if (projecteurs > 0 && S.length) {
+    if (S.length <= cones) {
+      for (const l of S) {
+        l.getWorldPosition(_posLampe);
+        l.userData.d2Budget = _posLampe.distanceToSquared(camPos);
+      }
+      S.sort((a, b) => a.userData.d2Budget - b.userData.d2Budget);
+    }
+    let change = false;
+    S.forEach((l, i) => {
+      const veut = l.visible && i < projecteurs;
+      if (l.castShadow === veut) return;
+      l.castShadow = veut;
+      if (veut) {
+        // 1024 suffit : un accent éclaire une œuvre, pas une salle entière
+        l.shadow.mapSize.setScalar(1024);
+        l.shadow.bias = -0.0006;
+        l.shadow.normalBias = 0.02;
+      }
+      change = true;
+    });
+    return change;
+  }
+  return false;
 }

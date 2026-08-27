@@ -46,6 +46,9 @@ export class QualityManager {
           sourcesEtendues: 0,
           // lampes de poche intégrées par pixel : voir budgetLampes (ombres.js)
           lampesProches: { points: 4, cones: 3 },
+          // aucun accent ne projette sur téléphone : les ombres y sont
+          // déjà coupées (shadows: false)
+          projecteursOmbre: 0,
           envIntensity: 0.5
         }
       : {
@@ -70,6 +73,11 @@ export class QualityManager {
           shadowMapSize: 4096,
           sourcesEtendues: 8,
           lampesProches: { points: 6, cones: 6 },
+          // DANS UNE PIÈCE CLOSE, ce sont les accents qui projettent : une
+          // coque fermée n'a plus de soleil et une source étendue (la
+          // corniche) ne projette jamais. Trois cartes de 1024 au plus,
+          // redessinées à la cadence à la demande — voir ombres.budgetLampes.
+          projecteursOmbre: 3,
           envIntensity: 0.5
         };
     this.profile.reducedMotion = this.reducedMotion;

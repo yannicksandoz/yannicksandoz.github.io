@@ -5,10 +5,11 @@ import { styleTexture, scaleBoxUV, scalePlaneUV, scaleWorldUV, scaleObjetUV,
   patcherRepetition, TILE }
   from './textures.js';
 import { styleMatiere, jeuDeSurface } from './matieres.js';
-import { estFluide, materiauFluide, dessinerCouronne, courberParoi, loiParoi }
-  from './style.js';
+import { estFluide, materiauFluide, dessinerCouronne, courberParoi, loiParoi,
+  loiCouronne } from './style.js';
 import { aDesSourcesEtendues } from './primitives.js';
 import { delaiDe, fermer, estFerme, tick as tickCooldown } from './Cooldown.js';
+import { lancerBoucle } from './son-bornes.js';
 import { reverbDePiece } from './reverb-reglages.js';
 import { creerCartel, majCartel, disposerCartel, tournerVersCamera }
   from './cartels.js';
@@ -792,9 +793,9 @@ export class RoomManager {
           gain.connect(bus);
           const src = ctx.createBufferSource();
           src.buffer = buffer;
-          src.loop = true;
           src.connect(gain);
-          src.start(t0);
+          // une ambiance porte ses bornes comme une piste d'œuvre
+          lancerBoucle(src, cfgs[i], t0);
           return { src, gain };
         });
       } catch (err) {
@@ -1559,6 +1560,10 @@ export function buildShell(config) {
       group.userData.courbures ??= {};
       group.userData.courbures[wall] = {
         loi: loiParoi({ length, height: h, sink: SINK, zones, plafonne: !!opt.ceiling }),
+        // …et, quand le mur est à ciel ouvert, la loi de son COURONNEMENT :
+        // le sommet ondule de plus d'un mètre, ce qui s'y accroche doit
+        // monter et descendre avec lui
+        couronne: opt.ceiling ? null : loiCouronne({ length, height: h }),
         sens, rotY, x, z
       };
     }

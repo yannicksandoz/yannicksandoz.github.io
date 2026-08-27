@@ -22,7 +22,7 @@
     "longueur": 26.4,
     "epaisseur": 0.12,
     "color": "#ffe4c6",
-    "intensite": 10,
+    "intensite": 100,
     "mur": "nord",
     "inclinaison": 45
   },

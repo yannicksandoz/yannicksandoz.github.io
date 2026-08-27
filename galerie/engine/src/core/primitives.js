@@ -522,13 +522,38 @@ function buildCorniche(size, model) {
   // donner une source étendue coûterait une lampe de plus par passerelle
   // pour un effet que personne ne verrait. Les lavages de mur, eux, la
   // gardent : c'est la surface léchée qui fait tout leur travail.
-  if (model.lampe !== false && budgetSourcesEtendues > 0) {
-    const lampe = new THREE.RectAreaLight(
-      couleur, model.intensite ?? 12, longueur, Math.max(epaisseur, 0.5));
-    // légèrement en avant de la fente : la lampe ne s'éclaire pas elle-même
-    lampe.position.z = -0.02;
-    groupe.add(lampe);
-    groupe.userData.lampeCorniche = lampe;
+  if (model.lampe !== false) {
+    const force = model.intensite ?? 12;
+    if (budgetSourcesEtendues > 0) {
+      const lampe = new THREE.RectAreaLight(
+        couleur, force, longueur, Math.max(epaisseur, 0.5));
+      // légèrement en avant de la fente : la lampe ne s'éclaire pas elle-même
+      lampe.position.z = -0.02;
+      groupe.add(lampe);
+      groupe.userData.lampeCorniche = lampe;
+    } else {
+      // PROFIL SANS SOURCES ÉTENDUES (mobile) : la fente garderait son
+      // trait mais n'éclairerait plus RIEN. Tant qu'un soleil traversait
+      // la coque, cela passait ; depuis qu'une pièce close n'est éclairée
+      // que par ses propres sources (voir ombres.coqueClose), la salle
+      // serait NOIRE sur téléphone. Trois ponctuelles réparties le long de
+      // la fente rendent le lavage pour une fraction du coût d'une LTC —
+      // et le budget de lampes proches les gère comme les autres.
+      const n = 3;
+      const relais = [];
+      for (let i = 0; i < n; i++) {
+        // le flux d'une source étendue se répartit sur ses relais : chacune
+        // en porte le tiers, avec une décroissance douce pour que le mur
+        // reste léché de bout en bout plutôt que taché de trois halos
+        const l = new THREE.PointLight(couleur, force * 0.09 / n,
+          Math.max(6, longueur * 0.9), 1.2);
+        l.position.set((i / (n - 1) - 0.5) * longueur * 0.72, 0, -0.25);
+        l.name = 'corniche-relais';
+        groupe.add(l);
+        relais.push(l);
+      }
+      groupe.userData.relaisCorniche = relais;
+    }
   }
 
   // LE MUR PLUTÔT QUE LES DEGRÉS. Poser vingt corniches en composant des

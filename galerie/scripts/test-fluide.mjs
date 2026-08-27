@@ -30,7 +30,7 @@ register('data:text/javascript,'
     }`), import.meta.url);
 
 const { setStyle, styleCourant, estFluide, patcherStries, dessinerCouronne,
-  tesseler, courberParoi, loiParoi, serpentinVoxel } =
+  tesseler, courberParoi, loiParoi, loiCouronne, serpentinVoxel } =
   await import('../engine/src/core/style.js');
 const { buildPrimitive } = await import('../engine/src/core/primitives.js');
 const { buildVoxelMeshMerged, buildVoxelCollider } =
@@ -425,6 +425,28 @@ test('loiParoi est LA loi de courberParoi — ce qui s\'accroche au mur le suit'
     assert.ok(d > -0.151 && d < 0.151,
       `sommet ${i} : écart à la loi ${d.toFixed(4)}`);
   }
+});
+
+test('loiCouronne est LA loi du couronnement — la corniche suit le sommet', () => {
+  const L = 60.3, H = 10;
+  const creux = loiCouronne({ length: L, height: H });
+  // le tracé et la loi doivent dire la MÊME chose : on relit les sommets
+  // dessinés et on les confronte à la loi, point par point
+  const points = [];
+  const forme = { lineTo: (x, y) => points.push([x, y]) };
+  dessinerCouronne(forme, L, H, 48);
+  assert.ok(points.length === 49, `49 points tracés (${points.length})`);
+  for (const [x, y] of points) {
+    assert.ok(Math.abs((H - creux(x)) - y) < 1e-9,
+      `x=${x.toFixed(2)} : tracé ${y.toFixed(4)} vs loi ${(H - creux(x)).toFixed(4)}`);
+  }
+  // aux extrémités le sommet est intact (les angles se rejoignent)
+  assert.ok(Math.abs(creux(L / 2)) < 1e-9 && Math.abs(creux(-L / 2)) < 1e-9);
+  // et au milieu il plonge franchement — c'est ce que la corniche doit suivre
+  let max = 0;
+  for (let x = -L / 2; x <= L / 2; x += 0.25) max = Math.max(max, creux(x));
+  assert.ok(max > 0.5, `l'ondulation dépasse le demi-mètre (${max.toFixed(2)} m)`);
+  assert.ok(max <= 1.5 + 1e-9, `plafonnée à 1,5 m (${max.toFixed(2)})`);
 });
 
 test('coqueClose : plafond + quatre murs = plus jamais de soleil dedans', () => {
