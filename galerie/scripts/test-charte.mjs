@@ -22,7 +22,8 @@ import { CHARTE, EXTERIEURS, LUMINAIRES, clarte, teinteEtSaturation, ecartTeinte
   auditSalles, auditAccrochage, auditRecul, auditHierarchie, auditVista,
   auditRythme, auditBancs, auditAmpleur, ampleurOeuvre, angleApparent,
   arriveesDe, salles, auditDecor, auditLignes, empriseAuSol,
-  occupationVoxel, LABYRINTHES, auditCouronnement, GARDE_COURONNE }
+  occupationVoxel, LABYRINTHES, auditCouronnement, GARDE_COURONNE,
+  auditSeuils, AIR_SEUIL, auditCorniches, GARDE_CORNICHE }
   from './charte.mjs';
 import { setStyle, loiCouronne } from '../engine/src/core/style.js';
 
@@ -424,7 +425,9 @@ test('la règle regarde bien les murs à ciel ouvert', () => {
   assert.ok(r.length >= 4, `${r.length} accroches mesurées seulement`);
   assert.ok(r.every((c) => c.sommet > 0 && c.sommet < 40));
   // et jamais une salle couverte : sous plafond, il n'y a pas de crête
-  assert.ok(!r.some((c) => c.salle === 'labo' || c.salle === 'archives'));
+  // (le labo l'était ; il a perdu son plafond pour une nuit étoilée)
+  assert.ok(!r.some((c) => c.salle === 'archives' || c.salle === 'bibliotheque'));
+  assert.ok(r.some((c) => c.salle === 'labo'), 'le labo est désormais à ciel ouvert');
 });
 test('la crête ONDULE — plusieurs ventres, et les angles à pleine hauteur', () => {
   setStyle('fluide');
@@ -444,6 +447,59 @@ test('la crête ONDULE — plusieurs ventres, et les angles à pleine hauteur', 
     if (s !== 0) avant = s;
   }
   assert.ok(inflexions >= 4, `la ligne monte et redescend (${inflexions} inflexions)`);
+});
+
+titre('les seuils');
+test('aucun portail ne s\'ouvre dans un objet', () => {
+  // c'est la faute bête, celle qu'on ne voit qu'en jouant : un portail
+  // planté dans un escalier, un buisson, un rayonnage. On la mesure une
+  // fois pour toutes plutôt que de la déplacer à la main chaque fois.
+  const encombres = auditSeuils();
+  assert.deepEqual(encombres.map((f) => `${f.salle} → ${f.portail} : ${f.objet}`
+    + ` (${f.air.toFixed(2)} m)`), []);
+});
+test('la règle a de quoi juger, et sait dire non', () => {
+  // sans garde-fou, une règle qui ne trouve plus rien à mesurer passe
+  // toujours : on exige qu'elle ait des portails ET des corps à confronter
+  let portails = 0, corps = 0;
+  for (const s of salles()) {
+    portails += (s.portals ?? []).length;
+    corps += (s.works ?? []).length;
+  }
+  assert.ok(portails >= 15, `${portails} portails seulement`);
+  assert.ok(corps >= 150, `${corps} œuvres seulement`);
+  assert.ok(AIR_SEUIL >= 0.7, 'le passage exigé reste à hauteur d’homme');
+  // et l'escalier du belvédère — la faute d'origine — est bien un corps
+  // large, pas un disque : c'est ce qui rendait la mesure inexploitable
+  const marche = empriseAuSol({ model: { shape: 'voxel', dims: [4, 18, 18], cell: 0.32 },
+    voxels: null });
+  assert.ok(marche.demiX <= marche.demiZ, 'une volée est plus longue que large');
+});
+
+titre('les corniches');
+test('aucune corniche ne traverse une baie', () => {
+  // le bandeau lumineux suit la crête du mur ; là où la crête plonge, il
+  // coupait les trois écrans de l'entrée en deux
+  const coupees = auditCorniches().filter((c) => !c.libre);
+  assert.deepEqual(coupees.map((c) => `${c.salle} · ${c.corniche} ∩ ${c.quoi}`
+    + ` (${c.degagement} m)`), []);
+});
+test('la règle mesure au décalage de chaque accroche, pas au milieu', () => {
+  const r = auditCorniches();
+  assert.ok(r.length >= 10, `${r.length} croisements mesurés seulement`);
+  // à ciel ouvert, deux accroches d'un même bandeau à des x différents ne
+  // peuvent pas donner la même hauteur : sinon la loi de crête est ignorée
+  const parBandeau = new Map();
+  for (const c of r) {
+    if (!parBandeau.has(c.corniche)) parBandeau.set(c.corniche, new Set());
+    parBandeau.get(c.corniche).add(`${c.offset}:${c.bandeau}`);
+  }
+  const ondule = [...r].some((c) => {
+    const jumeaux = r.filter((d) => d.corniche === c.corniche && d.offset !== c.offset);
+    return jumeaux.some((d) => Math.abs(d.bandeau - c.bandeau) > 0.01);
+  });
+  assert.ok(ondule, 'le bandeau est mesuré partout à la même hauteur');
+  assert.ok(r.every((c) => c.bandeau > 0 && c.bandeau < 40));
 });
 
 titre('le décor se tait');

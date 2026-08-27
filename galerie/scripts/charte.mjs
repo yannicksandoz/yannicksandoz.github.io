@@ -671,8 +671,13 @@ export function empriseAuSol(w) {
   const h = Math.max(sx, sz);
   // `bas` et `haut` sont RELATIFS à la position : la plupart des formes se
   // centrent sur elle, un voxel repose dessus.
+  // `demiX`/`demiZ` : l'emprise PAR AXE. Un rayon unique prend la plus
+  // grande des deux, ce qui fait d'une volée de sept mètres de long un
+  // disque de sept mètres de diamètre — et condamne des portails qu'elle
+  // ne touche pas. Les règles qui visent juste ont besoin du rectangle.
   const centre = (largeur, hauteur) => ({
-    rayon: (largeur * h) / 2, bas: -(hauteur * sy) / 2, haut: (hauteur * sy) / 2
+    rayon: (largeur * h) / 2, demiX: (largeur * sx) / 2, demiZ: (largeur * sz) / 2,
+    bas: -(hauteur * sy) / 2, haut: (hauteur * sy) / 2
   });
 
   const m = w.model ?? {};
@@ -681,7 +686,8 @@ export function empriseAuSol(w) {
   // qu'on longe en réalité sans même ralentir.
   if (m.shape === 'eau') {
     const t = Number.isFinite(m.size) ? m.size : 1.5;
-    return { rayon: (1.6 * t * h) / 2, bas: -0.05, haut: 0.05 };
+    return { rayon: (1.6 * t * h) / 2, demiX: (1.6 * t * sx) / 2,
+      demiZ: (1.6 * t * sz) / 2, bas: -0.05, haut: 0.05 };
   }
   // Un GALET est une dalle : large comme sa `size`, épaisse de quelques
   // centimètres (`epaisseur`). Comptée cubique, la margelle du bassin —
@@ -690,7 +696,8 @@ export function empriseAuSol(w) {
   if (m.shape === 'galet') {
     const t = Number.isFinite(m.size) ? m.size : 1.5;
     const ep = Math.max(0.02, Number(m.epaisseur) || t * 0.1);
-    return { rayon: (1.6 * t * h) / 2, bas: -(ep * sy) / 2, haut: (ep * sy) / 2 };
+    return { rayon: (1.6 * t * h) / 2, demiX: (1.6 * t * sx) / 2,
+      demiZ: (1.6 * t * sz) / 2, bas: -(ep * sy) / 2, haut: (ep * sy) / 2 };
   }
   if (Array.isArray(w.size) && w.size.length === 2) return centre(w.size[0], w.size[1]);
   if (Array.isArray(w.scanTaille) && w.scanTaille.length === 3) {
@@ -705,11 +712,15 @@ export function empriseAuSol(w) {
     // qu'elle laisse en fait entièrement libre.
     const occ = occupationVoxel(m);
     if (occ) {
-      return { rayon: (occ.largeur * h) / 2, bas: occ.bas * sy, haut: occ.haut * sy };
+      return { rayon: (occ.largeur * h) / 2,
+        demiX: (occ.largeurX * sx) / 2, demiZ: (occ.largeurZ * sz) / 2,
+        bas: occ.bas * sy, haut: occ.haut * sy };
     }
     const [dx, dy, dz] = m.dims ?? [16, 16, 16];
     const cell = m.cell ?? 0.25;
-    return { rayon: (Math.max(dx, dz) * cell * h) / 2, bas: 0, haut: dy * cell * sy };
+    return { rayon: (Math.max(dx, dz) * cell * h) / 2,
+      demiX: (dx * cell * sx) / 2, demiZ: (dz * cell * sz) / 2,
+      bas: 0, haut: dy * cell * sy };
   }
   if (m.shape) {
     const t = Number.isFinite(m.size) ? m.size : 1.5;
@@ -758,6 +769,7 @@ export function occupationVoxel(m) {
   if (!vu) return null;
   return {
     largeur: Math.max(x1 - x0 + 1, z1 - z0 + 1) * cell,
+    largeurX: (x1 - x0 + 1) * cell, largeurZ: (z1 - z0 + 1) * cell,
     bas: y0 * cell, haut: (y1 + 1) * cell
   };
 }
@@ -869,6 +881,109 @@ export function auditCouronnement() {
   return rapport;
 }
 
+/**
+ * UN PORTAIL N'EST PAS DANS UN ESCALIER.
+ *
+ * Une porte se franchit : il faut de l'air devant, à hauteur de corps. Rien
+ * ne le vérifiait, et la même faute revenait à chaque fois qu'on déplaçait
+ * une volée ou qu'on redimensionnait une salle — au belvédère, deux portails
+ * ouvraient dans la masse d'un escalier. On mesure donc l'ENCOMBREMENT du
+ * seuil : tout objet dont le rectangle au sol touche le portail, et dont la
+ * tranche verticale recoupe celle d'un passant, est une faute.
+ *
+ * `AIR_SEUIL` : le rayon d'air exigé autour de l'axe du portail, en plus de
+ * l'emprise de l'objet. Un visiteur fait trente-cinq centimètres de large ;
+ * on demande le double, pour passer sans raser.
+ */
+export const AIR_SEUIL = 0.7;
+const CORPS = { bas: 0.2, haut: 2.1 };
+
+export function auditSeuils() {
+  const oeuvres = new Map(toutesLesOeuvres().map((w) => [w.id, w]));
+  const rapport = [];
+  for (const s of salles()) {
+    const corps = (s.works ?? []).map((n) => oeuvres.get(n)).filter(Boolean)
+      .filter((w) => !LUMINAIRES.has(w.model?.shape) && w.model?.shape !== 'lucioles'
+        && w.solid !== false)
+      .map((w) => {
+        const e = empriseAuSol(w);
+        const [x, y, z] = w.position ?? [0, 0, 0];
+        return { id: w.id, x, z, demiX: e.demiX, demiZ: e.demiZ,
+          bas: y + e.bas, haut: y + e.haut };
+      });
+    for (const p of s.portals ?? []) {
+      const [px, py, pz] = p.position ?? [0, 0, 0];
+      const bas = py + CORPS.bas, haut = py + CORPS.haut;
+      for (const c of corps) {
+        if (c.haut <= bas || c.bas >= haut) continue;        // pas à hauteur d'homme
+        const dx = Math.max(0, Math.abs(c.x - px) - c.demiX - AIR_SEUIL);
+        const dz = Math.max(0, Math.abs(c.z - pz) - c.demiZ - AIR_SEUIL);
+        if (dx > 0 || dz > 0) continue;                      // il reste de l'air
+        rapport.push({
+          salle: s.id, portail: p.to ?? '?', objet: c.id,
+          position: [px, py, pz],
+          air: +Math.min(Math.abs(c.x - px) - c.demiX, Math.abs(c.z - pz) - c.demiZ)
+            .toFixed(2)
+        });
+      }
+    }
+  }
+  return rapport;
+}
+
+/**
+ * UNE CORNICHE NE TRAVERSE PAS UNE BAIE.
+ *
+ * Le bandeau lumineux court au sommet d'un mur ; une baie ou une apparition
+ * posée trop haut le coupe en deux, et la lumière semble sortir du verre.
+ * En mode fluide la corniche SUIT le couronnement (Artwork courbe le
+ * bandeau de `loiCouronne`) : sa hauteur dépend donc de l'endroit, et c'est
+ * là qu'elle plongeait sur les trois écrans de l'entrée. On la mesure au
+ * décalage de chaque accroche, pas au milieu du mur.
+ */
+export const GARDE_CORNICHE = 0.3;
+
+export function auditCorniches() {
+  setStyle('fluide');
+  const oeuvres = new Map(toutesLesOeuvres().map((w) => [w.id, w]));
+  const rapport = [];
+  for (const s of salles()) {
+    const coque = s.shell && s.shell !== true ? s.shell : null;
+    if (!coque) continue;
+    const h = Number(coque.height) || 4;
+    const decouvert = !coque.ceiling;
+    const longueurDe = (mur) => (mur === 'nord' || mur === 'sud'
+      ? (Number(coque.width) || 20) + WALL_T
+      : (Number(coque.depth) || 20) - WALL_T);
+    const bandeaux = (s.works ?? []).map((n) => oeuvres.get(n)).filter(Boolean)
+      .filter((w) => w.model?.shape === 'corniche' && w.model?.mur);
+    const accroches = [
+      ...(coque.windows ?? []).map((o) => ({ quoi: `baie ${o.wall}`, ...o })),
+      ...(s.vistas ?? []).map((v) => ({ quoi: `apparition ${v.room}`, ...v }))
+    ];
+    for (const b of bandeaux) {
+      const mur = b.model.mur;
+      const length = longueurDe(mur);
+      // en mode fluide et à ciel ouvert, le bandeau descend avec la crête
+      const creux = decouvert ? loiCouronne({ length, height: h }) : () => 0;
+      const ep = (Number(b.model.epaisseur) || 0.12) * (b.scale?.[1] ?? 1);
+      for (const a of accroches) {
+        if ((a.wall ?? 'nord') !== mur) continue;
+        const x = a.offset ?? 0;
+        const yBandeau = (b.position?.[1] ?? h) - creux(x);
+        const haut = (a.sill ?? 1.1) + (a.height ?? 1.8);
+        rapport.push({
+          salle: s.id, corniche: b.id, quoi: a.quoi, offset: x,
+          bandeau: +(yBandeau - ep / 2).toFixed(2), haut: +haut.toFixed(2),
+          degagement: +(yBandeau - ep / 2 - haut).toFixed(2),
+          libre: yBandeau - ep / 2 - haut >= GARDE_CORNICHE
+        });
+      }
+    }
+  }
+  return rapport;
+}
+
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
   console.log('\nLES SALLES\n');
   console.log('  salle           sol    mur   écart  sat.  teinte  verdict');
@@ -934,6 +1049,24 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
         + ` x=${String(c.offset).padStart(5)}  haut ${c.haut} m`
         + `  crête ${c.sommet} m  dégagement ${c.degagement} m  ${c.sous ? '✓' : '✗'}`);
     }
+  }
+
+  const seuils = auditSeuils();
+  console.log(`\nLES SEUILS (≥ ${AIR_SEUIL} m d’air autour de l’axe d’un portail)\n`);
+  if (!seuils.length) console.log('  aucun portail encombré ✓');
+  for (const f of seuils) {
+    console.log(`  ${f.salle.padEnd(13)} → ${f.portail.padEnd(13)}`
+      + ` ${f.objet.padEnd(20)} air ${f.air.toFixed(2)} m  ✗`);
+  }
+
+  const corn = auditCorniches();
+  const coupees = corn.filter((c) => !c.libre);
+  console.log(`\nLES CORNICHES (≥ ${GARDE_CORNICHE} m au-dessus d’une baie)\n`);
+  if (!coupees.length) console.log(`  ${corn.length} croisements, aucun traversé ✓`);
+  for (const c of coupees) {
+    console.log(`  ${c.salle.padEnd(13)} ${c.corniche.padEnd(24)} ${c.quoi.padEnd(24)}`
+      + ` x=${String(c.offset).padStart(5)}  bandeau ${c.bandeau} m`
+      + `  sommet ${c.haut} m  dégagement ${c.degagement} m  ✗`);
   }
 
   const rythme = auditRythme();

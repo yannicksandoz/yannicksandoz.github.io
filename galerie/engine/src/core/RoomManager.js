@@ -685,30 +685,67 @@ export class RoomManager {
     // téléportation : la collision doit repartir d'ici, pas d'il y a une frame
     this.app.controls?.resyncCollision?.();
     // Premier regard : une ŒUVRE dans le cadre plutôt que le vide — le
-    // visiteur qui apparaît sait immédiatement vers quoi marcher. À défaut
-    // (pièce sans œuvre), le centre de la pièce reste le cap.
-    const oeuvre = this._oeuvreLaPlusProche(pos);
+    // visiteur qui apparaît sait immédiatement vers quoi marcher.
+    //
+    // MAIS PAS DERRIÈRE SOI. On atterrit à deux pas du portail de retour ;
+    // l'œuvre la plus proche est souvent de ce côté-là, et l'on entrait
+    // donc à reculons, le nez sur la porte d'où l'on venait — c'est ce qui
+    // arrivait en passant de l'allée à la bibliothèque. Le cap d'entrée
+    // part dos à cette porte, et ne retient une œuvre que si elle est
+    // DEVANT ; à défaut, on regarde vers l'intérieur de la pièce.
+    const dedans = this._versLInterieur(pos);
+    const oeuvre = this._oeuvreLaPlusProche(pos, dedans);
     const dir = oeuvre
       ? oeuvre.clone().sub(cam.position).setY(0)
-      : new THREE.Vector3(-pos[0], 0, -pos[2]);
-    if (dir.lengthSq() < 0.01) dir.set(0, 0, -1);
+      : dedans.clone();
+    if (dir.lengthSq() < 0.01) dir.copy(dedans);
     dir.normalize();
     this.app.controls?.orbit.target
       .set(pos[0], pos[1] - 0.2, pos[2])
       .addScaledVector(dir, 4);
   }
 
-  /** Position monde de l'œuvre (role ≠ decor) la plus proche de `pos`. */
-  _oeuvreLaPlusProche(pos) {
+  /**
+   * Le cap « vers l'intérieur » depuis un point d'arrivée : dos au portail
+   * le plus proche s'il y en a un à portée de pas, sinon vers le centre de
+   * la pièce. Au-delà de six mètres, une porte n'est plus celle par
+   * laquelle on vient d'entrer — c'est juste une porte de la salle.
+   */
+  _versLInterieur(pos) {
+    const v = new THREE.Vector3();
+    let porte = null, bestD = 6;
+    for (const p of this.current?.config.portals ?? []) {
+      const q = p.position ?? [0, 0, 0];
+      const d = Math.hypot(q[0] - pos[0], q[2] - pos[2]);
+      if (d < bestD) { bestD = d; porte = q; }
+    }
+    if (porte) v.set(pos[0] - porte[0], 0, pos[2] - porte[2]);
+    else v.set(-pos[0], 0, -pos[2]);
+    if (v.lengthSq() < 0.01) v.set(0, 0, -1);
+    return v.normalize();
+  }
+
+  /**
+   * Position monde de l'œuvre (role ≠ decor) la plus proche de `pos`, parmi
+   * celles qui se trouvent DEVANT `devant`. Le seuil à 0,15 laisse passer
+   * ce qui est franchement de côté, pas ce qui est dans le dos.
+   */
+  _oeuvreLaPlusProche(pos, devant = null) {
     const room = this.current;
     if (!room) return null;
     room.group.updateMatrixWorld(true);
     const p = new THREE.Vector3(pos[0], pos[1], pos[2]);
     const v = new THREE.Vector3();
+    const vers = new THREE.Vector3();
     let best = null, bestD = Infinity;
     for (const a of room.artworks ?? []) {
       if (a.config.role === 'decor') continue;
-      const d = a.group.getWorldPosition(v).distanceTo(p);
+      a.group.getWorldPosition(v);
+      if (devant) {
+        vers.copy(v).sub(p).setY(0);
+        if (vers.lengthSq() > 0.01 && vers.normalize().dot(devant) < 0.15) continue;
+      }
+      const d = v.distanceTo(p);
       if (d < bestD) { bestD = d; best = v.clone(); }
     }
     return best;

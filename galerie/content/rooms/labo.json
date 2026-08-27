@@ -81,10 +81,8 @@
     "height": 8,
     "color": "#535380",
     "texture": "pierre",
-    "ceiling": true,
-    "wallColors": {
-      "plafond": "#33334f"
-    }
+    "ceiling": false,
+    "wallColors": {}
   },
   "keyLight": false,
   "vistas": [
@@ -110,7 +108,7 @@
       "offset": -10,
       "width": 4,
       "height": 2,
-      "sill": 4.8,
+      "sill": 3.6,
       "anchor": {
         "position": [
           0,
@@ -136,5 +134,13 @@
     "sombre": 0.45,
     "envoi": 0.18,
     "premieres": 0.4
+  },
+  "sky": {
+    "zenith": "#050813",
+    "horizon": "#0d1426",
+    "cloudColor": "#141d33",
+    "clouds": 0.12,
+    "haze": 0.38,
+    "stars": 0.85
   }
 }

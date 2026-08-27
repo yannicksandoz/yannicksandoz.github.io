@@ -1485,6 +1485,8 @@ muséographie, pas d'un goût :
 | l'**ampleur à l'arrivée** | depuis CHAQUE entrée d'une salle (son spawn et chaque portail entrant), au moins une œuvre occupe ≥ 12° du champ |
 | les **lignes de force** | sur l'axe d'une arrivée vers une porte, ou d'une porte à l'autre, tout objet laisse ≥ 1,20 m de passage |
 | le **couronnement** | sur un mur à ciel ouvert, tout ce qui s'accroche reste ≥ 0,40 m sous la crête ondulée, à son propre décalage |
+| les **seuils** | autour de l'axe de chaque portail, ≥ 0,70 m d'air à hauteur d'homme — aucun escalier, aucun rayonnage, aucun buisson dans une porte |
+| les **corniches** | un bandeau lumineux passe ≥ 0,30 m au-dessus de toute baie ou apparition du même mur, mesuré au décalage de celle-ci |
 
 **Les faces aussi.** `wallColors` peint chaque paroi séparément, et l'audit
 ne lisait que `shell.color` : les cinq faces du belvédère ont vécu là entre
@@ -1585,6 +1587,19 @@ une référence, pas une copie. Le carreau échantillonnait de −0,67 à +0,33
 au lieu de 0 à 1 : un texel de bord étalé sur toute la baie. C'est le
 « tout zoom dans l'image » du couloir.
 
+**On n'arrive plus à reculons.** Le premier regard d'une salle visait
+l'œuvre la plus proche, sans se demander où elle était : arrivé dans la
+bibliothèque par la porte de l'allée, le visiteur se retournait vers CETTE
+porte — cos +0,999 avec l'axe du retour, mesuré. Un cadrage d'arrivée a
+maintenant deux temps : d'abord `_versLInterieur` prend le portail le plus
+proche du point d'arrivée (moins de six mètres) et pointe l'opposé — on
+tourne le dos à la porte dont on sort, comme dans la vie ; ensuite
+`_oeuvreLaPlusProche` ne retient qu'une œuvre située DEVANT cette
+direction, et l'intérieur sert de repli s'il n'y en a aucune. Mesuré après
+coup : −0,63 au lieu de +0,999, on entre dans la salle. Le point d'arrivée
+lui-même a reculé de deux mètres (il tombait à 2 m d'un mur dans une salle
+de 28 × 22).
+
 **Les lignes de force.** Un visiteur ne suit pas le plan qu'on lui dessine :
 il suit l'axe le plus court entre là où il est et là où il va. Les
 urbanistes appellent ça une *desire line* — le sentier que les pas creusent
@@ -1613,6 +1628,57 @@ Trois autres objets (deux bancs, une stèle) ont bougé du minimum calculé —
 quarante centimètres à un mètre soixante — et la seconde lanterne de
 l'allée est passée franchement à l'est, où elle alterne avec la première.
 Les trente-cinq lignes de force de la galerie sont franches.
+
+**Les seuils, et les corniches.** Deux fautes revenaient à la main, salle
+après salle : un portail planté dans un escalier, et un bandeau lumineux
+qui coupait une fenêtre en deux. Les déplacer une fois de plus n'apprend
+rien à la galerie ; deux règles le font.
+
+`auditSeuils` prend chaque portail, dresse autour de son axe le rectangle
+d'un visiteur — 0,70 m d'air en plus de l'emprise de l'objet, entre 0,20 et
+2,10 m du sol — et refuse tout corps solide qui l'entame. Elle a trouvé
+cinq seuils encombrés : le portail du labo **dans la volée r2** du
+belvédère (2,63 m dans la matière — c'était bien celui qu'on voyait), un
+rayonnage centré sur la porte de l'allée dans la bibliothèque, un buisson,
+une lanterne et la couronne d'un arbre. Le portail est descendu d'un
+niveau, **de plain-pied sur le palier r2**, avec 1,25 m d'air ; le
+rayonnage est passé au mur nord entre les deux fenêtres ; les trois autres
+se sont écartés du minimum calculé. Cette même règle a servi à CHOISIR la
+nouvelle place du portail : on balaie les quatre murs, on ne garde que les
+points qui ont de l'air ET un palier affleurant sous les pieds, et l'on
+prend le plus proche de l'ancien.
+
+`auditCorniches` mesure le bandeau **là où la baie se trouve**, pas au
+milieu du mur : en style fluide la corniche suit `loiCouronne`, si bien
+qu'un décalage de dix-huit mètres change sa hauteur d'un mètre. Elle a
+trouvé cinq croisements fautifs sur dix-huit, dont les **trois écrans de
+l'entrée**, traversés de −0,25 à −0,14 m. La corniche de l'entrée est
+montée de 8,60 à 9,60 m — elle épouse la crête et passe désormais 0,75 à
+0,86 m au-dessus des trois apparitions — et deux baies serrées (archives,
+labo) sont descendues.
+
+**Le labo passe la nuit dehors.** Sa coque a perdu son plafond : la crête
+ondulée s'ouvre sur un dôme de ciel, et `Sky.js` a gagné un champ,
+`stars`. Les étoiles sont procédurales comme le reste — une grille sur la
+direction du regard, une étoile posée au hasard DANS sa cellule (alignées
+sur les nœuds, elles feraient un damier), la taille tirée du même hash pour
+que quelques-unes dominent, un scintillement propre à chacune, et une
+extinction près de l'horizon. Elles se peignent AVANT les nuages : un
+nuage qui passe les efface. Le coût reste un seul appel de dessin.
+
+Le labo était déjà une salle sans soleil (`keyLight: false`, brouillard à
+#06060c) — le ciel de nuit ne fait qu'achever ce qu'elle disait. La lune,
+qui traînait à 6,94 m sous l'ancien plafond, est montée à 17 m et a grandi
+de 5,7 à 8 : elle est passée d'objet posé dans la pièce à astre au-dessus
+d'elle. Les quatre corniches sont montées de 6,90 à 7,60 m pour épouser la
+crête maintenant visible, et l'apparition du couloir est redescendue sous
+le bandeau qui plonge.
+
+Ce que ces règles ne couvrent PAS, et il faut le dire : elles vérifient
+l'air autour d'un portail, pas qu'on ait quelque chose sous les pieds. Au
+belvédère, huit portails sur dix s'ouvrent au-dessus du vide au sens de
+l'axe Y — et c'est légitime, la salle bascule sa gravité. Une règle
+d'assise demanderait le modèle des bascules ; elle n'est pas écrite.
 
 Deux formes mentaient sur leur volume et faisaient accuser des objets
 qu'on enjambe : la **margelle** du bassin (7,4 m de large, 24 cm d'épais)

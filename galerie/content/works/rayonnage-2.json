@@ -3,9 +3,9 @@
   "title": "Les rayonnages",
   "description": "Six rayonnages, et entre eux un feuilletage sans mains : des pages qu'on tourne à plusieurs, jamais une note. Le murmure n'a pas de source — il a un lieu, et l'on y entre en marchant.",
   "position": [
-    -12.9,
+    0,
     1.6,
-    0
+    -9.9
   ],
   "rotation": [
     0,
@@ -13,9 +13,9 @@
     0
   ],
   "scale": [
-    0.5,
+    3.6,
     3.2,
-    3.6
+    0.5
   ],
   "modules": [],
   "model": {

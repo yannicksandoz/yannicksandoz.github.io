@@ -4,7 +4,7 @@
   "description": "#space",
   "position": [
     9.19,
-    6.94,
+    17.0,
     -15.59
   ],
   "rotation": [
@@ -22,7 +22,7 @@
   "model": {
     "type": "gltf",
     "url": "library/models/moon.glb",
-    "fit": 5.7,
+    "fit": 8,
     "source": "polypizza"
   },
   "lightColor": "#cfd0e0",

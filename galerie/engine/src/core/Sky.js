@@ -13,10 +13,12 @@ import * as THREE from 'three';
  *
  * Par pièce, dans le JSON :
  *   "sky": { "zenith": "#2f66c9", "horizon": "#bcd8f4",
- *            "cloudColor": "#eef3fa", "clouds": 0.45, "haze": 0.55 }
+ *            "cloudColor": "#eef3fa", "clouds": 0.45, "haze": 0.55,
+ *            "stars": 0 }
  *
  * `clouds` est la couverture (0 = aucun, 1 = couvert), `haze` l'épaisseur
- * de la brume d'horizon. Les nuages dérivent lentement (uTime, poussé par
+ * de la brume d'horizon, `stars` la densité du champ d'étoiles (0 le jour,
+ * ~0,8 pour une nuit claire). Les nuages dérivent lentement (uTime, poussé par
  * RoomManager) — immobiles si l'utilisateur préfère le mouvement réduit.
  *
  * Les couleurs sont auteurées AVANT le tone mapping ACES : le moteur les
@@ -42,7 +44,8 @@ export const SKY_DEFAULTS = {
   horizon: '#92b8e2',
   cloudColor: '#aebfd2',
   clouds: 0.38,
-  haze: 0.55
+  haze: 0.55,
+  stars: 0
 };
 
 const SkyShader = {
@@ -54,7 +57,7 @@ const SkyShader = {
     }`,
   fragmentShader: /* glsl */ `
     uniform vec3 uZenith, uHorizon, uCloud, uSunDir, uSunColor;
-    uniform float uClouds, uHaze, uTime;
+    uniform float uClouds, uHaze, uTime, uStars;
     varying vec3 vDir;
 
     float hash(vec2 p) {
@@ -74,11 +77,34 @@ const SkyShader = {
       return v;
     }
 
+    /* Les étoiles : une grille sur la direction du regard, une étoile par
+       cellule, posée au hasard DANS la cellule — sinon elles s'alignent et
+       le ciel devient un damier. La taille vient du même hash, si bien que
+       quelques-unes dominent : c'est ce qui fait une constellation plutôt
+       qu'un grain uniforme. Elles scintillent lentement, chacune à son
+       rythme, et s'éteignent près de l'horizon comme derrière la brume. */
+    float etoiles(vec3 d, float densite) {
+      if (densite < 0.001 || d.y < 0.02) return 0.0;
+      vec2 uv = vec2(atan(d.z, d.x) * 2.6, asin(clamp(d.y, -1.0, 1.0)) * 4.2) * 9.0;
+      vec2 i = floor(uv), f = fract(uv);
+      float a = hash(i), b = hash(i + 37.3), c = hash(i + 91.7);
+      if (a > densite * 0.34) return 0.0;              // la plupart des cases sont vides
+      vec2 centre = vec2(b, c) * 0.7 + 0.15;
+      float r = length(f - centre);
+      float taille = 0.028 + a * 0.13;                 // quelques-unes plus grosses
+      float lueur = smoothstep(taille, 0.0, r);
+      float clignote = 0.72 + 0.28 * sin(uTime * (0.7 + b * 1.9) + c * 6.28);
+      return lueur * clignote * smoothstep(0.02, 0.22, d.y);
+    }
+
     void main() {
       vec3 d = normalize(vDir);
       float h = clamp(d.y, 0.0, 1.0);
       // dégradé : l'horizon remonte doucement vers le zénith
       vec3 col = mix(uHorizon, uZenith, pow(h, 0.6));
+
+      // les étoiles AVANT les nuages : un nuage qui passe les efface
+      col += vec3(0.86, 0.89, 1.0) * etoiles(d, uStars) * 0.62;
 
       // soleil : petit disque net + large halo doux
       float s = max(dot(d, uSunDir), 0.0);
@@ -134,6 +160,7 @@ export function buildSky(config) {
       uSunColor: { value: sunColor },
       uClouds: { value: THREE.MathUtils.clamp(Number(opt.clouds) || 0, 0, 1) },
       uHaze: { value: THREE.MathUtils.clamp(Number(opt.haze) || 0, 0, 1) },
+      uStars: { value: THREE.MathUtils.clamp(Number(opt.stars) || 0, 0, 1) },
       uTime: { value: 0 }
     },
     vertexShader: SkyShader.vertexShader,
@@ -189,6 +216,7 @@ export function updateSkyUniforms(mesh, config) {
   u.uCloud.value.set(opt.cloudColor);
   u.uClouds.value = THREE.MathUtils.clamp(Number(opt.clouds) || 0, 0, 1);
   u.uHaze.value = THREE.MathUtils.clamp(Number(opt.haze) || 0, 0, 1);
+  u.uStars.value = THREE.MathUtils.clamp(Number(opt.stars) || 0, 0, 1);
   const { sunDir, sunColor } = sunOf(config);
   u.uSunDir.value.copy(sunDir);
   u.uSunColor.value.copy(sunColor);
