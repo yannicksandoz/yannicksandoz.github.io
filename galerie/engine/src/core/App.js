@@ -17,6 +17,7 @@ import { LoadingTracker, assetUrl } from './utils.js';
 import { setDefaultAnisotropy } from './textures.js';
 import { setBudgetSourcesEtendues, setEclatLuminaires } from './primitives.js';
 import { majLignes, activerLignes } from './lignes-lumiere.js';
+import { orienterAmbiance } from './ambiance-salle.js';
 import { COUCHE_AUTO_ECLAIREE } from './Artwork.js';
 import { WATER_TIME } from './primitives.js';
 import { chauffer } from './cartels.js';
@@ -825,6 +826,8 @@ export class App {
       // laisser d'une frame en retard ferait glisser le lavage sur les murs
       // pendant qu'on tourne la tête. Le coût est de quelques matrices.
       majLignes(this.camera);
+      // la sonde ne change pas, le repère si : on tourne son ordre 1
+      orienterAmbiance(this.camera);
 
       this.vistas?.update(dt); // la pièce apparue se rend avant la vraie
       this._reglerCopieScene();

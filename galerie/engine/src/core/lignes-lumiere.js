@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { DECLARATION_AMBIANCE, uniformesAmbiance } from './ambiance-salle.js';
 
 /**
  * LES LIGNES DE LUMIÈRE — une corniche qui éclaire pour le prix d'un point.
@@ -135,6 +136,27 @@ export function ajouterLigne({ objet, a, b, couleur, intensite = 1, face = [0, 0
 }
 
 export function nombreDeLignes() { return lignes.length; }
+
+/**
+ * Les segments d'une salle, en MONDE, pour la sonde d'ambiance — elle
+ * travaille hors caméra et ne peut pas lire les uniformes d'espace vue.
+ */
+export function segmentsMonde(salle) {
+  const sortie = [];
+  for (const l of lignes) {
+    let n = l.objet, dedans = false;
+    while (n) { if (n === salle?.group) { dedans = true; break; } n = n.parent; }
+    if (!dedans) continue;
+    l.objet.updateWorldMatrix(true, false);
+    sortie.push({
+      a: l.a.clone().applyMatrix4(l.objet.matrixWorld),
+      b: l.b.clone().applyMatrix4(l.objet.matrixWorld),
+      face: l.face.clone().transformDirection(l.objet.matrixWorld),
+      couleur: l.couleur
+    });
+  }
+  return sortie;
+}
 
 /**
  * Transporte les segments en espace vue et garde les plus proches.
@@ -278,13 +300,19 @@ export function patcherLignes(material) {
     shader.uniforms.uLigneCouleur = UNIFORMES.uLigneCouleur;
     shader.uniforms.uLigneFace = UNIFORMES.uLigneFace;
     shader.uniforms.uLigneNombre = UNIFORMES.uLigneNombre;
+    for (const [nom, u] of Object.entries(uniformesAmbiance())) shader.uniforms[nom] = u;
     shader.fragmentShader = shader.fragmentShader
-      .replace('#include <common>', `#include <common>\n${DECLARATION}`)
+      .replace('#include <common>',
+        `#include <common>\n${DECLARATION}\n${DECLARATION_AMBIANCE}`)
       // APRÈS `lights_fragment_begin` : c'est là que `geometryPosition` et
       // `geometryNormal` existent, tous deux en espace vue, et que
       // `reflectedLight` attend ses contributions directes.
       .replace('#include <lights_fragment_begin>', `#include <lights_fragment_begin>
         reflectedLight.directDiffuse += lignesIrradiance(geometryPosition, geometryNormal)
+          * BRDF_Lambert(material.diffuseColor);
+        // LE REBOND DE LA SALLE (voir ambiance-salle.js) : indirect, donc
+        // il rejoint l'image d'environnement plutôt que la lumière directe.
+        reflectedLight.indirectDiffuse += ambianceSalle(geometryNormal)
           * BRDF_Lambert(material.diffuseColor);`);
   };
   material.needsUpdate = true;

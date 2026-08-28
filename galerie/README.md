@@ -1719,6 +1719,63 @@ paie pas ce qui ne se voit pas. Ce qui manque là n'est pas un accent de
 plus ; ce serait un éclairement d'ambiance précalculé par salle, et c'est
 un autre chantier.
 
+**La sonde d'ambiance — le rebond que le téléphone ne calcule pas.**
+Les lignes de lumière avaient ramené les salles closes de 0,16–0,25 à
+0,76–0,91 de la clarté du bureau, mais le labo restait à 0,44 et le
+belvédère à 0,60, avec un sol qui ne recevait rien. La cause est dans
+`ombres.js` : une pièce close reçoit `ENV_CLOS = 0.25` d'image
+d'environnement, c'est-à-dire un fond de radiosité PLAT — sans direction ni
+couleur, identique dans les archives de brique chaude et dans le labo
+bleu-nuit. Or le rebond d'une salle n'est pas plat : il vient d'où viennent
+ses lampes, du haut des murs, et il porte leur teinte.
+
+La géométrie d'une salle ne bouge pas, ses lampes non plus ; seul le
+visiteur se déplace. C'est le cas d'école du calcul préalable — ce qu'un
+moteur de jeu appelle une sonde d'irradiance. À l'entrée, une fois, on
+échantillonne l'éclairement direct en cinq points et dans soixante-quatre
+directions (spirale de Fibonacci, sans pôle ni couture), et l'on projette
+sur les quatre premières harmoniques sphériques : `E(n) ≈ c₀ + c·n`. Douze
+flottants pour toute la salle ; à l'image, un produit scalaire.
+
+La sonde ignore l'occlusion — elle dit ce qu'un point NU recevrait. C'est
+voulu : on ne s'en sert pas comme d'une lumière directe (elle est déjà
+calculée, exactement, par les lignes), mais comme du REBOND qu'elle
+produirait. On la multiplie donc par un albédo de rebond de 0,25 : une
+salle renvoie le quart de ce qu'elle reçoit. Sans ce facteur on éclairerait
+deux fois, et personne ne le verrait venir.
+
+**Ce que le test a attrapé, et que l'œil n'aurait pas vu.** La sonde est
+calculée en monde et lue en espace vue ; l'ordre 0 est invariant par
+rotation, l'ordre 1 est un vecteur qu'il faut tourner. Le premier jet
+employait `Vector3.transformDirection` — qui NORMALISE. L'amplitude de
+l'ordre 1, qui est toute l'information, était détruite. Rien ne plantait ;
+la salle était seulement fausse. C'est le test du halo isotrope qui l'a dit
+(anisotropie résiduelle 0,99 au lieu de 0,03) — écrit exprès pour attraper
+« un facteur de normalisation oublié », qui n'assombrit ni ne surexpose
+assez pour se remarquer.
+
+**Le relevé complet**, profil iPhone 13, clarté moyenne rapportée au bureau :
+
+| salle | avant tout | lignes seules | + sonde |
+|---|---|---|---|
+| labo | 0,16 | 0,44 | **0,55** |
+| archives | 0,17 | 0,79 | **0,79** |
+| bibliothèque | 0,25 | 0,76 | **0,76** |
+| couloir-est | 0,59 | 0,91 | **0,98** |
+| belvédère | 0,60 | 0,60 | **0,62** |
+| entrée | 0,89 | 0,91 | **0,92** |
+
+Le noir pur suit : labo 86,8 % → 30,6 %, archives 34,5 % → 0,6 %,
+bibliothèque 11,5 % → 0 %, belvédère 14 % → 10,8 %.
+
+**Le coût de la sonde est nul, et c'est mesuré comme il faut.** Un premier
+relevé annonçait +20 % de temps d'image — pour neuf opérations, c'était
+incohérent. L'A/B dans la MÊME session, avec et sans le terme dans le
+shader, donne 518,0 ms contre 517,7 ms au labo. Les +20 % étaient une
+dérive de la machine entre deux exécutions : sur un rastériseur logiciel,
+seule une comparaison immédiate a un sens, jamais un chiffre gardé d'une
+heure sur l'autre.
+
 **Le scan invisible sur Firefox et Safari.** *Onde stationnaire* se
 chargeait, son cartel s'affichait, et l'œuvre n'était nulle part — sur
 Firefox et Safari seulement, et sans un mot dans la console. Le nuage
