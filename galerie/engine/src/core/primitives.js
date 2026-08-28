@@ -487,7 +487,25 @@ function buildGerbe(size, model) {
 }
 
 /** Lacet d'une corniche selon le mur qu'elle lave (comme les fenêtres). */
-const LACET_MUR = { nord: 0, sud: Math.PI, ouest: -Math.PI / 2, est: Math.PI / 2 };
+/**
+ * Le lacet qui tourne une corniche vers LE MUR QU'ELLE LAVE.
+ *
+ * Est et ouest ont longtemps été INTERVERTIS ici, et la faute est restée
+ * invisible pendant des mois : une corniche « est » braquée vers la pièce
+ * lave le mur d'en face, et dans une salle de dix mètres ce lavage-là se
+ * lit comme une lumière d'ambiance parfaitement plausible. C'est le labo
+ * (36 m de large) qui l'a trahie — le 1/r² n'y laisse rien arriver — par
+ * un déséquilibre net : murs nord/sud lavés, est/ouest éteints, à contenu
+ * égal. Vérifié au calcul, pas à l'œil : l'éclairement d'un point de
+ * chaque mur, avec la loi exacte du shader et les segments réellement
+ * déclarés, donnait 6,5 au nord et au sud contre 2,4 à l'est et à
+ * l'ouest ; et le dump des faces montrait nord/sud tournées vers leur mur
+ * (juste) quand est/ouest regardaient la pièce (faux). La face émise vaut
+ * R_lacet · (0, −√2/2, −√2/2) : il faut −π/2 pour braquer vers +x (mur
+ * est) et +π/2 vers −x (mur ouest). `test-lignes-lumiere.mjs` épingle
+ * désormais les quatre, par le calcul.
+ */
+const LACET_MUR = { nord: 0, sud: Math.PI, ouest: Math.PI / 2, est: -Math.PI / 2 };
 
 function buildCorniche(size, model) {
   preparerCorniches();
@@ -552,6 +570,19 @@ function buildCorniche(size, model) {
       lampe.position.z = -0.02;
       groupe.add(lampe);
       groupe.userData.lampeCorniche = lampe;
+      // LA MARQUE, MÊME AVEC LA LAMPE. Une RectAreaLight est un rectangle
+      // RIGIDE : sur un mur cintré au couronnement ondulé, le bandeau se
+      // plie (Artwork._courberCorniche) mais elle non — son plan coupe le
+      // voile, la moitié de la plaque passe derrière le mur, et le lavage
+      // meurt. Mesuré au labo : murs est/ouest à 28–49 de luminance quand
+      // les nord/sud tenaient 86–88. Quand la flexion constate que le
+      // trait s'est vraiment plié, elle retire la lampe et déclare la
+      // LIGNE à la place — celle-ci suit les sommets pliés. La marque
+      // porte ce qu'il faut pour ce relais ; tant que la lampe survit,
+      // Artwork ne déclare aucune ligne (pas de double éclairage).
+      groupe.userData.ligneLumiere = {
+        longueur, epaisseur, couleur: couleur.clone(), force
+      };
     } else {
       // PROFIL SANS SOURCES ÉTENDUES (mobile) : la fente garderait son
       // trait mais n'éclairerait plus RIEN. Tant qu'un soleil traversait

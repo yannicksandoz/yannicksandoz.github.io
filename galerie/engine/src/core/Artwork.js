@@ -950,11 +950,16 @@ export class Artwork {
     const pos = bandeau.geometry.attributes.position;
     const v = new THREE.Vector3();
     let sommeCreux = 0;
+    // l'AMPLITUDE de la flexion : c'est elle qui décidera du sort de la
+    // lampe rigide — un trait qui bouge de dix centimètres la tolère, un
+    // trait qui serpente d'un mètre la ridiculise
+    let fMin = Infinity, fMax = -Infinity, creuxMin = Infinity, creuxMax = -Infinity;
     for (let i = 0; i < pos.count; i++) {
       v.fromBufferAttribute(pos, i).applyMatrix4(versPiece);
       // coordonnée LOCALE du mur le long de sa longueur (rotation inverse)
       const lx = (v.x - c.x) * cs - (v.z - c.z) * sn;
       const f = c.loi(lx, v.y) * c.sens;
+      fMin = Math.min(fMin, f); fMax = Math.max(fMax, f);
       // la normale locale +z du mur, tournée dans la pièce : (sin, 0, cos)
       v.x += sn * f;
       v.z += cs * f;
@@ -966,7 +971,10 @@ export class Artwork {
       if (c.couronne) {
         const creux = c.couronne(lx);
         sommeCreux += creux;
+        creuxMin = Math.min(creuxMin, creux); creuxMax = Math.max(creuxMax, creux);
         v.y -= creux;
+      } else {
+        creuxMin = 0; creuxMax = 0;
       }
       v.applyMatrix4(retour);
       pos.setXYZ(i, v.x, v.y, v.z);
@@ -975,13 +983,29 @@ export class Artwork {
     bandeau.geometry.computeBoundingBox();
     bandeau.geometry.computeBoundingSphere();
 
-    // LA SOURCE, elle, ne se plie pas : une RectAreaLight est un rectangle
-    // rigide. On la descend du creux MOYEN de la portion qu'elle longe —
-    // sans quoi son lavage resterait accroché en haut du mur pendant que
-    // le trait, lui, plonge. L'écart résiduel se lit comme un dégradé, ce
-    // qu'un lavage de mur est déjà.
+    /* LE SORT DE LA LAMPE RIGIDE. Une RectAreaLight ne se plie pas. Tant
+     * que le trait ne s'écarte de son plan que d'une paume, on la garde —
+     * son intégration LTC (spéculaire comprise) vaut mieux qu'une ligne —
+     * et on la descend du creux MOYEN pour qu'elle suive le plongeon
+     * d'ensemble. Au-delà, la plaque coupe le voile : une moitié passe
+     * DERRIÈRE le mur cintré et le lavage meurt — c'est le déséquilibre
+     * est/ouest mesuré au labo (murs longs, donc plus cintrés : 28 et 49
+     * de luminance contre 86–88 aux murs courts). On retire alors la
+     * lampe, et `_declarerLigneCorniche`, appelée juste après, déclare à
+     * la place les segments qui suivent les sommets PLIÉS — le même relais
+     * que le profil mobile, qui l'éprouve depuis le début.
+     */
     const lampe = groupe.userData.lampeCorniche;
-    if (lampe && c.couronne && pos.count) {
+    if (!lampe || !pos.count) return;
+    const amplitude = (fMax - fMin)
+      + (Number.isFinite(creuxMax) ? creuxMax - creuxMin : 0);
+    if (amplitude > 0.3) {
+      groupe.remove(lampe);
+      lampe.dispose?.();
+      delete groupe.userData.lampeCorniche;
+      return;
+    }
+    if (c.couronne) {
       const moyen = sommeCreux / pos.count;
       lampe.position.add(new THREE.Vector3(0, -moyen, 0)
         .applyQuaternion(groupe.quaternion.clone().invert()));
@@ -1005,6 +1029,9 @@ export class Artwork {
     const marque = groupe?.userData?.ligneLumiere;
     const bandeau = groupe?.userData?.bandeau;
     if (!marque || !bandeau) return;
+    // la RectAreaLight a survécu à la flexion : c'est elle qui éclaire,
+    // déclarer la ligne en plus reviendrait à compter la corniche deux fois
+    if (groupe.userData.lampeCorniche) return;
     const pos = bandeau.geometry.attributes.position;
     const colonnes = bandeau.geometry.parameters?.widthSegments ?? 1;
     const parRangee = colonnes + 1;

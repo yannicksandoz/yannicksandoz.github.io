@@ -16,8 +16,8 @@ import { QualityManager } from './Quality.js';
 import { LoadingTracker, assetUrl } from './utils.js';
 import { setDefaultAnisotropy } from './textures.js';
 import { setBudgetSourcesEtendues, setEclatLuminaires } from './primitives.js';
-import { majLignes, activerLignes, lignesActives, segmentsMonde } from './lignes-lumiere.js';
-import { orienterAmbiance, majAmbiance } from './ambiance-salle.js';
+import { majLignes, activerLignes, segmentsMonde } from './lignes-lumiere.js';
+import { orienterAmbiance, majAmbiance, armerAmbiance, ambianceArmee } from './ambiance-salle.js';
 import { COUCHE_AUTO_ECLAIREE } from './Artwork.js';
 import { WATER_TIME } from './primitives.js';
 import { chauffer } from './cartels.js';
@@ -312,10 +312,18 @@ export class App {
     setDefaultAnisotropy(this.quality.profile.anisotropy);
     // combien de sources étendues la machine peut porter (voir Quality)
     setBudgetSourcesEtendues(this.quality.profile.sourcesEtendues ?? 8);
-    // Sans sources étendues, les corniches deviennent des lignes de
-    // lumière analytiques (voir lignes-lumiere.js) — c'est le profil
-    // téléphone. Avec, rien ne change : le bureau garde ses LTC.
-    activerLignes((this.quality.profile.sourcesEtendues ?? 8) === 0);
+    // Les lignes de lumière s'arment sur TOUS les profils. Sur téléphone,
+    // elles remplacent toutes les corniches (pas de sources étendues) ;
+    // au bureau, elles ne prennent que les corniches que la flexion a
+    // PLIÉES — leur RectAreaLight rigide coupait le voile cintré et le
+    // lavage mourait (déséquilibre est/ouest du labo). Les corniches
+    // droites gardent leur LTC. Voir Artwork._courberCorniche.
+    activerLignes(true);
+    // La SONDE d'ambiance, elle, reste affaire de téléphone : elle
+    // compense les sources que les budgets éteignent. Le bureau n'éteint
+    // presque rien et son éclairage est réglé à l'œil, salle par salle —
+    // pas au correctif du téléphone de le redéfinir.
+    armerAmbiance((this.quality.profile.sourcesEtendues ?? 8) === 0);
     // le trait d'une fente compense ce que le bloom ne peut plus lui
     // donner : à un quart de résolution, une ligne de douze centimètres
     // sort de la passe de flou (voir setEclatLuminaires)
@@ -820,7 +828,7 @@ export class App {
             // changent, donc la sonde aussi. Trois fois par seconde au
             // plus, et seulement si quelque chose a vraiment bougé — une
             // sonde périmée rendrait le contournement à moitié faux.
-            surBascule: lignesActives()
+            surBascule: ambianceArmee()
               ? () => majAmbiance(salle, segmentsMonde(salle, this.camera))
               : null
           });

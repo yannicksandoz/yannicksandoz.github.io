@@ -93,6 +93,20 @@ const _vue3 = new THREE.Matrix3();
 
 export function uniformesAmbiance() { return UNIFORMES; }
 
+/**
+ * LA SONDE NE S'ARME QUE SUR TÉLÉPHONE — et ce drapeau est distinct de
+ * celui des lignes, à dessein. Depuis que les lignes analytiques servent
+ * aussi au bureau (les corniches pliées y perdent leur RectAreaLight
+ * rigide — voir Artwork._courberCorniche), « les lignes sont actives » ne
+ * veut plus dire « on est sur téléphone ». La sonde, elle, compense les
+ * sources que les BUDGETS éteignent ; le bureau n'éteint presque rien et
+ * son éclairage est réglé à l'œil. Armer la sonde là-bas doublerait un
+ * rebond déjà peint. C'est l'App qui décide, une fois, au démarrage.
+ */
+let armee = false;
+export function armerAmbiance(oui) { armee = Boolean(oui); }
+export function ambianceArmee() { return armee; }
+
 export function oublierAmbiance() {
   for (const u of Object.values(UNIFORMES)) u.value.setRGB(0, 0, 0);
   MONDE.c0.setRGB(0, 0, 0);

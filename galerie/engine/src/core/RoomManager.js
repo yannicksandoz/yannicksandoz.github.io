@@ -8,8 +8,8 @@ import { styleMatiere, jeuDeSurface } from './matieres.js';
 import { estFluide, materiauFluide, dessinerCouronne, courberParoi, loiParoi,
   loiCouronne } from './style.js';
 import { aDesSourcesEtendues } from './primitives.js';
-import { patcherArbreLignes, segmentsMonde, lignesActives } from './lignes-lumiere.js';
-import { majAmbiance, oublierAmbiance } from './ambiance-salle.js';
+import { patcherArbreLignes, segmentsMonde } from './lignes-lumiere.js';
+import { majAmbiance, oublierAmbiance, ambianceArmee } from './ambiance-salle.js';
 import { delaiDe, fermer, estFerme, tick as tickCooldown } from './Cooldown.js';
 import { lancerBoucle } from './son-bornes.js';
 import { reverbDePiece } from './reverb-reglages.js';
@@ -625,7 +625,7 @@ export class RoomManager {
     // LA SONDE DE LA SALLE. Une fois, à l'entrée : la géométrie et les
     // lampes ne bougent plus, seul le visiteur se déplace. Voir
     // `ambiance-salle.js` — c'est le rebond que le téléphone ne calcule pas.
-    if (lignesActives()) majAmbiance(room, segmentsMonde(room, this.app?.camera ?? null));
+    if (ambianceArmee()) majAmbiance(room, segmentsMonde(room, this.app?.camera ?? null));
     else oublierAmbiance();
     this._placeCamera(arrival ?? room.config.spawn ?? [0, 2.2, 10]);
     // Un portail dans lequel on ATTERRIT est désarmé : il ne se re-déclenche

@@ -2230,6 +2230,50 @@ mètres soit sombre.
 Le garde-fou de `test-lignes-lumiere.mjs` a été relevé à 16 avec la même
 consigne qu'avant : quiconque vise 24 refait la mesure.
 
+**Le retour d'auteur qui a démasqué un bogue de six mois : « la lumière ne
+suit plus assez la forme de la corniche, et il y a un déséquilibre N/S
+E/O ».** Deux plaintes, deux causes, et la seconde n'était pas celle que
+je croyais.
+
+*La forme, d'abord.* Une `RectAreaLight` est un rectangle RIGIDE ; depuis
+que les salles à ciel ouvert plient leur bandeau sur le couronnement
+ondulé (`Artwork._courberCorniche`), la plaque restait une corde tendue
+par-dessus les creux — le trait plongeait, son lavage non. Le remède
+existait déjà : les lignes analytiques suivent les sommets PLIÉS, et le
+téléphone les éprouve depuis des semaines. Elles s'arment donc désormais
+sur TOUS les profils, mais seulement là où la flexion a vraiment tordu le
+trait (amplitude > 0,3 m) : la corniche pliée perd sa plaque, la ligne la
+remplace ; une corniche droite garde sa LTC et son spéculaire. La sonde
+d'ambiance, elle, reste une affaire de téléphone — drapeau séparé
+(`armerAmbiance`), parce qu'armer un rebond de plus sur un bureau réglé à
+l'œil reviendrait à éclairer deux fois.
+
+*Le déséquilibre, ensuite — et le relais ci-dessus ne l'a PAS levé.*
+Mesuré au labo, profil bureau, un point par mur, la loi exacte du shader
+sur les segments réellement déclarés : nord 6,5, sud 6,5, est 2,4, ouest
+2,4. Le dump des faces a donné la cause en une ligne : les corniches
+nord/sud regardaient LEUR mur (juste), les est/ouest regardaient LA PIÈCE.
+`LACET_MUR` intervertissait est et ouest depuis leur création. La faute
+est restée invisible six mois parce qu'une corniche qui lave le mur d'en
+face, dans une salle de dix mètres, se lit comme une belle lumière
+d'ambiance — il a fallu les trente-six mètres du labo pour que le 1/r²
+la dénonce. Après l'échange des deux lacets : est 49 → 96, ouest 28 → 70
+(la nébuleuse sombre pèse sur la moyenne de l'ouest), nord/sud stables, et
+le lavage épouse l'ondulation du couronnement.
+
+**Ce que la correction change PARTOUT, et qu'il faut dire.** Les salles
+recevaient depuis toujours un flot accidentel : la lumière est/ouest
+déversée à travers la pièce au lieu de lécher son mur. Le bogue corrigé,
+ce flot disparaît, et les intérieurs baissent d'autant (luminance moyenne
+au point d'entrée, bureau : labo 64 → 39, archives 107 → 92, bibliothèque
+124 → 108 ; couloir-est MONTE, 68 → 72). La lumière va enfin où l'auteur
+la braque — les intensités de corniche se règlent maintenant dans un monde
+honnête, et c'est dans l'éditeur qu'un rattrapage éventuel doit se faire,
+pas dans le moteur. Coût de la greffe au bureau : +11 % de trame au labo
+sur rastériseur logiciel (A/B/A, dérive 1,3 %) — sur un vrai GPU, la part
+fragment est bien moindre. Les rapports téléphone/bureau tiennent :
+0,75–0,99 selon la salle, belvédère à 0,62.
+
 **Les seuils, et les corniches.** Deux fautes revenaient à la main, salle
 après salle : un portail planté dans un escalier, et un bandeau lumineux
 qui coupait une fenêtre en deux. Les déplacer une fois de plus n'apprend

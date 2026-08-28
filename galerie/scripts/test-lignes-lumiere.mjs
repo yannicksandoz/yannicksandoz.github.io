@@ -150,10 +150,48 @@ test('le budget de segments reste tenable pour un téléphone', () => {
   assert.ok(MAX_LIGNES <= 16, `${MAX_LIGNES} segments : mesurez avant`);
 });
 
+titre('le relais corniche pliée → ligne, épinglé au source');
+/**
+ * La mécanique complète (flexion, retrait de la lampe, déclaration) exige
+ * une vraie coque courbée : elle se juge au navigateur. Ce qui se juge
+ * ICI, c'est que les quatre pièces du relais restent en place — chacune de
+ * ces lignes a une histoire : sans la marque côté bureau, la flexion n'a
+ * rien à relayer ; sans le retrait, le mur est éclairé deux fois ; sans la
+ * garde, pareil ; sans l'armement, le bureau garde des murs morts.
+ */
+test('primitives pose la marque MÊME quand la lampe existe', async () => {
+  const { readFileSync } = await import('node:fs');
+  const src = readFileSync(new URL('../engine/src/core/primitives.js', import.meta.url), 'utf8');
+  const brancheLampe = src.slice(src.indexOf('budgetSourcesEtendues > 0) {'),
+    src.indexOf('} else {', src.indexOf('budgetSourcesEtendues > 0) {')));
+  assert.ok(brancheLampe.includes('userData.ligneLumiere'),
+    'la branche RectAreaLight doit aussi poser la marque du relais');
+});
+test('la flexion retire la lampe rigide quand le trait se plie', async () => {
+  const { readFileSync } = await import('node:fs');
+  const src = readFileSync(new URL('../engine/src/core/Artwork.js', import.meta.url), 'utf8');
+  assert.ok(src.includes('if (amplitude > 0.3)'),
+    'le seuil de flexion qui condamne la RectAreaLight');
+  assert.ok(src.includes('delete groupe.userData.lampeCorniche'),
+    'la lampe retirée doit disparaître de userData — c’est la garde d’en face');
+  assert.ok(src.includes('if (groupe.userData.lampeCorniche) return;'),
+    'une lampe survivante interdit la ligne : pas de double éclairage');
+});
+test('l’App arme les lignes partout, la sonde sur téléphone seulement', async () => {
+  const { readFileSync } = await import('node:fs');
+  const src = readFileSync(new URL('../engine/src/core/App.js', import.meta.url), 'utf8');
+  assert.ok(src.includes('activerLignes(true)'), 'les lignes servent tous les profils');
+  assert.ok(/armerAmbiance\(\(this\.quality\.profile\.sourcesEtendues \?\? 8\) === 0\)/.test(src),
+    'la sonde reste une affaire de téléphone');
+});
+
 titre('la greffe sur les matériaux');
-test('sans profil sans sources étendues, on ne greffe RIEN', () => {
-  // le bureau garde ses RectAreaLight et ses programmes : la greffe
-  // recompilerait tous ses shaders pour une boucle qui sort au premier tour
+test('lignes désarmées, on ne greffe RIEN', () => {
+  // Le drapeau reste : l'éditeur ou un test peut couper les lignes, et un
+  // matériau ne doit alors pas être recompilé pour une boucle vide. Mais
+  // l'App l'arme désormais sur TOUS les profils — au bureau, les corniches
+  // PLIÉES perdent leur RectAreaLight rigide au profit de la ligne qui
+  // suit leurs sommets (voir Artwork._courberCorniche).
   activerLignes(false);
   const mur = { isMeshStandardMaterial: true, userData: {} };
   patcherLignes(mur);
