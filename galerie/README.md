@@ -2160,8 +2160,48 @@ progressent nettement, le labo d'un dixième, le belvédère à peine. Et le
 noir pur du labo ne bouge pas (30,6 %) : une sonde d'ordre 1 relève la
 moyenne, elle ne rallume pas les faces tournées à l'opposé de sa direction
 dominante. Le reste de l'écart du labo et du belvédère n'est donc pas dans
-les sources éteintes : il est dans ce qu'une sonde d'ordre 1 ne sait pas
-représenter. C'est la prochaine question, et elle est ouverte.
+les sources éteintes.
+
+**L'ordre 2 a été construit, mesuré, et REFUSÉ.** L'hypothèse était nette :
+une sonde d'ordre 1 ne sait représenter qu'un gradient — clair d'un côté,
+sombre de l'autre — donc elle relève la moyenne sans rallumer les faces
+tournées à l'opposé de sa dominante, ce qui expliquerait le noir immobile
+du labo. Les cinq harmoniques quadratiques savent dire « clair en haut ET
+en bas, sombre sur les côtés » ; c'était le bon candidat.
+
+Il a été écrit en entier : les neuf harmoniques réelles orthonormées,
+leur projection, la reconstruction en GLSL, et une bascule de repère qui
+évitait la matrice de Wigner 5×5 — au lieu de tourner les coefficients, on
+ramène la normale en monde par une seule matrice 3×3, exacte par
+construction. Dix-sept tests au vert, dont l'orthonormalité de la base
+vérifiée numériquement sur vingt mille directions (∫ YᵢYⱼ dΩ = δᵢⱼ à
+2·10⁻³ près) — parce qu'une constante de normalisation fausse n'explose
+pas, elle assombrit.
+
+Puis la mesure, même machine, même session :
+
+| salle | ordre 1 | ordre 2 |
+|---|---|---|
+| labo | 38,8 | **38,1** |
+| archives | 92,3 | **91,7** |
+| belvédère | 49,7 | 49,7 |
+| noir pur du labo | 30,6 % | 30,6 % |
+
+Aucun gain, et un cheveu de moins — l'écrêtage à zéro des lobes négatifs
+retire un peu d'énergie. Le noir du labo n'a pas bougé d'un dixième de
+point. L'hypothèse est donc FAUSSE : ce noir n'est pas fait de faces mal
+orientées qu'une sonde plus fine rallumerait, il est fait de ce qu'aucune
+sonde ne peut rendre — le lavage DIRECTIONNEL des quinze corniches que le
+bureau calcule et que le téléphone n'a pas. Un terme d'ambiance est
+basse fréquence par nature ; on lui demandait de dessiner un dégradé de
+mur.
+
+L'ordre 2 a donc été retiré : cinq coefficients de plus, un produit de
+matrice et une normalisation par pixel sur l'appareil qu'on optimise,
+pour zéro gain mesuré. Le refus est consigné ici pour que personne — moi
+compris — ne le retente à l'aveugle. La vraie question suivante est
+ailleurs : donner au téléphone plus de corniches (`MAX_LIGNES`), ou
+plusieurs sondes par salle plutôt qu'une pour quarante mètres.
 
 **Les seuils, et les corniches.** Deux fautes revenaient à la main, salle
 après salle : un portail planté dans un escalier, et un bandeau lumineux
