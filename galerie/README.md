@@ -2054,9 +2054,47 @@ et l'on enrobe `updateError` pour rattacher la cause d'origine
 défauts **chez l'amont** : le jour où ils sont corrigés, la suite rougit —
 signal pour retirer les ceintures, pas pour rafistoler le test.
 
-Reste à savoir POURQUOI le chargement échoue sur cette machine-là. La
-réponse n'est plus une hypothèse à écrire ici : elle s'affiche désormais à
-l'étape 4, cause comprise.
+**Et la cause, enfin — `Content-Length` n'est pas la taille du fichier.**
+Le correctif ci-dessus déployé, l'étape 4 a parlé au premier essai :
+
+    attempting to construct out-of-bounds Uint8Array on ArrayBuffer   (WebKit)
+    Invalid typed array length: 499577                                (Chromium)
+
+GaussianSplats3D préalloue son tampon de réception d'après l'en-tête HTTP
+`Content-Length`, puis y déverse les octets rendus par
+`response.body.getReader()` :
+
+```js
+directLoadBufferIn = new ArrayBuffer(fileSize);   // fileSize = Content-Length
+new Uint8Array(directLoadBufferIn, numBytesLoaded, chunk.byteLength).set(…)
+```
+
+Or `Content-Length` compte les octets qui passent SUR LE FIL, et le lecteur
+rend les octets DÉCODÉS. Dès qu'un `Content-Encoding` s'en mêle — et GitHub
+Pages compresse — le second dépasse le premier : nos 704 000 octets
+voyagent en 499 577, le tampon manque de 40 % de la place, et la vue
+déborde. C'est tout.
+
+**C'est pourquoi le local ne voyait rien, et c'est la vraie leçon.** Un
+`http-server` de développement sert le `.splat` tel quel : l'en-tête et la
+taille décodée coïncident, le calcul faux donne le bon résultat, et le
+bogue n'existe qu'EN LIGNE. Aucune quantité de tests locaux ne pouvait le
+trouver — il fallait interroger l'appareil. Reproduit depuis, en local,
+avec un serveur qui compresse comme GitHub Pages : sans correctif, l'échec
+au mot près ; avec, les 21 853 taches.
+
+`core/scan-longueur.js` enveloppe `fetch` le temps du chargement, pour la
+seule URL du scan, et renvoie une réponse identique dont le
+`Content-Length` porte la vraie longueur décodée. On ne supprime pas
+l'en-tête — la bibliothèque perdrait sa barre de progression — on le rend
+exact. Repli sûr si le navigateur refuse d'écrire cet en-tête sur une
+réponse fabriquée : sans en-tête, la bibliothèque télécharge d'abord et
+analyse ensuite. `test-scan-longueur.mjs` fabrique la condition (une
+réponse qui annonce moins d'octets qu'elle n'en rend) au lieu de
+l'attendre, et surveille la ligne fautive chez l'amont.
+
+Vérifié dans la galerie elle-même, servie compressée : *Onde stationnaire*
+est là, dans l'annexe.
 
 **Les seuils, et les corniches.** Deux fautes revenaient à la main, salle
 après salle : un portail planté dans un escalier, et un bandeau lumineux

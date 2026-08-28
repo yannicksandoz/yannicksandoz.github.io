@@ -43,6 +43,7 @@
 import * as THREE from 'three';
 import { DropInViewer } from '@mkkellogg/gaussian-splats-3d';
 import { poserContournementScan } from './scan-memoire.js';
+import { poserContournementLongueur } from './scan-longueur.js';
 
 /**
  * Charge un scan : rend un groupe { visionneuse, pavé de préhension }.
@@ -64,6 +65,13 @@ export async function creerScan(url, options = {}) {
     console.error(`[galerie] Scan « ${url} » : le worker de tri est mort `
       + `(${message}). Les taches ne seront pas dessinées.`);
   });
+  // La bibliothèque dimensionne son tampon d'après `Content-Length`, qui
+  // compte les octets COMPRESSÉS : servi par GitHub Pages, le scan
+  // débordait le tampon et disparaissait. Voir `scan-longueur.js` — c'est
+  // la panne qui rendait le local trompeur, puisqu'un serveur de
+  // développement ne compresse pas.
+  const longueur = poserContournementLongueur(globalThis,
+    (adresse) => adresse.includes(url));
   let visionneuse;
   try {
     visionneuse = new DropInViewer({
@@ -109,6 +117,7 @@ export async function creerScan(url, options = {}) {
     await (chargement?.promise ?? chargement);
   } finally {
     retirer();
+    longueur.retirer();
   }
   if (!applique()) {
     // Le trieur est passé sans être réécrit : le motif de `scan-memoire.js`
