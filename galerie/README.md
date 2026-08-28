@@ -1776,6 +1776,109 @@ dérive de la machine entre deux exécutions : sur un rastériseur logiciel,
 seule une comparaison immédiate a un sens, jamais un chiffre gardé d'une
 heure sur l'autre.
 
+**WebGPU — ce que la migration touche, ce qu'elle rapporterait, et ce
+qu'on ne sait pas encore.** L'étude est chiffrée sur le code réel ; la
+décision reste à prendre.
+
+*Ce qu'elle rapporterait, et c'est précis.* Deux choses qu'aucune
+optimisation WebGL2 ne donne :
+
+- **Le tri des splats sur GPU.** C'est un tri par profondeur, le cas d'école
+  du compute shader. Il ferait disparaître d'un coup tout le chemin qui
+  nous a coûté deux allers-retours : plus de worker, plus de
+  `WebAssembly.Memory`, plus de `SharedArrayBuffer`, plus de contournement
+  `scan-memoire.js` à entretenir.
+- **L'éclairage en clusters.** On découpe le frustum en cellules, on y
+  range les lampes une fois par image dans un compute shader, et chaque
+  pixel n'intègre que celles de sa cellule. Le budget `lampesProches`
+  ({4, 3} sur téléphone) et le budget `sourcesEtendues` (0 sur téléphone)
+  disparaissent tous les deux : ce sont des rationnements imposés par le
+  fait que WebGL2 intègre TOUTES les lampes déclarées sur CHAQUE pixel. Les
+  lignes analytiques et la sonde d'ambiance resteraient utiles — elles sont
+  plus justes qu'un point, et gratuites — mais on cesserait de choisir
+  entre quatre corniches.
+
+*Ce qu'elle touche, compté.* Le moteur fait 21 037 lignes. La migration ne
+les concerne pas toutes, loin de là — ce qui bouge est borné :
+
+| ce qu'il faut reprendre | volume |
+|---|---|
+| fichiers portant du GLSL écrit à la main | 6 (`PasseSortie`, `primitives`, `App`, `lettrage`, `Sky`, `Artwork`) |
+| greffes `onBeforeCompile` sur les chunks de three.js | 11 |
+| chunks nommés remplacés (`lights_fragment_begin`, `map_fragment`…) | 10 |
+| passes de post-traitement à reporter | 4 imports (MSAA, GTAO, bloom, sortie) |
+
+Les onze greffes sont le vrai sujet, et il faut le dire franchement : elles
+s'appuient sur les NOMS des chunks de `MeshStandardMaterial`. Le
+`WebGPURenderer` n'a pas ces chunks — il a un graphe de nœuds (TSL). Les
+lignes de lumière, la sonde d'ambiance, le grain, les stries, la
+répétition de tuile, le lettrage : tout cela se réécrit en nœuds. Ce n'est
+pas une traduction ligne à ligne, c'est un changement de paradigme, et
+c'est là que le temps passerait.
+
+*Ce qu'on ne sait pas d'ici.* Le proxy de l'atelier bloque tout accès web :
+je n'ai pas pu vérifier l'état RÉEL du support WebGPU sur Safari et iOS
+aujourd'hui, ni la maturité du `WebGPURenderer` de three.js à la version
+qu'on emploie. Or c'est la question qui décide de tout — migrer pour
+retomber sur un repli WebGL2 sur l'iPhone qui a motivé le chantier serait
+le pire des deux mondes. **À vérifier avant d'engager quoi que ce soit,
+sur l'appareil : `navigator.gpu` existe-t-il, et `requestAdapter()` rend-il
+un adaptateur ?**
+
+*Recommandation.* Ne pas migrer d'un bloc. Si le support iOS est là, le
+premier pas rentable est **le tri des splats en compute**, isolé : il ne
+touche aucun matériau, il supprime un contournement, et il se mesure seul.
+L'éclairage en clusters ne vaut le voyage que si l'on constate ensuite que
+les budgets de lampes bornent encore la scénographie — ce que le relevé
+d'aujourd'hui ne montre plus vraiment, puisque les salles closes sont
+revenues entre 0,76 et 0,98 de la clarté du bureau.
+
+**Le pilote WebAssembly du chemin audio — et pourquoi on ne le déploie
+pas.** Le rendu 3D ne passe pas une milliseconde en JavaScript : tout son
+temps est dans le shader. L'audio semblait le seul endroit où le langage
+soit un vrai passif — douze worklets, ~3 200 lignes de traitement PAR
+ÉCHANTILLON, sur le thread audio, avec 128 échantillons à rendre en 2,7 ms
+à 48 kHz, sans SIMD et sans droit à une pause du ramasse-miettes. On a donc
+porté un worklet en C compilé pour `wasm32`, choisi pour être le plus court
+des douze ET celui qui tourne sur quinze tranches à la fois : Console7.
+
+Le portage est exact. Aucune bibliothèque mathématique n'est liée : le seul
+transcendant du chemin chaud est `sin`, dont les arguments sont BORNÉS par
+construction (Chris écrête à ±1,097, donc |x·|x|| ≤ 1,204). Sur un
+intervalle aussi étroit, une série de Taylor au degré 21 suffit — erreur
+maximale contre `Math.sin` : **2,22·10⁻¹⁶, un ulp**. Et `tan` ne sert qu'aux
+coefficients du passe-bas, calculés une fois côté JavaScript. Le module
+pèse **2 286 octets**. La suite compare les deux implémentations échantillon
+par échantillon sur un silence, une sinusoïde, un signal qui sature, un
+fader qu'on traîne et cent blocs de bruit : écart **sous 10⁻⁷**, c'est-à-dire
+sous la résolution du `Float32Array` que Web Audio rend de toute façon.
+
+**Et la mesure dit non.** Une seconde d'audio × quinze tranches :
+**JavaScript 24,3 ms, WebAssembly 30,3 ms — le portage est 1,25 fois plus
+LENT.** Trois raisons, et elles sont structurelles :
+
+- le JIT de V8 est excellent sur ce genre d'arithmétique scalaire en
+  double, qu'il compile depuis longtemps en code natif ;
+- il faut recopier les tampons dans la mémoire du module et les en
+  ressortir, ce que le chemin JavaScript ne paie pas — il travaille en
+  place sur le `Float32Array` de Web Audio ;
+- surtout, **un biquad n'est pas vectorisable**. La récurrence d'un filtre
+  à réponse impulsionnelle infinie est SÉRIELLE : la sortie d'un
+  échantillon entre dans le calcul du suivant. Le SIMD, qui est le vrai
+  argument de WASM pour le DSP, ne peut rien y faire — il ne resterait que
+  les deux canaux à paralléliser, ce qui ne vaut pas le voyage.
+
+Il reste l'argument des pauses du ramasse-miettes, qui s'entendraient. Mais
+les worklets de la galerie n'allouent rien par bloc : leur état vit dans
+des `Float64Array` posés à la construction. La pression est déjà nulle.
+
+**Conclusion, et elle est ferme :** on ne migre pas l'audio en WASM. Le
+pilote reste au dépôt — le C, le module compilé, `npm run wasm:audio` et la
+suite d'équivalence — parce qu'il documente la réponse et qu'il servira
+tel quel si un jour un traitement NON récursif entre au mixage (une
+convolution, un banc de filtres FFT, un rééchantillonnage) : là, le SIMD
+change tout, et l'outillage sera prêt.
+
 **Le scan invisible sur Firefox et Safari.** *Onde stationnaire* se
 chargeait, son cartel s'affichait, et l'œuvre n'était nulle part — sur
 Firefox et Safari seulement, et sans un mot dans la console. Le nuage
