@@ -10,6 +10,13 @@
  *    visite pour qui arrive par un moteur de recherche. C'est aussi le
  *    repli quand WebGL2 manque, et la porte que l'écran d'accueil propose.
  *
+ *  - `capacites.html` — CE QUE CET APPAREIL SAIT FAIRE. Une page de
+ *    diagnostic, pas de visite : elle interroge le navigateur qui l'ouvre
+ *    et l'écrit en clair. Elle existe parce qu'un iPhone n'a PAS de console
+ *    — répondre à « est-ce que WebGPU marche chez toi ? » demandait
+ *    autrement un Mac, un câble et le Web Inspector de Safari. Une URL
+ *    qu'on ouvre au doigt vaut mieux.
+ *
  *  - `catalogue.html` — LE CATALOGUE DE L'EXPOSITION. Complet : images,
  *    textes, extraits sonores, crédits obligatoires. Un lien visible y
  *    mène depuis le seuil, sans détour ni culpabilisation : l'expérience
@@ -63,6 +70,19 @@ const compte = (n) => `${n} œuvre${n > 1 ? 's' : ''}`;
 /* --------------------------------------------------------------- style --- */
 
 const STYLE = `    :root { --fg: #e8e6f2; --dim: #a09cb8; --accent: #b8a8ff; --bg: #08080f; }
+    .sondes { list-style: none; padding: 0; }
+    .sonde { border-left: 3px solid var(--dim); padding: .6rem 0 .6rem .9rem;
+      margin: .9rem 0; }
+    .sonde b { display: block; }
+    .sonde .verdict { font-size: 1.25rem; }
+    .sonde .note { display: block; color: var(--dim); font-size: .9rem;
+      margin-top: .2rem; }
+    .sonde.oui { border-left-color: #7fd6a0; }
+    .sonde.oui .verdict { color: #7fd6a0; }
+    .sonde.non { border-left-color: #e08a8a; }
+    .sonde.non .verdict { color: #e08a8a; }
+    .sonde.info { border-left-color: var(--accent); }
+    .sonde.info .verdict { color: var(--accent); }
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body {
       background: var(--bg); color: var(--fg);
@@ -205,7 +225,100 @@ ${sections}${blocCredits}
   accessible au clavier et au lecteur d'écran.</footer>`
 });
 
+/* --------------------------------------------------- les capacités --- */
+
+/*
+ * On n'affiche que ce qui SERT à décider quelque chose, et chaque ligne dit
+ * à quoi elle sert. Une page de diagnostic qui aligne trente drapeaux ne se
+ * lit pas ; celle-ci répond à quatre questions qu'on s'est vraiment posées.
+ */
+const SONDE = `
+const dire = (id, etat, valeur, note) => {
+  const li = document.getElementById(id);
+  li.className = 'sonde ' + etat;
+  li.querySelector('.verdict').textContent = valeur;
+  if (note) li.querySelector('.note').textContent = note;
+};
+
+// 1. WebGPU — décide si la migration du moteur vaut le voyage
+(async () => {
+  if (!navigator.gpu) return dire('gpu', 'non', 'non disponible',
+    'Le moteur reste sur WebGL2.');
+  try {
+    const a = await navigator.gpu.requestAdapter();
+    if (!a) return dire('gpu', 'non', 'refusé par l\\'appareil',
+      'navigator.gpu existe, mais aucun adaptateur n\\'est accordé.');
+    dire('gpu', 'oui', 'disponible',
+      'Le tri des splats sur GPU et l\\'éclairage en clusters deviennent possibles.');
+  } catch (e) { dire('gpu', 'non', 'erreur', String(e.message || e).slice(0, 120)); }
+})();
+
+// 2. WebGL2 — le socle actuel ; sans lui, la galerie 3D ne s'ouvre pas
+(() => {
+  const c = document.createElement('canvas');
+  const gl = c.getContext('webgl2');
+  if (!gl) return dire('webgl', 'non', 'absent', 'La visite audio reste ouverte.');
+  let nom = '';
+  const ext = gl.getExtension('WEBGL_debug_renderer_info');
+  if (ext) nom = String(gl.getParameter(ext.UNMASKED_RENDERER_WEBGL) || '');
+  dire('webgl', 'oui', 'présent', nom || 'processeur graphique non déclaré');
+})();
+
+// 3. Mémoire WASM partagée — c'est ELLE qui rendait les scans invisibles
+(() => {
+  let partagee = false;
+  try {
+    new WebAssembly.Memory({ initial: 1, maximum: 1, shared: true });
+    partagee = true;
+  } catch (e) { partagee = false; }
+  const isole = Boolean(window.crossOriginIsolated);
+  if (partagee) {
+    dire('wasm', 'oui', 'acceptée',
+      isole ? 'Contexte isolé.' : 'Hors isolation, ce navigateur la tolère.');
+  } else {
+    dire('wasm', 'info', 'refusée hors isolation',
+      'C\\'est le cas de Firefox et Safari : le contournement des scans sert ici.');
+  }
+})();
+
+// 4. Le profil que la galerie choisirait sur cet appareil
+(() => {
+  const coarse = window.matchMedia('(pointer: coarse)').matches;
+  const mobile = coarse || /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+  dire('profil', 'info', mobile ? 'téléphone / tablette' : 'bureau',
+    mobile
+      ? 'Corniches en lignes analytiques, sonde d\\'ambiance, pas d\\'ombres portées.'
+      : 'Sources étendues, ombres portées, occlusion ambiante.');
+})();
+`;
+
+const capacites = page({
+  titre: 'Galerie — ce que cet appareil sait faire',
+  description: "Diagnostic : ce que le navigateur qui ouvre cette page sait "
+    + 'faire, et ce que la galerie en déduit.',
+  corps: `  <h1>Ce que cet appareil sait faire</h1>
+  <p>Cette page n'est pas une visite : elle interroge le navigateur qui
+  l'ouvre et l'écrit en clair. Elle existe parce qu'un téléphone n'a pas de
+  console — et qu'une question technique ne devrait pas demander un câble.</p>
+  <main>
+    <ul class="sondes">
+      <li id="gpu" class="sonde attente"><b>WebGPU</b>
+        <span class="verdict">…</span><span class="note"></span></li>
+      <li id="webgl" class="sonde attente"><b>WebGL2</b>
+        <span class="verdict">…</span><span class="note"></span></li>
+      <li id="wasm" class="sonde attente"><b>Mémoire WebAssembly partagée</b>
+        <span class="verdict">…</span><span class="note"></span></li>
+      <li id="profil" class="sonde attente"><b>Profil retenu</b>
+        <span class="verdict">…</span><span class="note"></span></li>
+    </ul>
+  </main>
+  <a class="retour" href="./">← Entrer dans la galerie</a>
+  <footer>Rien n'est envoyé nulle part : tout est lu et affiché ici même.</footer>
+  <script>${SONDE}</script>`
+});
+
+await writeFile(join(SORTIE, 'capacites.html'), capacites);
 await writeFile(join(SORTIE, 'liste.html'), seuil);
 await writeFile(join(SORTIE, 'catalogue.html'), catalogue);
-console.log(`liste.html (seuil) + catalogue.html : ${toutes.length} œuvres, `
+console.log(`liste.html (seuil) + catalogue.html + capacites.html : ${toutes.length} œuvres, `
   + `${habitees.length} pièces habitées sur ${rooms.length} → ${SORTIE}`);

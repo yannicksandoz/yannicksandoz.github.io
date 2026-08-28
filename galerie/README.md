@@ -1776,6 +1776,27 @@ dérive de la machine entre deux exécutions : sur un rastériseur logiciel,
 seule une comparaison immédiate a un sens, jamais un chiffre gardé d'une
 heure sur l'autre.
 
+**`capacites.html` — parce qu'un iPhone n'a pas de console.** La question
+qui décide de WebGPU (« ton appareil l'a-t-il, oui ou non ? ») demandait
+autrement un Mac, un câble USB et le Web Inspector de Safari. C'est absurde
+pour une question. Le build engendre donc une troisième page statique, à
+côté du seuil et du catalogue : elle interroge le navigateur qui l'ouvre et
+l'écrit en toutes lettres.
+
+Quatre sondes, et pas trente — chacune répond à une question qu'on s'est
+vraiment posée dans ce dépôt :
+
+| sonde | ce qu'elle décide |
+|---|---|
+| **WebGPU** | si la migration du moteur vaut le voyage (`requestAdapter`, pas seulement `navigator.gpu`) |
+| **WebGL2** | le socle actuel, avec le nom du processeur graphique |
+| **mémoire WASM partagée** | c'est ELLE qui rendait les scans invisibles ; la page dit si l'appareil la refuse |
+| **profil retenu** | ce que la galerie choisirait ici : lignes analytiques et sonde, ou sources étendues et ombres |
+
+Rien n'est envoyé nulle part : tout est lu et affiché sur place. Vérifiée
+en profil bureau et en profil iPhone 13 — les quatre verdicts changent
+correctement d'un profil à l'autre.
+
 **WebGPU — ce que la migration touche, ce qu'elle rapporterait, et ce
 qu'on ne sait pas encore.** L'étude est chiffrée sur le code réel ; la
 décision reste à prendre.
