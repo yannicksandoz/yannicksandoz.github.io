@@ -117,6 +117,30 @@ export const CHARTE = {
   // et 30° — et surtout elle accroche le relief des matières, la seule
   // chose qui distingue un mur de pierre d'un rectangle gris.
   lumiere: { intensite: 3.5, marge: 0.8, elevation: 40, margeElevation: 8 },
+  // LA NUIT A SA PROPRE BANDE — une lune n'est pas un soleil faible.
+  //
+  // La bande ci-dessus a été relevée sur des salles de JOUR, et elle a
+  // failli faire une bêtise : au labo, seule salle nocturne à ciel ouvert,
+  // elle exigeait au minimum 2,7 pour une clé de lune. Or la mesure dit
+  // l'inverse — à 2,6 la salle bascule dans le crépuscule et cesse d'être
+  // la nuit que l'auteur a écrite.
+  //
+  // Les chiffres, pris au labo, luminance du TIERS BAS de l'image (le sol,
+  // c'est lui qu'on voyait noir) et part de noir pur :
+  //     0     →  19,0   (22,4 % de noir)  la salle sans lune : le sol meurt
+  //     0,8   →  25,8   ( 3,7 %)          le sol réapparaît
+  //     1,2   →  27,4   ( 1,0 %)          les objets se posent
+  //     1,8   →  31,0   ( 0,1 %)          retenu : lisible, encore la nuit
+  //     2,6   →  36,0   ( 0,0 %)          ce n'est plus la nuit
+  // La bande nocturne encadre donc ce palier utile, et s'arrête net sous
+  // le plancher de la bande diurne : une lune qui vaut un soleil est une
+  // faute de récit, pas un réglage.
+  lumiereNuit: { intensite: 1.8, marge: 0.6 },
+  // À quelle noirceur de zénith une salle EST la nuit (clarté L*, CIE).
+  // Le labo déclare #050813, soit L* ≈ 2 ; un ciel de jour de cette
+  // galerie ne descend jamais sous 20. Le seuil ne départage donc rien de
+  // limite — il nomme deux familles qui ne se touchent pas.
+  nuitZenithMax: 12,
   accrochage: { centre: 1.5, basMinimum: 0.9 },
   // L'ANGLE MINIMAL d'une œuvre depuis un point d'arrivée, en degrés.
   // Il se DÉDUIT de la règle de recul : on regarde une œuvre entre 1,5 et
@@ -205,6 +229,26 @@ export function oeuvresMurales() {
 
 /* -------------------------------------------------------------- bilan --- */
 
+/**
+ * Sur quelle bande juger la lampe-clé d'une salle : le JOUR ou la NUIT.
+ *
+ * Une salle dont le ciel est noir est éclairée par une LUNE, pas par un
+ * soleil affaibli — deux sources qui n'ont ni la même force ni le même
+ * récit. On lit l'heure sur le ZÉNITH que la salle déclare, plutôt que sur
+ * un mot-clé à tenir à jour : le ciel est déjà la source de vérité du
+ * moment qu'il fait dans la pièce, et une salle qui change d'heure change
+ * son ciel avant tout le reste.
+ *
+ * Une salle sans ciel déclaré est de jour : c'est le cas de toutes les
+ * salles couvertes, dont la clé ne s'allume de toute façon pas.
+ */
+export function bandeLumiere(ciel) {
+  const L = clarte(ciel?.zenith);
+  const nuit = Number.isFinite(L) && L <= CHARTE.nuitZenithMax;
+  const { intensite, marge } = nuit ? CHARTE.lumiereNuit : CHARTE.lumiere;
+  return { nuit, vise: intensite, tolerance: marge };
+}
+
 /** Ce que la charte dit de chaque salle : les écarts, nommés. */
 export function auditSalles() {
   const rapport = [];
@@ -269,9 +313,11 @@ export function auditSalles() {
       ligne.fautes.push(`coque close à l'IBL de plein ciel (${s.envIntensity})`);
     }
     const k = s.keyLight || {};
-    const { intensite, marge, elevation, margeElevation } = CHARTE.lumiere;
-    if (Number.isFinite(k.intensity) && Math.abs(k.intensity - intensite) > marge) {
-      ligne.fautes.push(`intensité ${k.intensity}`);
+    const { elevation, margeElevation } = CHARTE.lumiere;
+    const bande = bandeLumiere(s.sky);
+    ligne.nuit = bande.nuit;
+    if (Number.isFinite(k.intensity) && Math.abs(k.intensity - bande.vise) > bande.tolerance) {
+      ligne.fautes.push(`intensité ${k.intensity}${bande.nuit ? ' (bande de nuit)' : ''}`);
     }
     if (Number.isFinite(k.elevation) && !dehors
       && Math.abs(k.elevation - elevation) > margeElevation) {

@@ -20,6 +20,52 @@ import { Reverb } from './Reverb.js';
 import { Lointain } from './Lointain.js';
 import { Premieres } from './Premieres.js';
 
+/**
+ * L'INTERRUPTEUR SILENCIEUX DE L'IPHONE — et comment une galerie sonore
+ * a le droit de passer outre.
+ *
+ * Sur iOS, le petit interrupteur latéral ne coupe pas « les sons » en bloc :
+ * il coupe la catégorie de session AMBIENT, celle que Safari donne par
+ * défaut à la Web Audio API. Une vidéo YouTube, elle, s'entend — parce
+ * qu'elle est déclarée en catégorie PLAYBACK. C'est une déclaration
+ * d'intention, pas une astuce : « ce son EST le contenu, pas un ornement ».
+ *
+ * Depuis iOS 16.4, cette déclaration est enfin accessible au web :
+ * `navigator.audioSession.type = 'playback'`. Pour une galerie où le son
+ * EST l'œuvre — un visiteur qui traverse une pièce compose son mixage —
+ * c'est exactement la bonne catégorie, et la seule honnête.
+ *
+ * CE QUE ÇA COÛTE, ET IL FAUT LE SAVOIR : `playback` prend la parole. La
+ * musique que le visiteur écoutait déjà s'interrompt (elle ne se mélange
+ * pas). C'est le comportement d'un lecteur vidéo, et c'est celui qu'on
+ * veut ici — deux œuvres sonores superposées n'en font aucune. Les autres
+ * valeurs ne conviennent pas : `ambient` se laisse couper par
+ * l'interrupteur (le défaut d'aujourd'hui), `transient` est fait pour un
+ * bip, `play-and-record` demanderait le micro pour rien.
+ *
+ * À POSER AVANT L'AudioContext : la catégorie est lue à la création du
+ * contexte. Après, elle ne mord plus sur celui qui joue déjà.
+ *
+ * PAS DE REPLI FOLKLORIQUE. On lit partout qu'un `<audio>` ou une `<video>`
+ * muette en lecture « changerait la catégorie » sur les iOS antérieurs.
+ * Ce dépôt s'est déjà fait avoir DEUX FOIS par des contournements qui ne
+ * mordaient plus en silence (voir `scan-memoire.js`) : on ne rajoute pas
+ * un troisième que rien ne prouve. Sur iOS 16.3 et avant, le son reste
+ * coupé par l'interrupteur — et l'écran d'accueil le dit déjà, casque
+ * recommandé.
+ */
+function jouerMalgreLeSilencieux() {
+  try {
+    const session = globalThis.navigator?.audioSession;
+    // `type` est en lecture-écriture là où l'API existe ; ailleurs,
+    // `audioSession` est simplement absent et l'on ne fait rien.
+    if (session && 'type' in session) session.type = 'playback';
+  } catch {
+    // un navigateur qui expose l'objet sans accepter la valeur ne doit
+    // surtout pas empêcher le son de démarrer
+  }
+}
+
 export class AudioEngine {
   constructor() {
     this.ctx = null;
@@ -44,6 +90,7 @@ export class AudioEngine {
   /** À appeler depuis un geste utilisateur (obligatoire sur mobile/Safari). */
   unlock() {
     if (!this.unlocked) {
+      jouerMalgreLeSilencieux();
       const AC = window.AudioContext || window.webkitAudioContext;
       this.ctx = new AC();
       // un contexte neuf a un écoutant neuf : la mémoire de `updateListener`

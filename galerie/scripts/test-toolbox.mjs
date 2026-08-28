@@ -93,6 +93,42 @@ test('choisi avant le premier geste, l\'état survit à unlock()', () => {
   assert.ok(audio.includes('this.master.gain.value = this.sonCoupe ? 0 : 1'));
 });
 
+titre('l’interrupteur silencieux de l’iPhone');
+test('la session audio est déclarée « playback » AVANT l’AudioContext', () => {
+  // Sans cette déclaration, l'interrupteur latéral d'un iPhone coupe toute
+  // la Web Audio : dans une galerie où le son EST l'œuvre, le visiteur
+  // croirait la pièce muette. La catégorie est lue à la CRÉATION du
+  // contexte — posée après, elle ne mord plus.
+  const pose = audio.indexOf('jouerMalgreLeSilencieux()');
+  const contexte = audio.indexOf('this.ctx = new AC()');
+  assert.ok(pose > 0, 'la déclaration de session a disparu');
+  assert.ok(contexte > 0);
+  assert.ok(pose < contexte,
+    'la catégorie doit être posée AVANT la création de l’AudioContext');
+  assert.ok(audio.includes("session.type = 'playback'"),
+    'seule « playback » passe l’interrupteur silencieux');
+});
+test('l’absence de l’API ne casse rien, et l’échec non plus', () => {
+  // Firefox et Chrome n'ont pas navigator.audioSession : la fonction doit
+  // rester muette. Et un navigateur qui expose l'objet sans accepter la
+  // valeur ne doit surtout pas empêcher le son de démarrer.
+  assert.ok(/navigator\?\.audioSession/.test(audio), 'accès optionnel attendu');
+  assert.ok(audio.includes("'type' in session"), 'présence testée avant écriture');
+  const corps = audio.slice(audio.indexOf('function jouerMalgreLeSilencieux'),
+    audio.indexOf('export class AudioEngine'));
+  assert.ok(/try\s*\{/.test(corps) && /catch/.test(corps),
+    'l’écriture doit être protégée');
+});
+test('aucun repli folklorique par élément <audio> muet', () => {
+  // Ce dépôt s'est déjà fait avoir deux fois par des contournements qui ne
+  // mordaient plus en silence. On n'en ajoute pas un troisième que rien ne
+  // prouve : si quelqu'un en écrit un, qu'il le mesure sur un vrai iOS.
+  const corps = audio.slice(audio.indexOf('function jouerMalgreLeSilencieux'),
+    audio.indexOf('export class AudioEngine'));
+  assert.ok(!/createElement\(['"](audio|video)/.test(corps),
+    'repli non mesuré : à prouver sur appareil avant de l’ajouter');
+});
+
 titre('la dérive publie son état');
 test('galerie:derive émis à chaque peinture d\'état', () => {
   assert.ok(derive.includes("new CustomEvent('galerie:derive'"));

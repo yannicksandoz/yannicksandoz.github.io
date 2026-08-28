@@ -2096,6 +2096,79 @@ l'attendre, et surveille la ligne fautive chez l'amont.
 Vérifié dans la galerie elle-même, servie compressée : *Onde stationnaire*
 est là, dans l'annexe.
 
+**La lune du labo éclairait enfin — retour d'auteur : « la lumière est bien
+dans l'entrée mais pas top au labo ».** Le correctif de `LACET_MUR` ci-dessus
+a retiré à toutes les salles le flot accidentel qui les traversait. Partout
+ailleurs il restait de quoi voir ; au labo, non — et le relevé dit pourquoi
+en une ligne. Sur les quinze pièces, le labo est la SEULE à ciel ouvert dont
+le contenu déclare `"keyLight": false` :
+
+| pièce | plafond | lampe-clé |
+|---|---|---|
+| allée, annexe, entrée, jardin | ouvertes | 2,83 à 4,20 |
+| archives, bibliothèque, couloir, belvédère, faces 1-6 | closes | `false` — et le moteur les éteindrait de toute façon (`coqueClose`) |
+| **labo** | **ouverte** | **`false`** |
+
+Le labo porte pourtant une œuvre `moon`, auto-éclairée, à
+`[9.19, 17, -15.59]` : une lune qui BRILLE sans rien éclairer. La salle
+n'avait donc pour toute lumière que le lavage de ses quatre corniches, qui
+meurt à mi-mur — d'où un sol noir et des œuvres qui flottent.
+
+On lui donne donc sa lune, et on la cale sur l'œuvre qui la dessine plutôt
+que sur un angle choisi à l'œil : azimut 149,5°, élévation 43,2°, déduits de
+la position du disque (`test-charte.mjs` refait le calcul et échouerait si
+l'un des deux bougeait sans l'autre). Couleur `#8fa4e8` — une lune est
+froide.
+
+*L'intensité, mesurée et non devinée* — luminance du TIERS BAS de l'image
+(le sol, c'est lui qu'on voyait noir) et part de noir pur, au labo :
+
+| clé | sol | noir | lecture |
+|---|---|---|---|
+| 0 | 19,0 | 22,4 % | la salle d'avant : le sol meurt |
+| 0,8 | 25,8 | 3,7 % | le sol réapparaît |
+| 1,2 | 27,4 | 1,0 % | les objets se posent |
+| **1,8** | **31,0** | **0,1 %** | **retenu** — lisible, et encore la nuit |
+| 2,6 | 36,0 | 0,0 % | ce n'est plus la nuit |
+
+Résultat sur la vue d'arrivée : bureau 39 → **45,5** (noir 13,6 % → 4,1 %),
+téléphone 35,5 → **42,1** (17,7 % → 2,4 %), soit **0,93 du bureau**.
+
+**Et la charte a appris la nuit.** Sa bande de lampe-clé — 3,5 ± 0,8 — avait
+été relevée sur des salles de JOUR, et elle a failli faire une bêtise : elle
+exigeait au minimum 2,7 pour une lune, c'est-à-dire le crépuscule. Une lune
+n'est pas un soleil faible, c'est une autre source. `bandeLumiere(ciel)`
+choisit donc la bande sur le ZÉNITH que la salle déclare — L* ≤ 12 et l'on
+est la nuit, bande 1,8 ± 0,6 — plutôt que sur un mot-clé à tenir à jour : le
+ciel est déjà la source de vérité de l'heure qu'il fait dans la pièce. Les
+deux familles ne se touchent pas (labo à L* ≈ 2, aucun ciel de jour ici sous
+20), et un soleil posé dans une salle de nuit est refusé nommément.
+
+**L'interrupteur silencieux de l'iPhone.** Question d'auteur : peut-on
+entendre la galerie quand le téléphone est en mode silencieux ? Oui, depuis
+iOS 16.4, et ce n'est pas une astuce. L'interrupteur latéral ne coupe pas
+« les sons » en bloc : il coupe la catégorie de session **ambient**, celle
+que Safari donne par défaut à la Web Audio API. Une vidéo, elle, s'entend —
+parce qu'elle est déclarée en **playback**. Une ligne, posée AVANT la
+création de l'AudioContext (la catégorie est lue à ce moment-là) :
+
+```js
+navigator.audioSession.type = 'playback';
+```
+
+Pour une galerie où le son EST l'œuvre, c'est la seule catégorie honnête.
+**Ce qu'elle coûte, et il faut le savoir : la musique que le visiteur
+écoutait déjà s'interrompt** — `playback` prend la parole, elle ne se mélange
+pas. C'est le comportement d'un lecteur vidéo, et c'est celui qu'on veut :
+deux œuvres sonores superposées n'en font aucune.
+
+Aucun repli folklorique pour iOS 16.3 et avant. On lit partout qu'un
+`<audio>` muet en lecture « changerait la catégorie » ; ce dépôt s'est déjà
+fait avoir DEUX FOIS par des contournements qui ne mordaient plus en silence
+(voir `scan-memoire.js`) — on n'en ajoute pas un troisième que rien ne
+prouve, et `test-toolbox.mjs` refuse nommément qu'on en glisse un sans
+l'avoir mesuré sur un vrai appareil.
+
 **WebGPU : la première étape que j'avais proposée ne tient pas, et il faut
 le dire.** Le plan annoncé plus haut — « le tri des splats en compute
 shader, isolé » — supposait qu'on puisse trier en WebGPU pendant que le

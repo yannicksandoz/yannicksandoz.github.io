@@ -19,6 +19,7 @@ import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { CHARTE, EXTERIEURS, LUMINAIRES, clarte, teinteEtSaturation, ecartTeinte,
+  bandeLumiere,
   auditSalles, auditAccrochage, auditRecul, auditHierarchie, auditVista,
   auditRythme, auditBancs, auditAmpleur, ampleurOeuvre, angleApparent,
   arriveesDe, salles, auditDecor, auditLignes, empriseAuSol,
@@ -500,6 +501,43 @@ test('la règle mesure au décalage de chaque accroche, pas au milieu', () => {
   });
   assert.ok(ondule, 'le bandeau est mesuré partout à la même hauteur');
   assert.ok(r.every((c) => c.bandeau > 0 && c.bandeau < 40));
+});
+
+titre('la nuit a sa propre bande de lumière');
+test('une salle au ciel noir est jugée sur la bande NOCTURNE', () => {
+  // La bande diurne (3,5 ± 0,8) a été relevée sur des salles de jour. Elle
+  // exigeait au minimum 2,7 pour une clé de LUNE — or à 2,6 le labo cesse
+  // d'être la nuit (mesuré : luminance du sol 19 → 36 entre 0 et 2,6).
+  const b = bandeLumiere({ zenith: '#050813' });
+  assert.equal(b.nuit, true, 'un zénith à L* ≈ 2 est la nuit');
+  assert.equal(b.vise, 1.8);
+  // 1,8 passe, 3,5 (un soleil) est hors bande
+  assert.ok(Math.abs(1.8 - b.vise) <= b.tolerance, 'la lune retenue doit passer');
+  assert.ok(Math.abs(3.5 - b.vise) > b.tolerance,
+    'un soleil dans une salle de nuit doit être refusé');
+});
+test('un ciel CLAIR reste jugé sur la bande diurne', () => {
+  // le seuil ne doit pas faire basculer une salle de jour par accident
+  for (const ciel of [{ zenith: '#7fa8d8' }, undefined, {}, { zenith: 'nawak' }]) {
+    const b = bandeLumiere(ciel);
+    assert.equal(b.nuit, false, `${JSON.stringify(ciel)} ne doit pas être la nuit`);
+    assert.equal(b.vise, 3.5);
+  }
+  const jour = bandeLumiere({ zenith: '#7fa8d8' });
+  assert.ok(Math.abs(1.8 - jour.vise) > jour.tolerance,
+    'une lune en plein jour est une faute');
+});
+test('le labo porte bien une lune, calée sur l’œuvre qui la dessine', () => {
+  const labo = JSON.parse(readFileSync(join(ici, '..', 'content', 'rooms',
+    'labo.json'), 'utf8'));
+  const k = labo.keyLight;
+  assert.ok(k && k.intensity > 0, 'le labo doit avoir une clé de lune');
+  // l'œuvre « moon » est à [9.19, 17, -15.59] : la clé doit venir de là,
+  // sans quoi la lune serait peinte à un endroit et éclairerait d'un autre
+  const az = (Math.atan2(9.19, -15.59) * 180 / Math.PI + 360) % 360;
+  const el = Math.atan2(17, Math.hypot(9.19, -15.59)) * 180 / Math.PI;
+  assert.ok(Math.abs(k.azimuth - az) < 2, `azimut ${k.azimuth} au lieu de ${az.toFixed(1)}`);
+  assert.ok(Math.abs(k.elevation - el) < 2, `élévation ${k.elevation} au lieu de ${el.toFixed(1)}`);
 });
 
 titre('le décor se tait');
