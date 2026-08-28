@@ -165,6 +165,44 @@ test('une œuvre de salle VOISINE ne retient pas l’écran d’accueil', () => 
     assert.ok(src.includes(appel), `chargement non marqué : ${appel}`);
   }
 });
+titre('les deux pièges de la bibliothèque, et leurs ceintures');
+/**
+ * Ces deux tests lisent le paquet INSTALLÉ, pas notre code : ils veillent
+ * sur les défauts d'en face. Le jour où l'amont les corrige, ils rougissent
+ * — et c'est le signal pour ENLEVER nos ceintures, pas pour rafistoler le
+ * test. C'est la conjonction des deux qui a rendu la panne muette pendant
+ * trois diagnostics : l'un suspend l'attente, l'autre efface la cause.
+ */
+const LIB = readFileSync(join(ici, '..', 'node_modules', '@mkkellogg',
+  'gaussian-splats-3d', 'build', 'gaussian-splats-3d.module.js'), 'utf8');
+
+test('AbortablePromise.then ne prend TOUJOURS qu’un argument', () => {
+  // `await p` appelle `p.then(succès, échec)`. Un `then(onResolve)` jette le
+  // second : à l'erreur, l'attente ne se règle jamais et le rejet devient
+  // orphelin. D'où `await chargement.promise` dans scans.js.
+  assert.ok(/^\s{4}then\(onResolve\)\s*\{/m.test(LIB),
+    'la signature a changé : revérifier le contournement de scans.js');
+  assert.ok(!/^\s{4}then\(onResolve,\s*onReject\)/m.test(LIB),
+    'then accepte désormais un gestionnaire d’échec — retirer la ceinture');
+  // et la vraie promesse qu'on attend à la place existe toujours
+  assert.ok(/this\.promise = new Promise\(/.test(LIB),
+    'AbortablePromise n’enveloppe plus une vraie promesse');
+});
+test('updateError JETTE toujours la cause', () => {
+  assert.ok(/return defaultMessage \? new Error\(defaultMessage\) : error;/.test(LIB),
+    'updateError a changé : revérifier la ceinture de scans.js');
+});
+test('scans.js porte les deux ceintures', () => {
+  const src = readFileSync(join(ici, '..', 'engine', 'src', 'core',
+    'scans.js'), 'utf8');
+  assert.ok(src.includes('await (chargement?.promise ?? chargement)'),
+    'l’attente doit porter sur la vraie promesse, pas sur l’AbortablePromise');
+  assert.ok(!/await visionneuse\.addSplatScene/.test(src),
+    'attendre l’AbortablePromise directement suspend pour toujours');
+  assert.ok(src.includes('remise.cause = erreur'),
+    'la cause d’origine doit être rattachée à l’erreur rendue');
+});
+
 test('la bibliothèque est déclarée, en MIT', () => {
   const p = JSON.parse(readFileSync(join(ici, '..', 'package.json'), 'utf8'));
   assert.ok(p.dependencies['@mkkellogg/gaussian-splats-3d']);

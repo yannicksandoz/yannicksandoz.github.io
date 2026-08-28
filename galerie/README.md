@@ -2015,6 +2015,49 @@ pas ne la télécharge jamais.
 Vérifiée en profil bureau et en profil iPhone 13 : six verdicts verts, 9 %
 de l'image dessinée, le nuage visible dans la toile.
 
+**Et elle a parlé au premier essai — la panne sous la panne.** Sur le
+MacBook de l'auteur, la page s'arrête à l'étape 4 : elle y reste
+indéfiniment, pendant qu'apparaît en bas `promesse rejetée :
+Viewer::addSplatScene -> Could not load file`. Une étape qui ne finit pas
+ET un rejet que personne n'attrape : la contradiction est le diagnostic.
+
+Deux défauts d'API de GaussianSplats3D, dont c'est la CONJONCTION qui
+efface toute trace :
+
+1. **`AbortablePromise` n'est pas une promesse.** Son `then` ne prend qu'un
+   paramètre — `then(onResolve)` — et jette silencieusement le second. Or
+   `await p` appelle `p.then(succès, échec)`. Le gestionnaire d'échec part
+   donc à la poubelle : à la moindre erreur, l'attente **ne se règle
+   jamais**, et le rejet ressort en « unhandled rejection » sans
+   propriétaire. `creerScan` restait suspendue pour toujours.
+2. **`Viewer.updateError` jette la cause.** Quoi qu'il soit arrivé, elle
+   rend `new Error('Viewer::addSplatScene -> Could not load file …')`. Le
+   message qu'on lit ne dit donc jamais ce qui s'est passé.
+
+Le premier suspend, le second aveugle. Ensemble, ils produisent exactement
+ce qu'on observait depuis le début : une œuvre absente, aucun message
+utile, et trois diagnostics faux faute de matière.
+
+*Mesuré, pas supposé* — même bibliothèque, même erreur (une URL
+injoignable), même page :
+
+| | résultat |
+|---|---|
+| `await addSplatScene(…)` | **suspendu**, aucun règlement en 8 s |
+| `await addSplatScene(…).promise` | **rejeté**, `TypeError: Failed to fetch` |
+| arité de `AbortablePromise.then` | **1** — une vraie promesse en prend 2 |
+
+Les deux ceintures tiennent en quatre lignes dans `core/scans.js` : on
+attend la vraie promesse que l'`AbortablePromise` enveloppe (`.promise`),
+et l'on enrobe `updateError` pour rattacher la cause d'origine
+(`erreur.cause`) au message générique. `test-scans.mjs` surveille les deux
+défauts **chez l'amont** : le jour où ils sont corrigés, la suite rougit —
+signal pour retirer les ceintures, pas pour rafistoler le test.
+
+Reste à savoir POURQUOI le chargement échoue sur cette machine-là. La
+réponse n'est plus une hypothèse à écrire ici : elle s'affiche désormais à
+l'étape 4, cause comprise.
+
 **Les seuils, et les corniches.** Deux fautes revenaient à la main, salle
 après salle : un portail planté dans un escalier, et un bandeau lumineux
 qui coupait une fenêtre en deux. Les déplacer une fois de plus n'apprend

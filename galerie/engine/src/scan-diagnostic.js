@@ -195,7 +195,11 @@ async function diagnostiquer() {
         'le fichier est lu mais vide, ou le décodage a échoué en silence');
     }
   } catch (e) {
-    dire('decode', 'non', 'échec', String(e.message).slice(0, 300));
+    // `scans.js` rattache la cause que la bibliothèque efface : on la dit,
+    // car c'est elle qui nomme la panne, jamais le message d'enveloppe.
+    const cause = e?.cause ? ` [${e.cause.message ?? e.cause}]` : '';
+    dire('decode', 'non', 'échec', (String(e?.message ?? e) + cause).slice(0, 400));
+    bavarder('!! chargement du scan : ' + String(e?.message ?? e) + cause);
     return;
   }
 

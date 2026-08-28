@@ -13,6 +13,16 @@
  * Dans le JSON d'une œuvre :   "scan": "assets/scans/capture.splat"
  * (formats acceptés : .splat, .ksplat, .ply de 3DGS)
  *
+ * POURQUOI UN SCAN QUI RATE ÉTAIT MUET — la panne sous la panne. Pendant
+ * trois diagnostics, un scan en échec ne disait rien et ne rendait jamais la
+ * main. La cause n'est pas dans le rendu mais dans deux défauts d'API de la
+ * bibliothèque, dont la CONJONCTION efface toute trace : `AbortablePromise`
+ * n'est pas une promesse et perd le gestionnaire d'échec de tout `await`
+ * (l'attente ne se règle donc jamais), pendant que `Viewer.updateError`
+ * remplace la cause par un message générique. Les deux sont ceinturés plus
+ * bas, à l'appel, avec le détail ; `test-scans.mjs` surveille les deux
+ * défauts chez l'amont et rougira le jour où ils seront corrigés.
+ *
  * DEUX CHOIX QUI NE SE VOIENT PAS, et qu'il faut connaître :
  *
  *   • `sharedMemoryForWorkers: false` — le tri des taches passe par un
@@ -65,10 +75,38 @@ export async function creerScan(url, options = {}) {
       gpuAcceleratedSort: false,
       freeIntermediateSplatData: true
     });
-    await visionneuse.addSplatScene(url, {
+    // DEUX PIÈGES DE LA BIBLIOTHÈQUE, ET C'EST LEUR CONJONCTION QUI REND LA
+    // PANNE MUETTE. Ils ont coûté trois diagnostics faux ; ils sont désarmés
+    // ici, en quatre lignes, et `test-scans.mjs` surveille les deux.
+    //
+    // 1. `AbortablePromise` n'est PAS une promesse. Son `then` ne prend
+    //    qu'un seul paramètre — `then(onResolve)` — et jette silencieusement
+    //    le second. Or `await p` appelle `p.then(succès, échec)` : le gestion-
+    //    naire d'échec part à la poubelle, la promesse attendue ne se règle
+    //    JAMAIS en cas d'erreur, et le rejet ressort en « unhandled
+    //    rejection » sans propriétaire. Un scan qui échoue laissait donc
+    //    `creerScan` suspendue pour toujours : ni œuvre, ni message. On
+    //    attend la vraie promesse qu'elle enveloppe (`.promise`), qui, elle,
+    //    se règle dans les deux sens.
+    //
+    // 2. `Viewer.updateError` JETTE la cause : quoi qu'il soit arrivé, elle
+    //    rend `new Error('Viewer::addSplatScene -> Could not load file …')`.
+    //    On la ceinture pour rattacher l'erreur d'origine — sans quoi on
+    //    diagnostique à l'aveugle, ce qui est exactement ce qui s'est passé.
+    const majErreur = visionneuse.viewer.updateError.bind(visionneuse.viewer);
+    visionneuse.viewer.updateError = (erreur, secours) => {
+      const remise = majErreur(erreur, secours);
+      if (remise !== erreur && erreur) {
+        remise.message += ` — cause : ${erreur?.message ?? erreur}`;
+        remise.cause = erreur;
+      }
+      return remise;
+    };
+    const chargement = visionneuse.addSplatScene(url, {
       showLoadingUI: false,
       splatAlphaRemovalThreshold: 5
     });
+    await (chargement?.promise ?? chargement);
   } finally {
     retirer();
   }
