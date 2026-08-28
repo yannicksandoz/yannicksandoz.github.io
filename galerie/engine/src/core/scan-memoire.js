@@ -1,8 +1,22 @@
 /**
- * LE TRI DES TACHES SANS MÉMOIRE PARTAGÉE — le correctif Firefox / Safari.
+ * LE TRI DES TACHES SANS MÉMOIRE PARTAGÉE.
  *
- * Symptôme : sur Firefox et Safari, un scan gaussien se charge, son cartel
- * s'affiche, et l'œuvre reste INVISIBLE. Aucune erreur dans la page.
+ * CE QUE CE MODULE NE SOIGNE PAS — à lire d'abord, parce que ce fichier a
+ * été écrit comme LA réponse à une panne qu'il ne répare pas. Sur l'iPhone
+ * de l'auteur, `capacites.html` répond que la mémoire WebAssembly partagée
+ * est ACCEPTÉE hors isolation, et le scan y reste pourtant invisible. Le
+ * raisonnement ci-dessous tient donc pour les navigateurs qui refusent
+ * l'allocation — et le contournement leur sert — mais il n'explique pas ce
+ * que voit l'auteur. La panne qui reste se diagnostique sur `scan.html`,
+ * qui charge le vrai scan sur l'appareil au lieu de raisonner à distance.
+ *
+ * Une cause qu'on ne peut pas confronter à la machine n'est pas une cause.
+ *
+ * ------------------------------------------------------------------------
+ *
+ * Symptôme visé : sur un navigateur qui refuse le SharedArrayBuffer hors
+ * isolation, un scan gaussien se charge, son cartel s'affiche, et l'œuvre
+ * reste INVISIBLE. Aucune erreur dans la page.
  *
  * Cause. GaussianSplats3D trie ses taches par profondeur dans un worker,
  * en WebAssembly. Le worker alloue toujours sa mémoire ainsi :

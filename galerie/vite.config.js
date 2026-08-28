@@ -198,6 +198,26 @@ export default defineConfig({
 
   build: {
     target: 'es2020',
-    chunkSizeWarningLimit: 1200
+    chunkSizeWarningLimit: 1200,
+
+    // Deux pages construites, pas une.
+    //
+    //   index.html — la galerie ;
+    //   scan.html  — le diagnostic des scans gaussiens.
+    //
+    // Le diagnostic doit passer par le build parce qu'il importe `three` et
+    // la bibliothèque de splats : un fichier posé à la main dans dist/ ne
+    // saurait pas les résoudre. Il ne coûte rien à la galerie — Rollup lui
+    // donne son propre point d'entrée, et le visiteur qui n'ouvre pas
+    // `scan.html` ne le télécharge jamais.
+    //
+    // `liste.html`, `catalogue.html` et `capacites.html`, eux, n'ont aucun
+    // module : `scripts/genere-liste.mjs` les écrit dans dist/ après coup.
+    rollupOptions: {
+      input: {
+        index: fileURLToPath(new URL('./index.html', import.meta.url)),
+        scan: fileURLToPath(new URL('./scan.html', import.meta.url))
+      }
+    }
   }
 });

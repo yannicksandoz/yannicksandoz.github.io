@@ -264,7 +264,18 @@ const dire = (id, etat, valeur, note) => {
   dire('webgl', 'oui', 'présent', nom || 'processeur graphique non déclaré');
 })();
 
-// 3. Mémoire WASM partagée — c'est ELLE qui rendait les scans invisibles
+// 3. Mémoire WASM partagée
+//
+// On a longtemps cru que c'était ELLE qui rendait les scans invisibles :
+// hors contexte isolé, certains navigateurs refusent d'allouer une mémoire
+// WebAssembly partagée, et le worker de tri meurt sans un mot. Cette sonde
+// a démenti l'explication sur l'iPhone de l'auteur — « acceptée », et le
+// scan reste pourtant invisible. Le contournement de scan-memoire.js est
+// donc utile ailleurs, mais il ne soigne pas cette panne-là. Le vrai
+// diagnostic se fait sur scan.html, qui charge le scan pour de bon.
+//
+// (Pas d'accent grave dans ce commentaire : il vit à l'intérieur du
+// gabarit qui devient le script de la page.)
 (() => {
   let partagee = false;
   try {
@@ -277,7 +288,8 @@ const dire = (id, etat, valeur, note) => {
       isole ? 'Contexte isolé.' : 'Hors isolation, ce navigateur la tolère.');
   } else {
     dire('wasm', 'info', 'refusée hors isolation',
-      'C\\'est le cas de Firefox et Safari : le contournement des scans sert ici.');
+      'Le contournement de scan-memoire.js sert ici — mais il n\\'explique '
+      + 'pas tout : voir scan.html.');
   }
 })();
 
@@ -312,6 +324,8 @@ const capacites = page({
         <span class="verdict">…</span><span class="note"></span></li>
     </ul>
   </main>
+  <p>Un scan gaussien reste invisible chez vous ? <a href="./scan.html">La page
+  qui le charge étape par étape</a> dit où ça casse.</p>
   <a class="retour" href="./">← Entrer dans la galerie</a>
   <footer>Rien n'est envoyé nulle part : tout est lu et affiché ici même.</footer>
   <script>${SONDE}</script>`

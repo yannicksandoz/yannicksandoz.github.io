@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="theme-color" content="#08080f" />
+  <title>Galerie — pourquoi le scan ne se dessine pas</title>
+  <meta name="description" content="Diagnostic : cette page charge le scan gaussien avec la vraie bibliothèque et raconte chaque étape, sur l'appareil qui l'ouvre." />
+  <meta name="robots" content="noindex" />
+  <style>
+    :root { --fg: #e8e6f2; --dim: #a09cb8; --accent: #b8a8ff; --bg: #08080f; }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      background: var(--bg); color: var(--fg);
+      font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+      line-height: 1.6; padding: 2.5rem 1.2rem 4rem;
+      max-width: 46rem; margin: 0 auto;
+    }
+    h1 { font-weight: 300; letter-spacing: 0.14em; font-size: 1.7rem; }
+    h2 {
+      font-weight: 300; letter-spacing: 0.1em; font-size: 1.15rem;
+      border-bottom: 1px solid rgba(255,255,255,0.12);
+      padding-bottom: 0.4rem; margin: 2.4rem 0 1rem;
+    }
+    p { margin-top: 0.8rem; }
+    a { color: var(--accent); }
+    a:hover, a:focus-visible { color: var(--fg); }
+    .retour { display: inline-block; margin: 1.4rem 1rem 0 0; color: var(--accent); }
+    #vue {
+      width: 100%; aspect-ratio: 1 / 0.62; display: block;
+      margin-top: 1.4rem; border-radius: 0.4rem;
+      background: #101018; border: 1px solid rgba(255,255,255,0.12);
+    }
+    .sondes { list-style: none; padding: 0; }
+    .sonde { border-left: 3px solid var(--dim); padding: .6rem 0 .6rem .9rem;
+      margin: .9rem 0; }
+    .sonde b { display: block; }
+    .sonde .verdict { font-size: 1.25rem; }
+    .sonde .note { display: block; color: var(--dim); font-size: .9rem;
+      margin-top: .2rem; }
+    .sonde.oui { border-left-color: #7fd6a0; }
+    .sonde.oui .verdict { color: #7fd6a0; }
+    .sonde.non { border-left-color: #e08a8a; }
+    .sonde.non .verdict { color: #e08a8a; }
+    .sonde.info { border-left-color: var(--accent); }
+    .sonde.info .verdict { color: var(--accent); }
+    #journal {
+      white-space: pre-wrap; word-break: break-word;
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      font-size: 0.78rem; line-height: 1.5; color: var(--dim);
+      background: rgba(255,255,255,0.04); border-radius: 0.4rem;
+      padding: 0.9rem; min-height: 3rem;
+    }
+    footer { color: var(--dim); font-size: 0.85rem; margin-top: 2.4rem; }
+    noscript { color: #e08a8a; }
+  </style>
+</head>
+<body>
+  <h1>Pourquoi le scan ne se dessine pas</h1>
+  <p>Cette page n'est pas une visite. Elle charge le vrai scan avec la vraie
+  bibliothèque, dans le navigateur qui l'ouvre, et dit tout haut ce qui se
+  passe à chaque étape. Elle existe parce qu'un téléphone n'a pas de console,
+  et qu'une panne qu'on ne peut pas regarder ne se répare qu'au hasard.</p>
+
+  <canvas id="vue" aria-label="Rendu du scan gaussien"></canvas>
+  <p>Si vous voyez un nuage de points ci-dessus, le scan se dessine et le
+  défaut est ailleurs — dans la galerie, pas dans la bibliothèque.</p>
+
+  <h2>Les six questions</h2>
+  <main>
+    <ul class="sondes">
+      <li id="gl" class="sonde"><b>1. Contexte graphique</b>
+        <span class="verdict">…</span><span class="note"></span></li>
+      <li id="temoin" class="sonde"><b>2. Témoin — un cube ordinaire</b>
+        <span class="verdict">…</span><span class="note"></span></li>
+      <li id="fichier" class="sonde"><b>3. Le fichier arrive</b>
+        <span class="verdict">…</span><span class="note"></span></li>
+      <li id="decode" class="sonde"><b>4. La bibliothèque le décode</b>
+        <span class="verdict">…</span><span class="note"></span></li>
+      <li id="shader" class="sonde"><b>5. Le shader compile</b>
+        <span class="verdict">…</span><span class="note"></span></li>
+      <li id="pixels" class="sonde"><b>6. Des pixels changent</b>
+        <span class="verdict">…</span><span class="note"></span></li>
+    </ul>
+  </main>
+
+  <h2>Ce que le navigateur a dit</h2>
+  <pre id="journal">(rien pour l'instant)</pre>
+
+  <noscript>Cette page a besoin de JavaScript : c'est justement lui qu'elle
+  met à l'épreuve.</noscript>
+
+  <a class="retour" href="./">← Entrer dans la galerie</a>
+  <a class="retour" href="./capacites.html">Ce que cet appareil sait faire →</a>
+  <footer>Rien n'est envoyé nulle part : tout est lu, calculé et affiché ici
+  même.</footer>
+
+  <script type="module" src="/engine/src/scan-diagnostic.js"></script>
+</body>
+</html>

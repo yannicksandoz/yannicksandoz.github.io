@@ -1790,7 +1790,7 @@ vraiment posée dans ce dépôt :
 |---|---|
 | **WebGPU** | si la migration du moteur vaut le voyage (`requestAdapter`, pas seulement `navigator.gpu`) |
 | **WebGL2** | le socle actuel, avec le nom du processeur graphique |
-| **mémoire WASM partagée** | c'est ELLE qui rendait les scans invisibles ; la page dit si l'appareil la refuse |
+| **mémoire WASM partagée** | on la croyait responsable des scans invisibles ; c'est cette sonde qui a démenti l'explication (voir `scan.html`) |
 | **profil retenu** | ce que la galerie choisirait ici : lignes analytiques et sonde, ou sources étendues et ombres |
 
 Rien n'est envoyé nulle part : tout est lu et affiché sur place. Vérifiée
@@ -1905,6 +1905,15 @@ chargeait, son cartel s'affichait, et l'œuvre n'était nulle part — sur
 Firefox et Safari seulement, et sans un mot dans la console. Le nuage
 n'était pas absent : il n'était pas TRIÉ.
 
+> **Ce diagnostic n'était pas celui de la panne de l'auteur.** Tout ce qui
+> suit est exact — la cause décrite existe, le correctif la lève, et
+> l'expérience contrôlée le montre. Mais `capacites.html`, ouverte sur
+> l'iPhone 13 de l'auteur, a répondu que la mémoire WASM partagée y est
+> **acceptée** : ce navigateur-là n'a jamais souffert de ce défaut, et le
+> scan y reste pourtant invisible. Le correctif est utile ailleurs, il n'est
+> pas nocif ici, et il ne guérit pas ce que l'auteur voit. La suite de
+> l'enquête est plus bas, sous « Regarder au lieu de deviner ».
+
 GaussianSplats3D range ses taches par profondeur dans un worker
 WebAssembly, et ce worker alloue sa mémoire ainsi, quoi qu'on demande :
 `new WebAssembly.Memory({ initial: n, maximum: n, shared: true })`. Une
@@ -1969,6 +1978,42 @@ morceau `scans` servi. Et aucune CSP ne vient bloquer les workers `blob:`.
 le paquet installé porte encore le défaut qui la justifie. Le jour où
 l'amont allouera selon `useSharedMemory`, la suite rougira : c'est le
 signal pour supprimer `scan-memoire.js`, pas pour rafistoler le test.
+
+**Regarder au lieu de deviner — `scan.html`.** Le correctif ci-dessus
+déployé, le scan restait invisible chez l'auteur. J'ai alors avancé une
+seconde explication, du même bois que la première : raisonnée depuis le
+code, jamais confrontée à l'appareil. `capacites.html` l'a démentie en une
+seconde. Deux diagnostics, deux erreurs, et la même cause aux deux : je
+n'avais pas regardé.
+
+D'où une page qui regarde. `scan.html` charge le VRAI fichier avec la VRAIE
+bibliothèque, dans le navigateur qui l'ouvre, et répond à six questions
+dans l'ordre où elles peuvent casser :
+
+| | ce que la réponse élimine |
+|---|---|
+| **1. contexte graphique** | WebGL2 ou WebGL1, nom du processeur, taille de texture, textures flottantes filtrables |
+| **2. témoin** | un cube ordinaire, sans rapport avec les scans. S'il ne compte aucun pixel, la panne n'est pas dans les scans et les quatre autres réponses ne prouvent rien |
+| **3. le fichier arrive** | code HTTP, octets, type déclaré |
+| **4. la bibliothèque décode** | nombre de taches et durée : sépare « fichier illisible » de « rien à l'écran » |
+| **5. le shader compile** | le suspect numéro un, attrapé par `renderer.debug.onShaderError` — que three.js ne crie qu'à une console que le téléphone n'a pas |
+| **6. des pixels changent** | on rend, on relit le tampon (`preserveDrawingBuffer`), on compte. La seule question qui compte |
+
+Le témoin est ce qui distingue cette page d'une capture d'écran : sans lui,
+un « rien de dessiné » accuserait le scan alors que ce serait la lecture du
+tampon. Et le rendu se fait avec un renderer **nu**, pas le pipeline de la
+galerie : si le scan apparaît ici et pas dans la salle, la faute est chez
+nous ; s'il n'apparaît ni ici ni là, elle est dans la bibliothèque ou dans
+le pilote. Aucune capture d'écran ne donne ce partage.
+
+Tout ce qui passe par `console.error`, `console.warn`, `onerror` ou une
+promesse rejetée est recopié en bas de page, mot pour mot. Rien n'est
+envoyé nulle part. La page est un second point d'entrée du build (voir
+`rollupOptions.input` dans `vite.config.js`) : le visiteur qui ne l'ouvre
+pas ne la télécharge jamais.
+
+Vérifiée en profil bureau et en profil iPhone 13 : six verdicts verts, 9 %
+de l'image dessinée, le nuage visible dans la toile.
 
 **Les seuils, et les corniches.** Deux fautes revenaient à la main, salle
 après salle : un portail planté dans un escalier, et un bandeau lumineux
