@@ -68,6 +68,7 @@ export class Controls {
     this._keys = new Set();
     this._joyVec = new THREE.Vector2();
     this._yawVel = 0; // vitesse de pivot courante (lissée)
+    this._sprintTactile = false; // bouton « courir » maintenu (voir _setupSprint)
     // LES TROIS RAYONS DE LA MARCHE, et eux seuls, ont le droit d'aller vite.
     //
     // `firstHitOnly` fait s'arrêter la descente de l'arbre au premier
@@ -155,6 +156,7 @@ export class Controls {
     window.addEventListener('blur', () => this._keys.clear());
 
     this._setupJoystick();
+    this._setupSprint();
   }
 
   _setupJoystick() {
@@ -192,6 +194,50 @@ export class Controls {
     };
     zone.addEventListener('pointerup', end);
     zone.addEventListener('pointercancel', end);
+  }
+
+  /**
+   * LA COURSE AU POUCE DROIT — le pendant tactile de la touche Maj.
+   *
+   * Au clavier, Maj double la vitesse ; sur un écran, il n'y avait rien, et
+   * traverser le belvédère de cinquante mètres au joystick est long. On
+   * pose donc un bouton en miroir du joystick, sous le pouce qui ne fait
+   * rien, et l'on ne le montre QUE sur pointeur grossier : à côté d'un
+   * clavier, un bouton « courir » serait un doublon encombrant.
+   *
+   * Maintenu, pas basculé : une course qui reste enclenchée après qu'on a
+   * lâché est un piège — on repart en courant sans l'avoir demandé, et dans
+   * une salle d'exposition c'est le contraire du geste voulu. La capture de
+   * pointeur garantit le relâchement même si le doigt sort du rond, et
+   * `pointercancel` couvre l'appel entrant ou le geste système.
+   */
+  _setupSprint() {
+    const bouton = document.getElementById('sprint');
+    if (!bouton) return;
+    if (!window.matchMedia('(pointer: coarse)').matches) return;
+    bouton.hidden = false;
+
+    let doigt = null;
+    const courir = (oui) => {
+      this._sprintTactile = oui;
+      bouton.classList.toggle('court', oui);
+    };
+    bouton.addEventListener('pointerdown', (e) => {
+      doigt = e.pointerId;
+      bouton.setPointerCapture(doigt);
+      courir(true);
+      // sans cela, le maintien fait aussi tourner la caméra sous le pouce
+      e.preventDefault();
+    });
+    const lacher = (e) => {
+      if (e.pointerId !== doigt) return;
+      doigt = null;
+      courir(false);
+    };
+    bouton.addEventListener('pointerup', lacher);
+    bouton.addEventListener('pointercancel', lacher);
+    // un onglet qu'on quitte en courant ne doit pas revenir en courant
+    window.addEventListener('blur', () => { doigt = null; courir(false); });
   }
 
   _moveInput() {
@@ -249,7 +295,9 @@ export class Controls {
         const right = new THREE.Vector3().crossVectors(fwd, UP);
         if (right.lengthSq() > 1e-8) right.normalize();
         else right.set(0, 0, 0);   // regard au zénith ou au nadir : pas de côté
-        const boost = this._keys.has('ShiftLeft') || this._keys.has('ShiftRight') ? 2.2 : 1;
+        // Maj au clavier, bouton maintenu au doigt : la même course
+        const boost = this._keys.has('ShiftLeft') || this._keys.has('ShiftRight')
+          || this._sprintTactile ? 2.2 : 1;
         const move = new THREE.Vector3()
           .addScaledVector(fwd, z)
           .addScaledVector(right, x)

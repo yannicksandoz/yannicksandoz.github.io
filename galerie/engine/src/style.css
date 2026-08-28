@@ -271,6 +271,39 @@ html, body {
   pointer-events: none;
 }
 
+/* ------------------------------------------------------------ course --- */
+/* Le pendant tactile de la touche Maj : au POUCE DROIT, en miroir du
+   joystick, là où la main tient déjà le téléphone. Tactile seulement —
+   `Controls._setupSprint` ne le démasque que sur pointeur grossier, un
+   bouton « courir » n'ayant aucun sens à côté d'un clavier qui a Maj.
+   `touch-action: none` : sans lui, le maintien déclenche le défilement de
+   la page et la course s'interrompt au premier pixel de glissement. */
+#sprint {
+  position: fixed; z-index: 15;
+  /* la colonne de droite est déjà prise par les pastilles crédits (bottom
+     4rem) et pourboire (bottom 1rem), toutes deux à right 1rem : le bouton
+     se range à leur gauche, sinon il les recouvre — mesuré 32×35 px de
+     chevauchement sur iPhone 13 mini avant ce décalage. */
+  right: calc(4.8rem + env(safe-area-inset-right, 0px));
+  bottom: calc(2.4rem + env(safe-area-inset-bottom, 0px));
+  width: 4.4rem; height: 4.4rem; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  color: var(--dim);
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  touch-action: none; -webkit-tap-highlight-color: transparent;
+  transition: color 0.15s ease, background 0.15s ease, border-color 0.15s ease;
+}
+#sprint svg { width: 1.5rem; height: 1.5rem; }
+/* pressé : la même teinte que le manche du joystick, pour qu'on lise d'un
+   coup d'œil que les deux pouces parlent au même déplacement */
+#sprint.court {
+  color: var(--fg);
+  background: rgba(159, 140, 255, 0.25);
+  border-color: rgba(159, 140, 255, 0.5);
+}
+#sprint[hidden] { display: none; }
+
 /* ------------------------------------------------------ petits écrans --- */
 @media (max-width: 640px) {
   #focus-overlay { bottom: 2vh; padding: 1rem 1.1rem; }
@@ -282,6 +315,8 @@ html, body {
   :root { --minimap: 5.8rem; }
   #minimap { padding: 0.35rem; }
   #joystick { width: 6.2rem; height: 6.2rem; }
+  #sprint { width: 3.8rem; height: 3.8rem; }
+  #sprint svg { width: 1.3rem; height: 1.3rem; }
   .enter-inner { padding: 1.2rem; }
   .enter-inner .tip { display: none; }
   /* la ligne du haut est prise (badge de pièce à gauche, progression et
@@ -665,6 +700,24 @@ html, body {
    du bas, là où vivent la barre et le pouce. */
 @media (max-width: 640px) {
   .derive-bord { width: 2.8rem; top: 32vh; bottom: 32vh; }
+
+  /* LA RANGÉE DES POUCES. Mesuré sur iPhone 13 mini (375 px de large) : le
+     joystick occupait 22→122 px et la barre « Laisse-toi porter » 94→281 —
+     VINGT-HUIT PIXELS de recouvrement, exactement sous le pouce gauche. La
+     barre monte donc AU-DESSUS de cette rangée plutôt que de lui disputer
+     la place, et s'allège au passage. En bas, deux pouces et rien entre
+     eux : le joystick à gauche, la course à droite.
+     (Ces règles doivent rester APRÈS la définition de #derive-barre : à
+     spécificité égale, c'est l'ordre du fichier qui tranche — le premier
+     jet les avait placées plus haut, et elles ne mordaient pas.) */
+  #derive-barre {
+    bottom: calc(8.6rem + env(safe-area-inset-bottom, 0px));
+    gap: 0.3rem;
+  }
+  #derive-barre button { font-size: 0.74rem; }
+  #derive-btn { padding: 0.34rem 0.8rem; }
+  #derive-jeton { width: 1.9rem; height: 1.9rem; }
+  .derive-jeton-glyphe { font-size: 1rem; }
 }
 #derive-barre button:hover:not([disabled]),
 #derive-barre button:focus-visible:not([disabled]) {

@@ -136,6 +136,16 @@
   <!-- Joystick virtuel (mobile) -->
   <div id="joystick" hidden><div id="joystick-nub"></div></div>
 
+  <!-- Course, au pouce droit (tactile seulement) : le pendant de Maj au
+       clavier. Maintenu, il double la vitesse ; relâché, on remarche. -->
+  <button id="sprint" hidden type="button"
+          data-i18n-attr="aria-label:sprint.label" aria-label="Courir (maintenir)">
+    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+      <path d="M4 6l6 6-6 6M13 6l6 6-6 6" fill="none" stroke="currentColor"
+            stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>
+  </button>
+
   <script type="module" src="/engine/src/main.js"></script>
 </body>
 </html>

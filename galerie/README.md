@@ -2200,6 +2200,46 @@ La charte suit la lumière où elle est : `auditSalles` résout la clé
 effective (pièce ou œuvre) avant de la juger, sinon elle prendrait une
 salle éclairée pour une salle éteinte.
 
+**La lune à 2,4, le pouce qui ne se marche plus dessus, et une leçon de
+CSS.** Trois retours d'auteur dans le même message : « règle la lune sur
+plus de luminosité », « le bouton visite guidée chevauche le joystick sur
+iPhone 13 mini », « on peut ajouter un bouton sprint pour tactile ? ».
+
+*La lune* passe de 1,8 à **2,4** dans `content/works/moon.json` — la
+charte tolère jusqu'à 12 au zénith de nuit, on reste très en dessous du
+crépuscule.
+
+*Le chevauchement était réel et mesuré* : sur 375 × 629, `#joystick`
+occupait x22→122 et `#derive-btn` x94→281, soit **28 px de recouvrement**.
+La barre de dérive rétrécit et remonte sur petit écran (x102→273,
+y461→491) : plus aucun contact.
+
+Et la leçon, parce qu'elle m'a coûté un aller-retour : `style.css`
+contient **deux** blocs `@media (max-width: 640px)`. À spécificité égale,
+c'est l'ORDRE DE SOURCE qui tranche — mes premières surcharges étaient
+écrites dans le bloc qui PRÉCÈDE la définition de `#derive-barre`, donc
+elles ne s'appliquaient jamais, et la mesure disait toujours 28 px. Une
+règle responsive doit vivre **après** la règle qu'elle corrige.
+
+*Le bouton course* (`#sprint`, `Controls._setupSprint`) n'apparaît que sous
+`(pointer: coarse)` — à côté d'un clavier qui a Maj, il n'aurait aucun
+sens. Maintenu, il vaut exactement la même chose que Maj : `×2,2`. Mesuré
+en laissant tourner la boucle de l'application, 0,7 s de manche poussé :
+**2,10 m à la marche, 4,62 m en courant, ×2.20**. (Ma première mesure
+annonçait ×0.01 : j'appelais `update()` à la main PENDANT que la boucle de
+rendu tournait déjà. Le harnais mentait, pas le code — d'où la règle : pour
+mesurer un déplacement, on échantillonne la position sur une fenêtre
+d'horloge, on ne pilote jamais la boucle soi-même.)
+
+Il se range à gauche de la colonne crédits/pourboire (`right: 4.8rem`) et
+non dans son axe : au premier placement il les recouvrait de 32 × 35 px, et
+mon audit ne l'avait pas vu **parce qu'il ne gardait que les feuilles du
+DOM** — un bouton qui contient un `<svg>` disparaissait du relevé au profit
+de son `<path>`. Un audit de chevauchement doit garder les CIBLES (bouton,
+`[role=button]`, élément identifié) et écarter leur décor interne. Relevé
+final : joystick x22→122, sprint x237→298, crédits et pourboire x321→359 —
+**aucun conflit**.
+
 Aucun repli folklorique pour iOS 16.3 et avant. On lit partout qu'un
 `<audio>` muet en lecture « changerait la catégorie » ; ce dépôt s'est déjà
 fait avoir DEUX FOIS par des contournements qui ne mordaient plus en silence
