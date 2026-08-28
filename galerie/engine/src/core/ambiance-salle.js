@@ -136,6 +136,22 @@ function pointsDeSonde(shell) {
 }
 
 /**
+ * Une lampe est-elle éteinte par le CONTENU plutôt que par le budget ?
+ *
+ * La distinction est tout le sel du calcul. `budgetLampes` pose
+ * `visible = false` sur la lampe ELLE-MÊME ; une branche masquée (un décor
+ * caché, une salle voisine repliée) porte le `false` sur un ANCÊTRE. La
+ * première mérite d'être approchée par la sonde, la seconde n'éclaire
+ * rien et doit rester éteinte. On ne regarde donc que les parents.
+ */
+function estDansUneBrancheVisible(lampe, racine) {
+  for (let n = lampe.parent; n && n !== racine.parent; n = n.parent) {
+    if (n.visible === false) return false;
+  }
+  return true;
+}
+
+/**
  * Calcule la sonde d'une salle et remplit les uniformes.
  *
  * `lignes` : les segments déjà déclarés (voir `lignes-lumiere.js`), donnés
@@ -146,11 +162,38 @@ export function majAmbiance(salle, lignes = []) {
   oublierAmbiance();
   if (!salle?.group) return null;
 
-  // les lampes ponctuelles et coniques de la salle, en monde
+  /* LES LAMPES DE LA SALLE — Y COMPRIS CELLES QUE LE BUDGET A ÉTEINTES.
+   *
+   * C'est le cœur du calcul, et sa première version se trompait. Elle
+   * ignorait les lampes invisibles — or `budgetLampes` en éteint la
+   * plupart sur téléphone : le labo déclare cinquante-six cônes, le
+   * shader n'en intègre que trois. Les cinquante-trois autres n'étaient
+   * pas approchées, elles étaient SUPPRIMÉES. D'où une salle à ciel
+   * ouvert deux fois plus sombre que sur le bureau, sans que rien ne
+   * l'explique dans le contenu.
+   *
+   * On les compte donc toutes, avec un POIDS qui dit ce que le shader
+   * fait déjà — et c'est ce poids qui conserve l'énergie :
+   *
+   *   • lampe VISIBLE : le shader calcule son terme direct par pixel. La
+   *     sonde n'ajoute que le REBOND, `ALBEDO_REBOND` ;
+   *   • lampe ÉTEINTE par le budget : le shader ne la verra jamais. La
+   *     sonde porte alors son éclairement ENTIER (poids 1) — approcher
+   *     une source lointaine par sa projection sur harmoniques est
+   *     précisément ce à quoi sert une sonde, et c'est infiniment plus
+   *     juste que de la jeter.
+   *
+   * Effet de bord heureux : une lampe qui franchit la frontière du budget
+   * passe de « direct + rebond » à « sonde », deux quantités voisines. Le
+   * saut de clarté qu'on voyait en marchant s'en trouve adouci.
+   */
   const lampes = [];
   salle.group.updateWorldMatrix(true, true);
   salle.group.traverse((o) => {
-    if (!o.isLight || !o.visible || !(o.intensity > 0)) return;
+    if (!o.isLight || !(o.intensity > 0)) return;
+    // une lampe éteinte par le CONTENU (branche invisible, décor masqué)
+    // n'éclaire rien : on ne remonte que celles dont le budget dispose
+    if (o.parent && !estDansUneBrancheVisible(o, salle.group)) return;
     if (o.isPointLight || o.isSpotLight) {
       lampes.push({
         p: o.getWorldPosition(new THREE.Vector3()),
@@ -158,7 +201,7 @@ export function majAmbiance(salle, lignes = []) {
         // Un cône n'éclaire que dans son ouverture ; on ne le modélise pas
         // finement, on le pénalise d'un demi — sa contribution au rebond
         // est diffuse et la sonde n'a pas à être un second moteur.
-        k: o.isSpotLight ? 0.5 : 1
+        k: (o.isSpotLight ? 0.5 : 1) * (o.visible ? ALBEDO_REBOND : 1)
       });
     }
   });
@@ -184,7 +227,12 @@ export function majAmbiance(salle, lignes = []) {
       for (const S of lignes) {
         const E = irradianceSegment(_p, n, S.a, S.b, S.face);
         if (E <= 0) continue;
-        r += S.couleur.r * E; g += S.couleur.g * E; b += S.couleur.b * E;
+        // Même règle que pour les lampes : une corniche que le shader
+        // calcule par pixel n'apporte ici que son rebond ; une corniche
+        // au-delà de MAX_LIGNES, que le shader ne verra jamais, apporte
+        // son éclairement entier (`poids` posé par lignes-lumiere.js).
+        const f = E * (S.poids ?? ALBEDO_REBOND);
+        r += S.couleur.r * f; g += S.couleur.g * f; b += S.couleur.b * f;
       }
       c0[0] += r; c0[1] += g; c0[2] += b;
       cx[0] += r * n.x; cx[1] += g * n.x; cx[2] += b * n.x;
@@ -195,7 +243,9 @@ export function majAmbiance(salle, lignes = []) {
   }
   if (!echantillons) return null;
 
-  const k = ALBEDO_REBOND / echantillons;
+  // chaque source porte DÉJÀ son poids (rebond ou éclairement entier) :
+  // il ne reste ici que la moyenne sur les échantillons
+  const k = 1 / echantillons;
   MONDE.c0.setRGB(c0[0] * k, c0[1] * k, c0[2] * k);
   // l'ordre 1 vaut TROIS fois la moyenne pondérée : c'est la normalisation
   // de la base linéaire sur la sphère. Un vecteur par canal de couleur.

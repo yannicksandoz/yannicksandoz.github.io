@@ -2096,6 +2096,73 @@ l'attendre, et surveille la ligne fautive chez l'amont.
 Vérifié dans la galerie elle-même, servie compressée : *Onde stationnaire*
 est là, dans l'annexe.
 
+**WebGPU : la première étape que j'avais proposée ne tient pas, et il faut
+le dire.** Le plan annoncé plus haut — « le tri des splats en compute
+shader, isolé » — supposait qu'on puisse trier en WebGPU pendant que le
+reste rend en WebGL2. C'est impossible : les deux API ne partagent aucun
+tampon GPU, et il n'existe pas d'interopérabilité. Un tri « isolé »
+demanderait donc un aller-retour par le processeur à chaque image, soit
+strictement pire que le worker actuel. WebGPU ne paie qu'une fois le
+RENDEUR migré — c'est-à-dire le moteur entier, pas un coin isolé.
+
+Le repli qu'offre la bibliothèque n'en est pas un non plus :
+`gpuAcceleratedSort` ne fait que précalculer les DISTANCES sur GPU, puis
+les relit par `gl.getBufferSubData` — une lecture bloquante — avant de les
+envoyer au même worker. Le worker reste, la mémoire WASM reste, et l'on
+gagne une synchronisation GPU→CPU par tri. Lu dans le paquet installé,
+pas supposé.
+
+**Ce que le budget éteint n'est plus perdu — la lumière du téléphone,
+suite.** Le vrai déficit était ailleurs, et c'est deux fois le même défaut,
+à deux étages :
+
+- `budgetLampes` n'expose au shader que les N lampes les plus proches (4
+  ponctuelles, 3 cônes sur téléphone) : le labo en déclare cinquante-six,
+  cinquante-trois étaient donc **supprimées**, pas approchées ;
+- `majLignes` ne transporte que `MAX_LIGNES` = 8 corniches : le labo en
+  déclare quinze, le belvédère vingt et une — sept et treize
+  **supprimées**, dans les deux salles ouvertes, précisément celles qui
+  restaient sombres.
+
+Or la sonde d'ambiance ignorait ces sources éteintes. Elle les compte
+désormais toutes, avec un POIDS qui dit ce que le shader fait déjà, et
+c'est ce poids qui conserve l'énergie : `ALBEDO_REBOND` pour une source
+calculée par pixel (la sonde n'ajoute que le rebond), **1** pour une source
+que le shader ne verra jamais (la sonde porte tout son éclairement).
+Approcher une source lointaine par sa projection sur harmoniques est
+exactement ce à quoi sert une sonde ; la jeter ne s'appelle pas une
+approximation. Effet de bord heureux : une lampe qui franchit la frontière
+du budget passe de « direct + rebond » à « sonde entière », deux quantités
+voisines — le saut de clarté qu'on voyait en marchant s'en trouve adouci.
+La sonde se recalcule quand l'attribution bascule (au plus trois fois par
+seconde, et seulement si quelque chose a bougé), sans quoi elle serait
+périmée la moitié du temps.
+
+Une distinction fait tout le sérieux de la chose : le budget masque la
+lampe ELLE-MÊME, tandis qu'un décor caché porte le `false` sur un ANCÊTRE.
+La première mérite d'être approchée, la seconde n'éclaire rien — d'où
+`estDansUneBrancheVisible`, et le test qui l'exige.
+
+*Mesuré, même machine, même session* (rapport téléphone / bureau de la
+luminance moyenne) :
+
+| salle | avant | après |
+|---|---|---|
+| entrée | 0,92 | 0,92 |
+| labo | 0,56 | **0,61** |
+| archives | 0,79 | **0,86** |
+| bibliothèque | 0,76 | 0,76 |
+| couloir-est | 0,98 | 0,98 |
+| belvédère | 0,61 | 0,62 |
+
+Le gain est réel et il est modeste — il faut le dire aussi. Les archives
+progressent nettement, le labo d'un dixième, le belvédère à peine. Et le
+noir pur du labo ne bouge pas (30,6 %) : une sonde d'ordre 1 relève la
+moyenne, elle ne rallume pas les faces tournées à l'opposé de sa direction
+dominante. Le reste de l'écart du labo et du belvédère n'est donc pas dans
+les sources éteintes : il est dans ce qu'une sonde d'ordre 1 ne sait pas
+représenter. C'est la prochaine question, et elle est ouverte.
+
 **Les seuils, et les corniches.** Deux fautes revenaient à la main, salle
 après salle : un portail planté dans un escalier, et un bandeau lumineux
 qui coupait une fenêtre en deux. Les déplacer une fois de plus n'apprend

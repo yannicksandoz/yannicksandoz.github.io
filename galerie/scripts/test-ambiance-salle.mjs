@@ -129,6 +129,60 @@ test('doubler les lampes double la sonde — la loi reste linéaire', () => {
     `rapport ${(double / simple).toFixed(4)} au lieu de 2`);
 });
 
+titre('ce que le budget éteint, la sonde le reprend');
+test('une lampe éteinte par le budget compte pour son éclairement ENTIER', () => {
+  // c'est le correctif : `budgetLampes` éteint la plupart des cônes sur
+  // téléphone, et la sonde les IGNORAIT — cinquante-trois des cinquante-six
+  // cônes du labo étaient purement supprimés. Une lampe que le shader ne
+  // verra jamais doit peser 1, pas ALBEDO_REBOND.
+  const vue = ponctuelle(0, 6, 0);
+  majAmbiance(salle([vue]), []);
+  orienterAmbiance(camIdentite());
+  const avec = lu().c0.r;
+
+  const eteinte = ponctuelle(0, 6, 0);
+  eteinte.visible = false;          // exactement ce que fait le budget
+  majAmbiance(salle([eteinte]), []);
+  orienterAmbiance(camIdentite());
+  const sans = lu().c0.r;
+
+  assert.ok(sans > 0, 'une lampe éteinte par le budget ne doit PAS disparaître');
+  assert.ok(Math.abs(sans / avec - 1 / ALBEDO_REBOND) < 1e-6,
+    `rapport ${(sans / avec).toFixed(3)} au lieu de ${(1 / ALBEDO_REBOND).toFixed(3)}`);
+});
+test('une lampe d’une BRANCHE masquée reste éteinte', () => {
+  // la distinction qui fait tout : le budget masque la lampe elle-même,
+  // le contenu masque un ancêtre. La seconde n'éclaire vraiment rien.
+  const l = ponctuelle(0, 6, 0);
+  const branche = new THREE.Group();
+  branche.visible = false;
+  branche.add(l);
+  const g = new THREE.Group();
+  g.add(branche);
+  const r = majAmbiance({ group: g, config: { shell: { width: 10, depth: 10, height: 4 } } }, []);
+  orienterAmbiance(camIdentite());
+  assert.equal(r.lampes, 0, 'un décor masqué n’éclaire pas');
+  assert.equal(lu().c0.r, 0);
+});
+test('la somme reste continue au passage de la frontière', () => {
+  // une lampe qui bascule passe de « direct par pixel + rebond » à « sonde
+  // entière » : les deux totaux doivent rester du même ordre, sinon on
+  // verrait un saut de clarté en marchant.
+  const vue = ponctuelle(0, 6, 0);
+  majAmbiance(salle([vue]), []);
+  orienterAmbiance(camIdentite());
+  const rebond = lu().c0.r;
+  const eteinte = ponctuelle(0, 6, 0);
+  eteinte.visible = false;
+  majAmbiance(salle([eteinte]), []);
+  orienterAmbiance(camIdentite());
+  const entiere = lu().c0.r;
+  // la sonde seule vaut 4× le rebond seul : c'est l'énergie que le shader
+  // apportait en direct, rendue à la sonde. Jamais davantage.
+  assert.ok(entiere > rebond && entiere <= rebond / ALBEDO_REBOND + 1e-9,
+    `${entiere.toFixed(5)} contre ${rebond.toFixed(5)}`);
+});
+
 titre('les segments comptent autant que les lampes');
 test('une ligne de lumière nourrit la sonde', () => {
   const ligne = {

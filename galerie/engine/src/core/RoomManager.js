@@ -625,7 +625,7 @@ export class RoomManager {
     // LA SONDE DE LA SALLE. Une fois, à l'entrée : la géométrie et les
     // lampes ne bougent plus, seul le visiteur se déplace. Voir
     // `ambiance-salle.js` — c'est le rebond que le téléphone ne calcule pas.
-    if (lignesActives()) majAmbiance(room, segmentsMonde(room));
+    if (lignesActives()) majAmbiance(room, segmentsMonde(room, this.app?.camera ?? null));
     else oublierAmbiance();
     this._placeCamera(arrival ?? room.config.spawn ?? [0, 2.2, 10]);
     // Un portail dans lequel on ATTERRIT est désarmé : il ne se re-déclenche

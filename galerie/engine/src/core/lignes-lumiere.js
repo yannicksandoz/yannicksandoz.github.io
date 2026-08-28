@@ -141,7 +141,7 @@ export function nombreDeLignes() { return lignes.length; }
  * Les segments d'une salle, en MONDE, pour la sonde d'ambiance — elle
  * travaille hors caméra et ne peut pas lire les uniformes d'espace vue.
  */
-export function segmentsMonde(salle) {
+export function segmentsMonde(salle, camera = null) {
   const sortie = [];
   for (const l of lignes) {
     let n = l.objet, dedans = false;
@@ -155,7 +155,36 @@ export function segmentsMonde(salle) {
       couleur: l.couleur
     });
   }
-  return sortie;
+  return camera ? ponderer(sortie, camera) : sortie;
+}
+
+/**
+ * LES CORNICHES QUE LE SHADER NE PORTE PAS.
+ *
+ * Même défaut que pour les lampes, une couche plus loin, et il coûtait
+ * plus cher encore. `majLignes` ne transporte que les `MAX_LIGNES`
+ * segments les plus proches : le labo en déclare quinze, le belvédère
+ * vingt et un. Sept et treize corniches n'étaient donc pas approchées,
+ * elles étaient SUPPRIMÉES — dans les deux salles ouvertes, c'est-à-dire
+ * précisément celles qui restaient sombres sur téléphone.
+ *
+ * On pose donc le même poids que pour les lampes : `ALBEDO_REBOND` pour
+ * celles que le shader calcule par pixel (la sonde n'ajoute que le
+ * rebond), 1 pour les autres (la sonde porte tout leur éclairement).
+ *
+ * Le critère de tri est le MÊME que celui de `majLignes` — distance au
+ * milieu du segment. Il le faut : deux règles différentes donneraient une
+ * corniche comptée deux fois ici et pas du tout là.
+ */
+function ponderer(segments, camera) {
+  camera.getWorldPosition(_cam);
+  for (const s of segments) {
+    _mid.copy(s.a).add(s.b).multiplyScalar(0.5);
+    s._d = _mid.distanceToSquared(_cam);
+  }
+  const ordre = segments.slice().sort((x, y) => x._d - y._d);
+  ordre.forEach((s, i) => { s.poids = i < MAX_LIGNES ? null : 1; });
+  return segments;
 }
 
 /**

@@ -16,8 +16,8 @@ import { QualityManager } from './Quality.js';
 import { LoadingTracker, assetUrl } from './utils.js';
 import { setDefaultAnisotropy } from './textures.js';
 import { setBudgetSourcesEtendues, setEclatLuminaires } from './primitives.js';
-import { majLignes, activerLignes } from './lignes-lumiere.js';
-import { orienterAmbiance } from './ambiance-salle.js';
+import { majLignes, activerLignes, lignesActives, segmentsMonde } from './lignes-lumiere.js';
+import { orienterAmbiance, majAmbiance } from './ambiance-salle.js';
 import { COUCHE_AUTO_ECLAIREE } from './Artwork.js';
 import { WATER_TIME } from './primitives.js';
 import { chauffer } from './cartels.js';
@@ -814,7 +814,15 @@ export class App {
           const clos = this.quality.profile.shadows && coqueClose(salle.config);
           const change = budgetLampes(salle, camPos, {
             ...this.quality.profile.lampesProches,
-            projecteurs: clos ? (this.quality.profile.projecteursOmbre ?? 0) : 0
+            projecteurs: clos ? (this.quality.profile.projecteursOmbre ?? 0) : 0,
+            // Ce que le budget éteint, la sonde le reprend à son compte
+            // (ambiance-salle.js) : quand l'attribution bascule, les poids
+            // changent, donc la sonde aussi. Trois fois par seconde au
+            // plus, et seulement si quelque chose a vraiment bougé — une
+            // sonde périmée rendrait le contournement à moitié faux.
+            surBascule: lignesActives()
+              ? () => majAmbiance(salle, segmentsMonde(salle, this.camera))
+              : null
           });
           if (change) this.ombresSales = true;
         }

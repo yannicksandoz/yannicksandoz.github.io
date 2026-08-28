@@ -321,16 +321,24 @@ const _posLampe = new THREE.Vector3();
  * de POCHE — leur flaque à 40 m couvre trois pixels d'écran.
  */
 export function budgetLampes(room, camPos,
-  { points = 6, cones = 6, projecteurs = 0 } = {}) {
+  { points = 6, cones = 6, projecteurs = 0, surBascule = null } = {}) {
   if (!room?.group) return;
   const P = [], S = [];
   room.group.traverse((o) => {
     if (o.isPointLight) P.push(o);
     else if (o.isSpotLight) S.push(o);
   });
+  // Ce que le budget éteint n'est PAS perdu : la sonde d'ambiance en porte
+  // l'éclairement (voir ambiance-salle.js). Encore faut-il qu'elle sache
+  // quand l'attribution bouge — d'où ce signal, appelé au plus une fois
+  // par passage, et seulement si quelque chose a réellement basculé.
+  let bascule = false;
   const appliquer = (liste, n) => {
     if (liste.length <= n) {
-      for (const l of liste) l.visible = true;
+      for (const l of liste) {
+        if (!l.visible) bascule = true;
+        l.visible = true;
+      }
       return;
     }
     for (const l of liste) {
@@ -340,10 +348,15 @@ export function budgetLampes(room, camPos,
       l.userData.d2Budget = d2;
     }
     liste.sort((a, b) => a.userData.d2Budget - b.userData.d2Budget);
-    liste.forEach((l, i) => { l.visible = i < n; });
+    liste.forEach((l, i) => {
+      const veut = i < n;
+      if (l.visible !== veut) bascule = true;
+      l.visible = veut;
+    });
   };
   appliquer(P, points);
   appliquer(S, cones);
+  if (bascule && surBascule) surBascule();
 
   /* LE PROJETEUR D'UNE PIÈCE CLOSE.
    *
