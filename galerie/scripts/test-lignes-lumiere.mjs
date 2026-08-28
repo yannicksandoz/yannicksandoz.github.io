@@ -142,9 +142,12 @@ test('une déclaration incomplète est refusée sans bruit', () => {
   assert.equal(nombreDeLignes(), 0);
 });
 test('le budget de segments reste tenable pour un téléphone', () => {
-  // huit segments à une quinzaine d'opérations : le prix d'un point, pas
-  // celui d'une LTC. Si quelqu'un le monte, qu'il le mesure d'abord.
-  assert.ok(MAX_LIGNES <= 8, `${MAX_LIGNES} segments : mesurez avant`);
+  // Seize segments à une quinzaine d'opérations : le prix de deux points,
+  // pas celui d'une LTC. Le passage de 8 à 16 a été MESURÉ (A/B/A, profil
+  // iPhone 13, même navigateur — voir l'en-tête de MAX_LIGNES) ; la boucle
+  // sort à uLigneNombre, donc les salles à huit corniches ou moins ne
+  // paient rien. Si quelqu'un le monte encore, qu'il refasse la mesure.
+  assert.ok(MAX_LIGNES <= 16, `${MAX_LIGNES} segments : mesurez avant`);
 });
 
 titre('la greffe sur les matériaux');

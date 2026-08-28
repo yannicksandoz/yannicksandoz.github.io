@@ -68,8 +68,26 @@ import { DECLARATION_AMBIANCE, uniformesAmbiance } from './ambiance-salle.js';
  * de suivre gratuitement les bascules de gravité, où la pièce tourne.
  */
 
-/** Combien de segments le shader porte au plus. Au-delà, on garde les plus proches. */
-export const MAX_LIGNES = 8;
+/**
+ * Combien de segments le shader porte au plus. Au-delà, on garde les plus
+ * proches — et la sonde d'ambiance reprend l'éclairement du reste.
+ *
+ * SEIZE, ET C'EST MESURÉ. La boucle GLSL sort à `uLigneNombre` : une salle
+ * à huit corniches ou moins ne paie pas un cycle de plus qu'avant — seuls
+ * le labo (15), l'entrée (19) et le belvédère (21) montent au-delà.
+ * L'ordre 2 de la sonde avait été essayé d'abord et refusé (voir le
+ * README) : le noir du labo venait des corniches que ce plafond coupait,
+ * pas d'une ambiance trop grossière.
+ *
+ * A/B/A sur le même navigateur, profil iPhone 13, dérive encadrée à ~1 % :
+ * le labo paie +5,8 % de temps d'image et passe de 0,56 à 0,94 de la
+ * clarté du bureau, son noir pur de 30,6 % à 3,2 % ; le belvédère ne paie
+ * rien (−0,4 %, dans le bruit — ses pixels sont surtout du ciel) et ne
+ * gagne rien non plus : son écart restant n'est PAS dans les corniches.
+ * C'est ce chiffre qui a rouvert le plafond ; si quelqu'un vise 24, qu'il
+ * refasse la mesure.
+ */
+export const MAX_LIGNES = 16;
 
 /**
  * Les lignes ne servent QUE là où les sources étendues ne sont pas

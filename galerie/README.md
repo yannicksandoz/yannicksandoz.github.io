@@ -2199,9 +2199,36 @@ mur.
 L'ordre 2 a donc été retiré : cinq coefficients de plus, un produit de
 matrice et une normalisation par pixel sur l'appareil qu'on optimise,
 pour zéro gain mesuré. Le refus est consigné ici pour que personne — moi
-compris — ne le retente à l'aveugle. La vraie question suivante est
-ailleurs : donner au téléphone plus de corniches (`MAX_LIGNES`), ou
-plusieurs sondes par salle plutôt qu'une pour quarante mètres.
+compris — ne le retente à l'aveugle.
+
+**`MAX_LIGNES` 8 → 16 : là était le noir, et il l'a rendu.** Ce que le
+refus de l'ordre 2 avait appris — le noir du labo n'est pas une ambiance
+trop grossière, ce sont les corniches coupées — a été mis à l'épreuve en
+doublant le plafond de segments du shader. La boucle GLSL sort à
+`uLigneNombre`, donc une salle à huit corniches ou moins ne paie pas un
+cycle de plus ; seuls le labo (15), l'entrée (19) et le belvédère (21)
+montent au-delà.
+
+Protocole A/B/A : les deux variantes construites, servies côte à côte, et
+mesurées dos à dos dans le MÊME navigateur, la variante 8 passée deux fois
+pour encadrer la dérive de la machine (~1 % ici). Profil iPhone 13.
+
+| | coût (méd. de trame) | clarté (tél./bureau) | noir pur |
+|---|---|---|---|
+| labo | **+5,8 %** | 0,56 → **0,94** | 30,6 % → **3,2 %** |
+| belvédère | −0,4 % (bruit) | 0,62 → 0,62 | 9,2 % → 9,2 % |
+
+Le labo rejoint le bureau — son noir passe même SOUS les 5,3 % du bureau —
+pour six pour cent de trame dans cette seule salle. Vérifié à l'image :
+le couronnement est lavé sur toute sa longueur, le sol reçoit partout,
+aucune surexposition. Le belvédère, lui, ne paie rien (ses pixels sont
+surtout du ciel) et ne gagne rien : son écart restant n'est **pas** dans
+les corniches. S'il faut le combler un jour, la piste est ailleurs —
+plusieurs sondes par salle, ou accepter qu'une nuit étoilée de cinquante
+mètres soit sombre.
+
+Le garde-fou de `test-lignes-lumiere.mjs` a été relevé à 16 avec la même
+consigne qu'avant : quiconque vise 24 refait la mesure.
 
 **Les seuils, et les corniches.** Deux fautes revenaient à la main, salle
 après salle : un portail planté dans un escalier, et un bandeau lumineux
