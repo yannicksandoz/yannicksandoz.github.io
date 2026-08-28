@@ -26,7 +26,12 @@ export function buildScene(app, works, roomConfigs) {
   const byId = new Map(works.map((w) => [w.id, w]));
   const placed = new Set();
 
-  for (const cfg of rooms) app.rooms.addRoom(cfg);
+  // Les œuvres sont passées à la pièce dès sa construction : l'une d'elles
+  // peut ÊTRE sa lumière (voir ombres.cleDepuisOeuvre), et la clé se pose
+  // avant que les maillages n'arrivent.
+  for (const cfg of rooms) {
+    app.rooms.addRoom(cfg, (cfg.works ?? []).map((id) => byId.get(id)).filter(Boolean));
+  }
 
   for (const cfg of rooms) {
     const room = app.rooms.get(cfg.id);

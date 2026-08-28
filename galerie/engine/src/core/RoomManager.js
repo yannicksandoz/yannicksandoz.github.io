@@ -97,7 +97,7 @@ export class RoomManager {
 
   /* ------------------------------------------------------------ pièces --- */
 
-  addRoom(config) {
+  addRoom(config, oeuvres = null) {
     const room = {
       config,
       group: new THREE.Group(),
@@ -113,7 +113,12 @@ export class RoomManager {
     if (room.floor) room.group.add(room.floor);
     room.shell = buildShell(config);
     if (room.shell) room.group.add(room.shell);
-    room.keyLight = buildKeyLight(config, this.app.quality?.profile);
+    // Une œuvre peut ÊTRE la lumière de la salle (la lune du labo) : sa
+    // position donne alors la direction, et il n'y a plus deux vérités à
+    // tenir d'accord. Voir ombres.cleDepuisOeuvre.
+    room.cleOeuvre = cleDepuisOeuvre(oeuvres);
+    room.cfgCle = room.cleOeuvre ? { ...config, keyLight: room.cleOeuvre } : config;
+    room.keyLight = buildKeyLight(room.cfgCle, this.app.quality?.profile);
     if (room.keyLight) room.group.add(room.keyLight);
     room.ambient = buildAmbient(config);
     if (room.ambient) room.group.add(room.ambient);
@@ -136,11 +141,12 @@ export class RoomManager {
     const cfg = room.config;
     this.applyAmbient(room);
     // même règle que buildKeyLight : une coque close n'a jamais de soleil
-    const wanted = cfg.keyLight !== false && !coqueClose(cfg);
+    const cfgCle = room.cfgCle ?? cfg;
+    const wanted = cfgCle.keyLight !== false && !coqueClose(cfg);
     // les ombres se décident par pièce (défaut : le profil) — les activer
     // ou les couper alloue/libère une carte d'ombre : on reconstruit
     const ombresVoulues = Boolean(this.app.quality?.profile?.shadows)
-      && cfg.keyLight?.shadows !== false;
+      && cfgCle.keyLight?.shadows !== false;
     if (room.keyLight && ombresVoulues !== room.keyLight.userData.ombres) {
       room.group.remove(room.keyLight);
       disposeKeyLight(room.keyLight);
@@ -151,11 +157,11 @@ export class RoomManager {
         room.group.remove(room.keyLight);
         disposeKeyLight(room.keyLight);
       }
-      room.keyLight = buildKeyLight(cfg, this.app.quality?.profile);
+      room.keyLight = buildKeyLight(cfgCle, this.app.quality?.profile);
       if (room.keyLight) room.group.add(room.keyLight);
       return;
     }
-    if (room.keyLight) orientKeyLight(room.keyLight, cfg);
+    if (room.keyLight) orientKeyLight(room.keyLight, cfgCle);
     // le soleil du dôme est un uniform : il suit la lumière clé sans
     // reconstruction — le ciel et les ombres racontent la même heure
     if (room.sky) updateSkyUniforms(room.sky, cfg);
@@ -480,7 +486,7 @@ export class RoomManager {
     this.app.vistas?.dispose(room);
     this.app.vistas?.build(room);
     if (room.keyLight) {
-      orientKeyLight(room.keyLight, room.config);
+      orientKeyLight(room.keyLight, room.cfgCle ?? room.config);
       frameKeyLightShadow(room.keyLight, room.config);
     }
     if (room.isCurrent) {
@@ -1797,7 +1803,7 @@ export {
   suivreOmbre, PORTEE_OMBRE
 } from './ombres.js';
 import { buildKeyLight, orientKeyLight, frameKeyLightShadow, disposeKeyLight,
-  coqueClose, ENV_CLOS } from './ombres.js';
+  coqueClose, ENV_CLOS, cleDepuisOeuvre } from './ombres.js';
 
 /* ---------------------------------------------------- lumière ambiante --- */
 

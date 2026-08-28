@@ -2162,6 +2162,44 @@ Pour une galerie où le son EST l'œuvre, c'est la seule catégorie honnête.
 pas. C'est le comportement d'un lecteur vidéo, et c'est celui qu'on veut :
 deux œuvres sonores superposées n'en font aucune.
 
+**Un objet peut ÊTRE la lumière de sa pièce — la lune, pour de bon.** Deux
+retours d'auteur en un : « les objets ne veulent pas charger » et « peut-on
+utiliser l'objet moon comme lune ? il faut qu'elle projette ».
+
+*Le défaut d'abord.* Les boîtes rouge sourd de la capture ne sont pas de la
+lenteur, c'est `_signalerMediaIllisible` : le chargement a ÉCHOUÉ. Or le
+chemin n'avait **aucun réessai** — une seule requête ratée (un creux de
+réseau au premier passage, une rafale de fichiers sur un cache froid) et
+l'œuvre restait rouge pour toute la visite. Recharger la page marchait
+parce que ça relançait tout ; c'est la définition d'un défaut qu'on fait
+porter au visiteur. `utils.reessayer` donne trois tentatives, attente
+doublée (400 puis 800 ms) : assez pour traverser un creux, assez court
+pour qu'un fichier vraiment absent rende la main en une seconde et demie —
+on ne réessaie pas indéfiniment, un contenu manquant doit se voir.
+
+*La lune ensuite, et elle corrige ma propre bêtise.* J'avais recopié les
+angles de l'astre dans le JSON de la pièce : deux vérités pour une seule
+lune, qui divergent au premier déplacement — l'auteur bouge le disque, la
+lumière reste, et rien ne le signale. (Mon test le vérifiait, ce qui est
+l'aveu qu'il fallait plutôt rendre la divergence IMPOSSIBLE.)
+
+Une œuvre déclare donc `"cleDeSalle"`, et la **direction se déduit de sa
+position** — `ombres.cleDepuisOeuvre`. Le labo ne porte plus de
+`keyLight` : la lune la porte. Vérifié à l'exécution, direction de la
+lampe contre position du disque : **écart 0**. Déplacer l'astre déplace sa
+lumière, par construction.
+
+Dans l'éditeur, une case à côté de « s'éclaire lui-même » : **« éclaire la
+pièce (lune / soleil) »**, avec force et couleur qui apparaissent dessous.
+Pas de réglage d'angle — c'est tout l'intérêt. Le moteur tient les règles
+que l'infobulle annonce : une seule par pièce (les suivantes sont criées
+en console), et sans effet dans une coque close, où un soleil fabriquerait
+des ombres impossibles.
+
+La charte suit la lumière où elle est : `auditSalles` résout la clé
+effective (pièce ou œuvre) avant de la juger, sinon elle prendrait une
+salle éclairée pour une salle éteinte.
+
 Aucun repli folklorique pour iOS 16.3 et avant. On lit partout qu'un
 `<audio>` muet en lecture « changerait la catégorie » ; ce dépôt s'est déjà
 fait avoir DEUX FOIS par des contournements qui ne mordaient plus en silence

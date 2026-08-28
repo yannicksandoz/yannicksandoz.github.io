@@ -32,5 +32,9 @@
     "license": "CC-BY 3.0",
     "sourceUrl": "https://poly.pizza/m/9OPocAqXM0u"
   },
-  "selfLit": true
+  "selfLit": true,
+  "cleDeSalle": {
+    "color": "#8fa4e8",
+    "intensity": 1.8
+  }
 }

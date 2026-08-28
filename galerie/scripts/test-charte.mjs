@@ -18,6 +18,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { cleDepuisOeuvre } from '../engine/src/core/ombres.js';
 import { CHARTE, EXTERIEURS, LUMINAIRES, clarte, teinteEtSaturation, ecartTeinte,
   bandeLumiere,
   auditSalles, auditAccrochage, auditRecul, auditHierarchie, auditVista,
@@ -527,17 +528,54 @@ test('un ciel CLAIR reste jugé sur la bande diurne', () => {
   assert.ok(Math.abs(1.8 - jour.vise) > jour.tolerance,
     'une lune en plein jour est une faute');
 });
-test('le labo porte bien une lune, calée sur l’œuvre qui la dessine', () => {
+test('c’est l’ŒUVRE lune qui porte la lumière du labo', () => {
+  // Recopier les angles dans le JSON de la pièce, c'était deux vérités pour
+  // une seule lune : l'auteur déplace l'astre, la lumière reste. La pièce
+  // ne déclare donc plus de clé, et l'œuvre la porte.
   const labo = JSON.parse(readFileSync(join(ici, '..', 'content', 'rooms',
     'labo.json'), 'utf8'));
-  const k = labo.keyLight;
-  assert.ok(k && k.intensity > 0, 'le labo doit avoir une clé de lune');
-  // l'œuvre « moon » est à [9.19, 17, -15.59] : la clé doit venir de là,
-  // sans quoi la lune serait peinte à un endroit et éclairerait d'un autre
-  const az = (Math.atan2(9.19, -15.59) * 180 / Math.PI + 360) % 360;
-  const el = Math.atan2(17, Math.hypot(9.19, -15.59)) * 180 / Math.PI;
-  assert.ok(Math.abs(k.azimuth - az) < 2, `azimut ${k.azimuth} au lieu de ${az.toFixed(1)}`);
-  assert.ok(Math.abs(k.elevation - el) < 2, `élévation ${k.elevation} au lieu de ${el.toFixed(1)}`);
+  assert.equal(labo.keyLight, false,
+    'la pièce ne doit plus recopier ce que la lune sait déjà');
+  const rapport = auditSalles().find((l) => l.id === 'labo');
+  assert.equal(rapport.cleOeuvre, 'moon', 'la charte doit suivre la lumière');
+  assert.deepEqual(rapport.fautes, [], `${rapport.fautes}`);
+});
+test('la direction se DÉDUIT de la position, elle ne se recopie pas', () => {
+  const lune = JSON.parse(readFileSync(join(ici, '..', 'content', 'works',
+    'moon.json'), 'utf8'));
+  const [x, y, z] = lune.position;
+  const cle = cleDepuisOeuvre([lune]);
+  const az = (Math.atan2(x, z) * 180 / Math.PI + 360) % 360;
+  const el = Math.atan2(y, Math.hypot(x, z)) * 180 / Math.PI;
+  assert.ok(Math.abs(cle.azimuth - az) < 0.01, `azimut ${cle.azimuth}`);
+  assert.ok(Math.abs(cle.elevation - el) < 0.01, `élévation ${cle.elevation}`);
+  // et si on la déplace, la lumière suit — c'est tout l'intérêt
+  const ailleurs = cleDepuisOeuvre([{ ...lune, position: [-12, 9, 4] }]);
+  assert.notEqual(ailleurs.azimuth, cle.azimuth, 'déplacer l’astre déplace sa lumière');
+});
+test('deux lunes dans une salle : la première seule compte', () => {
+  const a = { id: 'a', position: [1, 5, 0], cleDeSalle: true };
+  const b = { id: 'b', position: [0, 5, 1], cleDeSalle: true };
+  assert.equal(cleDepuisOeuvre([a, b]).oeuvre, 'a');
+  assert.equal(cleDepuisOeuvre([{ id: 'c' }]), null, 'sans déclaration, rien');
+});
+
+test('le réessai protège le chargement des modèles', () => {
+  // Retour d'auteur : « les objets ne veulent pas charger ; résolu en
+  // rechargeant tout le site ». Une seule requête ratée condamnait l'œuvre
+  // pour toute la visite — il n'y avait aucun réessai.
+  const loaders = readFileSync(join(ici, '..', 'engine', 'src', 'core',
+    'modelLoaders.js'), 'utf8');
+  assert.ok(loaders.includes("import { reessayer } from './utils.js'"));
+  assert.ok(!/await loader\.loadAsync\(url\)/.test(loaders),
+    'plus aucun chargement ne doit se faire sans filet');
+  assert.equal((loaders.match(/reessayer\(\(\) => loader\.loadAsync/g) || []).length, 2,
+    'les deux chemins (glTF et OBJ) doivent être couverts');
+  const utils = readFileSync(join(ici, '..', 'engine', 'src', 'core',
+    'utils.js'), 'utf8');
+  assert.ok(utils.includes('export async function reessayer'));
+  // borné : un fichier vraiment absent doit rendre la main, pas boucler
+  assert.ok(/essais = 3/.test(utils), 'le réessai doit être borné');
 });
 
 titre('le décor se tait');

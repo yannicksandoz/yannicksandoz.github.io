@@ -84,12 +84,7 @@
     "ceiling": false,
     "wallColors": {}
   },
-  "keyLight": {
-    "color": "#8fa4e8",
-    "intensity": 1.8,
-    "azimuth": 149.5,
-    "elevation": 43.2
-  },
+  "keyLight": false,
   "vistas": [
     {
       "room": "jardin",

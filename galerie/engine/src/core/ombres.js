@@ -74,6 +74,66 @@ export function coqueClose(config) {
 /** Le plafond d'IBL d'une pièce close : un fond de radiosité, pas un ciel. */
 export const ENV_CLOS = 0.25;
 
+/**
+ * UNE ŒUVRE QUI EST LA LUMIÈRE DE SA SALLE — la lune du labo.
+ *
+ * Le labo porte un disque `moon` : il brillait (`selfLit`) sans rien
+ * éclairer, et l'on avait d'abord recopié ses angles à la main dans le
+ * JSON de la pièce. Deux vérités pour une seule lune, qui divergent au
+ * premier déplacement — l'auteur bouge l'astre, la lumière reste où elle
+ * était, et rien ne le signale.
+ *
+ * Une œuvre déclare donc `"cleDeSalle": true` (ou un objet qui précise la
+ * couleur, l'intensité, les ombres), et la DIRECTION se déduit de sa
+ * POSITION. Il ne peut plus y avoir de désaccord : déplacer l'astre
+ * déplace sa lumière, et l'éditeur n'a qu'une case à cocher.
+ *
+ * L'azimut suit la convention d'`orientKeyLight` — position
+ * (sin az·cos el, sin el, cos az·cos el) — et se retrouve donc par
+ * `atan2(x, z)`.
+ *
+ * Une seule œuvre peut tenir ce rôle : deux soleils dans une pièce, c'est
+ * une faute de récit avant d'être une faute de rendu. On garde la
+ * première déclarée et l'on crie pour les suivantes.
+ */
+export function cleDepuisOeuvre(oeuvres) {
+  const sources = (oeuvres ?? []).filter((o) => o?.cleDeSalle);
+  if (!sources.length) return null;
+  if (sources.length > 1) {
+    console.warn('[galerie] Plusieurs œuvres se déclarent lumière de la salle '
+      + `(${sources.map((o) => o.id).join(', ')}) : seule « ${sources[0].id} » compte.`);
+  }
+  const source = sources[0];
+  const p = Array.isArray(source.position) ? source.position : [0, 10, 0];
+  const [x, y, z] = [Number(p[0]) || 0, Number(p[1]) || 0, Number(p[2]) || 0];
+  const horizontale = Math.hypot(x, z);
+  // un astre pile au zénith n'a pas d'azimut : on garde celui par défaut
+  const azimuth = horizontale < 1e-6
+    ? KEYLIGHT_DEFAULTS.azimuth
+    : (Math.atan2(x, z) * 180 / Math.PI + 360) % 360;
+  const elevation = Math.atan2(y, horizontale) * 180 / Math.PI;
+  const reglages = typeof source.cleDeSalle === 'object' ? source.cleDeSalle : {};
+  return {
+    color: reglages.color ?? KEYLIGHT_DEFAULTS.color,
+    intensity: Number.isFinite(reglages.intensity)
+      ? reglages.intensity : KEYLIGHT_DEFAULTS.intensity,
+    ...(reglages.shadows === false ? { shadows: false } : {}),
+    azimuth: +azimuth.toFixed(2),
+    elevation: +elevation.toFixed(2),
+    // d'où elle vient, pour que l'éditeur et la charte puissent le dire
+    oeuvre: source.id
+  };
+}
+
+/**
+ * La configuration de lampe-clé qui fait FOI pour une salle : celle que
+ * porte une œuvre s'il y en a une, sinon celle du JSON de la pièce.
+ */
+export function cleEffective(config, oeuvres) {
+  const parOeuvre = cleDepuisOeuvre(oeuvres);
+  return parOeuvre ? { ...config, keyLight: parOeuvre } : config;
+}
+
 export function buildKeyLight(config, profile) {
   if (config?.keyLight === false || coqueClose(config)) return null;
   const opt = { ...KEYLIGHT_DEFAULTS, ...(config?.keyLight ?? {}) };

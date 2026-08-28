@@ -59,6 +59,39 @@ export function slugify(name) {
  * continuent en silence derrière — ils comptent dans `total`, jamais dans
  * `essentiels`.
  */
+/**
+ * RÉESSAYER — parce qu'un accroc réseau ne doit pas coûter une œuvre.
+ *
+ * Retour d'auteur, sur iPhone : « les objets ne veulent pas charger ;
+ * résolu en rechargeant tout le site ». Le chemin de chargement n'avait
+ * AUCUN réessai : une seule requête ratée — un creux de réseau au premier
+ * passage, une rafale de fichiers sur un cache froid — et l'œuvre virait au
+ * rouge sourd pour le reste de la visite, sans possibilité de s'en
+ * remettre. Recharger la page marchait parce que ça relançait tout ; c'est
+ * la définition d'un défaut qu'on fait porter au visiteur.
+ *
+ * Trois tentatives, attente doublée entre chacune (400 ms puis 800 ms) :
+ * assez pour traverser un creux de connexion, assez court pour qu'un
+ * fichier vraiment absent (404, chemin faux) rende la main en une seconde
+ * et demie au lieu de faire mine de travailler. On ne réessaie donc PAS
+ * indéfiniment — un contenu manquant doit se voir, et le placeholder rouge
+ * est là pour ça.
+ */
+export async function reessayer(faire, { essais = 3, attente = 400, surEchec = null } = {}) {
+  let derniere;
+  for (let i = 0; i < essais; i++) {
+    try {
+      return await faire(i);
+    } catch (erreur) {
+      derniere = erreur;
+      if (i === essais - 1) break;
+      surEchec?.(erreur, i + 1);
+      await new Promise((suite) => setTimeout(suite, attente * (2 ** i)));
+    }
+  }
+  throw derniere;
+}
+
 export class LoadingTracker {
   constructor() {
     this.total = 0;

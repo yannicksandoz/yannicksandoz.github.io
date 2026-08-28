@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { reessayer } from './utils.js';
 
 /**
  * Chargement de modèles 3D (GLB / glTF / OBJ), en import dynamique.
@@ -68,9 +69,14 @@ export async function loadModel(url, { kind, mtlUrl } = {}) {
   let object3d;
   let animations = [];
 
+  // Le réseau d'un téléphone a des creux : on réessaie plutôt que de
+  // condamner l'œuvre pour toute la visite (voir utils.reessayer).
+  const prevenir = (erreur, essai) => console.warn(
+    `[galerie] Modèle « ${url} » : tentative ${essai} échouée, on réessaie —`, erreur);
+
   if (type === 'gltf') {
     const loader = await getLoader('gltf');
-    const gltf = await loader.loadAsync(url);
+    const gltf = await reessayer(() => loader.loadAsync(url), { surEchec: prevenir });
     object3d = gltf.scene;
     animations = gltf.animations ?? [];
   } else {
@@ -87,7 +93,7 @@ export async function loadModel(url, { kind, mtlUrl } = {}) {
         console.warn(`[galerie] Matériaux OBJ ignorés (${mtlUrl}) :`, err);
       }
     }
-    object3d = await loader.loadAsync(url);
+    object3d = await reessayer(() => loader.loadAsync(url), { surEchec: prevenir });
   }
 
   return { object3d, animations, triangles: countTriangles(object3d) };

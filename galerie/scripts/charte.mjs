@@ -43,6 +43,7 @@ import { readFileSync, readdirSync, existsSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { setStyle, loiCouronne } from '../engine/src/core/style.js';
+import { cleDepuisOeuvre } from '../engine/src/core/ombres.js';
 
 const ici = dirname(fileURLToPath(import.meta.url));
 const RACINE = join(ici, '..', 'content');
@@ -217,6 +218,15 @@ export function salles() {
     .map((n) => ({ id: n.slice(0, -5), ...JSON.parse(readFileSync(join(dossier, n), 'utf8')) }));
 }
 
+/** Toutes les œuvres du contenu, telles qu'écrites. */
+export function toutesOeuvres() {
+  const dossier = join(RACINE, 'works');
+  if (!existsSync(dossier)) return [];
+  return readdirSync(dossier)
+    .filter((n) => n.endsWith('.json') && n !== 'index.json')
+    .map((n) => JSON.parse(readFileSync(join(dossier, n), 'utf8')));
+}
+
 /** Les œuvres murales (image ou vidéo) du contenu. */
 export function oeuvresMurales() {
   const dossier = join(RACINE, 'works');
@@ -252,6 +262,7 @@ export function bandeLumiere(ciel) {
 /** Ce que la charte dit de chaque salle : les écarts, nommés. */
 export function auditSalles() {
   const rapport = [];
+  const oeuvresParId = new Map(toutesOeuvres().map((w) => [w.id, w]));
   for (const s of salles()) {
     const sol = typeof s.floor === 'object' ? s.floor?.color : null;
     const mur = s.shell?.color;
@@ -312,7 +323,13 @@ export function auditSalles() {
     if (coqueCloseContenu(s) && (s.envIntensity ?? 1) > 0.3) {
       ligne.fautes.push(`coque close à l'IBL de plein ciel (${s.envIntensity})`);
     }
-    const k = s.keyLight || {};
+    // La lampe-clé peut être portée par une ŒUVRE (la lune du labo) plutôt
+    // que par le JSON de la pièce : la charte suit la lumière où elle est,
+    // sans quoi elle jugerait une salle éclairée comme une salle éteinte.
+    const parOeuvre = cleDepuisOeuvre(
+      (s.works ?? []).map((id) => oeuvresParId.get(id)).filter(Boolean));
+    if (parOeuvre) ligne.cleOeuvre = parOeuvre.oeuvre;
+    const k = parOeuvre ?? (s.keyLight || {});
     const { elevation, margeElevation } = CHARTE.lumiere;
     const bande = bandeLumiere(s.sky);
     ligne.nuit = bande.nuit;
