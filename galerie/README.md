@@ -2258,7 +2258,15 @@ grossier, rien ne bouge au bureau :
 - la **minimap** descend de 5,8 à 5,2 rem, le bouton course de 3,8 à 3,4.
 
 Relevé final iPhone 13 mini : joystick x22→122, course x303→357, plus que
-deux objets en bas de l'écran — aucun conflit. Le menu vérifié au
+deux objets en bas de l'écran — aucun conflit.
+
+Suite du même retour : « Laisse-toi porter » flottait au milieu de
+l'écran — c'était la position de repli d'AVANT la diète, quand la rangée
+du bas était pleine. L'entre-pouces (122→303 px) étant désormais libre,
+la barre y **descend** (bottom 2,6 rem), rapetissée pour y tenir, et
+décalée de +1,6 rem : le centre de l'écran (187 px) n'est PAS le centre
+du couloir libre (212 px) — centrée à 50 % pile, elle mordait le
+joystick. Relevé : barre x137→289 y560→587, aucun conflit. Le menu vérifié au
 navigateur : l'entrée Crédits ouvre le même panneau que l'ancienne
 pastille, non vide. (Au passage : ma première vérification du menu a « 
 échoué » sur une attente de 400 ms — le menu s'importe dynamiquement au

@@ -721,23 +721,26 @@ html, body {
 @media (max-width: 640px) {
   .derive-bord { width: 2.8rem; top: 32vh; bottom: 32vh; }
 
-  /* LA RANGÉE DES POUCES. Mesuré sur iPhone 13 mini (375 px de large) : le
-     joystick occupait 22→122 px et la barre « Laisse-toi porter » 94→281 —
-     VINGT-HUIT PIXELS de recouvrement, exactement sous le pouce gauche. La
-     barre monte donc AU-DESSUS de cette rangée plutôt que de lui disputer
-     la place, et s'allège au passage. En bas, deux pouces et rien entre
-     eux : le joystick à gauche, la course à droite.
+  /* LA RANGÉE DES POUCES. Deux campagnes de mesure sur iPhone 13 mini
+     (375 px de large) : d'abord la barre « Laisse-toi porter » recouvrait
+     le joystick de 28 px, et on l'avait montée AU-DESSUS de la rangée —
+     retour d'auteur : « c'est au milieu de l'écran ». Depuis que les
+     pastilles de coin sont parties, l'entre-pouces (122→303 px) est libre :
+     la barre y descend, rapetissée pour y tenir, et décalée de +1.6rem
+     car le centre de l'écran (187 px) n'est pas le centre du couloir
+     libre (212 px) — centrée à 50 % pile, elle mordait le joystick.
      (Ces règles doivent rester APRÈS la définition de #derive-barre : à
      spécificité égale, c'est l'ordre du fichier qui tranche — le premier
      jet les avait placées plus haut, et elles ne mordaient pas.) */
   #derive-barre {
-    bottom: calc(8.6rem + env(safe-area-inset-bottom, 0px));
+    bottom: calc(2.6rem + env(safe-area-inset-bottom, 0px));
+    transform: translateX(calc(-50% + 1.6rem));
     gap: 0.3rem;
   }
-  #derive-barre button { font-size: 0.74rem; }
-  #derive-btn { padding: 0.34rem 0.8rem; }
-  #derive-jeton { width: 1.9rem; height: 1.9rem; }
-  .derive-jeton-glyphe { font-size: 1rem; }
+  #derive-barre button { font-size: 0.66rem; }
+  #derive-btn { padding: 0.3rem 0.7rem; }
+  #derive-jeton { width: 1.7rem; height: 1.7rem; }
+  .derive-jeton-glyphe { font-size: 0.9rem; }
 }
 #derive-barre button:hover:not([disabled]),
 #derive-barre button:focus-visible:not([disabled]) {
