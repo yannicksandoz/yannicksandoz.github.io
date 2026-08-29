@@ -321,6 +321,10 @@ export class VistaManager {
     // et l'image est de toute façon tordue par la passe — repeindre une
     // lucarne pendant qu'on traverse un portail, c'est payer pour rien
     if (rooms?._transitioning || this.app.warpPass?.enabled) return;
+    // La plupart des pièces n'ont AUCUNE baie : inverser la matrice caméra
+    // et bâtir le frustum à chaque frame pour filtrer une liste vide était
+    // le seul travail de ce module dans ces pièces-là.
+    if (!current?.vistas?.length) return;
     const camWorld = this.app.camera;
     // Le champ de vision se calcule sur la position de CETTE frame : la
     // matrice inverse que garde le moteur date du rendu précédent, et

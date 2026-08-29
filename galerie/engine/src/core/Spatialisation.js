@@ -73,12 +73,23 @@ const _r = new THREE.Vector3();
 const _pos = new THREE.Vector3();
 
 /** Le mode d'une piste : objet de réglages (ponctuelle) ou false (nappe). */
+/* Le cas « réglages par défaut » est LE cas courant, et modeSpatial se
+   rappelle pour chaque voie à chaque frame : un objet partagé et GELÉ
+   évite d'en fabriquer un par appel — gelé pour qu'une mutation future
+   crie au lieu de contaminer toutes les voies en silence. */
+const SPATIAL_DEFAUT = Object.freeze({});
+
 export function modeSpatial(stemCfg) {
   const s = stemCfg?.spatial;
   if (s === false || s === 'stereo') return false;
   if (s && typeof s === 'object') return s;
-  return {}; // absent, true, "spatial" : ponctuelle, réglages par défaut
+  return SPATIAL_DEFAUT; // absent, true, "spatial" : ponctuelle, défauts
 }
+
+/** Le premier nombre fini l'emporte — hissé ici : une flèche par voie et
+ *  par frame nourrissait le ramasse-miettes pour rien. */
+const num = (v, repli) => (Number.isFinite(v) ? v : repli);
+const AUDIO_DEFAUT = Object.freeze({});
 
 /** La piste porte-t-elle SES paramètres de distance ? */
 function porteDistance(spa) {
@@ -267,12 +278,15 @@ export class Spatialisation {
       // rien : leurs paramètres reprendront à la frame de réactivation,
       // juste avant le départ différé des sources (t0 + 50 ms)
       if (!art.audioReady || !art._stemsActive) continue;
-      const spa = modeSpatial(voie.stemCfg) || {};
-      const cfgAudio = art.config.audio ?? {};
-      const num = (v, repli) => (Number.isFinite(v) ? v : repli);
+      const spa = modeSpatial(voie.stemCfg) || SPATIAL_DEFAUT;
+      const cfgAudio = art.config.audio ?? AUDIO_DEFAUT;
 
       /* ---- position : l'azimut, éventuellement élargi ---------------- */
-      const pos = art.worldPosition;
+      // `_worldPos` vient d'être rafraîchi par Artwork.update, plus tôt
+      // dans la MÊME frame (l'App met à jour les œuvres avant l'audio) :
+      // repasser par le getter remonterait la chaîne de matrices une fois
+      // par VOIE — jusqu'à 24 fois par frame pour les mêmes valeurs.
+      const pos = art._worldPos;
       _v.copy(pos).sub(cam.position);
       const lat = _v.dot(_r), av = _v.dot(_f), haut = _v.dot(_u);
       const az = Math.atan2(lat, av);

@@ -51,11 +51,14 @@ export class AudioReactive extends Module {
     // prefers-reduced-motion : l'émission lumineuse reste, la pulsation
     // géométrique (mouvement) est neutralisée
     const reduced = this.app.quality.reducedMotion;
-    this.artwork.setAudioLevel(this.level, {
-      pulseScale: reduced ? 0 : (this.params.pulseScale ?? 0.05),
-      emissiveBoost: this.params.emissiveBoost ?? 1.2,
-      lightBoost: this.params.lightBoost ?? 2.5
-    });
+    // l'objet d'options est RECYCLÉ : les œuvres sont réactives par défaut,
+    // en fabriquer un par œuvre et par frame nourrissait le ramasse-miettes
+    // (setAudioLevel le déstructure aussitôt, il ne le retient jamais)
+    const opts = this._opts ??= {};
+    opts.pulseScale = reduced ? 0 : (this.params.pulseScale ?? 0.05);
+    opts.emissiveBoost = this.params.emissiveBoost ?? 1.2;
+    opts.lightBoost = this.params.lightBoost ?? 2.5;
+    this.artwork.setAudioLevel(this.level, opts);
   }
 
   onAudioReleased() {

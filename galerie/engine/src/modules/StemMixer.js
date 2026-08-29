@@ -30,6 +30,11 @@ export class StemMixer extends Module {
       const radius = s.cfg.radius ?? 12;
       const maxGain = s.cfg.gain ?? 1;
       const g = maxGain * Math.pow(smoothstep(radius, radius * innerRatio, ctx.distance), poids);
+      // même règle que la voie spatiale : on ne réancre pas d'automation
+      // pour un gain qui n'a pas bougé (immobile, c'était une par piste
+      // et par frame) — 1e-3 de gain linéaire est inaudible
+      if (s._gPrec !== undefined && Math.abs(g - s._gPrec) < 1e-3) continue;
+      s._gPrec = g;
       s.gain.gain.setTargetAtTime(g, t, 0.1);
     }
   }

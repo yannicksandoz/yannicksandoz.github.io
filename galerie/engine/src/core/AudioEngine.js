@@ -420,11 +420,15 @@ export class AudioEngine {
     // Colonne -Z = direction de visée, colonne Y = up
     const fx = -e[8], fy = -e[9], fz = -e[10];
     const ux = e[4], uy = e[5], uz = e[6];
-    const d = this._listener;
-    if (d && d[0] === px && d[1] === py && d[2] === pz
+    // le relevé précédent est REMPLI, jamais remplacé : un tableau neuf
+    // par frame de déplacement, c'était du travail pour le ramasse-miettes
+    const d = this._listener ??= new Float64Array(9);
+    if (d[0] === px && d[1] === py && d[2] === pz
       && d[3] === fx && d[4] === fy && d[5] === fz
       && d[6] === ux && d[7] === uy && d[8] === uz) return;
-    this._listener = [px, py, pz, fx, fy, fz, ux, uy, uz];
+    d[0] = px; d[1] = py; d[2] = pz;
+    d[3] = fx; d[4] = fy; d[5] = fz;
+    d[6] = ux; d[7] = uy; d[8] = uz;
     if (l.positionX) {
       const t = this.ctx.currentTime;
       l.positionX.setTargetAtTime(px, t, 0.03);

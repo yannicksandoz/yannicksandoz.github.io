@@ -3545,6 +3545,40 @@ le poste soupçonné (0,04 ms/frame, pas 0,4), et la mesure « en marchant »
 sous rendu logiciel (5 frames en 5 s) est trop bruitée pour conclure — le
 micro-banc à reconstructions forcées est le bon instrument ici.
 
+**Deuxième passe, sur demande.** Les chemins par frame restants, au même
+régime (rien ne change de comportement, tout est vérifié en marchant dans
+trois pièces avec l'audio armé — 15 voies spatiales vivantes, zéro
+erreur) :
+
+- **Vista** : la plupart des pièces n'ont AUCUNE baie — le module
+  inversait quand même la matrice caméra et bâtissait le frustum à chaque
+  frame pour filtrer une liste vide. Sortie anticipée.
+- **Spatialisation** : le cas « réglages par défaut » de `modeSpatial`
+  rend un objet partagé et GELÉ au lieu d'en fabriquer un par voie et par
+  frame (gelé : une mutation future criera au lieu de contaminer toutes
+  les voies) ; la flèche `num` est hissée au module ; et la position d'une
+  œuvre se lit dans `_worldPos`, rafraîchi par `Artwork.update` plus tôt
+  dans la MÊME frame — repasser par le getter remontait la chaîne de
+  matrices une fois par voie, jusqu'à 24 fois par frame.
+- **StemMixer / SpatialCrossfade** : même règle que la voie spatiale — on
+  ne réancre pas d'automation Web Audio pour un gain qui n'a pas bougé
+  (seuil 1e-3, inaudible). Immobile, c'était une écriture par piste et
+  par frame.
+- **AudioReactive** : l'objet d'options de `setAudioLevel` est recyclé —
+  les œuvres sont réactives par défaut, c'était une allocation par œuvre
+  et par frame (le récepteur le déstructure aussitôt, il ne le retient
+  jamais).
+- **Progression** : la table des ensembles (`partOf`) est recyclée au lieu
+  d'être refaite à chaque frame ; **AudioEngine.updateListener** remplit
+  son relevé précédent (Float64Array) au lieu d'allouer un tableau par
+  frame de déplacement.
+
+Leçon de harnais au passage : le clic synthétique de Playwright ne résout
+pas l'écran d'entrée, donc `audio.ctx` reste absent et la spatialisation
+ne tourne pas — un contrôle « aucune erreur » sur ce chemin-là ne prouve
+RIEN. Pour exercer l'audio, débloquer explicitement
+(`app.audio.unlock()` + `rooms.onAudioUnlocked()`) puis marcher.
+
 La même revue a corrigé quatre défauts du bouton course : un second
 contact (paume) volait l'état du premier doigt — sprint ET joystick sont
 gardés (`doigt !== null`) ; le bouton s'annonçait au lecteur d'écran sans

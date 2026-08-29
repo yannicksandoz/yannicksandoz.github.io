@@ -164,12 +164,14 @@ export class Progression {
 
   _tick(dt) {
     // un ensemble s'étend : être près de N'IMPORTE QUEL membre (partOf),
-    // c'est être près de l'œuvre — on retient la distance minimale
+    // c'est être près de l'œuvre — on retient la distance minimale.
+    // La table est RECYCLÉE : en refaire une par frame, c'était une
+    // allocation à 60-120 Hz pour trois entrées.
     let minMembres = null;
     for (const a of this.app.artworks) {
       const pid = a.config.partOf;
       if (!pid) continue;
-      minMembres ??= new Map();
+      if (!minMembres) { minMembres = this._minMembres ??= new Map(); minMembres.clear(); }
       const d = minMembres.get(pid);
       if (d === undefined || a.distance < d) minMembres.set(pid, a.distance);
     }
