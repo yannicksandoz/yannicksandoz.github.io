@@ -122,6 +122,30 @@ test('le bouton course s\'écarte de la colonne crédits / pourboire', () => {
     `right: ${droite[1]}rem — les pastilles occupent right 1rem sur 2,4rem de large,`
     + ' un bouton plus près les recouvre (mesuré 32 × 35 px)');
 });
+test('petit écran : crédits et pourboire quittent le coin… pour le menu', () => {
+  // les pastilles disparaissent — mais seulement parce que le menu offre
+  // les deux mêmes chemins : « Crédits & sources » et « Terminer la visite »
+  const menu = lire('engine', 'src', 'ui', 'VisitMenu.js');
+  const masque = css.indexOf('#credits-corner, #tipjar-corner { display: none; }');
+  assert.ok(masque >= 0, 'les pastilles de coin doivent se cacher sur petit écran');
+  assert.ok(masque > css.indexOf('#credits-corner {')
+    && masque > css.indexOf('#tipjar-corner {'),
+    'le masquage doit suivre les définitions (ordre de source)');
+  assert.ok(menu.includes('vm-credits'), 'aucune entrée Crédits dans le menu');
+  const n = i18n.split("'menu.credits':").length - 1;
+  assert.equal(n, 2, `menu.credits : ${n} définition(s), 2 attendues (fr + en)`);
+});
+test('petit écran : la course reprend le coin laissé libre', () => {
+  const coin = css.indexOf('#sprint { right: calc(1.1rem');
+  assert.ok(coin >= 0, 'pas de surcharge de coin pour #sprint');
+  assert.ok(coin > css.indexOf('#sprint {'),
+    'la surcharge doit suivre la définition (ordre de source)');
+});
+test('le pictogramme est une silhouette qui court, pas un chevron', () => {
+  const bouton = html.slice(html.indexOf('id="sprint"'), html.indexOf('id="sprint"') + 800);
+  assert.ok(bouton.includes('<circle'), 'la tête du coureur manque');
+  assert.ok(!/M4 6l6 6/.test(bouton), 'le double chevron illisible est revenu');
+});
 test('les surcharges petit écran de la barre de dérive sont écrites APRÈS sa définition', () => {
   const def = css.indexOf('#derive-barre {');
   assert.ok(def >= 0, 'définition de #derive-barre introuvable');

@@ -118,6 +118,8 @@ export class VisitMenu {
         </ul>
         <p class="vm-groupe" id="vm-g-systeme">${t('menu.groupe.systeme')}</p>
         <ul role="list" aria-labelledby="vm-g-systeme">
+          ${document.getElementById('credits-corner')?.hidden === false
+            ? `<li><button id="vm-credits">${t('menu.credits')}</button></li>` : ''}
           <li>
             <button id="vm-keys" aria-expanded="false" aria-controls="vm-keys-help">${t('menu.keys')}</button>
             <div id="vm-keys-help" hidden>
@@ -252,6 +254,14 @@ export class VisitMenu {
     el.querySelector('#vm-finish')?.addEventListener('click', () => {
       this.hide();
       this.app.tipjar?.show();
+    });
+
+    // Crédits & sources : le même panneau que la pastille de coin — qui
+    // n'existe plus sur petit écran, où le menu est le seul chemin
+    el.querySelector('#vm-credits')?.addEventListener('click', () => {
+      this.hide();
+      const panneau = document.getElementById('credits-overlay');
+      if (panneau) panneau.hidden = false;
     });
 
     // Échap referme — et ne remonte pas jusqu'au déclencheur global de

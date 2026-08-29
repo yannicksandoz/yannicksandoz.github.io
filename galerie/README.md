@@ -2240,6 +2240,30 @@ de son `<path>`. Un audit de chevauchement doit garder les CIBLES (bouton,
 final : joystick x22→122, sprint x237→298, crédits et pourboire x321→359 —
 **aucun conflit**.
 
+**La diète, sur capture réelle.** Retour d'auteur, photo d'iPhone à
+l'appui : « l'UI est toute clumsy, on ne comprend pas l'icône sprint, trop
+d'icônes trop grandes ». Quatre gestes, tous sur petit écran ou pointeur
+grossier, rien ne bouge au bureau :
+
+- le **double chevron devient une silhouette qui court** (traits, tête en
+  cercle) — un pictogramme se lit, une flèche double se devine ;
+- les **pastilles crédits et pourboire quittent le coin** : leurs deux
+  chemins vivent dans le menu — « Terminer la visite » y était déjà,
+  **« Crédits & sources » est une entrée nouvelle** (groupe Aide et
+  mémoire, rendue seulement si la galerie a des crédits). Le bouton
+  course, resté seul, reprend le coin (`right: 1.1rem`) ;
+- la **toolbox et le bouton menu maigrissent** : 44 px pleins (le minimum
+  tactile) au lieu de 48, et surtout un habit effacé — fond à 0,42 au lieu
+  de 0,7, bord à 0,08 — cinq disques sombres pesaient plus que la scène ;
+- la **minimap** descend de 5,8 à 5,2 rem, le bouton course de 3,8 à 3,4.
+
+Relevé final iPhone 13 mini : joystick x22→122, course x303→357, plus que
+deux objets en bas de l'écran — aucun conflit. Le menu vérifié au
+navigateur : l'entrée Crédits ouvre le même panneau que l'ancienne
+pastille, non vide. (Au passage : ma première vérification du menu a « 
+échoué » sur une attente de 400 ms — le menu s'importe dynamiquement au
+premier clic, il faut attendre l'élément, pas un délai.)
+
 Aucun repli folklorique pour iOS 16.3 et avant. On lit partout qu'un
 `<audio>` muet en lecture « changerait la catégorie » ; ce dépôt s'est déjà
 fait avoir DEUX FOIS par des contournements qui ne mordaient plus en silence

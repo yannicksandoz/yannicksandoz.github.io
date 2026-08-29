@@ -186,7 +186,13 @@ html, body {
   pointer-events: none;
 }
 @media (pointer: coarse) {
-  #room-menu-btn { width: 3rem; height: 3rem; font-size: 1.2rem; }
+  /* même diète que la toolbox : 44 px pleins, costume effacé */
+  #room-menu-btn {
+    width: 2.75rem; height: 2.75rem; font-size: 1.1rem;
+    background: rgba(12, 12, 22, 0.42);
+    border-color: rgba(255, 255, 255, 0.08);
+    color: rgba(232, 230, 240, 0.55);
+  }
 }
 #room-menu-btn:focus-visible {
   outline: 2px solid var(--accent); outline-offset: 2px;
@@ -219,7 +225,15 @@ html, body {
 }
 #toolbox button.tb-fait { color: #9fe8b8; border-color: rgba(159, 232, 184, 0.5); }
 @media (pointer: coarse) {
-  #toolbox button { width: 3rem; height: 3rem; }
+  /* 2,75 rem = 44 px, le minimum tactile — et un habit plus léger : sur la
+     capture iPhone, cinq disques sombres à bord marqué pesaient plus que
+     la scène. La cible reste pleine, seul le costume s'efface. */
+  #toolbox button {
+    width: 2.75rem; height: 2.75rem;
+    background: rgba(12, 12, 22, 0.42);
+    border-color: rgba(255, 255, 255, 0.08);
+    color: rgba(232, 230, 240, 0.55);
+  }
 }
 
 /* ---------------------------------------------------------- crédits --- */
@@ -312,11 +326,17 @@ html, body {
   #hint { display: none; }
   /* Sur un petit écran, la minimap prend une place que la vue n'a pas à
      donner : elle rétrécit et remonte au-dessus des pastilles. */
-  :root { --minimap: 5.8rem; }
+  :root { --minimap: 5.2rem; }
   #minimap { padding: 0.35rem; }
   #joystick { width: 6.2rem; height: 6.2rem; }
-  #sprint { width: 3.8rem; height: 3.8rem; }
-  #sprint svg { width: 1.3rem; height: 1.3rem; }
+  #sprint { width: 3.4rem; height: 3.4rem; }
+  #sprint svg { width: 1.4rem; height: 1.4rem; }
+  /* Deux pastilles de moins : crédits et pourboire vivent dans le menu
+     (« Crédits & sources », « Terminer la visite ») — en coin, elles
+     encombraient la colonne du pouce droit. Le bouton course, resté seul,
+     se range alors dans le coin qu'elles occupaient. */
+  #credits-corner, #tipjar-corner { display: none; }
+  #sprint { right: calc(1.1rem + env(safe-area-inset-right, 0px)); }
   .enter-inner { padding: 1.2rem; }
   .enter-inner .tip { display: none; }
   /* la ligne du haut est prise (badge de pièce à gauche, progression et
