@@ -1,4 +1,5 @@
 import { collectCredits, collectSources } from '../core/credits.js';
+import { pointeurGrossier } from '../core/utils.js';
 import { t, traduireDom, onLangChange } from '../core/i18n.js';
 import { peindreLibelles } from '../core/clavier.js';
 import { pisteAD, LecteurAD, mountLecteurAD } from '../core/audiodescription.js';
@@ -32,7 +33,7 @@ export class UI {
     this._onCloseFocus = null;
     // L'aide s'adresse à l'appareil RÉEL : un écran tactile n'a ni ZQSD ni
     // souris — lui parler de touches, c'est parler à quelqu'un d'autre.
-    this.tactile = window.matchMedia?.('(pointer: coarse)').matches ?? false;
+    this.tactile = pointeurGrossier();
 
     this.focusClose.addEventListener('click', () => this._onCloseFocus?.());
     this._applyLang();

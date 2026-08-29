@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { damp } from '../core/utils.js';
+import { damp, pointeurGrossier } from '../core/utils.js';
 import { preparerRayons, rayonRapide } from '../core/rayons.js';
 
 /**
@@ -37,6 +37,10 @@ const _camAvant = new THREE.Vector3();   // pivot première personne : l'état
 const _cibleAvant = new THREE.Vector3(); // d'avant l'orbite de la frame
 const _offre = new THREE.Vector3();
 const _pan = new THREE.Vector3();
+const _fwd = new THREE.Vector3();    // la marche de la frame : trois vecteurs
+const _right = new THREE.Vector3();  // recyclés — les allouer à chaque frame
+const _move = new THREE.Vector3();   // nourrissait le ramasse-miettes pour rien
+const _pivot = new THREE.Vector3();  // Q/E : cible relative pendant le pivot
 export class Controls {
   constructor(app) {
     this.app = app;
@@ -163,7 +167,7 @@ export class Controls {
     const zone = document.getElementById('joystick');
     const nub = document.getElementById('joystick-nub');
     if (!zone) return;
-    if (window.matchMedia('(pointer: coarse)').matches) zone.hidden = false;
+    if (pointeurGrossier()) zone.hidden = false;
 
     let activeId = null;
     const RADIUS = 60; // px
@@ -173,6 +177,9 @@ export class Controls {
     };
 
     zone.addEventListener('pointerdown', (e) => {
+      // un second contact (paume, autre doigt) ne vole pas le manche : le
+      // premier doigt garde la main jusqu'à son propre relâchement
+      if (activeId !== null) return;
       activeId = e.pointerId;
       zone.setPointerCapture(activeId);
     });
@@ -214,7 +221,7 @@ export class Controls {
   _setupSprint() {
     const bouton = document.getElementById('sprint');
     if (!bouton) return;
-    if (!window.matchMedia('(pointer: coarse)').matches) return;
+    if (!pointeurGrossier()) return;
     bouton.hidden = false;
 
     let doigt = null;
@@ -223,11 +230,13 @@ export class Controls {
       bouton.classList.toggle('court', oui);
     };
     bouton.addEventListener('pointerdown', (e) => {
+      // un second contact (paume, bord de main) n'écrase pas le premier :
+      // sinon son relâchement coupait la course pendant que le pouce
+      // appuie toujours, et le pouce devait relâcher puis réappuyer
+      if (doigt !== null) return;
       doigt = e.pointerId;
       bouton.setPointerCapture(doigt);
       courir(true);
-      // sans cela, le maintien fait aussi tourner la caméra sous le pouce
-      e.preventDefault();
     });
     const lacher = (e) => {
       if (e.pointerId !== doigt) return;
@@ -236,6 +245,20 @@ export class Controls {
     };
     bouton.addEventListener('pointerup', lacher);
     bouton.addEventListener('pointercancel', lacher);
+    // Le bouton se présente au lecteur d'écran (aria-label) : il doit aussi
+    // s'entendre au clavier — une tablette à clavier attaché montre les
+    // deux mondes à la fois. Maintenir Espace ou Entrée court, relâcher
+    // arrête : le même geste « tenu, pas basculé » que le doigt.
+    bouton.addEventListener('keydown', (e) => {
+      if (e.key !== ' ' && e.key !== 'Enter') return;
+      e.preventDefault();          // pas de « click » synthétique en prime
+      if (e.repeat) return;
+      courir(true);
+    });
+    bouton.addEventListener('keyup', (e) => {
+      if (e.key !== ' ' && e.key !== 'Enter') return;
+      courir(false);
+    });
     // un onglet qu'on quitte en courant ne doit pas revenir en courant
     window.addEventListener('blur', () => { doigt = null; courir(false); });
   }
@@ -273,15 +296,15 @@ export class Controls {
       this._yawVel = damp(this._yawVel, yawInput * YAW_SPEED, 12, dt);
       if (Math.abs(this._yawVel) > 0.001) {
         const cam = this.app.camera.position;
-        const toTarget = this.orbit.target.clone().sub(cam);
-        toTarget.applyAxisAngle(UP, this._yawVel * dt);
-        this.orbit.target.copy(cam).add(toTarget);
+        _pivot.copy(this.orbit.target).sub(cam);
+        _pivot.applyAxisAngle(UP, this._yawVel * dt);
+        this.orbit.target.copy(cam).add(_pivot);
       }
 
       const { x, z } = this._moveInput();
       if (x || z) {
         const cam = this.app.camera;
-        const fwd = new THREE.Vector3();
+        const fwd = _fwd;
         cam.getWorldDirection(fwd);
         // En vol plané, « devant » c'est LE REGARD, tangage compris : on
         // descend en regardant vers le bas, on monte en levant la tête. Au
@@ -292,13 +315,13 @@ export class Controls {
         // Le pas de côté reste horizontal, et de longueur pleine : le
         // produit vectoriel raccourcit quand on regarde le sol, et sans
         // cette remise à l'unité on se traînerait en planant vers le bas.
-        const right = new THREE.Vector3().crossVectors(fwd, UP);
+        const right = _right.crossVectors(fwd, UP);
         if (right.lengthSq() > 1e-8) right.normalize();
         else right.set(0, 0, 0);   // regard au zénith ou au nadir : pas de côté
         // Maj au clavier, bouton maintenu au doigt : la même course
         const boost = this._keys.has('ShiftLeft') || this._keys.has('ShiftRight')
           || this._sprintTactile ? 2.2 : 1;
-        const move = new THREE.Vector3()
+        const move = _move.set(0, 0, 0)
           .addScaledVector(fwd, z)
           .addScaledVector(right, x)
           .normalize()
@@ -389,20 +412,34 @@ export class Controls {
     if (this[frame] !== this._frame) {
       this[frame] = this._frame;
       const rooms = this.app.rooms;
-      const list = (genre === 'mur' ? rooms?.blockers?.() : rooms?.walkables?.()) ?? [];
+      // la liste `mur` = `sol` + les œuvres pleines : si le sol vient d'être
+      // bâti CETTE frame, blockers repart de lui au lieu de retraverser la
+      // coque une seconde fois
+      const solFrais = genre === 'mur' && this._targetsFrame === this._frame
+        ? this._targetsCache : null;
+      const list = (genre === 'mur'
+        ? rooms?.blockers?.(solFrais) : rooms?.walkables?.()) ?? [];
       this[cache] = list;
-      this[spheres] = list.map((o) => {
+      // Les sphères englobantes se RECOPIENT dans un pool stable au lieu de
+      // se cloner : au belvédère, cloner en refaisait ~112 par frame — de la
+      // pression mémoire pure, pour des valeurs identiques.
+      const pool = this[spheres] ??= [];
+      pool.length = list.length;
+      for (let i = 0; i < list.length; i++) {
+        const o = list[i];
         const g = o.geometry;
-        if (!g) return null;
-        if (o.isInstancedMesh) {
+        let source = null;
+        if (g && o.isInstancedMesh) {
           if (!o.boundingSphere) o.computeBoundingSphere();
-          if (!o.boundingSphere) return null;
-          return o.boundingSphere.clone().applyMatrix4(o.matrixWorld);
+          source = o.boundingSphere;
+        } else if (g) {
+          if (!g.boundingSphere) g.computeBoundingSphere();
+          source = g.boundingSphere;
         }
-        if (!g.boundingSphere) g.computeBoundingSphere();
-        if (!g.boundingSphere) return null;
-        return g.boundingSphere.clone().applyMatrix4(o.matrixWorld);
-      });
+        if (!source) { pool[i] = null; continue; }
+        const s = pool[i] ?? new THREE.Sphere();
+        pool[i] = s.copy(source).applyMatrix4(o.matrixWorld);
+      }
     }
     if (reach <= 0) return this[cache];
     const from = this.app.camera.position;

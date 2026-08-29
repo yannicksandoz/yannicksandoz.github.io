@@ -221,8 +221,14 @@ export class AudioEngine {
    */
   appliquerLimiteur(reglages) {
     if (!this.limiteur) return;
+    // même OBJET que la dernière fois : rien à faire — l'éditeur remplace
+    // toujours l'objet quand une valeur change (TableEcoute), jamais ne le
+    // mute, donc l'identité suffit et la sérialisation ne paie qu'au vrai
+    // changement
+    if (reglages === this._objetLimiteur) return;
     let signature;
     try { signature = JSON.stringify(reglages ?? null); } catch { return; }
+    this._objetLimiteur = reglages;
     if (signature === this._signatureLimiteur) return;
     this._signatureLimiteur = signature;
     this.limiteur.regler(reglages ?? undefined);
@@ -231,8 +237,14 @@ export class AudioEngine {
   /** Idem pour la bande (voir Bande.js). */
   appliquerBande(reglages) {
     if (!this.bande) return;
+    // même OBJET que la dernière fois : rien à faire — l'éditeur remplace
+    // toujours l'objet quand une valeur change (TableEcoute), jamais ne le
+    // mute, donc l'identité suffit et la sérialisation ne paie qu'au vrai
+    // changement
+    if (reglages === this._objetBande) return;
     let signature;
     try { signature = JSON.stringify(reglages ?? null); } catch { return; }
+    this._objetBande = reglages;
     if (signature === this._signatureBande) return;
     this._signatureBande = signature;
     this.bande.regler(reglages ?? undefined);
@@ -241,8 +253,14 @@ export class AudioEngine {
   /** Idem pour la matière du bus (voir Couleurs.js). */
   appliquerCouleurs(reglages) {
     if (!this.couleurs) return;
+    // même OBJET que la dernière fois : rien à faire — l'éditeur remplace
+    // toujours l'objet quand une valeur change (TableEcoute), jamais ne le
+    // mute, donc l'identité suffit et la sérialisation ne paie qu'au vrai
+    // changement
+    if (reglages === this._objetCouleurs) return;
     let signature;
     try { signature = JSON.stringify(reglages ?? null); } catch { return; }
+    this._objetCouleurs = reglages;
     if (signature === this._signatureCouleurs) return;
     this._signatureCouleurs = signature;
     this.couleurs.regler(reglages ?? undefined);
@@ -251,8 +269,14 @@ export class AudioEngine {
   /** Idem pour la table sur laquelle tout est mixé (voir Pupitre.js). */
   appliquerPupitre(reglages) {
     if (!this.pupitre) return;
+    // même OBJET que la dernière fois : rien à faire — l'éditeur remplace
+    // toujours l'objet quand une valeur change (TableEcoute), jamais ne le
+    // mute, donc l'identité suffit et la sérialisation ne paie qu'au vrai
+    // changement
+    if (reglages === this._objetPupitre) return;
     let signature;
     try { signature = JSON.stringify(reglages ?? null); } catch { return; }
+    this._objetPupitre = reglages;
     if (signature === this._signaturePupitre) return;
     this._signaturePupitre = signature;
     this.pupitre.regler(reglages ?? undefined);
@@ -261,8 +285,14 @@ export class AudioEngine {
   /** Idem pour les deux bornes du maître (voir Hygiene.js). */
   appliquerHygiene(reglages) {
     if (!this.hygiene) return;
+    // même OBJET que la dernière fois : rien à faire — l'éditeur remplace
+    // toujours l'objet quand une valeur change (TableEcoute), jamais ne le
+    // mute, donc l'identité suffit et la sérialisation ne paie qu'au vrai
+    // changement
+    if (reglages === this._objetHygiene) return;
     let signature;
     try { signature = JSON.stringify(reglages ?? null); } catch { return; }
+    this._objetHygiene = reglages;
     if (signature === this._signatureHygiene) return;
     this._signatureHygiene = signature;
     this.hygiene.regler(reglages ?? undefined);
@@ -309,8 +339,14 @@ export class AudioEngine {
   /** Réglages de la console, poussés seulement s'ils ont changé. */
   appliquerConsole(reglages) {
     if (!this.console) return;
+    // même OBJET que la dernière fois : rien à faire — l'éditeur remplace
+    // toujours l'objet quand une valeur change (TableEcoute), jamais ne le
+    // mute, donc l'identité suffit et la sérialisation ne paie qu'au vrai
+    // changement
+    if (reglages === this._objetConsole) return;
     let signature;
     try { signature = JSON.stringify(reglages ?? null); } catch { return; }
+    this._objetConsole = reglages;
     if (signature === this._signatureConsole) return;
     this._signatureConsole = signature;
     this.console.regler(normaliserConsole(reglages));

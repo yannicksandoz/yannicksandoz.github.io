@@ -256,10 +256,13 @@ export class RoomManager {
    * l'autre au rayon vertical. Un panneau n'est pas un plancher — le mêler
    * aux sols ferait marcher sur les tableaux.
    */
-  blockers() {
+  blockers(base = null) {
     const room = this.current;
     if (!room) return [];
-    const list = this.walkables();
+    // `base` : la liste walkables si l'appelant vient de la calculer (même
+    // frame) — la retraverser ici doublait le parcours de la coque. On la
+    // recopie, on ne la mute jamais : elle sert encore au rayon vertical.
+    const list = base ? [...base] : this.walkables();
     for (const a of room.artworks) {
       if (!a.mesh || isWalkable(a.config)) continue;   // déjà foulable
       if (a.config.solid === false) continue;          // passe-muraille assumé

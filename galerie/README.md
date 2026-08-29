@@ -3476,6 +3476,52 @@ lancement puis l'ajuste en continu :
   plantage (un média distant devenu injoignable vire au placeholder rouge) ;
   fallback explicite si WebGL2 est absent.
 
+## Micro-coûts par frame : la revue des allocations
+
+Une revue dédiée (« trouve des optimisations sans toucher à la
+fonctionnalité ») a passé les chemins chauds au chronomètre. Ce qui a
+survécu à la mesure :
+
+- **`Controls._targets` était le seul vrai poste JS.** À chaque frame, les
+  listes de collision se reconstruisaient deux fois (sol + mur) :
+  `walkables()` retraversait la coque, `blockers()` rappelait `walkables()`,
+  et chaque maillage recevait un `boundingSphere.clone()` — au belvédère,
+  56 maillages, **~112 sphères allouées par frame**. Le cache d'état reste
+  interdit (les pièces pivotent, l'éditeur reconstruit — le commentaire du
+  code dit pourquoi) ; on a donc supprimé les allocations SANS cache : pool
+  de `Sphere` recopiées (`copy`), et `blockers(base)` accepte la liste sol
+  déjà bâtie dans la même frame. Micro-banc (300 reconstructions forcées,
+  3 passes chacun) : **0,0317 → 0,0239 ms la paire, −25 %** — et surtout
+  plus aucune pression sur le ramasse-miettes en régime.
+- **Quatre vecteurs par frame dans `Controls.update`** (`fwd`, `right`,
+  `move`, et le `clone()` du pivot Q/E) rejoignent le pool de vecteurs
+  module que le fichier avait déjà.
+- **La minimap écrivait dans le DOM à chaque frame** : l'attribut
+  `transform` de l'aiguille se pose désormais seulement s'il change
+  (vérifié : elle bouge en marchant, plus un octet à l'arrêt), et l'état
+  des portes se relit à 4 Hz — il change à l'échelle de la minute.
+- **La boussole** posait `style.opacity = '0'` à chaque frame une fois
+  cachée ; un drapeau suffit.
+- **Les six `appliquer*` audio** gagnent un raccourci d'identité avant le
+  `JSON.stringify` : l'éditeur REMPLACE toujours l'objet de réglages quand
+  une valeur change (vérifié dans TableEcoute — six écritures, toutes par
+  étalement), jamais ne le mute, donc `reglages === dernier` suffit en
+  régime. Mesuré 0,04 ms/frame avant : petit, mais gratuit.
+
+Résultats négatifs, pour mémoire : les six `JSON.stringify` n'étaient PAS
+le poste soupçonné (0,04 ms/frame, pas 0,4), et la mesure « en marchant »
+sous rendu logiciel (5 frames en 5 s) est trop bruitée pour conclure — le
+micro-banc à reconstructions forcées est le bon instrument ici.
+
+La même revue a corrigé quatre défauts du bouton course : un second
+contact (paume) volait l'état du premier doigt — sprint ET joystick sont
+gardés (`doigt !== null`) ; le bouton s'annonçait au lecteur d'écran sans
+répondre à autre chose qu'un pointeur tenu — Espace/Entrée maintenues
+courent désormais ; l'aide d'accueil tactile ne mentionnait pas la course ;
+et la détection `(pointer: coarse)` vivait en trois exemplaires —
+`utils.pointeurGrossier()` est désormais LA décision, et
+`test-commandes-tactiles` refuse qu'une copie revienne.
+
 ## Licences
 
 | Dossier | Licence |

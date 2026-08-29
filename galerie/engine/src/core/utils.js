@@ -14,6 +14,16 @@ export function easeInOutCubic(t) {
   return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
 }
 
+/**
+ * Vrai sur un appareil au pointeur grossier (doigt) — LA décision « tactile »
+ * de toute l'application : aide d'accueil, joystick, bouton course. Une
+ * seule, sinon un raffinement futur (any-pointer pour les hybrides) en
+ * oublierait une et les trois surfaces se contrediraient.
+ */
+export function pointeurGrossier() {
+  return globalThis.matchMedia?.('(pointer: coarse)').matches ?? false;
+}
+
 /** Vrai pour une URL absolue (http(s):// ou //hôte) — média distant. */
 export function isAbsoluteUrl(path) {
   return typeof path === 'string' && /^(https?:)?\/\//.test(path);

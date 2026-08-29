@@ -112,7 +112,13 @@ export class Boussole {
   /* ------------------------------------------------------------- tick --- */
 
   _tick(_dt) {
-    const cache = () => { this.el.style.opacity = '0'; };
+    // déjà cachée : ne pas réécrire style.opacity à chaque frame (les
+    // branches visibles remettent _cachee à false en écrivant la leur)
+    const cache = () => {
+      if (this._cachee) return;
+      this._cachee = true;
+      this.el.style.opacity = '0';
+    };
     if (this.app.audioTour?.active || this.app.editor?.enabled
       || this.app.activeFocus || this.app.derive?.active
       || this.app.visitMenu?.open) return cache();
@@ -135,6 +141,7 @@ export class Boussole {
       const y = (1 - this._v.y) / 2 * h;
       this.el.style.transform =
         `translate(${x.toFixed(0)}px, ${y.toFixed(0)}px) translate(-50%, -50%) rotate(180deg)`;
+      this._cachee = false;
       this.el.style.opacity = '0.75';
       return;
     }
@@ -152,6 +159,7 @@ export class Boussole {
     const angle = Math.atan2(dx, dy) * 180 / Math.PI;
     this.el.style.transform =
       `translate(${x.toFixed(0)}px, ${y.toFixed(0)}px) translate(-50%, -50%) rotate(${angle.toFixed(1)}deg)`;
+    this._cachee = false;
     this.el.style.opacity = '0.55';
   }
 

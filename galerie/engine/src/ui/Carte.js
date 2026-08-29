@@ -469,6 +469,7 @@ export class Minimap {
     this._signature = this._sig();
     this.el.innerHTML = this._svg();
     this._aiguille = this.el.querySelector('.ca-vous');
+    this._dernierTransforme = null; // l'aiguille est neuve : reposer l'attribut
     this._portes = [...this.el.querySelectorAll('[data-porte]')];
     this.el.hidden = !this.el.firstChild;
   }
@@ -563,7 +564,7 @@ export class Minimap {
    * carte. Le coût est d'un attribut `transform` par frame ; le tracé, lui,
    * ne se refait qu'en changeant de salle ou de gravité.
    */
-  _tick() {
+  _tick(dt) {
     if (this._id !== (this.piece?.config.id ?? null)
       || this._sig() !== this._signature) { this.redessiner(); return; }
     const room = this.piece;
@@ -576,10 +577,23 @@ export class Minimap {
       const cam = this.app.camera;
       cam.getWorldDirection(_d);
       const capDeg = (Math.atan2(_d.x, -_d.z) * 180) / Math.PI;
-      this._aiguille.setAttribute('transform',
+      const transforme =
         `translate(${cam.position.x.toFixed(2)} ${cam.position.z.toFixed(2)})`
-        + ` rotate(${capDeg.toFixed(1)})`);
+        + ` rotate(${capDeg.toFixed(1)})`;
+      // immobile, on ne touche pas au DOM : poser le même attribut 120 fois
+      // par seconde invalide le style de l'aiguille pour rien
+      if (transforme !== this._dernierTransforme) {
+        this._dernierTransforme = transforme;
+        this._aiguille.setAttribute('transform', transforme);
+      }
     }
+
+    // L'état des portes change à l'échelle de la MINUTE (une porte se
+    // franchit, se ferme) : quatre relevés par seconde le montrent aussi
+    // vite que l'œil le lit, sans payer estFerme + aPris à chaque frame.
+    this._accPortes = (this._accPortes ?? 0) + (dt ?? 1 / 60);
+    if (this._accPortes < 0.25) return;
+    this._accPortes = 0;
 
     // l'état des portes : franchie, inconnue, ou fermée pour l'instant
     const memoire = this.app.memoire;

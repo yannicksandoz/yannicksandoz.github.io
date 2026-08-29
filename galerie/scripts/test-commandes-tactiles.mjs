@@ -37,6 +37,8 @@ const css = lire('engine', 'src', 'style.css');
 const controles = lire('engine', 'src', 'controls', 'Controls.js');
 const html = lire('index.html');
 const i18n = lire('engine', 'src', 'core', 'i18n.js');
+const utils = lire('engine', 'src', 'core', 'utils.js');
+const ui = lire('engine', 'src', 'ui', 'UI.js');
 
 titre('le bouton course : présent, étiqueté, tactile seulement');
 test('le bouton est dans la page, à côté du joystick', () => {
@@ -48,9 +50,24 @@ test('il porte une étiquette accessible traduite', () => {
   const n = i18n.split("'sprint.label':").length - 1;
   assert.equal(n, 2, `sprint.label : ${n} définition(s), 2 attendues (fr + en)`);
 });
-test('il ne se montre que sur un pointeur grossier', () => {
-  assert.ok(/pointer:\s*coarse/.test(controles),
-    'sans ce test, le bouton apparaîtrait à côté d\'un clavier qui a Maj');
+test('il ne se montre que sur un pointeur grossier — et LA décision est unique', () => {
+  assert.ok(/pointer:\s*coarse/.test(utils),
+    'le test du pointeur vit dans utils.pointeurGrossier()');
+  assert.ok(!/pointer:\s*coarse/.test(controles) && !/pointer:\s*coarse/.test(ui),
+    'personne d\'autre ne re-teste matchMedia : trois copies finissaient'
+    + ' par diverger');
+  for (const src of [controles, ui]) {
+    assert.ok(src.includes('pointeurGrossier('), 'chacun passe par le prédicat partagé');
+  }
+});
+test('l\'aide d\'accueil tactile mentionne la course', () => {
+  for (const cle of ['hint.touch', 'enter.tip.touch']) {
+    for (const morceau of i18n.split(`'${cle}':`).slice(1)) {
+      const ligne = morceau.slice(0, 200);
+      assert.ok(/courir|run/i.test(ligne),
+        `${cle} ne dit rien de la course — seul le chevron la laisse deviner`);
+    }
+  }
 });
 
 titre('maintenu, il vaut Maj — la même course, pas une seconde');
@@ -74,6 +91,21 @@ test('perte du doigt (up, cancel) et perte de focus', () => {
   for (const ev of ['pointerup', 'pointercancel', 'blur']) {
     assert.ok(controles.includes(ev), `aucun relâchement sur ${ev}`);
   }
+});
+test('un second contact ne vole ni la course ni le manche', () => {
+  // sprint : `doigt` déjà pris → le pointerdown suivant est ignoré, sinon
+  // le relâchement du second contact coupait la course sous le pouce
+  assert.ok(controles.includes('if (doigt !== null) return;'),
+    'garde multi-pointeur absente du bouton course');
+  assert.ok(controles.includes('if (activeId !== null) return;'),
+    'garde multi-pointeur absente du joystick');
+});
+test('le clavier court aussi : maintenir Espace ou Entrée', () => {
+  // le bouton s'annonce au lecteur d'écran (aria-label) : il doit répondre
+  // à autre chose qu'un pointeur tenu
+  assert.ok(controles.includes("addEventListener('keydown'")
+    && controles.includes("addEventListener('keyup'"),
+    'aucun maintien clavier sur le bouton course');
 });
 test('le glissement de page ne coupe pas la course', () => {
   assert.ok(/#sprint\s*\{[^}]*touch-action:\s*none/s.test(css),

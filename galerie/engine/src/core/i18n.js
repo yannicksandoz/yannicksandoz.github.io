@@ -16,13 +16,13 @@ const FR = {
   'enter.enter': 'Entrer',
   'enter.audio': 'Visite audio',
   'enter.tip': "{move} ou flèches pour se déplacer · {pivot} pour pivoter · souris pour orbiter · clic sur une œuvre pour l'approcher",
-  'enter.tip.touch': "1 doigt pour regarder autour · 2 doigts pour se déplacer et zoomer · joystick pour marcher · toucher une œuvre pour l'approcher",
+  'enter.tip.touch': "1 doigt pour regarder autour · 2 doigts pour se déplacer et zoomer · joystick pour marcher · bouton ≫ maintenu pour courir · toucher une œuvre pour l'approcher",
   'enter.liste': 'Parcourir les œuvres en liste (2D)',
   'enter.error': "La configuration des œuvres n'a pas pu être chargée — l'incident est presque toujours passager.",
   'enter.retry': 'Réessayer',
 
   'hint.line': '{move} · {pivot} : pivoter · clic ou Espace : découvrir',
-  'hint.touch': '1 doigt : regarder · 2 doigts : se déplacer · joystick : marcher · toucher : découvrir',
+  'hint.touch': '1 doigt : regarder · 2 doigts : se déplacer · joystick : marcher · ≫ maintenu : courir · toucher : découvrir',
   'hint.fly': 'Vous planez · avancez en regardant vers le bas pour vous poser',
 
   'nogl.sub': "Votre navigateur ne prend pas en charge WebGL2, nécessaire à l'affichage 3D. La galerie reste entièrement visitable à l'oreille : navigation au clavier, sons spatialisés — casque recommandé.",
@@ -159,13 +159,13 @@ const EN = {
   'enter.enter': 'Enter',
   'enter.audio': 'Audio tour',
   'enter.tip': '{move} or arrow keys to move · {pivot} to turn · mouse to orbit · click a work to approach it',
-  'enter.tip.touch': '1 finger to look around · 2 fingers to move and zoom · joystick to walk · tap a work to approach it',
+  'enter.tip.touch': '1 finger to look around · 2 fingers to move and zoom · joystick to walk · hold ≫ to run · tap a work to approach it',
   'enter.liste': 'Browse the works as a list (2D)',
   'enter.error': 'The artwork configuration could not be loaded — this is almost always temporary.',
   'enter.retry': 'Try again',
 
   'hint.line': '{move} · {pivot}: turn · click or Space: discover',
-  'hint.touch': '1 finger: look · 2 fingers: move · joystick: walk · tap: discover',
+  'hint.touch': '1 finger: look · 2 fingers: move · joystick: walk · hold ≫: run · tap: discover',
   'hint.fly': 'You are gliding · look down and move forward to land',
 
   'nogl.sub': 'Your browser does not support WebGL2, which the 3D display requires. The gallery remains fully visitable by ear: keyboard navigation, spatialised sound — headphones recommended.',
