@@ -41,11 +41,26 @@ const MARGE = 14;      // mètres laissés autour du tracé
  * personne ait à penser à l'invalider.
  */
 export function planDe(app) {
-  const rooms = [...(app.rooms?.rooms?.values() ?? [])].map((r) => r.config);
+  const pieces = [...(app.rooms?.rooms?.values() ?? [])];
+  const rooms = pieces.map((r) => r.config);
+  // les positions des œuvres, par pièce : l'empreinte d'une pièce SANS
+  // coque se mesure à son étendue meublée (voir `empreinte`) — le terrain
+  // de l'allée fait 64 m, l'allée elle-même en fait 20
+  const oeuvres = {};
+  for (const r of pieces) {
+    oeuvres[r.config.id] = r.artworks.map((a) => {
+      const p = a.config.position ?? [0, 0, 0];
+      return [Number(p[0]) || 0, Number(p[2]) || 0];
+    });
+  }
   const cle = rooms.map((r) => `${r.id}:${r.shell?.width ?? ''}x${r.shell?.depth ?? ''}`
-    + `:${(r.portals ?? []).map((p) => p.to).join('+')}`).join(',');
+    + `:${(r.portals ?? []).map((p) => p.to).join('+')}`
+    // l'étendue meublée fait partie du tracé : déplacer une œuvre d'une
+    // pièce ouverte (éditeur) doit refaire le plan
+    + `:${oeuvres[r.id].map(([x, z]) => `${Math.round(x)};${Math.round(z)}`).join('_')}`)
+    .join(',');
   if (app._plan?.cle !== cle) {
-    app._plan = { cle, plan: planGalerie(rooms, rooms[0]?.id) };
+    app._plan = { cle, plan: planGalerie(rooms, rooms[0]?.id, { oeuvres }) };
   }
   return app._plan.plan;
 }
@@ -180,10 +195,30 @@ export function dessinerPlanGrand(app) {
   const x1 = Math.max(...bords.map((b) => b.x)) + MARGE;
   const z1 = Math.max(...bords.map((b) => b.z)) + MARGE;
 
-  // Les liens bombent légèrement, du même côté : deux salles reliées par
-  // deux portes ne donnent plus un seul trait, et un trait qui frôle une
-  // troisième salle la contourne au lieu de la traverser.
+  // Les liens suivent leur CHEMIN calculé par le plan : une polyligne qui
+  // contourne les salles (voir planGalerie), aux coins adoucis. Un trait
+  // direct garde une légère courbe — l'œil suit mieux un arc qu'une corde.
+  const arrondi = (pts) => {
+    const R = 4; // rayon des coins, en mètres
+    let d = `M${pts[0][0].toFixed(1)} ${pts[0][1].toFixed(1)}`;
+    for (let i = 1; i < pts.length - 1; i++) {
+      const [x0, z0] = pts[i - 1], [x1, z1] = pts[i], [x2, z2] = pts[i + 1];
+      const l1 = Math.hypot(x1 - x0, z1 - z0) || 1;
+      const l2 = Math.hypot(x2 - x1, z2 - z1) || 1;
+      const r1 = Math.min(R, l1 / 2), r2 = Math.min(R, l2 / 2);
+      const ex = x1 - ((x1 - x0) / l1) * r1, ez = z1 - ((z1 - z0) / l1) * r1;
+      const sx = x1 + ((x2 - x1) / l2) * r2, sz = z1 + ((z2 - z1) / l2) * r2;
+      d += ` L${ex.toFixed(1)} ${ez.toFixed(1)}`
+        + ` Q${x1.toFixed(1)} ${z1.toFixed(1)} ${sx.toFixed(1)} ${sz.toFixed(1)}`;
+    }
+    const fin = pts[pts.length - 1];
+    return `${d} L${fin[0].toFixed(1)} ${fin[1].toFixed(1)}`;
+  };
   const traits = liens.map((l) => {
+    if (Array.isArray(l.chemin) && l.chemin.length > 2) {
+      return `<path class="ca-lien" vector-effect="non-scaling-stroke"
+        d="${arrondi(l.chemin)}"/>`;
+    }
     const a = centre.get(l.a), b = centre.get(l.b);
     const dx = b.x - a.x, dz = b.z - a.z;
     const long = Math.hypot(dx, dz) || 1;
@@ -273,6 +308,114 @@ export class CartePleine {
     window.addEventListener('resize', this._onRedim);
     this._offLangue = onLangChange(() => { if (this.ouverte) this._peindre(); });
     this.ouverte = false;
+    this._brancherZoom();
+  }
+
+  /* --------------------------------------------------- zoom et glisser --- */
+
+  /**
+   * Le plan se ZOOME et se GLISSE : molette (autour du curseur), pincement
+   * à deux doigts, glisser à un doigt ou à la souris. Tout passe par le
+   * viewBox — les textes gardent leur taille d'écran (`_ajusterEchelle`
+   * relit l'échelle réelle après chaque geste). Un glisser ne doit pas
+   * compter comme un clic de voyage : on l'étouffe au-delà de quelques
+   * pixels de mouvement.
+   */
+  _brancherZoom() {
+    this._doigts = new Map();
+    this._aGlisse = false;
+
+    this.el.addEventListener('wheel', (e) => {
+      const svg = this.el.querySelector('.ca-grand');
+      if (!this.ouverte || !svg) return;
+      e.preventDefault();
+      this._zoomVers(svg, e.clientX, e.clientY, e.deltaY < 0 ? 1 / 1.18 : 1.18);
+    }, { passive: false });
+
+    this.el.addEventListener('pointerdown', (e) => {
+      if (!this.ouverte || !this.el.querySelector('.ca-grand')) return;
+      this._doigts.set(e.pointerId, { x: e.clientX, y: e.clientY });
+      if (this._doigts.size === 1) this._aGlisse = false;
+    });
+    this.el.addEventListener('pointermove', (e) => {
+      const svg = this.el.querySelector('.ca-grand');
+      const doigt = this._doigts.get(e.pointerId);
+      if (!doigt || !svg) return;
+      const avant = [...this._doigts.values()].map((d) => ({ ...d }));
+      doigt.x = e.clientX; doigt.y = e.clientY;
+      const apres = [...this._doigts.values()];
+      const vue = this._vueDe(svg);
+      if (this._doigts.size === 1) {
+        const k = this._echelleDe(svg, vue);
+        const dx = apres[0].x - avant[0].x, dy = apres[0].y - avant[0].y;
+        if (Math.hypot(dx, dy) > 0) {
+          if (Math.abs(dx) + Math.abs(dy) > 2) this._aGlisse = true;
+          vue.x -= dx / k; vue.y -= dy / k;
+          this._appliquerVue(svg, vue);
+        }
+      } else if (this._doigts.size === 2) {
+        this._aGlisse = true;
+        const d0 = Math.hypot(avant[0].x - avant[1].x, avant[0].y - avant[1].y) || 1;
+        const d1 = Math.hypot(apres[0].x - apres[1].x, apres[0].y - apres[1].y) || 1;
+        const mx = (apres[0].x + apres[1].x) / 2, my = (apres[0].y + apres[1].y) / 2;
+        this._zoomVers(svg, mx, my, d0 / d1);
+      }
+    });
+    const finDoigt = (e) => { this._doigts.delete(e.pointerId); };
+    this.el.addEventListener('pointerup', finDoigt);
+    this.el.addEventListener('pointercancel', finDoigt);
+    // un glisser qui se termine sur une salle déclencherait son voyage
+    this.el.addEventListener('click', (e) => {
+      if (this._aGlisse) { e.stopPropagation(); e.preventDefault(); this._aGlisse = false; }
+    }, true);
+  }
+
+  /** La vue courante (viewBox) et sa base (le plan entier), mémorisées. */
+  _vueDe(svg) {
+    const vb = svg.viewBox.baseVal;
+    if (!this._base || this._basePour !== svg) {
+      this._base = { x: vb.x, y: vb.y, w: vb.width, h: vb.height };
+      this._basePour = svg;
+    }
+    return { x: vb.x, y: vb.y, w: vb.width, h: vb.height };
+  }
+
+  /** Mètres par pixel — l'échelle réellement appliquée par `meet`. */
+  _echelleDe(svg, vue) {
+    const r = svg.getBoundingClientRect();
+    return Math.min(r.width / vue.w, r.height / vue.h) || 1;
+  }
+
+  _zoomVers(svg, cx, cy, facteur) {
+    const vue = this._vueDe(svg);
+    const r = svg.getBoundingClientRect();
+    const k = this._echelleDe(svg, vue);
+    // le point du PLAN sous le curseur (meet centre le dessin dans la boîte)
+    const px = vue.x + (cx - r.left - (r.width - vue.w * k) / 2) / k;
+    const py = vue.y + (cy - r.top - (r.height - vue.h * k) / 2) / k;
+    vue.w *= facteur; vue.h *= facteur;
+    vue.x = px - (px - vue.x) * facteur;
+    vue.y = py - (py - vue.y) * facteur;
+    this._appliquerVue(svg, vue);
+  }
+
+  _appliquerVue(svg, vue) {
+    const B = this._base;
+    // le zoom va du plan entier (×1) au huitième (×8) ; le cadrage reste
+    // DANS le plan — pas de dérive vers le vide
+    vue.w = Math.max(B.w / 8, Math.min(B.w, vue.w));
+    vue.h = vue.w * (B.h / B.w);
+    vue.x = Math.max(B.x, Math.min(B.x + B.w - vue.w, vue.x));
+    vue.y = Math.max(B.y, Math.min(B.y + B.h - vue.h, vue.y));
+    svg.setAttribute('viewBox',
+      `${vue.x.toFixed(2)} ${vue.y.toFixed(2)} ${vue.w.toFixed(2)} ${vue.h.toFixed(2)}`);
+    if (!this._echelleEnAttente) {
+      this._echelleEnAttente = true;
+      requestAnimationFrame(() => {
+        this._echelleEnAttente = false;
+        if (this.ouverte) this._ajusterEchelle();
+      });
+    }
   }
 
   ouvrir() {
@@ -352,6 +495,10 @@ export class CartePleine {
     if (!vb.width || !vb.height || !r.width || !r.height) return;
     const k = Math.min(r.width / vb.width, r.height / vb.height);
     if (!(k > 0)) return;
+    // les étiquettes se bornent au PLAN ENTIER, pas au cadrage du moment :
+    // zoomé, le viewBox rétrécit, et les borner à lui les ferait migrer
+    const cadre = this._base && this._basePour === svg
+      ? this._base : { x: vb.x, y: vb.y, w: vb.width, h: vb.height };
     const px = (n) => n / k;
     const corps = px(13);
     svg.querySelector('.ca-etiquettes')?.setAttribute('font-size', corps.toFixed(3));
@@ -420,8 +567,8 @@ export class CartePleine {
       const demiW = Number(g.dataset.w) / 2;
       const boiteEn = (x, y) => ({ x0: x - largeur / 2, x1: x + largeur / 2,
         y0: y, y1: y + haut });
-      const libre = (b) => b.x0 >= vb.x && b.x1 <= vb.x + vb.width
-        && b.y0 >= vb.y && b.y1 <= vb.y + vb.height
+      const libre = (b) => b.x0 >= cadre.x && b.x1 <= cadre.x + cadre.w
+        && b.y0 >= cadre.y && b.y1 <= cadre.y + cadre.h
         && !heurte(b, autresSalles) && !heurte(b, posees);
       // la passe se rejoue à chaque redimensionnement : on repart TOUJOURS
       // de la place normale, jamais de la place corrigée du tour d'avant
@@ -451,6 +598,12 @@ export class CartePleine {
             boite = boiteEn(x, y);
           }
         }
+        // cran de sûreté : quoi qu'il arrive, l'étiquette reste DANS le
+        // cadre — un nom coupé par le bord ne nomme plus rien
+        x = Math.max(cadre.x + largeur / 2,
+          Math.min(cadre.x + cadre.w - largeur / 2, x));
+        y = Math.max(cadre.y, Math.min(cadre.y + cadre.h - haut, y));
+        boite = boiteEn(x, y);
         nom.setAttribute('x', x.toFixed(2));
         nom.setAttribute('y', y.toFixed(2));
         compteur?.setAttribute('x', x.toFixed(2));

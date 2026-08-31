@@ -826,6 +826,8 @@ html, body {
   color: var(--fg);
 }
 #carte-pleine[hidden] { display: none; }
+/* le plan capture ses gestes : molette, pincement, glisser (zoom/pan) */
+#carte-pleine .cp-plan { touch-action: none; cursor: grab; }
 .cp-barre {
   display: flex; align-items: baseline; gap: 1rem;
   padding: 1rem 1.4rem 0.5rem;

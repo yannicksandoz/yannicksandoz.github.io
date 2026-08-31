@@ -34,6 +34,13 @@ console.log('\nEmpreinte d\'une pièce');
   check('sans coque, le sol fait foi', empreinte({ floor: { size: 30 } }), { w: 30, d: 30 });
   check('sans rien, les valeurs du moteur', empreinte({}), { w: 26, d: 20 });
   check('coque à true', empreinte({ shell: true }), { w: 26, d: 20 });
+  // sans coque, l'étendue MEUBLÉE fait foi : le terrain de 64 m sous un
+  // chemin de 2 × 20 m ne doit plus dessiner un carré géant
+  check('sans coque, l\'étendue meublée borne le terrain',
+    empreinte({ floor: { size: 64 } }, [[0, -10], [2, 10]]), { w: 12, d: 30 });
+  check('la coque ignore les œuvres',
+    empreinte({ shell: { width: 40, depth: 12 } }, [[0, -30], [0, 30]]),
+    { w: 40, d: 12 });
 }
 
 /* ---------------------------------------------------- sens de sortie --- */
@@ -125,6 +132,52 @@ console.log('\nPlan de la galerie (contenu réel)');
     check('les faces se suivent comme une horloge',
       depuisNord.map(arrondi), [...depuisNord].sort((a, b) => a - b).map(arrondi));
   }
+
+  // Chaque porte porte son CHEMIN, et aucun chemin ne traverse une salle
+  // étrangère : un trait qui barre une pièce se lit comme une porte qui
+  // n'existe pas.
+  vrai('chaque porte a son chemin',
+    plan.portes.every((p) => Array.isArray(p.chemin) && p.chemin.length >= 2),
+    JSON.stringify(plan.portes.filter((p) => !p.chemin?.length).map((p) => p.cle)));
+  const traversees = [];
+  for (const porte of plan.portes) {
+    for (let s = 0; s < porte.chemin.length - 1; s++) {
+      const [x0, z0] = porte.chemin[s], [x1, z1] = porte.chemin[s + 1];
+      const n = Math.max(1, Math.ceil(Math.hypot(x1 - x0, z1 - z0)));
+      for (let i = 0; i <= n; i++) {
+        const x = x0 + ((x1 - x0) * i) / n, z = z0 + ((z1 - z0) * i) / n;
+        for (const p of plan.pieces) {
+          if (p.id === porte.a || p.id === porte.b) continue;
+          if (Math.abs(x - p.x) < p.w / 2 - 1 && Math.abs(z - p.z) < p.d / 2 - 1) {
+            traversees.push(`${porte.cle} traverse ${p.id}`);
+          }
+        }
+      }
+    }
+  }
+  check('aucun chemin ne traverse une salle', [...new Set(traversees)], []);
+
+  // L'empreinte meublée sur le vrai contenu : l'allée redevient une allée
+  // (un chemin étroit, pas le carré de 64 m de son terrain)
+  const dossierOeuvres = join(racine, 'content', 'works');
+  const positions = {};
+  for (const r of rooms) {
+    positions[r.id] = (r.works ?? []).map((wid) => {
+      try {
+        const w = JSON.parse(readFileSync(join(dossierOeuvres, `${wid}.json`), 'utf8'));
+        const p = w.position ?? [0, 0, 0];
+        return [Number(p[0]) || 0, Number(p[2]) || 0];
+      } catch { return null; }
+    }).filter(Boolean);
+  }
+  const plan2 = planGalerie(rooms, 'entree', { oeuvres: positions });
+  const allee = plan2.pieces.find((p) => p.id === 'allee');
+  vrai('l\'allée meublée est une allée, pas un terrain',
+    allee && allee.w <= 20 && allee.d <= 32 && allee.d > allee.w,
+    JSON.stringify(allee));
+  const archives2 = plan2.pieces.find((p) => p.id === 'archives');
+  check('une pièce à coque garde sa coque',
+    { w: archives2?.w, d: archives2?.d }, { w: 26, d: 20 });
 }
 
 /* ----------------------------------------------------- cas dégénérés --- */

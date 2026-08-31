@@ -28,16 +28,38 @@
 
 const LARGEUR_DEFAUT = 26;   // SHELL_DEFAULTS.width
 const PROFONDEUR_DEFAUT = 20; // SHELL_DEFAULTS.depth
-const ECART = 8;             // couloir laissé entre deux pièces, en mètres
+// Le couloir laissé entre deux pièces, en mètres. Généreux À DESSEIN :
+// les empreintes meublées ont rapetissé les salles, et cet air est ce qui
+// loge les NOMS sous les pièces et les CHEMINS des liens entre elles.
+const ECART = 14;
 const RELAXATIONS = 80;
 
-/** Empreinte au sol d'une pièce, en mètres. */
-export function empreinte(cfg) {
+/**
+ * Empreinte au sol d'une pièce, en mètres.
+ *
+ * La coque fait foi quand elle existe : c'est la pièce telle qu'on la
+ * parcourt. SANS coque, `floor.size` ne décrit qu'un TERRAIN — le parvis
+ * de l'entrée fait 140 m de sol pour un hall de 60, et l'allée du jardin
+ * étale 64 m de pelouse sous un chemin de 8 m de large. Dessiner le
+ * terrain mentait sur la pièce vécue. Si l'appelant fournit les positions
+ * des œuvres (`oeuvres` : [[x, z], …]), l'empreinte d'une pièce sans coque
+ * devient l'ÉTENDUE MEUBLÉE plus une marge de passage, bornée par le
+ * terrain — l'allée redevient une allée.
+ */
+export function empreinte(cfg, oeuvres = null) {
   const shell = cfg?.shell && cfg.shell !== true ? cfg.shell : null;
   const taille = Number(cfg?.floor?.size);
   const w = Number(shell?.width) || (Number.isFinite(taille) ? taille : LARGEUR_DEFAUT);
   const d = Number(shell?.depth) || (Number.isFinite(taille) ? taille : PROFONDEUR_DEFAUT);
-  return { w: Math.max(4, w), d: Math.max(4, d) };
+  const brute = { w: Math.max(4, w), d: Math.max(4, d) };
+  if (Number(shell?.width) > 0 || !Array.isArray(oeuvres) || !oeuvres.length) return brute;
+  const xs = oeuvres.map((p) => Number(p[0]) || 0);
+  const zs = oeuvres.map((p) => Number(p[1]) || 0);
+  const MARGE_MEUBLEE = 10;
+  return {
+    w: Math.min(brute.w, Math.max(12, Math.max(...xs) - Math.min(...xs) + MARGE_MEUBLEE)),
+    d: Math.min(brute.d, Math.max(12, Math.max(...zs) - Math.min(...zs) + MARGE_MEUBLEE))
+  };
 }
 
 /**
@@ -84,14 +106,20 @@ function demiPortee(taille, u) {
  * @param {Array} rooms  configurations de pièce (déjà migrées : les portails
  *                       portent `rotation`, pas `rotationY`)
  * @param {string} depart id de la pièce d'où l'on part (défaut : la première)
+ * @param {object} options `oeuvres` : { idPiece: [[x, z], …] } — positions
+ *                 des œuvres par pièce, pour l'empreinte meublée des pièces
+ *                 sans coque (voir `empreinte`).
  * @returns {{ pieces: Array, portes: Array, bornes: object }}
  *          pièces : { id, titre, x, z, w, d } — x/z au CENTRE, en mètres ;
- *          portes : { a, b } — une par paire, sans doublon ni boucle.
+ *          portes : { a, b, chemin } — une par paire, sans doublon ni
+ *          boucle ; `chemin` : la polyligne [[x, z], …] qui CONTOURNE les
+ *          salles, de bord à bord.
  */
-export function planGalerie(rooms, depart = null) {
+export function planGalerie(rooms, depart = null, options = {}) {
   const liste = (rooms ?? []).filter((r) => r && r.id);
   const par = new Map(liste.map((r) => [r.id, r]));
-  const tailles = new Map(liste.map((r) => [r.id, empreinte(r)]));
+  const tailles = new Map(liste.map((r) =>
+    [r.id, empreinte(r, options.oeuvres?.[r.id])]));
   const pose = new Map();
 
   const racine = depart && par.has(depart) ? depart : liste[0]?.id;
@@ -138,6 +166,38 @@ export function planGalerie(rooms, depart = null) {
     for (const id of ids) satellites.delete(id);
   }
 
+  /* 0c. la COURONNE de chaque moyeu se calcule d'avance : rayon d'anneau
+   * où les feuilles tiendront côte à côte, et GABARIT gonflé du moyeu —
+   * pendant toute la mise en page, le moyeu occupe virtuellement moyeu
+   * plus anneau, et les autres salles s'écartent d'elles-mêmes. C'est ce
+   * qui permet, à la fin, un cercle complet serré contre le moyeu, sans
+   * chercher de trouée dans un horizon encombré. */
+  const TAU = Math.PI * 2;
+  const anneaux = new Map();   // moyeu -> { rayon, feuilles triées }
+  const gabarits = new Map(tailles);
+  const titreDe = (id) => String(par.get(id)?.title ?? id);
+  for (const [moyeu, feuilles] of grappes) {
+    const tMoyeu = tailles.get(moyeu);
+    const tri = [...feuilles].sort((a, b) =>
+      titreDe(a).localeCompare(titreDe(b), 'fr', { numeric: true }));
+    const grand = Math.max(...tri.map((id) =>
+      Math.max(tailles.get(id).w, tailles.get(id).d)));
+    // le rayon : moyeu contre feuille au pire azimut, ET la corde entre
+    // deux feuilles voisines doit tenir leur gabarit même en diagonale
+    let rayon = 0;
+    for (const id of tri) {
+      for (let a = 0; a < 8; a++) {
+        const u = { x: Math.cos((a * TAU) / 8), z: Math.sin((a * TAU) / 8) };
+        rayon = Math.max(rayon,
+          demiPortee(tMoyeu, u) + demiPortee(tailles.get(id), u) + 4);
+      }
+    }
+    rayon = Math.max(rayon, ((grand + 3) * 1.42) / (2 * Math.sin(Math.PI / tri.length)));
+    anneaux.set(moyeu, { rayon, tri });
+    const cote = 2 * (rayon + grand / 2 + 3);
+    gabarits.set(moyeu, { w: cote, d: cote });
+  }
+
   /* 1. parcours en largeur : chaque porte pose sa voisine de l'autre côté */
   pose.set(racine, { x: 0, z: 0 });
   const file = [racine];
@@ -152,7 +212,7 @@ export function planGalerie(rooms, depart = null) {
       const u = sortie(p, taille);
       const pos = Array.isArray(p.position) ? p.position : [0, 0, 0];
       const porte = { x: ici.x + (Number(pos[0]) || 0), z: ici.z + (Number(pos[2]) || 0) };
-      const d = ECART + demiPortee(tailles.get(cible), u);
+      const d = ECART + demiPortee(gabarits.get(cible), u);
       pose.set(cible, { x: porte.x + u.x * d, z: porte.z + u.z * d });
       file.push(cible);
     }
@@ -189,7 +249,7 @@ export function planGalerie(rooms, depart = null) {
     for (let i = 0; i < ids.length; i++) {
       for (let j = i + 1; j < ids.length; j++) {
         const a = pose.get(ids[i]), b = pose.get(ids[j]);
-        const ta = tailles.get(ids[i]), tb = tailles.get(ids[j]);
+        const ta = gabarits.get(ids[i]), tb = gabarits.get(ids[j]);
         const dx = b.x - a.x, dz = b.z - a.z;
         const chx = (ta.w + tb.w) / 2 + ECART - Math.abs(dx);
         const chz = (ta.d + tb.d) / 2 + ECART - Math.abs(dz);
@@ -216,7 +276,7 @@ export function planGalerie(rooms, depart = null) {
     // voisine, et une carte où deux salles se recouvrent ne se lit plus.
     for (const [ia, ib] of (n < RELAXATIONS * 0.66 ? liens : [])) {
       const a = pose.get(ia), b = pose.get(ib);
-      const ta = tailles.get(ia), tb = tailles.get(ib);
+      const ta = gabarits.get(ia), tb = gabarits.get(ib);
       const dx = b.x - a.x, dz = b.z - a.z;
       // le long de l'axe dominant du lien : la distance juste est celle qui
       // laisse les deux empreintes se frôler, plus un couloir
@@ -255,75 +315,19 @@ export function planGalerie(rooms, depart = null) {
   }
   for (let n = 0; n < 30 && ecarte(); n++) { /* jusqu'au repos */ }
 
-  /* 3c. les grappes de satellites, en anneau ordonné autour de leur moyeu.
-   *     Les créneaux sont réguliers sur le cercle, tournés pour s'écarter
-   *     au mieux des directions déjà prises par les vraies voisines du
-   *     moyeu ; les feuilles s'y rangent par titre (Face 1, Face 2, …),
-   *     en tournant depuis le nord — l'ordre de lecture d'une horloge. */
-  const TAU = Math.PI * 2;
-  const titreDe = (id) => String(par.get(id)?.title ?? id);
-  for (const [moyeu, feuilles] of grappes) {
+  /* 3c. les grappes de satellites : le CERCLE COMPLET, serré contre le
+   *     moyeu. La couronne a été réservée dès la mise en page (0c — le
+   *     moyeu occupait virtuellement moyeu + anneau), l'horizon est donc
+   *     libre tout autour : les feuilles se posent au rayon calculé, en
+   *     tournant depuis le nord comme une horloge, par ordre de titre. */
+  for (const [moyeu, { rayon, tri }] of anneaux) {
     const c = pose.get(moyeu);
     if (!c) continue;
-    const tMoyeu = tailles.get(moyeu);
-    const tri = [...feuilles].sort((a, b) =>
-      titreDe(a).localeCompare(titreDe(b), 'fr', { numeric: true }));
-    const k = tri.length;
-    // Le moyeu est rarement seul : ses vraies voisines occupent déjà des
-    // pans entiers de l'horizon (au belvédère, le nord, l'est et l'ouest).
-    // Un anneau complet forcerait des feuilles À TRAVERS ces salles — on
-    // cherche donc, à rayon croissant, le plus grand ARC de ciel libre, et
-    // les feuilles s'y serrent côte à côte, à rayon constant, dans l'ordre
-    // de leurs titres en tournant à l'écran comme une montre.
-    let rayonBase = 0;
-    for (const id of tri) {
-      for (let a = 0; a < 8; a++) {
-        const u = { x: Math.cos((a * TAU) / 8), z: Math.sin((a * TAU) / 8) };
-        rayonBase = Math.max(rayonBase,
-          demiPortee(tMoyeu, u) + demiPortee(tailles.get(id), u) + ECART);
-      }
-    }
-    const grand = Math.max(...tri.map((id) =>
-      Math.max(tailles.get(id).w, tailles.get(id).d)));
-    const libre = (ang, R) => {
-      const px = c.x + Math.cos(ang) * R, pz = c.z + Math.sin(ang) * R;
-      return ![...pose.entries()].some(([autre, pa]) => {
-        const ta = tailles.get(autre);
-        return Math.abs(px - pa.x) < (grand + ta.w) / 2 + 1
-          && Math.abs(pz - pa.z) < (grand + ta.d) / 2 + 1;
-      });
-    };
-    const N = 96;
-    // l'écart angulaire entre deux feuilles voisines : la corde doit tenir
-    // leur gabarit MÊME en diagonale (× √2 — l'écart en x et en z se
-    // partage la corde), plus un souffle
-    const pas = (R) => 2 * Math.asin(Math.min(0.99, ((grand + ECART) * 0.71) / R));
-    let place = null;
-    for (let R = rayonBase; R <= rayonBase + 160 && !place; R += 4) {
-      const libres = Array.from({ length: N }, (_, i) => libre((i / N) * TAU, R));
-      let long = 0, debut = 0, meilleurL = 0, meilleurD = 0;
-      for (let i = 0; i < 2 * N; i++) {
-        if (libres[i % N]) {
-          if (long === 0) debut = i;
-          long = Math.min(long + 1, N);
-        } else long = 0;
-        if (long > meilleurL) { meilleurL = long; meilleurD = debut; }
-      }
-      const besoin = k * pas(R);
-      const arc = (meilleurL / N) * TAU;
-      if (arc >= besoin) {
-        // les feuilles serrées, centrées dans l'arc trouvé
-        const depart = (meilleurD / N) * TAU + (arc - besoin) / 2;
-        place = { R, depart, pas: pas(R) };
-      }
-    }
-    // horizon bouché de partout (rare) : un anneau complet, tant pis
-    if (!place) place = { R: rayonBase + 160, depart: -TAU / 4, pas: TAU / k };
-    for (let i = 0; i < k; i++) {
-      const ang = place.depart + place.pas * (i + 0.5);
+    for (let i = 0; i < tri.length; i++) {
+      const ang = -TAU / 4 + (i * TAU) / tri.length;
       pose.set(tri[i], {
-        x: c.x + Math.cos(ang) * place.R,
-        z: c.z + Math.sin(ang) * place.R
+        x: c.x + Math.cos(ang) * rayon,
+        z: c.z + Math.sin(ang) * rayon
       });
     }
   }
@@ -355,5 +359,146 @@ export function planGalerie(rooms, depart = null) {
     x1: Math.max(...pieces.map((p) => p.x + p.w / 2)),
     z1: Math.max(...pieces.map((p) => p.z + p.d / 2))
   };
+
+  /* 5. le tracé des liens : chaque porte reçoit son CHEMIN, une polyligne
+   *    qui contourne les salles au lieu de les traverser — un trait qui
+   *    barre une pièce se lit comme une porte qui n'existe pas. */
+  const parPiece = new Map(pieces.map((p) => [p.id, p]));
+  for (const porte of portes) {
+    porte.chemin = traceChemin(parPiece.get(porte.a), parPiece.get(porte.b), pieces);
+  }
+
   return { pieces, portes, bornes };
+}
+
+/* ------------------------------------------------- routage des liens --- */
+
+const PAS_GRILLE_LIEN = 3;   // mètres par case de la grille de routage
+const GONFLE = 2.5;          // marge gardée autour des salles par les liens
+
+/** Le point où la demi-droite centre → direction quitte le rectangle. */
+function bordDe(p, vx, vz) {
+  const ax = Math.abs(vx) / (p.w / 2 || 1), az = Math.abs(vz) / (p.d / 2 || 1);
+  const k = 1 / Math.max(ax, az, 1e-6);
+  return { x: p.x + vx * k, z: p.z + vz * k };
+}
+
+/**
+ * Chemin d'une salle à l'autre en CONTOURNANT toutes les autres : A* sur
+ * une grille à huit directions, puis lissage par visées directes. Les deux
+ * salles reliées ne comptent pas comme obstacles (on en sort, on y entre) ;
+ * si le routage échoue (horizon clos), on rend le trait direct — un lien
+ * doit toujours se dessiner.
+ */
+function traceChemin(a, b, pieces) {
+  if (!a || !b) return null;
+  const dx = b.x - a.x, dz = b.z - a.z;
+  const depart = bordDe(a, dx, dz);
+  const arrivee = bordDe(b, -dx, -dz);
+  const direct = [[depart.x, depart.z], [arrivee.x, arrivee.z]];
+
+  const obstacles = pieces
+    .filter((p) => p.id !== a.id && p.id !== b.id)
+    .map((p) => ({
+      x0: p.x - p.w / 2 - GONFLE, x1: p.x + p.w / 2 + GONFLE,
+      z0: p.z - p.d / 2 - GONFLE, z1: p.z + p.d / 2 + GONFLE
+    }));
+  const bouche = (x, z) => obstacles.some((o) =>
+    x > o.x0 && x < o.x1 && z > o.z0 && z < o.z1);
+  const segmentLibre = (x0, z0, x1, z1) => {
+    const long = Math.hypot(x1 - x0, z1 - z0);
+    const n = Math.max(1, Math.ceil(long / 1.5));
+    for (let i = 0; i <= n; i++) {
+      if (bouche(x0 + ((x1 - x0) * i) / n, z0 + ((z1 - z0) * i) / n)) return false;
+    }
+    return true;
+  };
+  if (segmentLibre(depart.x, depart.z, arrivee.x, arrivee.z)) return direct;
+
+  // la grille couvre le plan entier, avec une lisière pour contourner large
+  const x0 = Math.min(...pieces.map((p) => p.x - p.w / 2)) - 14;
+  const z0 = Math.min(...pieces.map((p) => p.z - p.d / 2)) - 14;
+  const x1 = Math.max(...pieces.map((p) => p.x + p.w / 2)) + 14;
+  const z1 = Math.max(...pieces.map((p) => p.z + p.d / 2)) + 14;
+  const nx = Math.max(2, Math.ceil((x1 - x0) / PAS_GRILLE_LIEN));
+  const nz = Math.max(2, Math.ceil((z1 - z0) / PAS_GRILLE_LIEN));
+  const enX = (i) => x0 + (i + 0.5) * PAS_GRILLE_LIEN;
+  const enZ = (j) => z0 + (j + 0.5) * PAS_GRILLE_LIEN;
+  const caseDe = (x, z) => ({
+    i: Math.max(0, Math.min(nx - 1, Math.floor((x - x0) / PAS_GRILLE_LIEN))),
+    j: Math.max(0, Math.min(nz - 1, Math.floor((z - z0) / PAS_GRILLE_LIEN)))
+  });
+  // une case bouchée près du départ ou de l'arrivée glisse vers la plus
+  // proche case libre — les portes s'ouvrent parfois dans un angle serré
+  const caseLibre = (x, z) => {
+    const c = caseDe(x, z);
+    if (!bouche(enX(c.i), enZ(c.j))) return c;
+    for (let r = 1; r <= 4; r++) {
+      for (let di = -r; di <= r; di++) {
+        for (let dj = -r; dj <= r; dj++) {
+          if (Math.max(Math.abs(di), Math.abs(dj)) !== r) continue;
+          const i = c.i + di, j = c.j + dj;
+          if (i < 0 || j < 0 || i >= nx || j >= nz) continue;
+          if (!bouche(enX(i), enZ(j))) return { i, j };
+        }
+      }
+    }
+    return c;
+  };
+  const dep = caseLibre(depart.x, depart.z);
+  const arr = caseLibre(arrivee.x, arrivee.z);
+
+  // A* huit directions, coût diagonal √2, départ figé — déterministe
+  const clef = (i, j) => j * nx + i;
+  const couts = new Map([[clef(dep.i, dep.j), 0]]);
+  const vientDe = new Map();
+  const ouverts = [{ i: dep.i, j: dep.j, f: 0 }];
+  const h = (i, j) => Math.hypot(i - arr.i, j - arr.j);
+  let atteint = false;
+  while (ouverts.length) {
+    let meilleur = 0;
+    for (let k = 1; k < ouverts.length; k++) {
+      if (ouverts[k].f < ouverts[meilleur].f) meilleur = k;
+    }
+    const ici = ouverts.splice(meilleur, 1)[0];
+    if (ici.i === arr.i && ici.j === arr.j) { atteint = true; break; }
+    const dIci = couts.get(clef(ici.i, ici.j));
+    for (let di = -1; di <= 1; di++) {
+      for (let dj = -1; dj <= 1; dj++) {
+        if (!di && !dj) continue;
+        const i = ici.i + di, j = ici.j + dj;
+        if (i < 0 || j < 0 || i >= nx || j >= nz) continue;
+        if (bouche(enX(i), enZ(j))) continue;
+        const d = dIci + (di && dj ? Math.SQRT2 : 1);
+        const c = clef(i, j);
+        if (d < (couts.get(c) ?? Infinity)) {
+          couts.set(c, d);
+          vientDe.set(c, clef(ici.i, ici.j));
+          ouverts.push({ i, j, f: d + h(i, j) });
+        }
+      }
+    }
+  }
+  if (!atteint) return direct;
+
+  // remonter le fil, puis LISSER : depuis chaque point, viser le plus loin
+  // qu'une ligne droite libre atteint — le chemin en marches d'escalier
+  // devient trois ou quatre segments francs
+  const brut = [];
+  let c = clef(arr.i, arr.j);
+  while (c !== undefined) {
+    brut.unshift([enX(c % nx), enZ(Math.floor(c / nx))]);
+    c = vientDe.get(c);
+  }
+  const points = [[depart.x, depart.z], ...brut, [arrivee.x, arrivee.z]];
+  const lisse = [points[0]];
+  let i = 0;
+  while (i < points.length - 1) {
+    let j = points.length - 1;
+    while (j > i + 1
+      && !segmentLibre(points[i][0], points[i][1], points[j][0], points[j][1])) j--;
+    lisse.push(points[j]);
+    i = j;
+  }
+  return lisse.map(([x, z]) => [Math.round(x * 10) / 10, Math.round(z * 10) / 10]);
 }
