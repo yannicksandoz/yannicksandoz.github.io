@@ -1223,8 +1223,9 @@ export function buildFloor(config) {
       bumpMap: matiere ? matiere.bumpMap : map,
       bumpScale: matiere ? matiere.bumpScale : 0.18,
       normalMap: matiere?.normalMap ?? null,
-      normalScale: matiere?.normalScale
-        ? new THREE.Vector2(matiere.normalScale, matiere.normalScale) : undefined,
+      // pas de clé du tout plutôt qu'`undefined` : setValues s'en plaint
+      ...(matiere?.normalScale
+        ? { normalScale: new THREE.Vector2(matiere.normalScale, matiere.normalScale) } : {}),
       roughnessMap: matiere?.roughnessMap ?? null,
       // avec une carte de rugosité, le scalaire est un MULTIPLICATEUR :
       // il part de un, la carte parle ; sans carte, la matière donne le sien
@@ -1564,9 +1565,10 @@ export function buildShell(config) {
         bumpMap: wallMatiere ? wallMatiere.bumpMap : wallMap,
         bumpScale: wallMatiere ? wallMatiere.bumpScale : 0.22,
         normalMap: wallMatiere?.normalMap ?? null,
-        normalScale: wallMatiere?.normalScale
-          ? new THREE.Vector2(wallMatiere.normalScale, wallMatiere.normalScale)
-          : undefined,
+        // pas de clé du tout plutôt qu'`undefined` : setValues s'en plaint
+        ...(wallMatiere?.normalScale
+          ? { normalScale: new THREE.Vector2(wallMatiere.normalScale, wallMatiere.normalScale) }
+          : {}),
         roughnessMap: wallMatiere?.roughnessMap ?? null,
         roughness: Number.isFinite(opt.roughness) ? opt.roughness
           : (wallMatiere ? wallMatiere.roughness : 0.88),

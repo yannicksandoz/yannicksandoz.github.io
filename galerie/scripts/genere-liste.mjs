@@ -127,6 +127,7 @@ const page = ({ titre, description, corps }) => `<!doctype html>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="description" content="${esc(description)}">
   <meta name="theme-color" content="#05050a">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%2305050a'/%3E%3Cpath d='M16 6 26 16 16 26 6 16Z' fill='none' stroke='%23ffb050' stroke-width='2.4' stroke-linejoin='round'/%3E%3C/svg%3E">
   <title>${esc(titre)}</title>
   <style>
 ${STYLE}

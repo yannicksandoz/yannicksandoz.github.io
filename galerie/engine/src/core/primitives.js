@@ -910,8 +910,9 @@ function finishPrimitive(def, size, model, echelleObjet = null) {
     bumpMap: jeu?.bumpMap ?? null,
     bumpScale: jeu?.bumpScale ?? 1,
     normalMap: jeu?.normalMap ?? null,
-    normalScale: jeu?.normalScale
-      ? new THREE.Vector2(jeu.normalScale, jeu.normalScale) : undefined,
+    // pas de clé du tout plutôt qu'`undefined` : setValues s'en plaint
+    ...(jeu?.normalScale
+      ? { normalScale: new THREE.Vector2(jeu.normalScale, jeu.normalScale) } : {}),
     roughnessMap: jeu?.roughnessMap ?? null,
     // le JSON garde le dernier mot : une œuvre qui a réglé sa rugosité ne
     // doit pas changer d'aspect parce que le moteur a appris les surfaces
