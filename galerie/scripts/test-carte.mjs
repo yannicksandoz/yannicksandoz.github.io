@@ -106,6 +106,25 @@ console.log('\nPlan de la galerie (contenu réel)');
   vrai('les bornes enveloppent tout',
     plan.bornes.x1 > plan.bornes.x0 && plan.bornes.z1 > plan.bornes.z0,
     JSON.stringify(plan.bornes));
+
+  // Les six faces du cube sont des SATELLITES : leurs portes d'Escher ne
+  // disent rien à plat, elles se rangent donc en anneau autour du belvédère
+  // — près de lui, et dans l'ordre de leurs titres en tournant à l'écran.
+  const belv = plan.pieces.find((p) => p.id === 'belvedere');
+  const faces = plan.pieces.filter((p) => /^face-\d$/.test(p.id));
+  vrai('les six faces sont posées', faces.length === 6, `${faces.length}`);
+  if (belv && faces.length === 6) {
+    const rayons = faces.map((f) => Math.hypot(f.x - belv.x, f.z - belv.z));
+    vrai('toutes les faces orbitent près du belvédère',
+      Math.max(...rayons) < 90, JSON.stringify(rayons.map(arrondi)));
+    const TAU = Math.PI * 2;
+    const depuisNord = [1, 2, 3, 4, 5, 6].map((n) => {
+      const f = faces.find((p) => p.id === `face-${n}`);
+      return (Math.atan2(f.z - belv.z, f.x - belv.x) + TAU / 4 + TAU) % TAU;
+    });
+    check('les faces se suivent comme une horloge',
+      depuisNord.map(arrondi), [...depuisNord].sort((a, b) => a - b).map(arrondi));
+  }
 }
 
 /* ----------------------------------------------------- cas dégénérés --- */
@@ -127,6 +146,29 @@ console.log('\nPlan : cas dégénérés');
   // une pièce qu'aucun portail ne dessert doit tout de même être posée
   const orpheline = planGalerie([{ id: 'a' }, { id: 'seule' }]);
   check('une pièce inatteignable est posée quand même', orpheline.pieces.length, 2);
+
+  // une grappe de feuilles s'accroche en anneau à son moyeu, sans se toucher
+  const grappe = planGalerie([
+    { id: 'x', title: 'X', portals: [{ to: 'hub', position: [0, 0, 10], rotation: [0, 180, 0] }] },
+    { id: 'hub', title: 'Hub', portals: [
+      { to: 'x', position: [0, 0, -10], rotation: [0, 0, 0] },
+      { to: 'f1', position: [0, 0, 0] },
+      { to: 'f2', position: [0, 0, 0] },
+      { to: 'f3', position: [0, 0, 0] }] },
+    { id: 'f1', title: 'F 1', portals: [{ to: 'hub', position: [0, 0, 0] }] },
+    { id: 'f2', title: 'F 2', portals: [{ to: 'hub', position: [0, 0, 0] }] },
+    { id: 'f3', title: 'F 3', portals: [{ to: 'hub', position: [0, 0, 0] }] }
+  ], 'x');
+  const hub = grappe.pieces.find((p) => p.id === 'hub');
+  const fs = grappe.pieces.filter((p) => /^f\d$/.test(p.id));
+  vrai('les trois feuilles orbitent leur moyeu',
+    fs.every((f) => Math.hypot(f.x - hub.x, f.z - hub.z) < 60),
+    JSON.stringify(fs));
+  vrai('aucune feuille n\'en recouvre une autre',
+    fs.every((a) => fs.every((b) => a === b
+      || Math.abs(a.x - b.x) >= (a.w + b.w) / 2 - 0.01
+      || Math.abs(a.z - b.z) >= (a.d + b.d) / 2 - 0.01)),
+    JSON.stringify(fs));
 }
 
 /* ------------------------------------------------- mémoire de visite --- */

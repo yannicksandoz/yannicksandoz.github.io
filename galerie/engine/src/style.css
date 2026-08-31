@@ -865,6 +865,11 @@ html, body {
 }
 .ca-grand .ca-compteur.ca-plein { fill: #ffd97a; }
 .ca-grand .ca-etiquette.ca-ici .ca-nom { fill: #fff; }
+/* l'amorce : la fine ligne qui rattache une étiquette déplacée à sa salle */
+.ca-grand .ca-amorce {
+  stroke: rgba(232, 230, 240, 0.28); stroke-width: 1;
+  stroke-dasharray: 3 3; fill: none;
+}
 .vm-carte-note, .vm-note {
   margin: 0.2rem 0 0.6rem; font-size: 0.78rem; color: var(--dim);
 }

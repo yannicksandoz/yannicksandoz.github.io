@@ -387,6 +387,91 @@ export class CartePleine {
       compteur?.setAttribute('y', y.toFixed(2));
       compteur?.setAttribute('dy', dedans ? '1.9em' : '2.35em');
     }
+    // Les étiquettes SOUS les salles s'évitent — et évitent les SALLES.
+    // Deux voisines serrées écrivaient leur nom l'une sur l'autre, et le
+    // nom d'une pièce fine (le couloir) s'étalait sur la salle d'à côté.
+    // Pour chacune, du haut vers le bas : sa place normale est sous sa
+    // salle ; si elle y mord une autre salle ou une étiquette déjà posée,
+    // elle essaie AU-DESSUS de sa salle ; sinon elle reste dessous et
+    // descend sous ce qui la gêne — descendre est le seul geste toujours
+    // sûr, remonter la ferait entrer dans sa propre salle.
+    const salles = [...svg.querySelectorAll('.ca-piece rect')].map((r) => ({
+      x0: Number(r.getAttribute('x')), y0: Number(r.getAttribute('y')),
+      x1: Number(r.getAttribute('x')) + Number(r.getAttribute('width')),
+      y1: Number(r.getAttribute('y')) + Number(r.getAttribute('height'))
+    }));
+    const heurte = (b, autres) => autres.some((a) =>
+      b.x0 < a.x1 && b.x1 > a.x0 && b.y0 < a.y1 && b.y1 > a.y0);
+    const posees = [];
+    const sousLaSalle = [...svg.querySelectorAll('.ca-etiquette:not(.ca-dedans)')]
+      .sort((a, b) => Number(a.dataset.bas) - Number(b.dataset.bas));
+    for (const g of sousLaSalle) {
+      const nom = g.querySelector('.ca-nom');
+      if (!nom) continue;
+      const compteur = g.querySelector('.ca-compteur');
+      const largeur = nom.getComputedTextLength() + corps * 0.6;
+      const haut = corps * (compteur ? 2.8 : 1.5);
+      const cx = Number(g.dataset.cx);
+      const bas = Number(g.dataset.bas);
+      const sommet = bas - Number(g.dataset.d);
+      // la salle de l'étiquette elle-même ne compte pas comme obstacle
+      const autresSalles = salles.filter((s) =>
+        Math.abs((s.x0 + s.x1) / 2 - cx) > 0.5 || Math.abs(s.y1 - bas) > 0.5);
+      const demiW = Number(g.dataset.w) / 2;
+      const boiteEn = (x, y) => ({ x0: x - largeur / 2, x1: x + largeur / 2,
+        y0: y, y1: y + haut });
+      const libre = (b) => b.x0 >= vb.x && b.x1 <= vb.x + vb.width
+        && b.y0 >= vb.y && b.y1 <= vb.y + vb.height
+        && !heurte(b, autresSalles) && !heurte(b, posees);
+      // la passe se rejoue à chaque redimensionnement : on repart TOUJOURS
+      // de la place normale, jamais de la place corrigée du tour d'avant
+      let x = cx;
+      let y = Number(nom.getAttribute('y'));
+      let boite = boiteEn(x, y);
+      g.querySelector('.ca-amorce')?.remove();
+      nom.setAttribute('x', cx.toFixed(2));
+      compteur?.setAttribute('x', cx.toFixed(2));
+      if (!libre(boite)) {
+        // dans l'ordre : au-dessus, à droite, à gauche de la salle — puis,
+        // à défaut, on GLISSE vers le bas jusqu'à l'air libre (borné)
+        const milieu = sommet + (bas - sommet) / 2 - haut / 2;
+        const candidats = [
+          [cx, sommet - haut - corps * 0.15],
+          [cx + demiW + largeur / 2 + corps * 0.4, milieu],
+          [cx - demiW - largeur / 2 - corps * 0.4, milieu]
+        ];
+        let trouve = false;
+        for (const [ex, ey] of candidats) {
+          const b = boiteEn(ex, ey);
+          if (libre(b)) { x = ex; y = ey; boite = b; trouve = true; break; }
+        }
+        if (!trouve) {
+          for (let n = 0; n < 24 && !libre(boite); n++) {
+            y += corps * 0.5;
+            boite = boiteEn(x, y);
+          }
+        }
+        nom.setAttribute('x', x.toFixed(2));
+        nom.setAttribute('y', y.toFixed(2));
+        compteur?.setAttribute('x', x.toFixed(2));
+        compteur?.setAttribute('y', y.toFixed(2));
+        // une étiquette chassée LOIN de sa salle garde un fil vers elle,
+        // sinon elle a l'air de nommer la voisine chez qui elle campe
+        if (Math.hypot(x - cx, y + haut / 2 - (sommet + bas) / 2) > haut * 2.2) {
+          const fil = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+          fil.setAttribute('class', 'ca-amorce');
+          fil.setAttribute('vector-effect', 'non-scaling-stroke');
+          fil.setAttribute('x1', x.toFixed(2));
+          fil.setAttribute('y1', (y + haut / 2).toFixed(2));
+          fil.setAttribute('x2',
+            Math.max(cx - demiW, Math.min(cx + demiW, x)).toFixed(2));
+          fil.setAttribute('y2',
+            Math.max(sommet, Math.min(bas, y + haut / 2)).toFixed(2));
+          g.prepend(fil);
+        }
+      }
+      posees.push(boite);
+    }
   }
 
   dispose() {
