@@ -2629,6 +2629,63 @@ rendue (culling par pièce) ; ses voisines directes sont préchargées mais
 muettes et invisibles ; tout le reste est déchargé (textures, sources audio,
 buffers, vidéos en pause).
 
+## Composer une exposition
+
+L'éditeur est équipé pour composer VITE : des pièces qui naissent de
+modèles, se suppriment sans rien casser, se meublent à l'aimant — et la
+charte qui parle pendant qu'on place, au lieu de gronder après coup.
+
+**Gabarits (modèles de pièces).** « ＋ Pièce » ouvre un sélecteur en cartes
+(vignette + description) : les quatre modèles du moteur (Salle, Couloir,
+Extérieur, Vide — devenus des fichiers JSON, `editor/gabarits/*.json`,
+plus rien d'éditorial dans le bundle visiteur) et LES VÔTRES. Depuis
+l'onglet Pièce, « Enregistrer comme modèle » emporte l'architecture et
+l'atmosphère (coque, matières, lumière, brume, ciel, réverbération) — le
+MOBILIER (`role: "decor"`) sur demande, les œuvres JAMAIS. La vignette
+est capturée depuis votre point de vue. Vos gabarits vivent dans le
+document (annulables, publiés dans `content/gabarits/`, embarqués dans
+`galerie.zip` et le brouillon), gérables depuis le sélecteur : renommer,
+mettre à jour depuis la pièce courante, dupliquer, supprimer.
+
+**Supprimer et dupliquer une pièce.** La boîte de confirmation NOMME tout
+ce qui part : œuvres (avec le choix « déplacer vers… »), portails entrants
+et leurs jumeaux, apparitions qui visent la pièce, jetons — et refuse si
+la galerie restante ne passerait plus les règles de `test-portails`
+(orphelin, sens unique, pièce isolée), la simulation étant jouée AVANT
+d'appliquer. Supprimer l'entrée exige d'en désigner une autre, qui passe
+en tête d'index. « Dupliquer la pièce » copie tout à identifiants neufs
+(œuvres au choix), sans portails, juste à côté dans l'index. Un Ctrl+Z
+restaure pièce et liens d'un seul geste.
+
+**Ameublement fluide.** Pendant un glissement au gizmo, un panneau
+(image, vidéo) qui approche un mur s'y AIMANTE à plat — centré à 1,50 m,
+grand format bas à 0,90, petit retrait, face à la salle, dans le repère de
+la pièce (les salles Escher gardent leurs murs). Un volume près du sol s'y
+POSE (son bas affleure). Alt suspend l'aimant le temps du geste ; la
+grille de pose se règle dans l'onglet Pièce (0,25 / 0,5 / 1 m, ou libre).
+Sélection multiple : Maj+clic, ou MAJ+GLISSER pour un rectangle ;
+copier/coller entre pièces (Ctrl+C/V). Déposer plusieurs images d'un coup
+les sélectionne ensemble : « répartir sur le mur [choix] » les espace
+régulièrement, à hauteur d'accrochage, dans l'ordre des fichiers — et les
+mêmes actions (« aligner sur le mur le plus proche », « même hauteur »)
+existent pour toute sélection de panneaux.
+
+**La charte en direct.** Les règles PURES de `scripts/charte.mjs` vivent
+désormais dans `core/charte-regles.js`, importé DES DEUX CÔTÉS (le nœud
+comme l'éditeur — `test-exposition` vérifie que ce sont les mêmes objets,
+pas des copies). Pendant la composition, les écarts de la pièce
+(accrochage hors norme, recul insuffisant, seuil de portail encombré)
+s'affichent en surimpression ambrée sur les objets fautifs et se listent
+dans l'onglet Pièce avec « m'y emmener ». « Ranger » applique en une
+commande annulable les corrections calculables (la hauteur d'accrochage) ;
+le reste — reculer une œuvre, dégager un seuil — reste un choix d'auteur,
+signalé sans être imposé.
+
+**Validation continue.** Le panneau Sauvegarde ouvre sur l'état des trois
+vérifications : Portails (bloquant), Attributions (bloquant), Charte
+(avertit seulement). Un orphelin de portail refuse toute écriture — zip,
+dossier, publication, mise en ligne — avec la raison affichée.
+
 ## Éditeur de scène (mode auteur)
 
 **Lancer** : touche **²** (à gauche du 1 — `@` sur Mac FR), bouton **✎**

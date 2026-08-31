@@ -21,6 +21,11 @@ import { gabaritDepuisPiece, instancierGabarit, validerGabarit, CHAMPS_EXCLUS }
   from '../engine/src/editor/state/Gabarits.js';
 import { consequencesSuppression, simulerSuppression, validerPortails,
   simulerDuplication, pieceEntree } from '../engine/src/editor/state/pieces-regles.js';
+import { ACCROCHAGE, AIR_SEUIL, hauteurVisee, poseSurMur, murLePlusProche,
+  repartitionSurMur, ecartsSalle, empriseAuSol, RETRAIT_MUR }
+  from '../engine/src/core/charte-regles.js';
+import { CHARTE, AIR_SEUIL as AIR_CHARTE, empriseAuSol as empriseCharte }
+  from './charte.mjs';
 
 let ok = 0, ko = 0;
 const test = (nom, fn) => {
@@ -193,6 +198,66 @@ test('ids neufs, pas de portails, placée à côté, œuvres au choix', () => {
   assert.deepEqual(avec.piece.works, avec.oeuvres.map((o) => o.id));
   const sans = simulerDuplication(data, 'entree', { avecOeuvres: false });
   assert.equal(sans.oeuvres.length, 1); // le banc (décor) seulement
+});
+
+titre('l\'accrochage : les calculs de la charte, côté éditeur');
+test('hauteur visée : centre à 1,50 m, grand format bas à 0,90 m', () => {
+  assert.equal(hauteurVisee(1.2), 1.5);
+  assert.equal(hauteurVisee(2.4), Math.max(1.5, 0.9 + 1.2)); // 2.1
+});
+test('poseSurMur : à plat, face à la salle, avec retrait', () => {
+  const salle = { shell: { width: 20, depth: 12 } };
+  const p = poseSurMur('nord', salle, { size: [2, 1] }, 3);
+  assert.deepEqual(p.rotation, [0, 0, 0]);
+  assert.equal(p.position[0], 3);
+  assert.equal(p.position[1], 1.5);
+  // un panneau de 1,4 m est déjà « grand » pour la règle : bas à 0,90 → 1,60
+  assert.equal(poseSurMur('nord', salle, { size: [2, 1.4] }, 0).position[1], 1.6);
+  assert.ok(Math.abs(p.position[2] - (-6 + RETRAIT_MUR)) < 1e-9);
+  const est = poseSurMur('est', salle, { size: [2, 1] }, -2);
+  assert.deepEqual(est.rotation, [0, -90, 0]);
+  assert.ok(Math.abs(est.position[0] - (10 - RETRAIT_MUR)) < 1e-9);
+  assert.equal(est.position[2], -2);
+});
+test('murLePlusProche vise le bon côté', () => {
+  const salle = { shell: { width: 20, depth: 12 } };
+  assert.equal(murLePlusProche(salle, [0, 1, -5]).mur, 'nord');
+  assert.equal(murLePlusProche(salle, [9, 1, 0]).mur, 'est');
+});
+test('répartition : régulière, ordonnée, refusée si le mur est trop court', () => {
+  const salle = { shell: { width: 20, depth: 12 } };
+  const panneaux = [{ size: [2, 1.4] }, { size: [3, 2] }, { size: [1, 1] }];
+  const poses = repartitionSurMur('nord', salle, panneaux);
+  assert.equal(poses.length, 3);
+  const xs = poses.map((p) => p.position[0]);
+  assert.ok(xs[0] < xs[1] && xs[1] < xs[2], 'l\'ordre des fichiers est l\'ordre du mur');
+  assert.ok(xs[1] - xs[0] >= (2 + 3) / 2, 'chevauchement');
+  assert.equal(repartitionSurMur('nord', { shell: { width: 4, depth: 30 } },
+    panneaux), null);
+});
+test('ecartsSalle : l\'accrochage se corrige, le seuil se signale', () => {
+  const salle = { id: 's', works: ['haut', 'bloc'],
+    shell: { width: 20, depth: 12 },
+    portals: [{ to: 'ailleurs', position: [0, 0, 0] }] };
+  const oeuvres = [
+    { id: 'haut', image: 'a.jpg', size: [2, 1], position: [0, 2.6, -5.9],
+      rotation: [0, 0, 0], title: 'Haut' },
+    { id: 'bloc', model: { shape: 'monolith', height: 2 }, position: [0.3, 1, 0.2] }
+  ];
+  const ecarts = ecartsSalle(salle, oeuvres, empriseAuSol);
+  const acc = ecarts.find((e) => e.regle === 'accrochage');
+  assert.ok(acc, 'l\'accrochage à 2,6 m devait être signalé');
+  assert.equal(acc.correction.champ, 'y');
+  assert.equal(acc.correction.valeur, 1.5);
+  assert.ok(ecarts.some((e) => e.regle === 'seuil'),
+    'le monolithe sur le seuil devait être signalé');
+});
+
+titre('une seule source de vérité : la charte importe les mêmes règles');
+test('les constantes de charte.mjs SONT celles de charte-regles', () => {
+  assert.equal(CHARTE.accrochage, ACCROCHAGE, 'accrochage : deux objets distincts');
+  assert.equal(AIR_CHARTE, AIR_SEUIL);
+  assert.equal(empriseCharte, empriseAuSol, 'empriseAuSol : deux fonctions distinctes');
 });
 
 console.log(`\n${ok} ✓  ${ko} ✗`);

@@ -44,6 +44,15 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { setStyle, loiCouronne } from '../engine/src/core/style.js';
 import { cleDepuisOeuvre } from '../engine/src/core/ombres.js';
+// LA PART PURE DES RÈGLES vit dans le moteur (`core/charte-regles.js`) :
+// l'éditeur les montre EN DIRECT pendant le placement, et ce script les
+// juge au nœud — le même chiffre, la même formule, importés des deux côtés.
+export { empriseAuSol, occupationVoxel } from '../engine/src/core/charte-regles.js';
+import { empriseAuSol,
+  ACCROCHAGE, hauteurVisee, ecartAccrochage, reculDe, seuilsEncombres,
+  dimensionsSalle as dimensionsPartagees,
+  AIR_SEUIL as AIR_SEUIL_PARTAGE, GARDE_CORNICHE as GARDE_PARTAGEE }
+  from '../engine/src/core/charte-regles.js';
 
 const ici = dirname(fileURLToPath(import.meta.url));
 const RACINE = join(ici, '..', 'content');
@@ -142,7 +151,7 @@ export const CHARTE = {
   // galerie ne descend jamais sous 20. Le seuil ne départage donc rien de
   // limite — il nomme deux familles qui ne se touchent pas.
   nuitZenithMax: 12,
-  accrochage: { centre: 1.5, basMinimum: 0.9 },
+  accrochage: ACCROCHAGE, // partagé avec l'éditeur (charte-regles)
   // L'ANGLE MINIMAL d'une œuvre depuis un point d'arrivée, en degrés.
   // Il se DÉDUIT de la règle de recul : on regarde une œuvre entre 1,5 et
   // 3 diagonales, ce qui la fait occuper de 37° à 19° du champ. Au-delà de
@@ -391,15 +400,9 @@ export function auditDecor() {
 }
 
 export function auditAccrochage() {
-  const { centre, basMinimum } = CHARTE.accrochage;
-  return oeuvresMurales().map((w) => {
-    const y = (w.position ?? [0, 0, 0])[1];
-    const hauteur = (w.size ?? [2, 2])[1] * ((w.scale ?? [1, 1, 1])[1] ?? 1);
-    // le centre à 1,50 m — sauf si l'œuvre est si grande qu'elle traînerait
-    // au sol : on garde alors son bas à 0,90 m
-    const vise = Math.max(centre, basMinimum + (hauteur / 2));
-    return { id: w.id, y, hauteur, vise, ecart: y - vise };
-  });
+  // le calcul vit dans charte-regles (le centre à 1,50 m, le bas d'un très
+  // grand format à 0,90) : l'aimant de l'éditeur applique la même formule
+  return oeuvresMurales().map((w) => ecartAccrochage(w));
 }
 
 /* ------------------------------------------- muséographie, second étage -- */
@@ -414,13 +417,7 @@ function toutesLesOeuvres() {
 }
 
 /** Largeur/profondeur utiles d'une salle : la coque, à défaut le sol. */
-function dimensionsSalle(s) {
-  if (s.shell && typeof s.shell === 'object') {
-    return { w: s.shell.width ?? 26, d: s.shell.depth ?? 20 };
-  }
-  const taille = (typeof s.floor === 'object' ? s.floor?.size : null) ?? 40;
-  return { w: taille, d: taille };
-}
+const dimensionsSalle = dimensionsPartagees;
 
 /**
  * LE RECUL — la règle des galeristes : on regarde une œuvre depuis 1,5 à
@@ -435,23 +432,11 @@ export function auditRecul() {
   for (const s of parId.values()) {
     for (const w of s.works ?? []) salleDe.set(w, s);
   }
+  // la formule (normale du panneau, bord de salle, 1,5 diagonale) vit dans
+  // charte-regles : la même que l'éditeur montre en direct
   return oeuvresMurales().map((w) => {
     const s = salleDe.get(w.id);
-    if (!s) return null;
-    const { w: lw, d: ld } = dimensionsSalle(s);
-    const [px, , pz] = w.position ?? [0, 0, 0];
-    const ry = ((w.rotation ?? [0, 0, 0])[1] ?? 0) * (Math.PI / 180);
-    // normale d'un plan : +z dans son repère, tournée par la rotation Y
-    const nx = Math.sin(ry), nz = Math.cos(ry);
-    // distance au bord de la salle le long de la normale (x ±w/2, z ±d/2)
-    const borne = (p, n, demi) => (Math.abs(n) < 1e-4 ? Infinity
-      : ((n > 0 ? demi : -demi) - p) / n);
-    const libre = Math.min(borne(px, nx, lw / 2), borne(pz, nz, ld / 2));
-    const [sw, sh] = w.size ?? [2, 2];
-    const diagonale = Math.hypot(sw * ((w.scale ?? [1, 1, 1])[0] ?? 1),
-      sh * ((w.scale ?? [1, 1, 1])[1] ?? 1));
-    return { id: w.id, salle: s.id, libre, diagonale,
-      requis: 1.5 * diagonale, manque: (1.5 * diagonale) - libre };
+    return s ? { salle: s.id, ...reculDe(w, s) } : null;
   }).filter(Boolean);
 }
 
@@ -720,122 +705,7 @@ export function auditBancs() {
   return rapport;
 }
 
-/**
- * EMPRISE AU SOL d'une œuvre : demi-largeur horizontale et hauteur.
- *
- * `ampleurOeuvre` rend une DIAGONALE — bonne pour l'angle apparent, muette
- * sur la place que l'objet prend par terre. Ici on veut les deux mesures
- * séparément : de quoi savoir si l'on passe à côté, et si l'objet est au
- * sol plutôt que suspendu ou peint à plat.
- */
-export function empriseAuSol(w) {
-  const s = w.scale ?? [1, 1, 1];
-  const [sx, sy, sz] = [s[0] ?? 1, s[1] ?? 1, s[2] ?? 1];
-  const h = Math.max(sx, sz);
-  // `bas` et `haut` sont RELATIFS à la position : la plupart des formes se
-  // centrent sur elle, un voxel repose dessus.
-  // `demiX`/`demiZ` : l'emprise PAR AXE. Un rayon unique prend la plus
-  // grande des deux, ce qui fait d'une volée de sept mètres de long un
-  // disque de sept mètres de diamètre — et condamne des portails qu'elle
-  // ne touche pas. Les règles qui visent juste ont besoin du rectangle.
-  const centre = (largeur, hauteur) => ({
-    rayon: (largeur * h) / 2, demiX: (largeur * sx) / 2, demiZ: (largeur * sz) / 2,
-    bas: -(hauteur * sy) / 2, haut: (hauteur * sy) / 2
-  });
 
-  const m = w.model ?? {};
-  // Une nappe d'EAU est horizontale : large au sol, sans épaisseur. Comptée
-  // comme un volume, le bassin du jardin barrait trois lignes de force
-  // qu'on longe en réalité sans même ralentir.
-  if (m.shape === 'eau') {
-    const t = Number.isFinite(m.size) ? m.size : 1.5;
-    return { rayon: (1.6 * t * h) / 2, demiX: (1.6 * t * sx) / 2,
-      demiZ: (1.6 * t * sz) / 2, bas: -0.05, haut: 0.05 };
-  }
-  // Un GALET est une dalle : large comme sa `size`, épaisse de quelques
-  // centimètres (`epaisseur`). Comptée cubique, la margelle du bassin —
-  // 7,4 m de large, 24 cm d'épais — barrait deux lignes de force qu'on
-  // enjambe sans y penser.
-  if (m.shape === 'galet') {
-    const t = Number.isFinite(m.size) ? m.size : 1.5;
-    const ep = Math.max(0.02, Number(m.epaisseur) || t * 0.1);
-    return { rayon: (1.6 * t * h) / 2, demiX: (1.6 * t * sx) / 2,
-      demiZ: (1.6 * t * sz) / 2, bas: -(ep * sy) / 2, haut: (ep * sy) / 2 };
-  }
-  if (Array.isArray(w.size) && w.size.length === 2) return centre(w.size[0], w.size[1]);
-  if (Array.isArray(w.scanTaille) && w.scanTaille.length === 3) {
-    const [x, y, z] = w.scanTaille;
-    return centre(Math.max(x, z), y);
-  }
-  if (m.shape === 'monolith') return centre(1.1, m.height ?? 4);
-  if (m.type === 'voxel') {
-    // On lit les CELLULES PLEINES, pas la grille : une grille de 16³ à
-    // 0,25 m fait quatre mètres de large, mais la sculpture du labo n'en
-    // occupe qu'une poignée — comptée pleine, elle serrait une ligne
-    // qu'elle laisse en fait entièrement libre.
-    const occ = occupationVoxel(m);
-    if (occ) {
-      return { rayon: (occ.largeur * h) / 2,
-        demiX: (occ.largeurX * sx) / 2, demiZ: (occ.largeurZ * sz) / 2,
-        bas: occ.bas * sy, haut: occ.haut * sy };
-    }
-    const [dx, dy, dz] = m.dims ?? [16, 16, 16];
-    const cell = m.cell ?? 0.25;
-    return { rayon: (Math.max(dx, dz) * cell * h) / 2,
-      demiX: (dx * cell * sx) / 2, demiZ: (dz * cell * sz) / 2,
-      bas: 0, haut: dy * cell * sy };
-  }
-  if (m.shape) {
-    const t = Number.isFinite(m.size) ? m.size : 1.5;
-    const EMPRISES = {
-      box: [1, 1], sphere: [1.2, 1.2], plane: [1.6, 1],
-      cylinder: [1, 1.6], cone: [1.2, 1.6], torus: [1.64, 1.64],
-      faisceau: [1.7, 6], lucioles: [1, 1]
-    };
-    const [l, ha] = EMPRISES[m.shape] ?? [1, 1];
-    return centre(l * t, ha * t);
-  }
-  if (m.url && Number.isFinite(m.fit)) return centre(m.fit, m.fit);
-  return centre(1.5, 1.5);
-}
-
-/**
- * L'emprise RÉELLE d'un modèle voxel : les bornes de ses cellules pleines,
- * lues dans le RLE (`voxel.js` : longueur, valeur, longueur, valeur…, et
- * l'indice linéaire vaut x + dims[0]·(y + dims[1]·z)). En mètres, dans le
- * repère de l'objet — la grille est centrée en x/z, posée en y.
- */
-export function occupationVoxel(m) {
-  const dims = m.dims ?? [16, 16, 16];
-  const cell = m.cell ?? 0.25;
-  const total = dims[0] * dims[1] * dims[2];
-  const rle = m.cells ?? [];
-  let i = 0, vu = false;
-  let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity;
-  let z0 = Infinity, z1 = -Infinity;
-  for (let k = 0; k + 1 < rle.length && i < total; k += 2) {
-    const run = rle[k], valeur = rle[k + 1];
-    if (valeur) {
-      for (let n = 0; n < run && i + n < total; n++) {
-        const idx = i + n;
-        const x = idx % dims[0];
-        const y = Math.floor(idx / dims[0]) % dims[1];
-        const z = Math.floor(idx / (dims[0] * dims[1]));
-        if (x < x0) x0 = x; if (x > x1) x1 = x;
-        if (y < y0) y0 = y; if (y > y1) y1 = y;
-        if (z < z0) z0 = z; if (z > z1) z1 = z;
-        vu = true;
-      }
-    }
-    i += run;
-  }
-  if (!vu) return null;
-  return {
-    largeur: Math.max(x1 - x0 + 1, z1 - z0 + 1) * cell,
-    largeurX: (x1 - x0 + 1) * cell, largeurZ: (z1 - z0 + 1) * cell,
-    bas: y0 * cell, haut: (y1 + 1) * cell
-  };
-}
 
 /**
  * LES LIGNES DE FORCE : d'un point d'arrivée à chaque porte, et d'une porte
@@ -958,37 +828,17 @@ export function auditCouronnement() {
  * l'emprise de l'objet. Un visiteur fait trente-cinq centimètres de large ;
  * on demande le double, pour passer sans raser.
  */
-export const AIR_SEUIL = 0.7;
-const CORPS = { bas: 0.2, haut: 2.1 };
+export const AIR_SEUIL = AIR_SEUIL_PARTAGE; // partagé (charte-regles)
 
 export function auditSeuils() {
-  const oeuvres = new Map(toutesLesOeuvres().map((w) => [w.id, w]));
+  // le cœur (corps à hauteur d'homme, AIR_SEUIL autour du portail) vit dans
+  // charte-regles — l'éditeur signale les mêmes seuils pendant le placement
+  const oeuvres = toutesLesOeuvres();
   const rapport = [];
   for (const s of salles()) {
-    const corps = (s.works ?? []).map((n) => oeuvres.get(n)).filter(Boolean)
-      .filter((w) => !LUMINAIRES.has(w.model?.shape) && w.model?.shape !== 'lucioles'
-        && w.solid !== false)
-      .map((w) => {
-        const e = empriseAuSol(w);
-        const [x, y, z] = w.position ?? [0, 0, 0];
-        return { id: w.id, x, z, demiX: e.demiX, demiZ: e.demiZ,
-          bas: y + e.bas, haut: y + e.haut };
-      });
-    for (const p of s.portals ?? []) {
-      const [px, py, pz] = p.position ?? [0, 0, 0];
-      const bas = py + CORPS.bas, haut = py + CORPS.haut;
-      for (const c of corps) {
-        if (c.haut <= bas || c.bas >= haut) continue;        // pas à hauteur d'homme
-        const dx = Math.max(0, Math.abs(c.x - px) - c.demiX - AIR_SEUIL);
-        const dz = Math.max(0, Math.abs(c.z - pz) - c.demiZ - AIR_SEUIL);
-        if (dx > 0 || dz > 0) continue;                      // il reste de l'air
-        rapport.push({
-          salle: s.id, portail: p.to ?? '?', objet: c.id,
-          position: [px, py, pz],
-          air: +Math.min(Math.abs(c.x - px) - c.demiX, Math.abs(c.z - pz) - c.demiZ)
-            .toFixed(2)
-        });
-      }
+    for (const e of seuilsEncombres(s, oeuvres, empriseAuSol,
+      { luminaires: LUMINAIRES })) {
+      rapport.push({ salle: s.id, ...e });
     }
   }
   return rapport;
@@ -1004,7 +854,7 @@ export function auditSeuils() {
  * là qu'elle plongeait sur les trois écrans de l'entrée. On la mesure au
  * décalage de chaque accroche, pas au milieu du mur.
  */
-export const GARDE_CORNICHE = 0.3;
+export const GARDE_CORNICHE = GARDE_PARTAGEE; // partagé (charte-regles)
 
 export function auditCorniches() {
   setStyle('fluide');
