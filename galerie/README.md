@@ -3617,10 +3617,19 @@ erreur) :
   œuvre se lit dans `_worldPos`, rafraîchi par `Artwork.update` plus tôt
   dans la MÊME frame — repasser par le getter remontait la chaîne de
   matrices une fois par voie, jusqu'à 24 fois par frame.
-- **StemMixer / SpatialCrossfade** : même règle que la voie spatiale — on
-  ne réancre pas d'automation Web Audio pour un gain qui n'a pas bougé
-  (seuil 1e-3, inaudible). Immobile, c'était une écriture par piste et
-  par frame.
+- ~~**StemMixer / SpatialCrossfade** : ne pas réancrer d'automation Web
+  Audio pour un gain qui n'a pas bougé~~ — **RETIRÉ, c'était un bogue.**
+  Ces écritures par frame ne sont pas du gaspillage : elles sont le FILET
+  qui rattrape les remises extérieures du gain. `setStemsActive(true)`
+  (le budget de voix, à l'entrée d'une pièce) repose chaque piste à PLEIN
+  volume en comptant explicitement sur le réancrage de la frame suivante ;
+  et le bus d'une œuvre renaît MUET à chaque rechargement d'audio alors
+  que le module, lui, survit et « se souvient » de l'ancienne valeur. Avec
+  la déduplication, la distance n'ayant pas bougé, le réancrage était
+  sauté — symptôme réel : en entrant au labo, toutes les œuvres jouaient
+  comme si l'on était collé à chacune. La leçon, gravée en commentaire
+  dans les deux modules : avant de dédupliquer une écriture par frame,
+  vérifier qu'aucun AUTRE code ne repose l'état en comptant sur elle.
 - **AudioReactive** : l'objet d'options de `setAudioLevel` est recyclé —
   les œuvres sont réactives par défaut, c'était une allocation par œuvre
   et par frame (le récepteur le déstructure aussitôt, il ne le retient

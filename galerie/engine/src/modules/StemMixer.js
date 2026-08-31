@@ -30,11 +30,13 @@ export class StemMixer extends Module {
       const radius = s.cfg.radius ?? 12;
       const maxGain = s.cfg.gain ?? 1;
       const g = maxGain * Math.pow(smoothstep(radius, radius * innerRatio, ctx.distance), poids);
-      // même règle que la voie spatiale : on ne réancre pas d'automation
-      // pour un gain qui n'a pas bougé (immobile, c'était une par piste
-      // et par frame) — 1e-3 de gain linéaire est inaudible
-      if (s._gPrec !== undefined && Math.abs(g - s._gPrec) < 1e-3) continue;
-      s._gPrec = g;
+      // RÉANCRÉ CHAQUE FRAME, À DESSEIN — ne pas « optimiser » ceci par une
+      // déduplication de valeur : ce réancrage est le FILET qui rattrape les
+      // remises extérieures du gain. `setStemsActive(true)` (réactivation
+      // par le budget de voix, à l'entrée d'une pièce) repose chaque piste
+      // à PLEIN volume en comptant sur lui ; avec une déduplication, la
+      // distance n'ayant pas bougé, le réancrage était sauté et toutes les
+      // œuvres de la pièce jouaient comme si l'on était collé à chacune.
       s.gain.gain.setTargetAtTime(g, t, 0.1);
     }
   }

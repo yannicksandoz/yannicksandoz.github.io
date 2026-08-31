@@ -47,10 +47,7 @@ export class SpatialCrossfade extends Module {
     const maxGain = this.params.maxGain ?? this.artwork.config.baseGain ?? 1;
     const t = this.app.audio.ctx.currentTime;
     if (this._melangeurPresent) {
-      if (this._gPrec === undefined || Math.abs(maxGain - this._gPrec) >= 1e-3) {
-        this._gPrec = maxGain;
-        bus.gain.setTargetAtTime(maxGain, t, 0.08);
-      }
+      bus.gain.setTargetAtTime(maxGain, t, 0.08);
       return;
     }
     const radius = this.params.radius ?? 15;
@@ -61,10 +58,12 @@ export class SpatialCrossfade extends Module {
     // se joue au volume. À 1, rien ne change.
     const poids = this.app.spatial?.poidsDistanceDe(this.artwork) ?? 1;
     const g = maxGain * Math.pow(smoothstep(radius, inner, ctx.distance), Math.max(0, poids));
-    // même règle que la voie spatiale : pas de réancrage d'automation pour
-    // un gain inchangé — immobile, c'était un par œuvre et par frame
-    if (this._gPrec !== undefined && Math.abs(g - this._gPrec) < 1e-3) return;
-    this._gPrec = g;
+    // RÉANCRÉ CHAQUE FRAME, À DESSEIN — même leçon que StemMixer : le bus
+    // renaît MUET à chaque rechargement (onAudioReady le met à 0) et le
+    // module qui survit, lui, se souviendrait de l'ancienne valeur ; une
+    // déduplication sautait le premier réancrage et l'œuvre restait
+    // muette (ou pleine) selon le reset. L'écriture par frame est le
+    // contrat qui rend tous ces resets inoffensifs.
     bus.gain.setTargetAtTime(g, t, 0.08);
   }
 }
