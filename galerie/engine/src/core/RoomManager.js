@@ -1762,40 +1762,11 @@ function disposeShell(group) {
  *  - exterieur : parvis ouvert sous le ciel — grand sol, pas de murs,
  *                clair de lune rasant. C'est le modèle du hall d'entrée.
  */
-export const ROOM_TEMPLATES = {
-  salle: {
-    label: 'Salle',
-    config: {
-      floor: { size: 30, color: '#15151f', grid: false },
-      shell: { width: 26, depth: 20, height: 6.5, color: '#1e1e2e' },
-      fogColor: '#06060c',
-      keyLight: { color: '#c4b8ff', intensity: 2.2, azimuth: 40, elevation: 60 },
-      envIntensity: 1,
-      spawn: [0, 2.2, 7]
-    }
-  },
-  couloir: {
-    label: 'Couloir',
-    config: {
-      floor: { size: 38, color: '#12121c', grid: false },
-      shell: { width: 6, depth: 34, height: 5, color: '#1a1a28' },
-      fogColor: '#05050b',
-      keyLight: { color: '#b8c2ff', intensity: 1.8, azimuth: 0, elevation: 70 },
-      envIntensity: 0.85,
-      spawn: [0, 2.2, 14]
-    }
-  },
-  exterieur: {
-    label: 'Extérieur',
-    config: {
-      floor: { size: 140, color: '#191d2e', grid: true, gridColor: '#3c4266' },
-      fogColor: '#090b16',
-      keyLight: { color: '#c8d4ff', intensity: 3.2, azimuth: 205, elevation: 40 },
-      envIntensity: 1.9,
-      spawn: [0, 2.2, 8]
-    }
-  }
-};
+/* Les préréglages de pièce (salle, couloir, extérieur) vivaient ici en
+   dur : ils sont devenus des GABARITS JSON de l'éditeur
+   (`editor/gabarits/*.json`) — des données, au même format que ceux de
+   l'auteur, et surtout plus rien d'éditorial dans le bundle visiteur. */
+
 
 /* ----------------------------------------------------------- lumière clé --- */
 // Le moteur d'ombres vit dans `ombres.js` — un seul endroit pour la
