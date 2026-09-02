@@ -892,11 +892,12 @@ export class App {
         u.uContour.value = dessine ? this.survol.force * 0.45 : 0;
         if (dessine && this.survol.texture) {
           u.tMasque.value = this.survol.texture;
-          const t = this.survol.taille;
-          if (t) u.uContourTexel.value.set(1 / t.x, 1 / t.y);
+          u.tMasqueFlou.value = this.survol.textureFloue;
         } else if (!u.tMasque.value) {
           // un échantillonneur jamais lié fait hurler certains pilotes
-          u.tMasque.value = this.survol.texture ?? this.scenePass?.cible?.texture ?? null;
+          const secours = this.survol.texture ?? this.scenePass?.cible?.texture ?? null;
+          u.tMasque.value = secours;
+          u.tMasqueFlou.value = this.survol.textureFloue ?? secours;
         }
       }
       this._reglerCopieScene();

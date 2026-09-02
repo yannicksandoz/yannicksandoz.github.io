@@ -8,9 +8,14 @@
  * ce qu'un geste va toucher.
  *
  * Technique : l'œuvre visée est redessinée SEULE, en blanc plat, dans une
- * cible à demi-résolution (un dessin, aucun éclairage) ; la passe de
- * sortie dilate ce masque de quelques texels et ne garde que la couronne —
- * le contour. Un plan, un modèle, un relief, un voxel : tout ce qui se
+ * cible à demi-résolution MULTI-ÉCHANTILLONNÉE (un dessin, aucun
+ * éclairage — mais des bords doux), puis ce masque est FLOUTÉ (gaussienne
+ * séparable, deux passes de neuf lectures). La passe de sortie n'a plus
+ * qu'à soustraire : ce que le flou déborde du masque, c'est la couronne —
+ * un dégradé continu qui s'éteint en quelques pixels, sans marche. La
+ * première version dilatait le masque par un « max » de huit lectures :
+ * une couronne à bords durs, en escalier, et un dégradé qui n'en était
+ * pas un. Un plan, un modèle, un relief, un voxel : tout ce qui se
  * dessine se détoure, sans coque inversée ni géométrie d'arêtes. Le
  * masque ignore la profondeur : un liseré discret n'a pas besoin d'être
  * occulté correctement, et une lecture de profondeur coûterait plus que
@@ -20,9 +25,32 @@
  * frôlée en passant ne clignote pas.
  */
 import * as THREE from 'three';
+import { FullScreenQuad } from 'three/addons/postprocessing/Pass.js';
 
 const FONDU = 0.15;          // secondes, montée et descente
 const ECHELLE = 0.5;         // le masque se rend à demi-résolution
+const ECHANTILLONS = 4;      // MSAA du masque : des bords doux dès le dessin
+
+// Gaussienne à neuf lectures (σ ≈ 2 pas), les lectures espacées d'un
+// texel et demi de demi-résolution : une portée d'une douzaine de pixels
+// à l'écran — assez pour un dégradé, pas assez pour un halo.
+const POIDS = [0.0276, 0.0663, 0.1238, 0.1802, 0.2042, 0.1802, 0.1238, 0.0663, 0.0276];
+const PAS = 1.5;
+
+const FLOU_VERTEX = /* glsl */`
+  varying vec2 vUv;
+  void main() { vUv = uv; gl_Position = vec4(position.xy, 0.0, 1.0); }
+`;
+const FLOU_FRAGMENT = /* glsl */`
+  uniform sampler2D tSource;
+  uniform vec2 uPas;          // un texel, dans l'axe de la passe
+  varying vec2 vUv;
+  void main() {
+    float s = 0.0;
+    ${POIDS.map((p, i) => `s += texture2D(tSource, vUv + uPas * ${(i - 4).toFixed(1)}).r * ${p};`).join('\n    ')}
+    gl_FragColor = vec4(s, s, s, 1.0);
+  }
+`;
 
 export class Survol {
   constructor(renderer) {
@@ -33,22 +61,29 @@ export class Survol {
       color: 0xffffff, depthTest: false, depthWrite: false, fog: false,
       side: THREE.DoubleSide
     });
-    this._rt = null;
+    this._rt = null;          // le masque net (multi-échantillonné)
+    this._rtH = null;         // flou horizontal
+    this._rtV = null;         // flou vertical — la texture floue lue à la sortie
+    this._flou = new THREE.ShaderMaterial({
+      uniforms: { tSource: { value: null }, uPas: { value: new THREE.Vector2() } },
+      vertexShader: FLOU_VERTEX, fragmentShader: FLOU_FRAGMENT,
+      depthTest: false, depthWrite: false
+    });
+    this._quad = new FullScreenQuad(this._flou);
     this._echanges = [];       // [objet, matériau] rendus le temps du dessin
     this._caches = [];         // objets `horsSurvol` cachés le temps du dessin
     this._couleur = new THREE.Color();
   }
 
+  /** Le masque net : la silhouette, bords adoucis par le MSAA. */
   get texture() { return this._rt?.texture ?? null; }
+
+  /** Le masque flouté : ce qu'il déborde de la silhouette fait le liseré. */
+  get textureFloue() { return this._rtV?.texture ?? null; }
 
   /** Vise une œuvre (ou rien) : le fondu fait le reste. */
   viser(artwork) {
     this.cible = artwork ?? null;
-  }
-
-  /** Taille du masque en texels — la passe de sortie s'en sert. */
-  get taille() {
-    return this._rt ? new THREE.Vector2(this._rt.width, this._rt.height) : null;
   }
 
   _cibleAJour() {
@@ -56,11 +91,14 @@ export class Survol {
     const w = Math.max(2, Math.round(t.x * ECHELLE));
     const h = Math.max(2, Math.round(t.y * ECHELLE));
     if (this._rt && this._rt.width === w && this._rt.height === h) return;
-    this._rt?.dispose();
-    this._rt = new THREE.WebGLRenderTarget(w, h, {
+    this._rt?.dispose(); this._rtH?.dispose(); this._rtV?.dispose();
+    const options = {
       depthBuffer: false, stencilBuffer: false,
       minFilter: THREE.LinearFilter, magFilter: THREE.LinearFilter
-    });
+    };
+    this._rt = new THREE.WebGLRenderTarget(w, h, { ...options, samples: ECHANTILLONS });
+    this._rtH = new THREE.WebGLRenderTarget(w, h, options);
+    this._rtV = new THREE.WebGLRenderTarget(w, h, options);
   }
 
   /**
@@ -114,6 +152,18 @@ export class Survol {
       r.setClearColor(0x000000, 1);
       r.clear(true, false, false);
       r.render(racine, camera);
+      // le flou, en deux passes : horizontale vers H, verticale vers V
+      const u = this._flou.uniforms;
+      u.tSource.value = this._rt.texture;
+      // pas d'un texel et demi (le filtrage linéaire lisse entre deux) :
+      // une portée d'une douzaine de pixels à l'écran, le dégradé se lit
+      u.uPas.value.set(PAS / this._rt.width, 0);
+      r.setRenderTarget(this._rtH);
+      this._quad.render(r);
+      u.tSource.value = this._rtH.texture;
+      u.uPas.value.set(0, PAS / this._rt.height);
+      r.setRenderTarget(this._rtV);
+      this._quad.render(r);
     } catch (e) {
       console.warn(`[galerie] Survol : l'œuvre ${this.cible.config?.id ?? '?'} `
         + `ne se détoure pas — ${e?.message ?? e}`);
@@ -137,7 +187,9 @@ export class Survol {
   }
 
   dispose() {
-    this._rt?.dispose();
+    this._rt?.dispose(); this._rtH?.dispose(); this._rtV?.dispose();
     this._masque.dispose();
+    this._flou.dispose();
+    this._quad.dispose();
   }
 }

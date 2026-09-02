@@ -134,9 +134,9 @@ const SORTIE = {
     uAberration: { value: 0.006 },
     // LE SURVOL (voir Survol.js) : masque de silhouette de l'œuvre visée,
     // dilaté ici en liseré. `uContour` = force du liseré (0 : rien à faire)
-    tMasque: { value: null },
+    tMasque: { value: null },      // la silhouette, nette
+    tMasqueFlou: { value: null },  // la même, floutée (Survol.js)
     uContour: { value: 0 },
-    uContourTexel: { value: new Vector2(1 / 512, 1 / 512) },
     uContourCouleur: { value: new Color(0xffffff) } // blanc : un trait, pas une teinte
   },
   vertexShader: /* glsl */ `
@@ -155,28 +155,21 @@ const SORTIE = {
     uniform sampler2D tDiffuse;
     uniform sampler2D tFleur;
     uniform float uFleur, uTime, uGrain, uVignette, uAberration;
-    uniform sampler2D tMasque;
+    uniform sampler2D tMasque, tMasqueFlou;
     uniform float uContour;
-    uniform vec2 uContourTexel;
     uniform vec3 uContourCouleur;
     varying vec2 vUv;
 
-    // LE LISERÉ DU SURVOL : le masque dilaté de deux texels, moins le
-    // masque lui-même — la couronne. Huit lectures, et seulement quand une
-    // œuvre est visée (la branche est uniforme, le GPU la saute vraiment).
+    // LE LISERÉ DU SURVOL : ce que le masque FLOUTÉ déborde du masque net
+    // (Survol.js fait le flou, gaussien, à demi-résolution). Au ras de la
+    // silhouette le flou vaut un demi et retombe en douceur vers l'extérieur ;
+    // dedans, le masque net l'annule. Deux lectures, un dégradé continu —
+    // et seulement quand une œuvre est visée (la branche est uniforme, le
+    // GPU la saute vraiment). Le ×2 ramène le ras de la silhouette au plein.
     float contour(vec2 uv) {
-      float centre = texture2D(tMasque, uv).r;
-      vec2 t = uContourTexel * 1.6;
-      float voisins = 0.0;
-      voisins = max(voisins, texture2D(tMasque, uv + vec2( t.x, 0.0)).r);
-      voisins = max(voisins, texture2D(tMasque, uv + vec2(-t.x, 0.0)).r);
-      voisins = max(voisins, texture2D(tMasque, uv + vec2(0.0,  t.y)).r);
-      voisins = max(voisins, texture2D(tMasque, uv + vec2(0.0, -t.y)).r);
-      voisins = max(voisins, texture2D(tMasque, uv + vec2( t.x,  t.y) * 0.7).r);
-      voisins = max(voisins, texture2D(tMasque, uv + vec2(-t.x,  t.y) * 0.7).r);
-      voisins = max(voisins, texture2D(tMasque, uv + vec2( t.x, -t.y) * 0.7).r);
-      voisins = max(voisins, texture2D(tMasque, uv + vec2(-t.x, -t.y) * 0.7).r);
-      return clamp(voisins - centre, 0.0, 1.0);
+      float flou = texture2D(tMasqueFlou, uv).r;
+      float net = texture2D(tMasque, uv).r;
+      return clamp((flou - net) * 2.0, 0.0, 1.0);
     }
 
     #include <tonemapping_pars_fragment>
