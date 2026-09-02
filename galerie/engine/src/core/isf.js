@@ -124,6 +124,39 @@ ${corps}`;
 }
 
 /**
+ * LES CALQUES — plusieurs shaders superposés sur un même écran.
+ *
+ * Le premier shader peint l'écran ; chaque suivant se pose dessus avec un
+ * MODE DE FONDU et une OPACITÉ, comme des calques d'image. Le mélange
+ * lui-même est fait par le GPU (fonctions de fusion, voir isf-ecran.js) ;
+ * ici on ne prépare que la couleur SOURCE du calque : sa `main` est
+ * renommée et rappelée par une main de composition qui applique l'opacité
+ * selon le mode — un fondu normal l'écrit dans l'alpha, un ajout ou un
+ * écran atténuent la couleur, une multiplication tire vers le blanc (ce
+ * qui, multiplié, ne change rien).
+ *
+ * Rend null si le fragment n'a pas de `main` reconnaissable.
+ */
+export const MODES_FONDU = { normal: 0, ajouter: 1, ecran: 2, multiplier: 3 };
+
+export function envelopperCalque(fragment) {
+  const texte = String(fragment ?? '');
+  const renomme = texte.replace(/\bvoid\s+main\s*\(\s*(?:void)?\s*\)/, 'void isf_calque_main()');
+  if (renomme === texte) return null;
+  return `${renomme}
+uniform float isf_opacite;
+uniform int isf_mode;
+void main() {
+  isf_calque_main();
+  vec4 c = gl_FragColor;
+  if (isf_mode == 0) { c.a *= isf_opacite; }
+  else if (isf_mode == 3) { c.rgb = mix(vec3(1.0), c.rgb, isf_opacite * c.a); c.a = 1.0; }
+  else { c.rgb *= isf_opacite * c.a; c.a = 1.0; }
+  gl_FragColor = c;
+}`;
+}
+
+/**
  * Les valeurs d'uniforms de départ : les défauts de l'en-tête, recouverts
  * par les réglages de l'œuvre (JSON). Les couleurs acceptent [r,g,b] ou
  * [r,g,b,a] ; un nombre pour un bool vaut ≠ 0.

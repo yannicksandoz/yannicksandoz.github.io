@@ -2738,22 +2738,50 @@ mobile, 512 au bureau), et cette texture habille la FORME choisie :
 - **sphère / monolithe** — le shader devient la peau d'un volume ;
 - **relief** — la texture sert AUSSI de carte de déplacement : la
   luminosité de l'image sculpte un plan dense (96 × 96 sommets), et le
-  shader devient une topographie animée en trois dimensions.
+  shader devient une topographie animée en trois dimensions ;
+- **volume** — l'image EXTRUDÉE par sa lumière : l'écran est découpé en
+  `tranches` (16 par défaut, 2 à 48) étagées sur `profondeur` mètres
+  (0,6), et chaque tranche ne garde que les pixels plus clairs qu'un
+  seuil qui monte de l'arrière (tout) vers l'avant (les hautes lumières).
+  Vu de biais, le shader a une épaisseur, des faces, une vraie parallaxe
+  — là où le relief ne déforme qu'une surface. Le seuil se découpe dans
+  la couleur du matériau standard (`discard` injecté après le
+  `map_fragment`), qui garde donc lumière et émissif ; toutes les
+  tranches partagent un même programme, seul l'uniform diffère.
 
 Comme c'est une texture, tout le reste suit : lumière, matières,
 gouverneur de qualité, et la liaison audio optionnelle (`model.audio =
 { entree, gain }`) pousse le niveau sonore de l'œuvre dans l'entrée du
 shader de son choix.
 
+**Les calques** — plusieurs shaders superposés sur le même écran.
+`model.calques = [{ file | glsl, nom, fondu, opacite, reglages }]` : le
+premier shader (`model.file` / `model.glsl`) peint le fond, opaque ;
+chaque calque se dessine par-dessus DANS LA MÊME CIBLE, avec un mode de
+fondu (`normal` recouvre, `ajouter` pour les lumières, `ecran` éclaircit,
+`multiplier` assombrit) et une opacité — ce sont les fonctions de fusion
+du GPU qui mélangent, aucune passe de composition. Côté GLSL, le
+convertisseur renomme la `main` du calque et la rappelle depuis une main
+de composition qui applique l'opacité selon le mode
+(`envelopperCalque`, testé au nœud sur les trois shaders du dépôt). Chaque
+calque a ses propres entrées, réglées à part ; réglages, fondu et opacité
+se posent à chaud sur l'écran vivant (`isfParamOnly`), l'ajout ou le
+retrait d'un calque reconstruit l'œuvre comme un nouveau shader. Un
+calque illisible est SAUTÉ en le disant : l'écran vit sans lui, et
+l'inspecteur montre lequel manque.
+
 Dans l'éditeur : « ＋ Primitive… → Shader ISF » liste les shaders de
 `content/shaders/`, et « ISF depuis un fichier… » embarque la source d'un
 `.fs` de l'auteur directement dans l'œuvre. L'inspecteur est GÉNÉRÉ par
 l'en-tête : chaque INPUT devient curseur, case ou couleur — pendant le
 glissement, la valeur part droit dans l'écran (aucune reconstruction), au
-relâchement elle s'écrit dans le document, annulable. La **Salle des
-shaders** (porte au bout du couloir des fenêtres) expose les trois
-shaders du dépôt : le chat et le chien en panneaux, le dancefloor en
-relief.
+relâchement elle s'écrit dans le document, annulable. Le bloc porte aussi
+la forme (dont **volume**, avec son épaisseur et ses tranches) et les
+**calques** : « ＋ Calque… » pose un shader du dépôt ou un fichier de
+l'auteur par-dessus, chacun avec son fondu, son opacité, ses entrées
+dépliables, réordonnable et retirable. La **Salle des shaders** (porte au
+bout du couloir des fenêtres) expose les trois shaders du dépôt : le chat
+et le chien en panneaux, le dancefloor en relief.
 
 ## Éditeur de scène (mode auteur)
 
@@ -2793,8 +2821,36 @@ pièce vivaient sous huit sections d'œuvre, introuvables :
 - **🎧 Mixage** — tout ce qui s'écoute (ci-dessous).
 
 La **hiérarchie** (volet gauche) ne déroule que la pièce courante — cliquer
-une autre pièce y va, et la déplie. La recherche rouvre tout : on cherche
-partout, c'est son objet.
+une autre pièce y va, et la déplie. Le chevron **replie ou déplie** une
+pièce à volonté, la courante comprise ; revenir à l'état par défaut efface
+la consigne, une pièce rouverte puis quittée se referme. La recherche
+rouvre tout : on cherche partout, c'est son objet.
+
+**Le bouton « … »** — chaque pièce, chaque objet et chaque portail en
+porte un (et le clic droit ouvre le même menu, la touche Menu ou
+Maj+F10 aussi). Il rassemble tout ce qu'on peut leur faire, pour ne plus
+chercher le geste dans la barre ou l'inspecteur :
+
+- **pièce** — aller / replier, renommer (aussi au double-clic sur son
+  nom), dupliquer, enregistrer comme modèle, ajouter un portail vers…,
+  définir comme entrée, monter / descendre dans l'index, supprimer ;
+- **objet** — regarder (F), renommer (F2), dupliquer (ici ou vers une
+  autre pièce), **déplacer vers…** une autre pièce, copier / coller,
+  masquer, verrouiller, décor ↔ œuvre, supprimer. Sur une sélection
+  multiple, le menu porte sur toute la sélection ;
+- **portail** — sélectionner, regarder, aller dans la pièce visée,
+  supprimer.
+
+Tout passe par des commandes du document (Ctrl+Z) : déplacer des œuvres
+est un seul lot — retraits, insertion, positions reposées près de
+l'arrivée de la pièce visée — dont le plan est calculé par
+`planDeplacement` (pur, testé au nœud), comme l'ordre des pièces par
+`planOrdrePiece`. L'entrée de la visite est la pièce nommée `entree` si
+elle existe, sinon la première de l'index : le menu ne promet que ce qui
+est vrai (l'entrée porte un ⌂), et « Définir comme entrée » se grise tant
+qu'une pièce `entree` existe. Le menu (`ui/Menu.js`) est un seul élément
+flottant, refermé par Échap, un clic ailleurs ou un défilement, parcouru
+aux flèches, replacé s'il déborderait de la fenêtre.
 
 ### 🎧 L'onglet Mixage — la console
 

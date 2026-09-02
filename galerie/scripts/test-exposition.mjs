@@ -20,7 +20,8 @@ import { fileURLToPath } from 'node:url';
 import { gabaritDepuisPiece, instancierGabarit, validerGabarit, CHAMPS_EXCLUS }
   from '../engine/src/editor/state/Gabarits.js';
 import { consequencesSuppression, simulerSuppression, validerPortails,
-  simulerDuplication, pieceEntree } from '../engine/src/editor/state/pieces-regles.js';
+  simulerDuplication, pieceEntree, planDeplacement, planOrdrePiece }
+  from '../engine/src/editor/state/pieces-regles.js';
 import { ACCROCHAGE, AIR_SEUIL, hauteurVisee, poseSurMur, murLePlusProche,
   repartitionSurMur, ecartsSalle, empriseAuSol, RETRAIT_MUR }
   from '../engine/src/core/charte-regles.js';
@@ -259,6 +260,72 @@ test('les constantes de charte.mjs SONT celles de charte-regles', () => {
   assert.equal(AIR_CHARTE, AIR_SEUIL);
   assert.equal(empriseCharte, empriseAuSol, 'empriseAuSol : deux fonctions distinctes');
 });
+
+titre('déplacer des œuvres d’une pièce à l’autre : le plan, pur');
+{
+  const data = () => ({
+    works: [{ id: 'a' }, { id: 'b' }, { id: 'c' }, { id: 'd' }],
+    rooms: [
+      { id: 'hall', works: ['a', 'b', 'c'] },
+      { id: 'labo', works: ['d'] },
+      { id: 'vide' }
+    ]
+  });
+  test('retraits en index décroissant, insertion en fin de la pièce visée', () => {
+    const plan = planDeplacement(data(), ['a', 'c'], 'labo');
+    assert.deepEqual(plan.retraits, [{ roomIndex: 0, index: 2 }, { roomIndex: 0, index: 0 }]);
+    assert.deepEqual(plan.dest, { roomIndex: 1, index: 1, ids: ['a', 'c'] });
+  });
+  test('vers une pièce sans liste d’œuvres : insertion à zéro', () => {
+    const plan = planDeplacement(data(), ['b'], 'vide');
+    assert.deepEqual(plan.dest, { roomIndex: 2, index: 0, ids: ['b'] });
+  });
+  test('déjà dans la pièce, inconnue, ou pièce inconnue : rien ne bouge', () => {
+    assert.equal(planDeplacement(data(), ['d'], 'labo'), null);
+    assert.equal(planDeplacement(data(), ['zzz'], 'labo'), null);
+    assert.equal(planDeplacement(data(), ['a'], 'nulle-part'), null);
+    assert.equal(planDeplacement(data(), [], 'labo'), null);
+  });
+  test('un doublon dans la demande ne déplace qu’une fois', () => {
+    const plan = planDeplacement(data(), ['a', 'a'], 'labo');
+    assert.deepEqual(plan.dest.ids, ['a']);
+    assert.equal(plan.retraits.length, 1);
+  });
+  test('appliquer le plan donne le document attendu', () => {
+    const d = data();
+    const plan = planDeplacement(d, ['a', 'c'], 'labo');
+    for (const r of plan.retraits) d.rooms[r.roomIndex].works.splice(r.index, 1);
+    (d.rooms[plan.dest.roomIndex].works ??= []).splice(plan.dest.index, 0, ...plan.dest.ids);
+    assert.deepEqual(d.rooms[0].works, ['b']);
+    assert.deepEqual(d.rooms[1].works, ['d', 'a', 'c']);
+    assert.equal(d.works.length, 4, 'le catalogue ne perd rien');
+  });
+}
+
+titre('l’ordre des pièces : monter, descendre, devenir l’entrée');
+{
+  const rooms = [{ id: 'hall' }, { id: 'labo' }, { id: 'annexe' }];
+  test('monter d’un cran', () => assert.deepEqual(planOrdrePiece(rooms, 'annexe', { vers: 'haut' }), { de: 2, a: 1 }));
+  test('descendre d’un cran', () => assert.deepEqual(planOrdrePiece(rooms, 'hall', { vers: 'bas' }), { de: 0, a: 1 }));
+  test('en tête = nouvelle entrée', () => assert.deepEqual(planOrdrePiece(rooms, 'annexe', { vers: 'entree' }), { de: 2, a: 0 }));
+  test('aux bornes, rien ne bouge', () => {
+    assert.equal(planOrdrePiece(rooms, 'hall', { vers: 'haut' }), null);
+    assert.equal(planOrdrePiece(rooms, 'annexe', { vers: 'bas' }), null);
+    assert.equal(planOrdrePiece(rooms, 'hall', { vers: 'entree' }), null);
+    assert.equal(planOrdrePiece(rooms, 'inconnue', { vers: 'haut' }), null);
+  });
+  test('retirer puis réinsérer fait bien de la pièce la nouvelle entrée', () => {
+    const r = rooms.map((x) => ({ ...x }));
+    const { de, a } = planOrdrePiece(r, 'annexe', { vers: 'entree' });
+    const [p] = r.splice(de, 1);
+    r.splice(a, 0, p);
+    assert.equal(pieceEntree(r), 'annexe');
+  });
+  test('une pièce nommée « entree » reste l’entrée quel que soit l’ordre', () => {
+    const r = [{ id: 'hall' }, { id: 'entree' }, { id: 'annexe' }];
+    assert.equal(pieceEntree(r), 'entree');
+  });
+}
 
 console.log(`\n${ok} ✓  ${ko} ✗`);
 process.exit(ko ? 1 : 0);

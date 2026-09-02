@@ -5,8 +5,8 @@
 import { readFileSync, readdirSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { extraireISF, validerISF, entreesDe, fragmentDe, valeursDe }
-  from '../engine/src/core/isf.js';
+import { extraireISF, validerISF, entreesDe, fragmentDe, valeursDe,
+  envelopperCalque, MODES_FONDU } from '../engine/src/core/isf.js';
 
 const racine = join(dirname(fileURLToPath(import.meta.url)), '..');
 let passed = 0, failed = 0;
@@ -91,6 +91,27 @@ console.log('\nCe que la v1 refuse, en le disant');
   const r = fragmentDe(`/*{ "INPUTS": [{ "NAME": "img", "TYPE": "image" }] }*/ void main(){}`);
   vrai('fragmentDe rend les problèmes au lieu d\'un fragment',
     !r.fragment && r.problemes.length === 1, JSON.stringify(r));
+}
+
+console.log('\nLes calques : un shader posé sur un autre');
+{
+  const base = fragmentDe(`/*{ "INPUTS": [{ "NAME": "v", "TYPE": "float", "DEFAULT": 1 }] }*/
+void main(void) { gl_FragColor = vec4(v); }`).fragment;
+  const calque = envelopperCalque(base);
+  vrai('la main de l\'auteur est renommée', calque.includes('void isf_calque_main()')
+    && !/\bvoid\s+main\s*\(\s*void\s*\)/.test(calque), calque.slice(-300));
+  vrai('une main de composition la rappelle', /void main\(\) \{\s*isf_calque_main\(\);/.test(calque));
+  vrai('opacité et mode déclarés en uniforms',
+    calque.includes('uniform float isf_opacite;') && calque.includes('uniform int isf_mode;'));
+  vrai('les entrées de l\'auteur restent déclarées', calque.includes('uniform float v;'));
+  check('sans main reconnaissable : null', envelopperCalque('float f() { return 1.0; }'), null);
+  check('les quatre modes ont un numéro', Object.keys(MODES_FONDU), ['normal', 'ajouter', 'ecran', 'multiplier']);
+  // les vrais shaders de l'auteur s'enveloppent tous
+  const dossier = join(racine, 'content', 'shaders');
+  for (const f of readdirSync(dossier).filter((x) => x.endsWith('.fs'))) {
+    const r = fragmentDe(readFileSync(join(dossier, f), 'utf8'));
+    vrai(`${f} : utilisable en calque`, Boolean(envelopperCalque(r.fragment)));
+  }
 }
 
 console.log(`\n${passed} réussis, ${failed} échoués`);

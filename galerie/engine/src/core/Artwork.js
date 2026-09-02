@@ -755,17 +755,31 @@ export class Artwork {
    */
   async _buildISF(model) {
     const { EcranISF } = await import('./isf-ecran.js');
-    const source = model.glsl
-      ?? await (await fetch(this._resolve(model.file))).text();
+    const lire = async (m) => m.glsl
+      ?? await (await fetch(this._resolve(m.file))).text();
+    // le fond, puis les CALQUES (voir isf-ecran.js) : un calque illisible
+    // laisse un trou à sa place (null) pour que les index du document
+    // restent ceux de l'écran — l'inspecteur dit lequel manque
+    const calques = [{ source: await lire(model), reglages: model.reglages ?? {} }];
+    for (const c of model.calques ?? []) {
+      if (!c || (!c.glsl && !c.file)) { calques.push(null); continue; }
+      try {
+        calques.push({ source: await lire(c), reglages: c.reglages ?? {},
+          fondu: c.fondu ?? 'normal', opacite: c.opacite ?? 1 });
+      } catch (e) {
+        console.warn(`[galerie] Œuvre ${this.config.id} : calque illisible (${c.file ?? 'glsl'}) — ${e.message}`);
+        calques.push(null);
+      }
+    }
     const resolution = model.resolution
       ?? (this.app.quality.isMobile ? 256 : 512);
-    const ecran = new EcranISF(source, { resolution });
-    ecran.appliquer(model.reglages ?? {});
+    const ecran = new EcranISF(calques, { resolution });
     this._isfEcran = ecran;
 
     const w = model.width ?? 3;
     const h = model.height ?? w * 0.75;
     const forme = model.forme ?? 'panneau';
+    if (forme === 'volume') return this._buildISFVolume(model, ecran, w, h);
     let geometrie;
     if (forme === 'sphere') {
       geometrie = new THREE.SphereGeometry(model.radius ?? 1.2, 48, 32);
@@ -794,6 +808,52 @@ export class Artwork {
     const mesh = new THREE.Mesh(geometrie, matiere);
     mesh.castShadow = forme !== 'panneau';
     return mesh;
+  }
+
+  /**
+   * Forme « volume » : le shader EXTRUDÉ par sa lumière. L'écran est
+   * découpé en TRANCHES parallèles, étagées sur `profondeur` mètres ;
+   * chaque tranche ne garde que les pixels plus clairs qu'un seuil qui
+   * monte de l'arrière vers l'avant. Le fond montre presque tout, l'avant
+   * ne montre que les hautes lumières : vu de biais, l'image a une
+   * épaisseur, une vraie parallaxe, des faces — là où le « relief » ne
+   * déforme qu'une surface. Le seuil se découpe dans la couleur du
+   * matériau standard (`discard`), qui garde donc lumière et émissif.
+   */
+  _buildISFVolume(model, ecran, w, h) {
+    const groupe = new THREE.Group();
+    const n = Math.max(2, Math.min(48, Math.round(model.tranches ?? 16)));
+    const p = model.profondeur ?? 0.6;
+    for (let k = 0; k < n; k++) {
+      const seuil = (k + 0.5) / n;
+      const matiere = new THREE.MeshStandardMaterial({
+        map: ecran.texture,
+        emissive: 0xffffff,
+        emissiveMap: ecran.texture,
+        emissiveIntensity: model.intensite ?? 1.1,
+        roughness: 0.85,
+        metalness: 0,
+        side: THREE.DoubleSide
+      });
+      matiere.onBeforeCompile = (shader) => {
+        shader.uniforms.uSeuil = { value: seuil };
+        shader.fragmentShader = `uniform float uSeuil;\n${shader.fragmentShader}`
+          .replace('#include <map_fragment>', `#include <map_fragment>
+  float isfLum = dot(diffuseColor.rgb, vec3(0.299, 0.587, 0.114));
+  if (isfLum < uSeuil) discard;`);
+      };
+      // toutes les tranches partagent le programme : seul l'uniform diffère
+      matiere.customProgramCacheKey = () => 'isf-volume';
+      const tranche = new THREE.Mesh(new THREE.PlaneGeometry(w, h), matiere);
+      tranche.position.z = -p / 2 + p * (k / (n - 1));
+      tranche.userData.tranche = k;
+      // l'ombre : la tranche du fond seulement — la passe d'ombre ne
+      // connaît pas le seuil, chaque tranche projetterait un rectangle
+      tranche.castShadow = k === 0;
+      groupe.add(tranche);
+    }
+    groupe.userData.isfVolume = { tranches: n };
+    return groupe;
   }
 
   _buildPanelMesh(texture) {
