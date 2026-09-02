@@ -131,8 +131,11 @@ test('rien de ce groupe ne projette d’ombre', () => {
   // La passe d’ombre ne lit que `position` : les 21 000 taches s’y écrasent
   // sur le quad d’origine, et le pavé de préhension — invisible — porterait
   // pourtant une ombre carrée bien nette.
-  assert.ok(/visionneuse\.traverse\(\(o\) => \{ o\.userData\.sansOmbre = true; \}\)/
-    .test(src), 'le nuage doit être exclu du calcul d’ombre');
+  // …ni du LISERÉ DE SURVOL : le nuage se cache le temps du masque
+  // (échanger son matériau contre le blanc plat faisait exploser le rendu
+  // et laissait l’image noire partout — voir Survol.js)
+  assert.ok(/visionneuse\.traverse\(\(o\) => \{ o\.userData\.sansOmbre = true; o\.userData\.horsSurvol = true; \}\)/
+    .test(src), 'le nuage doit être exclu du calcul d’ombre ET du masque de survol');
   assert.ok(src.includes('prise.userData.sansOmbre = true'),
     'le pavé de préhension doit être exclu du calcul d’ombre');
 });

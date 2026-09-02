@@ -888,7 +888,8 @@ export class App {
         const dessine = this.survol.rendre(this.camera, dt,
           { reducedMotion: this.quality.reducedMotion });
         const u = this.sortie.uniforms;
-        u.uContour.value = dessine ? this.survol.force * 0.65 : 0;
+        // léger : un trait blanc à moitié fondu dans l'image, pas un néon
+        u.uContour.value = dessine ? this.survol.force * 0.45 : 0;
         if (dessine && this.survol.texture) {
           u.tMasque.value = this.survol.texture;
           const t = this.survol.taille;

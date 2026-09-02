@@ -2688,12 +2688,12 @@ dossier, publication, mise en ligne — avec la raison affichée.
 
 ## Le survol : un liseré sur l'œuvre visée
 
-Passer le pointeur sur une œuvre la souligne d'un fin liseré doré — la
-réponse muette à « est-ce que ça se clique ? ». Sur tactile, où rien ne
-survole, c'est l'œuvre au centre de l'écran qui le porte : la même que la
-barre d'espace « découvre ». Il apparaît et s'efface en fondu (150 ms),
-se tait dans l'éditeur (qui a ses propres surbrillances) et ignore les
-décors, comme le clic.
+Passer le pointeur sur une œuvre la souligne d'un fin liseré blanc, à
+demi fondu dans l'image — la réponse muette à « est-ce que ça se
+clique ? ». Sur tactile, où rien ne survole, c'est l'œuvre au centre de
+l'écran qui le porte : la même que la barre d'espace « découvre ». Il
+apparaît et s'efface en fondu (150 ms), se tait dans l'éditeur (qui a ses
+propres surbrillances) et ignore les décors, comme le clic.
 
 Technique (`Survol.js` + `PasseSortie`) : l'œuvre visée est redessinée
 seule, en blanc plat, dans une cible à demi-résolution — un dessin, sans
@@ -2702,6 +2702,17 @@ n'en garder que la couronne. Ni coque inversée ni géométrie d'arêtes :
 un plan, un modèle, un relief ou un voxel se détourent pareil. Le rayon
 de visée se lance au plus vingt fois par seconde à la souris, dix au
 réticule ; sans œuvre visée, la sortie ne lit même pas le masque.
+
+Deux garde-fous, appris à l'annexe. Un objet marqué `userData.horsSurvol`
+n'échange pas son matériau : il se CACHE le temps du masque — c'est le
+cas du nuage de splats d'un scan, dont le shader lit ses uniforms depuis
+son propre matériau (l'échanger faisait exploser le rendu) ; son pavé de
+préhension fait alors silhouette à sa place. Et le dessin du masque est
+ceinturé (`try / finally`) : une erreur au milieu laissait la cible de
+rendu sur le masque, et tout ce qui suivait se dessinait hors écran —
+l'image entière noire, dans toutes les pièces, jusqu'au rechargement.
+Quoi qu'il arrive, l'écran est rendu, et l'œuvre fautive renonce
+simplement à son liseré (`artwork.sansSurvol`).
 
 ## Œuvres shader (ISF)
 

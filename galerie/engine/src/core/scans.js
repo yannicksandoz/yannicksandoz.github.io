@@ -133,7 +133,11 @@ export async function creerScan(url, options = {}) {
   // instances s'y écrasent toutes sur le même carré de 2 m à l'origine du
   // maillage, qui projette une ombre carrée là où il n'y a rien. Les scans
   // s'excluent donc du calcul (voir `_setMesh`, qui respecte `sansOmbre`).
-  visionneuse.traverse((o) => { o.userData.sansOmbre = true; });
+  // NI LISERÉ DE SURVOL sur le nuage lui-même : son shader lit ses uniforms
+  // depuis son propre matériau, l'échanger contre le blanc plat du masque
+  // fait exploser le rendu (voir `Survol.js`). Le nuage se cache le temps
+  // du masque ; c'est le pavé de préhension, ci-dessous, qui se détoure.
+  visionneuse.traverse((o) => { o.userData.sansOmbre = true; o.userData.horsSurvol = true; });
   groupe.add(visionneuse);
 
   // le pavé de préhension : invisible à l'image, plein pour les rayons

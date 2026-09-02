@@ -34,8 +34,9 @@ export class Survol {
       side: THREE.DoubleSide
     });
     this._rt = null;
-    this._camera = null;
-    this._echanges = [];
+    this._echanges = [];       // [objet, matériau] rendus le temps du dessin
+    this._caches = [];         // objets `horsSurvol` cachés le temps du dessin
+    this._couleur = new THREE.Color();
   }
 
   get texture() { return this._rt?.texture ?? null; }
@@ -68,7 +69,8 @@ export class Survol {
    * tout le temps, et cela ne coûte alors qu'un test.
    */
   rendre(camera, dt, { reducedMotion = false } = {}) {
-    const veut = this.cible && this.cible.mesh && !this.cible.mediaError ? 1 : 0;
+    const veut = this.cible && this.cible.mesh && !this.cible.mediaError
+      && !this.cible.sansSurvol ? 1 : 0;
     if (reducedMotion) this.force = veut;
     else {
       const pas = dt / FONDU;
@@ -80,28 +82,58 @@ export class Survol {
 
     this._cibleAJour();
     const racine = this.cible.mesh;
-    // le blanc plat remplace chaque matériau le temps d'un dessin
+    // Le blanc plat remplace chaque matériau le temps d'un dessin. Ce qui
+    // porte `horsSurvol` (un nuage de splats, dont le shader lit SES
+    // uniforms depuis son propre matériau) ne s'échange pas : il se CACHE
+    // pendant le dessin — le pavé de préhension du scan fait alors
+    // silhouette à sa place.
     this._echanges.length = 0;
+    this._caches.length = 0;
     racine.traverse((o) => {
-      if (o.isMesh && o.material && !o.userData.horsSurvol) {
+      if (o.userData.horsSurvol) {
+        if (o.visible) { this._caches.push(o); o.visible = false; }
+      } else if (o.isMesh && o.material) {
         this._echanges.push([o, o.material]);
         o.material = this._masque;
       }
     });
-    if (!this._echanges.length) return false;
+    if (!this._echanges.length) { this._restaurer(); return false; }
     const r = this.renderer;
     const cibleAvant = r.getRenderTarget();
     const clearAvant = r.autoClear;
-    r.setRenderTarget(this._rt);
-    r.autoClear = true;
-    r.setClearColor(0x000000, 1);
-    r.clear(true, false, false);
-    r.render(racine, camera);
-    r.autoClear = clearAvant;
-    r.setRenderTarget(cibleAvant);
+    const couleurAvant = r.getClearColor(this._couleur);
+    const alphaAvant = r.getClearAlpha();
+    // Le dessin est CEINTURÉ : une erreur au milieu (un objet qui ne
+    // supporte pas l'échange) laissait la cible de rendu sur le masque, et
+    // tout ce qui suivait se dessinait hors écran — l'image entière noire,
+    // dans toutes les pièces. Quoi qu'il arrive, l'écran est rendu et les
+    // matériaux reviennent ; l'œuvre fautive renonce à son liseré.
+    try {
+      r.setRenderTarget(this._rt);
+      r.autoClear = true;
+      r.setClearColor(0x000000, 1);
+      r.clear(true, false, false);
+      r.render(racine, camera);
+    } catch (e) {
+      console.warn(`[galerie] Survol : l'œuvre ${this.cible.config?.id ?? '?'} `
+        + `ne se détoure pas — ${e?.message ?? e}`);
+      this.cible.sansSurvol = true;
+      this.force = 0;
+      return false;
+    } finally {
+      r.autoClear = clearAvant;
+      r.setClearColor(couleurAvant, alphaAvant);
+      r.setRenderTarget(cibleAvant);
+      this._restaurer();
+    }
+    return true;
+  }
+
+  _restaurer() {
     for (const [o, m] of this._echanges) o.material = m;
     this._echanges.length = 0;
-    return true;
+    for (const o of this._caches) o.visible = true;
+    this._caches.length = 0;
   }
 
   dispose() {

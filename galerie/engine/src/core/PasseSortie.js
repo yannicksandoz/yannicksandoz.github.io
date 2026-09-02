@@ -137,7 +137,7 @@ const SORTIE = {
     tMasque: { value: null },
     uContour: { value: 0 },
     uContourTexel: { value: new Vector2(1 / 512, 1 / 512) },
-    uContourCouleur: { value: new Color(0xffd97a) }
+    uContourCouleur: { value: new Color(0xffffff) } // blanc : un trait, pas une teinte
   },
   vertexShader: /* glsl */ `
     precision highp float;
