@@ -1,0 +1,49 @@
+{
+  "id": "shaders",
+  "title": "Salle des shaders",
+  "floor": {
+    "size": 30,
+    "color": "#15151f",
+    "grid": false,
+    "texture": "dalles",
+    "textureRepeat": 1
+  },
+  "shell": {
+    "width": 26,
+    "depth": 20,
+    "height": 6.5,
+    "color": "#1e1e2e",
+    "texture": "pierre",
+    "ceiling": true
+  },
+  "fogColor": "#06060c",
+  "keyLight": false,
+  "envIntensity": 0.25,
+  "spawn": [
+    0,
+    2.2,
+    7
+  ],
+  "works": [
+    "shader-cat",
+    "shader-dog",
+    "shader-dancefloor"
+  ],
+  "portals": [
+    {
+      "to": "couloir-est",
+      "position": [
+        -13,
+        0,
+        4
+      ],
+      "rotationY": 90,
+      "label": "Couloir des fenêtres",
+      "arrival": [
+        1.5,
+        2.2,
+        -3.5
+      ]
+    }
+  ]
+}

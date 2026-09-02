@@ -104,6 +104,21 @@
         2.2,
         6.72
       ]
+    },
+    {
+      "to": "shaders",
+      "position": [
+        2.2,
+        0,
+        10
+      ],
+      "rotationY": -90,
+      "label": "Salle des shaders",
+      "arrival": [
+        -10.5,
+        2.2,
+        4
+      ]
     }
   ],
   "vistas": [

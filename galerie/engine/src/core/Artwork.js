@@ -615,6 +615,8 @@ export class Artwork {
         this._setMesh(await this._loadModelMesh(cfg.model, essentiel));
       } else if (cfg.model?.shape === 'monolith') {
         this._setMesh(this._buildMonolith(cfg.model));
+      } else if (cfg.model?.type === 'isf') {
+        this._setMesh(await this._buildISF(cfg.model));
       } else if (isPrimitive(cfg.model?.shape)) {
         this._setMesh(buildPrimitive(cfg.model, cfg.scale));
       } else {
@@ -731,9 +733,64 @@ export class Artwork {
     this.modelAnimations = 0;
     this.mesh = null;
     this._reactiveMaterial = null;
+    this._isfEcran?.dispose();
+    this._isfEcran = null;
     this._visualLoaded = false;
     this._visualRequested = false;
     this._buildPlaceholder();
+  }
+
+  /**
+   * Œuvre SHADER (ISF) : le shader de VJing de l'auteur, rendu dans une
+   * texture hors écran (voir isf-ecran.js), qui habille la forme choisie.
+   *
+   * `model` : { type: 'isf', source | file, forme, reglages, resolution,
+   * intensite, relief, audio: { entree, gain } }. La texture sert de
+   * carte émissive (l'écran éclaire) ET de couleur ; en « relief », elle
+   * déplace en plus les sommets d'un plan dense — l'image devient une
+   * topographie animée.
+   */
+  async _buildISF(model) {
+    const { EcranISF } = await import('./isf-ecran.js');
+    const source = model.source
+      ?? await (await fetch(this._resolve(model.file))).text();
+    const resolution = model.resolution
+      ?? (this.app.quality.isMobile ? 256 : 512);
+    const ecran = new EcranISF(source, { resolution });
+    ecran.appliquer(model.reglages ?? {});
+    this._isfEcran = ecran;
+
+    const w = model.width ?? 3;
+    const h = model.height ?? w * 0.75;
+    const forme = model.forme ?? 'panneau';
+    let geometrie;
+    if (forme === 'sphere') {
+      geometrie = new THREE.SphereGeometry(model.radius ?? 1.2, 48, 32);
+    } else if (forme === 'monolithe') {
+      geometrie = new THREE.BoxGeometry(w * 0.45, h, (model.depth ?? 0.5));
+    } else if (forme === 'relief') {
+      // un plan DENSE : c'est lui que la carte de déplacement sculpte
+      geometrie = new THREE.PlaneGeometry(w, h, 96, 96);
+    } else {
+      geometrie = new THREE.PlaneGeometry(w, h);
+    }
+    const matiere = new THREE.MeshStandardMaterial({
+      map: ecran.texture,
+      emissive: 0xffffff,
+      emissiveMap: ecran.texture,
+      emissiveIntensity: model.intensite ?? 1.1,
+      roughness: 0.85,
+      metalness: 0,
+      side: forme === 'panneau' || forme === 'relief'
+        ? THREE.DoubleSide : THREE.FrontSide
+    });
+    if (forme === 'relief') {
+      matiere.displacementMap = ecran.texture;
+      matiere.displacementScale = model.relief ?? 0.4;
+    }
+    const mesh = new THREE.Mesh(geometrie, matiere);
+    mesh.castShadow = forme !== 'panneau';
+    return mesh;
   }
 
   _buildPanelMesh(texture) {
@@ -1374,6 +1431,21 @@ export class Artwork {
 
     if (this._reactiveMaterial?.uniforms?.uTime) {
       this._reactiveMaterial.uniforms.uTime.value = ctx.time;
+    }
+    if (this._isfEcran) {
+      // liaison audio optionnelle : le niveau sonore de l'œuvre pousse UNE
+      // entrée du shader, de sa valeur de repos vers son maximum
+      const lien = this.config.model?.audio;
+      if (lien?.entree) {
+        const e = this._isfEcran.entrees.find((x) => x.nom === lien.entree);
+        if (e && e.type === 'float') {
+          const base = Number(this.config.model?.reglages?.[e.nom] ?? e.defaut) || 0;
+          const portee = (Number.isFinite(e.max) ? e.max : base + 1) - base;
+          this._isfEcran.poser(e.nom,
+            base + this.audioLevel * (lien.gain ?? 1) * portee);
+        }
+      }
+      this._isfEcran.rendre(this.app.renderer, ctx.time, dt);
     }
     // animations du modèle importé (immobiles si prefers-reduced-motion)
     if (this._mixer && !this.app.quality.reducedMotion) this._mixer.update(dt);

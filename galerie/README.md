@@ -2686,6 +2686,41 @@ vérifications : Portails (bloquant), Attributions (bloquant), Charte
 (avertit seulement). Un orphelin de portail refuse toute écriture — zip,
 dossier, publication, mise en ligne — avec la raison affichée.
 
+## Œuvres shader (ISF)
+
+Les shaders de VJing de l'auteur (format **ISF** — un en-tête JSON qui
+déclare les entrées, puis un fragment GLSL) deviennent des œuvres à part
+entière, SANS réécriture : le convertisseur (`engine/src/core/isf.js`,
+pur, testé au nœud) lit l'en-tête, pose chaque entrée en uniform et
+enveloppe le fragment pour three.js. Périmètre v1 : les générateurs
+mono-passe — pas de PASSES multiples ni d'entrée image, et le refus se
+dit en clair au lieu d'échouer en silence.
+
+L'architecture qui rend tout compatible : le shader est rendu dans une
+**texture hors écran** (`isf-ecran.js`, 30 Hz, résolution bornée — 256 sur
+mobile, 512 au bureau), et cette texture habille la FORME choisie :
+
+- **panneau** — l'écran classique, au mur ;
+- **sphère / monolithe** — le shader devient la peau d'un volume ;
+- **relief** — la texture sert AUSSI de carte de déplacement : la
+  luminosité de l'image sculpte un plan dense (96 × 96 sommets), et le
+  shader devient une topographie animée en trois dimensions.
+
+Comme c'est une texture, tout le reste suit : lumière, matières,
+gouverneur de qualité, et la liaison audio optionnelle (`model.audio =
+{ entree, gain }`) pousse le niveau sonore de l'œuvre dans l'entrée du
+shader de son choix.
+
+Dans l'éditeur : « ＋ Primitive… → Shader ISF » liste les shaders de
+`content/shaders/`, et « ISF depuis un fichier… » embarque la source d'un
+`.fs` de l'auteur directement dans l'œuvre. L'inspecteur est GÉNÉRÉ par
+l'en-tête : chaque INPUT devient curseur, case ou couleur — pendant le
+glissement, la valeur part droit dans l'écran (aucune reconstruction), au
+relâchement elle s'écrit dans le document, annulable. La **Salle des
+shaders** (porte au bout du couloir des fenêtres) expose les trois
+shaders du dépôt : le chat et le chien en panneaux, le dancefloor en
+relief.
+
 ## Éditeur de scène (mode auteur)
 
 **Lancer** : touche **²** (à gauche du 1 — `@` sur Mac FR), bouton **✎**

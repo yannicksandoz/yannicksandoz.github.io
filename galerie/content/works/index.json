@@ -176,5 +176,8 @@
   "corniche-biblio-ouest.json",
   "corniche-couloir-sud.json",
   "corniche-labo-sud.json",
-  "margelle-bassin.json"
+  "margelle-bassin.json",
+  "shader-cat.json",
+  "shader-dog.json",
+  "shader-dancefloor.json"
 ]

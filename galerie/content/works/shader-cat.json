@@ -1,0 +1,22 @@
+{
+  "id": "shader-cat",
+  "title": "Chat procédural",
+  "description": "Shader ISF de l'auteur : un chat dessiné en distances signées, cligne des yeux et remue la queue en direct — aucun pixel d'image, seulement du calcul.",
+  "position": [-12.9, 2.0, -4],
+  "rotation": [0, 90, 0],
+  "scale": [1, 1, 1],
+  "model": {
+    "type": "isf",
+    "file": "shaders/cat.fs",
+    "forme": "panneau",
+    "width": 2.2,
+    "height": 2.2,
+    "intensite": 1.2
+  },
+  "modules": [{ "type": "FocusCamera" }],
+  "credit": {
+    "author": "yr0-lab",
+    "license": "CC-BY-4.0",
+    "sourceUrl": "https://github.com/yannicksandoz/yannicksandoz.github.io"
+  }
+}

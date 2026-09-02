@@ -1,0 +1,22 @@
+{
+  "id": "shader-dog",
+  "title": "Chien procédural",
+  "description": "Shader ISF de l'auteur : le compagnon du chat, même famille de distances signées — oreilles, truffe et fouettements de queue paramétrables.",
+  "position": [12.9, 2.0, -4],
+  "rotation": [0, -90, 0],
+  "scale": [1, 1, 1],
+  "model": {
+    "type": "isf",
+    "file": "shaders/dog.fs",
+    "forme": "panneau",
+    "width": 2.2,
+    "height": 2.2,
+    "intensite": 1.2
+  },
+  "modules": [{ "type": "FocusCamera" }],
+  "credit": {
+    "author": "yr0-lab",
+    "license": "CC-BY-4.0",
+    "sourceUrl": "https://github.com/yannicksandoz/yannicksandoz.github.io"
+  }
+}

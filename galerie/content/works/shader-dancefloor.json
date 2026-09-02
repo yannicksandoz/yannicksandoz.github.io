@@ -1,0 +1,30 @@
+{
+  "id": "shader-dancefloor",
+  "title": "Dancefloor en relief",
+  "description": "Shader ISF de l'auteur, poussé en TROIS DIMENSIONS : la luminosité de chaque dalle déplace les sommets d'un plan dense — le dancefloor devient une topographie qui ondule.",
+  "position": [0, 2.7, -9.85],
+  "rotation": [0, 0, 0],
+  "scale": [1, 1, 1],
+  "model": {
+    "type": "isf",
+    "file": "shaders/dancefloor.fs",
+    "forme": "relief",
+    "width": 7,
+    "height": 3.6,
+    "relief": 0.55,
+    "intensite": 1.15,
+    "reglages": {
+      "pattern_mode": 2,
+      "pattern_speed": 1.1,
+      "pattern_mix": 1,
+      "glow_strength": 0.55,
+      "hue_spread": 0.35
+    }
+  },
+  "modules": [{ "type": "FocusCamera" }],
+  "credit": {
+    "author": "yr0-lab",
+    "license": "CC-BY-4.0",
+    "sourceUrl": "https://github.com/yannicksandoz/yannicksandoz.github.io"
+  }
+}

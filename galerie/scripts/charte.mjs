@@ -523,6 +523,16 @@ export function ampleurOeuvre(w) {
     // BoxGeometry(1.1, height, 1.1) — voir Artwork._buildMonolith
     return { metres: diag(1.1, m.height ?? 4), estimee: false };
   }
+  if (m.type === 'isf') {
+    // panneau/relief : PlaneGeometry(width, height) ; sphère : son diamètre
+    // — voir Artwork._buildISF
+    if (m.forme === 'sphere') {
+      const d = (m.radius ?? 1.2) * 2;
+      return { metres: diag(d, d), estimee: false };
+    }
+    const w2 = m.width ?? 3;
+    return { metres: diag(w2, m.height ?? w2 * 0.75), estimee: false };
+  }
   if (m.type === 'voxel') {
     const [dx, dy] = m.dims ?? [16, 16, 16];
     const cell = m.cell ?? 0.25;
