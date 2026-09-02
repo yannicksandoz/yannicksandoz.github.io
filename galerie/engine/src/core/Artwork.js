@@ -744,15 +744,18 @@ export class Artwork {
    * Œuvre SHADER (ISF) : le shader de VJing de l'auteur, rendu dans une
    * texture hors écran (voir isf-ecran.js), qui habille la forme choisie.
    *
-   * `model` : { type: 'isf', source | file, forme, reglages, resolution,
-   * intensite, relief, audio: { entree, gain } }. La texture sert de
+   * `model` : { type: 'isf', file | glsl, forme, reglages, resolution,
+   * intensite, relief, audio: { entree, gain } } — `glsl` embarque la
+   * source dans l'œuvre (import d'un fichier de l'auteur) ; PAS `source`,
+   * qui signifie ailleurs « modèle importé d'un tiers, attribution due ».
+   * La texture sert de
    * carte émissive (l'écran éclaire) ET de couleur ; en « relief », elle
    * déplace en plus les sommets d'un plan dense — l'image devient une
    * topographie animée.
    */
   async _buildISF(model) {
     const { EcranISF } = await import('./isf-ecran.js');
-    const source = model.source
+    const source = model.glsl
       ?? await (await fetch(this._resolve(model.file))).text();
     const resolution = model.resolution
       ?? (this.app.quality.isMobile ? 256 : 512);

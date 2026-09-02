@@ -115,6 +115,17 @@ console.log('\npatch — portée audio (le son se règle sans se couper)');
     { primitiveStyleOnly: true, works: ['a'] });
   check('forme de primitive → reconstruction de l’œuvre',
     patch(doc, ['works', 0, 'model', 'shape'], 'sphere').scope, { works: ['a'] });
+  // un shader ISF : ses réglages vont à chaud dans l'écran vivant ; sa
+  // FORME, elle, change la géométrie — reconstruction
+  doc.data.works[0].model = { type: 'isf', file: 'shaders/x.fs', forme: 'panneau', reglages: {} };
+  check('réglage de shader ISF → isfParamOnly',
+    patch(doc, ['works', 0, 'model', 'reglages'], { v: 0.5 }).scope,
+    { isfParamOnly: true, works: ['a'] });
+  check('relief de shader ISF → isfParamOnly',
+    patch(doc, ['works', 0, 'model', 'relief'], 0.8).scope,
+    { isfParamOnly: true, works: ['a'] });
+  check('forme de shader ISF → reconstruction de l’œuvre',
+    patch(doc, ['works', 0, 'model', 'forme'], 'relief').scope, { works: ['a'] });
   check('lot entièrement audio → audioParamOnly',
     batch([
       patch(doc, ['works', 0, 'stems', 0, 'gain'], 0.5),
