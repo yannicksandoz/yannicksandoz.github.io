@@ -1,5 +1,5 @@
 import {
-  ColorManagement, RawShaderMaterial, UniformsUtils, Vector2,
+  Color, ColorManagement, RawShaderMaterial, UniformsUtils, Vector2,
   LinearToneMapping, ReinhardToneMapping, CineonToneMapping,
   AgXToneMapping, ACESFilmicToneMapping, NeutralToneMapping, SRGBTransfer
 } from 'three';
@@ -131,7 +131,13 @@ const SORTIE = {
     uTime: { value: 0 },
     uGrain: { value: 0.055 },    // 0 = grain coupé
     uVignette: { value: 0.4 },
-    uAberration: { value: 0.006 }
+    uAberration: { value: 0.006 },
+    // LE SURVOL (voir Survol.js) : masque de silhouette de l'œuvre visée,
+    // dilaté ici en liseré. `uContour` = force du liseré (0 : rien à faire)
+    tMasque: { value: null },
+    uContour: { value: 0 },
+    uContourTexel: { value: new Vector2(1 / 512, 1 / 512) },
+    uContourCouleur: { value: new Color(0xffd97a) }
   },
   vertexShader: /* glsl */ `
     precision highp float;
@@ -149,7 +155,29 @@ const SORTIE = {
     uniform sampler2D tDiffuse;
     uniform sampler2D tFleur;
     uniform float uFleur, uTime, uGrain, uVignette, uAberration;
+    uniform sampler2D tMasque;
+    uniform float uContour;
+    uniform vec2 uContourTexel;
+    uniform vec3 uContourCouleur;
     varying vec2 vUv;
+
+    // LE LISERÉ DU SURVOL : le masque dilaté de deux texels, moins le
+    // masque lui-même — la couronne. Huit lectures, et seulement quand une
+    // œuvre est visée (la branche est uniforme, le GPU la saute vraiment).
+    float contour(vec2 uv) {
+      float centre = texture2D(tMasque, uv).r;
+      vec2 t = uContourTexel * 1.6;
+      float voisins = 0.0;
+      voisins = max(voisins, texture2D(tMasque, uv + vec2( t.x, 0.0)).r);
+      voisins = max(voisins, texture2D(tMasque, uv + vec2(-t.x, 0.0)).r);
+      voisins = max(voisins, texture2D(tMasque, uv + vec2(0.0,  t.y)).r);
+      voisins = max(voisins, texture2D(tMasque, uv + vec2(0.0, -t.y)).r);
+      voisins = max(voisins, texture2D(tMasque, uv + vec2( t.x,  t.y) * 0.7).r);
+      voisins = max(voisins, texture2D(tMasque, uv + vec2(-t.x,  t.y) * 0.7).r);
+      voisins = max(voisins, texture2D(tMasque, uv + vec2( t.x, -t.y) * 0.7).r);
+      voisins = max(voisins, texture2D(tMasque, uv + vec2(-t.x, -t.y) * 0.7).r);
+      return clamp(voisins - centre, 0.0, 1.0);
+    }
 
     #include <tonemapping_pars_fragment>
     #include <colorspace_pars_fragment>
@@ -194,6 +222,12 @@ const SORTIE = {
       #ifdef SRGB_TRANSFER
         sortie = sRGBTransferOETF(sortie);
       #endif
+
+      // LE SURVOL, sur l'image encodée : un liseré est un trait d'écran,
+      // pas une lumière — il se pose après la courbe de tons
+      if (uContour > 0.0) {
+        sortie.rgb = mix(sortie.rgb, uContourCouleur, contour(vUv) * uContour);
+      }
 
       // GRAIN et VIGNETTAGE, après l'encodage : ils se règlent à l'œil sur
       // l'image finie, pas sur des valeurs linéaires.

@@ -2686,6 +2686,23 @@ vérifications : Portails (bloquant), Attributions (bloquant), Charte
 (avertit seulement). Un orphelin de portail refuse toute écriture — zip,
 dossier, publication, mise en ligne — avec la raison affichée.
 
+## Le survol : un liseré sur l'œuvre visée
+
+Passer le pointeur sur une œuvre la souligne d'un fin liseré doré — la
+réponse muette à « est-ce que ça se clique ? ». Sur tactile, où rien ne
+survole, c'est l'œuvre au centre de l'écran qui le porte : la même que la
+barre d'espace « découvre ». Il apparaît et s'efface en fondu (150 ms),
+se tait dans l'éditeur (qui a ses propres surbrillances) et ignore les
+décors, comme le clic.
+
+Technique (`Survol.js` + `PasseSortie`) : l'œuvre visée est redessinée
+seule, en blanc plat, dans une cible à demi-résolution — un dessin, sans
+éclairage — et la passe de sortie dilate ce masque de deux texels pour
+n'en garder que la couronne. Ni coque inversée ni géométrie d'arêtes :
+un plan, un modèle, un relief ou un voxel se détourent pareil. Le rayon
+de visée se lance au plus vingt fois par seconde à la souris, dix au
+réticule ; sans œuvre visée, la sortie ne lit même pas le masque.
+
 ## Œuvres shader (ISF)
 
 Les shaders de VJing de l'auteur (format **ISF** — un en-tête JSON qui

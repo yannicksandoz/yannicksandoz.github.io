@@ -7,6 +7,7 @@ import { CopyShader } from 'three/addons/shaders/CopyShader.js';
 import {
   BloomFleur, PasseSortie, tailleBloom, copieSceneNecessaire
 } from './PasseSortie.js';
+import { Survol } from './Survol.js';
 import { VistaManager } from './Vista.js';
 import { FOG_DENSITY, suivreOmbre } from './RoomManager.js';
 import { budgetLampes, coqueClose } from './ombres.js';
@@ -389,6 +390,8 @@ export class App {
     this.sortie = new PasseSortie(this.bloom, this.scenePass);
     this.sortie.grainActif = this.quality.profile.grain;
     this.composer.addPass(this.sortie);
+    // le liseré de survol : masque rendu avant la frame, dilaté à la sortie
+    this.survol = new Survol(this.renderer);
 
     this._buildEnvironment();
     this._setupPicking();
@@ -559,6 +562,36 @@ export class App {
       for (const h of this._clickHandlers) {
         if (h(hit, e)) return; // un handler peut consommer le clic
       }
+    });
+
+    // LE SURVOL (voir Survol.js). À la souris : l'œuvre sous le pointeur,
+    // relevée au plus 20 fois par seconde — un rayon par mouvement de
+    // souris en aurait lancé plusieurs centaines. Au doigt, rien ne
+    // survole : c'est l'œuvre au CENTRE de l'écran qui porte le liseré, la
+    // même que la barre d'espace découvre — relevée dix fois par seconde.
+    let dernierReleve = 0;
+    let souris = false;
+    const viserSouris = (x, y) => {
+      const hit = this.pickAt(x, y, raycaster, ndc);
+      this.survol?.viser(hit?.type === 'artwork' ? hit.artwork : null);
+    };
+    this.renderer.domElement.addEventListener('pointermove', (e) => {
+      if (e.pointerType !== 'mouse') return;
+      souris = true;
+      const t = performance.now();
+      if (t - dernierReleve < 50) return;
+      dernierReleve = t;
+      viserSouris(e.clientX, e.clientY);
+    });
+    this.renderer.domElement.addEventListener('pointerleave', () => this.survol?.viser(null));
+    // au doigt (ou tant qu'aucune souris ne s'est manifestée) : le réticule
+    this.onUpdate((dt) => {
+      if (souris || !this.survol) return;
+      this._reticuleAcc = (this._reticuleAcc ?? 0) + dt;
+      if (this._reticuleAcc < 0.1) return;
+      this._reticuleAcc = 0;
+      const hit = this.pickAt(window.innerWidth / 2, window.innerHeight / 2, raycaster, ndc);
+      this.survol.viser(hit?.type === 'artwork' ? hit.artwork : null);
     });
 
     // Action au clavier : la barre d'espace agit sur ce que vise le centre
@@ -846,6 +879,25 @@ export class App {
       orienterAmbiance(this.camera);
 
       this.vistas?.update(dt); // la pièce apparue se rend avant la vraie
+      // le masque de l'œuvre survolée, puis sa force à la sortie : à zéro
+      // (presque toujours), la passe ne lit pas le masque
+      if (this.survol) {
+        // l'éditeur a ses propres surbrillances (gizmo, charte) : le
+        // liseré se tait dès qu'il est ouvert
+        if (this.editor?.enabled) this.survol.viser(null);
+        const dessine = this.survol.rendre(this.camera, dt,
+          { reducedMotion: this.quality.reducedMotion });
+        const u = this.sortie.uniforms;
+        u.uContour.value = dessine ? this.survol.force * 0.65 : 0;
+        if (dessine && this.survol.texture) {
+          u.tMasque.value = this.survol.texture;
+          const t = this.survol.taille;
+          if (t) u.uContourTexel.value.set(1 / t.x, 1 / t.y);
+        } else if (!u.tMasque.value) {
+          // un échantillonneur jamais lié fait hurler certains pilotes
+          u.tMasque.value = this.survol.texture ?? this.scenePass?.cible?.texture ?? null;
+        }
+      }
       this._reglerCopieScene();
       this.composer.render();
     });
