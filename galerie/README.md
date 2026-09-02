@@ -2810,14 +2810,24 @@ lettrage, scans — n'y figurent pas, par construction),
 Le panneau de propriétés se lit en trois onglets — empilés, les réglages de
 pièce vivaient sous huit sections d'œuvre, introuvables :
 
-- **Pièce** — l'endroit : brume, architecture, matière des surfaces
-  (texture, répétition, rugosité, métal — sol et murs), ciel, lumière clé
-  (couleur, azimut, hauteur, **ombres par pièce**), ambiance IBL, **lumière
-  ambiante**, arrivée, jetons, réglages généraux ;
-- **Œuvre** — la sélection : transform, apparence (dont la **lumière
-  d'appoint complète** : couleur, intensité, portée, décroissance, position
-  de la lampe), matière, son, modules, attribution. Sélectionner un objet
-  ouvre cet onglet ; tout désélectionner ramène à Pièce ;
+- **Pièce** — l'endroit, en cinq sections repliables PAR THÈME (leur état
+  est mémorisé) : **Espace** (titre, brume, coque, sol, matières et leur
+  réglage fin), **Lumière & ciel** (lumière clé, ombres, IBL, ambiante,
+  dôme), **Son** (réverbération, ambiances), **Parcours** (point
+  d'arrivée, portails, passages de gravité, apparitions, jetons) et
+  **Gestion** (modèle, duplication, suppression) — puis la charte et les
+  réglages généraux. Une seule grande section à douze sous-titres faisait
+  un défilement sans logique ;
+- **Œuvre** — la sélection, en quatre SOUS-ONGLETS : **Objet** (transform,
+  rôle décor, solidité, lumières de salle, distance de chargement,
+  ensemble, approche au clic), **Aspect** (média ou modèle, couleur,
+  matériau, texture, écran ISF et ses calques, lumière d'appoint
+  complète), **Son** (tout l'audio, avec le nombre de pistes en badge) et
+  **Fiche** (titre, description, cartel, attribution). Le sous-onglet
+  reste le même d'une sélection à l'autre — on compare deux objets sur le
+  même thème — et l'en-tête (nom, id, pièce) reste épinglé en haut.
+  Sélectionner un objet ouvre cet onglet ; tout désélectionner ramène à
+  Pièce ;
 - **🎧 Mixage** — tout ce qui s'écoute (ci-dessous).
 
 La **hiérarchie** (volet gauche) ne déroule que la pièce courante — cliquer
