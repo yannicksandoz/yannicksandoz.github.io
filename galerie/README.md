@@ -1485,7 +1485,7 @@ muséographie, pas d'un goût :
 | l'**ampleur à l'arrivée** | depuis CHAQUE entrée d'une salle (son spawn et chaque portail entrant), au moins une œuvre occupe ≥ 12° du champ |
 | les **lignes de force** | sur l'axe d'une arrivée vers une porte, ou d'une porte à l'autre, tout objet laisse ≥ 1,20 m de passage |
 | le **couronnement** | sur un mur à ciel ouvert, tout ce qui s'accroche reste ≥ 0,40 m sous la crête ondulée, à son propre décalage |
-| les **seuils** | autour de l'axe de chaque portail, ≥ 0,70 m d'air à hauteur d'homme — aucun escalier, aucun rayonnage, aucun buisson dans une porte |
+| les **seuils** | sur le seuil de chaque portail, dans SON repère, aucun point du corps d'un visiteur dans la matière d'un objet (cellules d'un voxel, rotation et serpentement compris ; boîte d'une forme avec 0,70 m d'air) — aucun escalier, aucun rayonnage, aucun buisson dans une porte ; un cadre de portail dans la matière est compté, toléré à deux |
 | les **corniches** | un bandeau lumineux passe ≥ 0,30 m au-dessus de toute baie ou apparition du même mur, mesuré au décalage de celle-ci |
 
 **Les faces aussi.** `wallColors` peint chaque paroi séparément, et l'audit
@@ -2464,7 +2464,28 @@ rien à la galerie ; deux règles le font.
 
 `auditSeuils` prend chaque portail, dresse autour de son axe le rectangle
 d'un visiteur — 0,70 m d'air en plus de l'emprise de l'objet, entre 0,20 et
-2,10 m du sol — et refuse tout corps solide qui l'entame. Elle a trouvé
+2,10 m du sol — et refuse tout corps solide qui l'entame.
+
+Deuxième version de la règle, apprise au belvédère : elle lisait une
+boîte axée sur le monde, aveugle à une volée tournée de 90°, posée sur un
+mur, ou serpentée par le style fluide — et des portails restaient plantés
+dans des escaliers qu'elle déclarait libres. Elle lit désormais la
+MATIÈRE (`pointDansOeuvre`) : pour un voxel, la cellule pleine à chaque
+point du corps (rotation complète, échelle, et le serpentement DÉFAIT par
+la même loi que le rendu et le collider — `serpentin.js`, pure, injectée
+par `charte.mjs` et par l'éditeur selon le style) ; pour une forme pleine,
+sa boîte d'emprise dans son propre repère, avec l'air (0,70 m, en mètres
+du monde, pas de l'objet). Les points sont ceux du portail — son « haut »
+est le long du mur quand il y est posé —, sur trois colonnes pour un
+voxel, sur l'axe pour une forme. Deux genres d'écart : `corps` (un
+visiteur sur le seuil serait dans l'objet — bloquant) et `cadre` (le
+cadre du portail, 2,4 × 3 m, traverse la matière — gênant, compté). Sa
+première passe a trouvé le portail des archives à 1,4 m dans la volée
+r11, celui de la face 6 frôlé à la cheville par la r12, et deux cadres
+sous un palier ; la règle elle-même a servi à les reposer, au plus court.
+Dans le même geste, la base des volées serpentées s'élargit d'un
+cinquième (`BASE_SERPENTIN`) : à largeur nominale, le pied d'une volée de
+1,68 m était trop fin pour s'y engager d'un pas sûr. Elle a trouvé
 cinq seuils encombrés : le portail du labo **dans la volée r2** du
 belvédère (2,63 m dans la matière — c'était bien celui qu'on voyait), un
 rayonnage centré sur la porte de l'allée dans la bibliothèque, un buisson,
@@ -2708,6 +2729,15 @@ méthode. Ni coque inversée ni géométrie d'arêtes : un plan, un modèle, un
 relief ou un voxel se détourent pareil. Le rayon de visée se lance au plus
 vingt fois par seconde à la souris, dix au réticule ; sans œuvre visée, la
 sortie ne lit même pas le masque.
+
+Le masque est OCCULTÉ par la pièce : avant de peindre la cible en blanc,
+la pièce courante entière se dessine dans la même cible, profondeur
+seule (un matériau de substitution sans couleur), et le blanc se teste
+contre cette profondeur. Le pied d'une stèle enterré sous le plancher des
+archives, une œuvre à moitié derrière un mur, ne se détourent plus que
+sur ce qu'on en voit — la première version ignorait la profondeur et
+soulignait le volume entier, sol traversé. Coût : un dessin de la pièce à
+demi-résolution, seulement pendant qu'une œuvre est visée.
 
 Deux garde-fous, appris à l'annexe. Un objet marqué `userData.horsSurvol`
 n'échange pas son matériau : il se CACHE le temps du masque — c'est le

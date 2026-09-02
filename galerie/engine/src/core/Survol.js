@@ -57,10 +57,18 @@ export class Survol {
     this.renderer = renderer;
     this.cible = null;        // l'Artwork visée, ou null
     this.force = 0;           // 0..1, le fondu
+    // Le blanc plat de la cible, TESTÉ en profondeur contre la pièce : ce
+    // qui est caché (le pied d'une stèle sous le sol, une œuvre derrière un
+    // mur) ne se détoure pas. La profondeur vient d'une pré-passe de la
+    // pièce courante dans la même cible (voir `rendre`).
     this._masque = new THREE.MeshBasicMaterial({
-      color: 0xffffff, depthTest: false, depthWrite: false, fog: false,
+      color: 0xffffff, depthTest: true, depthWrite: false, fog: false,
       side: THREE.DoubleSide
     });
+    // la pré-passe : la pièce entière, profondeur seule, aucune couleur
+    this._profondeur = new THREE.MeshBasicMaterial({ colorWrite: false, fog: false, side: THREE.DoubleSide });
+    this._sceneOcc = new THREE.Scene();
+    this._sceneOcc.overrideMaterial = this._profondeur;
     this._rt = null;          // le masque net (multi-échantillonné)
     this._rtH = null;         // flou horizontal
     this._rtV = null;         // flou vertical — la texture floue lue à la sortie
@@ -96,7 +104,11 @@ export class Survol {
       depthBuffer: false, stencilBuffer: false,
       minFilter: THREE.LinearFilter, magFilter: THREE.LinearFilter
     };
-    this._rt = new THREE.WebGLRenderTarget(w, h, { ...options, samples: ECHANTILLONS });
+    // le masque a une PROFONDEUR : la pré-passe de la pièce l'écrit, la
+    // cible s'y teste — c'est ce qui coupe la partie enterrée d'une œuvre
+    this._rt = new THREE.WebGLRenderTarget(w, h, {
+      ...options, depthBuffer: true, samples: ECHANTILLONS
+    });
     this._rtH = new THREE.WebGLRenderTarget(w, h, options);
     this._rtV = new THREE.WebGLRenderTarget(w, h, options);
   }
@@ -106,7 +118,7 @@ export class Survol {
    * dessiner (la sortie coupe alors le contour) — c'est le cas presque
    * tout le temps, et cela ne coûte alors qu'un test.
    */
-  rendre(camera, dt, { reducedMotion = false } = {}) {
+  rendre(camera, dt, { reducedMotion = false, occulteurs = null } = {}) {
     const veut = this.cible && this.cible.mesh && !this.cible.mediaError
       && !this.cible.sansSurvol ? 1 : 0;
     if (reducedMotion) this.force = veut;
@@ -148,9 +160,33 @@ export class Survol {
     // matériaux reviennent ; l'œuvre fautive renonce à son liseré.
     try {
       r.setRenderTarget(this._rt);
-      r.autoClear = true;
+      r.autoClear = false;
       r.setClearColor(0x000000, 1);
-      r.clear(true, false, false);
+      r.clear(true, true, false);
+      // LA PRÉ-PASSE : la pièce courante, profondeur seule (matériau de
+      // substitution, aucune couleur), dans la même cible. La cible se
+      // dessine ensuite en testant cette profondeur : le pied d'une stèle
+      // sous le sol, une œuvre derrière un mur, n'entrent pas dans le
+      // masque. Un dessin de la pièce à demi-résolution, seulement pendant
+      // qu'une œuvre est visée. Ce qui porte `horsSurvol` (les splats) se
+      // cache aussi ici : leur shader ne survivrait pas à la substitution.
+      if (occulteurs) {
+        occulteurs.traverse((o) => {
+          if (o.userData.horsSurvol && o.visible && !this._caches.includes(o)) {
+            this._caches.push(o); o.visible = false;
+          }
+        });
+        // l'objet reste l'enfant de sa vraie scène : on ne l'emprunte que
+        // pour ce dessin, sans toucher à sa parenté (updateMatrixWorld
+        // recalcule depuis une racine identité, comme la scène réelle)
+        this._sceneOcc.children.length = 0;
+        this._sceneOcc.children.push(occulteurs);
+        try { r.render(this._sceneOcc, camera); }
+        finally { this._sceneOcc.children.length = 0; }
+        // la cible fait partie de la pièce : la pré-passe a écrit sa vraie
+        // profondeur (le matériau de substitution prime sur l'échange), et
+        // le test « inférieur ou égal » laisse passer son blanc juste après
+      }
       r.render(racine, camera);
       // le flou, en deux passes : horizontale vers H, verticale vers V
       const u = this._flou.uniforms;
@@ -189,6 +225,7 @@ export class Survol {
   dispose() {
     this._rt?.dispose(); this._rtH?.dispose(); this._rtV?.dispose();
     this._masque.dispose();
+    this._profondeur.dispose();
     this._flou.dispose();
     this._quad.dispose();
   }

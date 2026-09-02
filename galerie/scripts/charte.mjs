@@ -48,6 +48,7 @@ import { cleDepuisOeuvre } from '../engine/src/core/ombres.js';
 // l'éditeur les montre EN DIRECT pendant le placement, et ce script les
 // juge au nœud — le même chiffre, la même formule, importés des deux côtés.
 export { empriseAuSol, occupationVoxel } from '../engine/src/core/charte-regles.js';
+import { loiSerpentin } from '../engine/src/core/serpentin.js';
 import { empriseAuSol,
   ACCROCHAGE, hauteurVisee, ecartAccrochage, reculDe, seuilsEncombres,
   dimensionsSalle as dimensionsPartagees,
@@ -845,9 +846,15 @@ export function auditSeuils() {
   // charte-regles — l'éditeur signale les mêmes seuils pendant le placement
   const oeuvres = toutesLesOeuvres();
   const rapport = [];
+  // en style fluide les volées serpentent : la règle juge la volée telle
+  // qu'elle se voit (même loi que le rendu et le collider)
+  let fluide = false;
+  try {
+    fluide = JSON.parse(readFileSync(join(RACINE, 'reglages.json'), 'utf8')).style === 'fluide';
+  } catch { /* pas de réglages : style brut */ }
   for (const s of salles()) {
     for (const e of seuilsEncombres(s, oeuvres, empriseAuSol,
-      { luminaires: LUMINAIRES })) {
+      { luminaires: LUMINAIRES, serpentin: fluide ? loiSerpentin : null })) {
       rapport.push({ salle: s.id, ...e });
     }
   }

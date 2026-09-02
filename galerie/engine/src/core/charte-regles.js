@@ -308,34 +308,177 @@ export function reculDe(w, salle) {
  * (empriseAuSol) — passée en argument pour que ce module reste sans
  * dépendance.
  */
-export function seuilsEncombres(salle, oeuvres, emprise, { luminaires = new Set() } = {}) {
-  const corps = (salle.works ?? [])
+export function seuilsEncombres(salle, oeuvres, emprise, {
+  luminaires = new Set(), serpentin = null
+} = {}) {
+  const solides = (salle.works ?? [])
     .map((id) => oeuvres.find((w) => w.id === id))
     .filter((w) => w && !luminaires.has(w.model?.shape)
-      && w.model?.shape !== 'lucioles' && w.solid !== false)
-    .map((w) => {
-      const e = emprise(w);
-      const [x, y, z] = w.position ?? [0, 0, 0];
-      return { id: w.id, x, z, demiX: e.demiX, demiZ: e.demiZ,
-        bas: y + e.bas, haut: y + e.haut };
-    });
+      && w.model?.shape !== 'lucioles' && w.solid !== false);
   const rapport = [];
   for (const p of salle.portals ?? []) {
-    const [px, py, pz] = p.position ?? [0, 0, 0];
-    const bas = py + CORPS.bas, haut = py + CORPS.haut;
-    for (const c of corps) {
-      if (c.haut <= bas || c.bas >= haut) continue;   // pas à hauteur d'homme
-      const dx = Math.max(0, Math.abs(c.x - px) - c.demiX - AIR_SEUIL);
-      const dz = Math.max(0, Math.abs(c.z - pz) - c.demiZ - AIR_SEUIL);
-      if (dx > 0 || dz > 0) continue;                 // il reste de l'air
+    const corps = echantillonsPortail(p, 'corps');
+    const axe = echantillonsPortail(p, 'axe');
+    const cadre = echantillonsPortail(p, 'cadre');
+    for (const w of solides) {
+      const ctx = { serpentin, cellules: null };
+      // un voxel se lit dans ses cellules, sur trois colonnes ; une forme
+      // pleine se lit dans sa boîte d'emprise, sur l'axe du portail avec
+      // l'air autour (AIR_SEUIL) — trois colonnes ET la marge feraient
+      // 1,3 m d'air exigé, et la couronne d'un arbre voisin bloquerait
+      const voxel = w.model?.type === 'voxel' && Array.isArray(w.model.cells);
+      const dedansCorps = (voxel ? corps : axe)
+        .filter((q) => pointDansOeuvre(w, q, emprise, { ...ctx, marge: voxel ? 0 : AIR_SEUIL })).length;
+      const dedansCadre = dedansCorps ? 0
+        : cadre.filter((q) => pointDansOeuvre(w, q, emprise, ctx)).length;
+      if (!dedansCorps && !dedansCadre) continue;
       rapport.push({
-        portail: p.to ?? '?', objet: c.id, position: [px, py, pz],
-        air: +Math.min(Math.abs(c.x - px) - c.demiX,
-          Math.abs(c.z - pz) - c.demiZ).toFixed(2)
+        portail: p.to ?? '?', objet: w.id, position: [...(p.position ?? [0, 0, 0])],
+        // `corps` : un visiteur sur le seuil serait DANS l'objet (ou à moins
+        // d'AIR_SEUIL d'une masse pleine) — bloquant. `cadre` : seul le cadre
+        // du portail traverse la matière — gênant, pas bloquant.
+        genre: dedansCorps ? 'corps' : 'cadre',
+        touches: dedansCorps || dedansCadre
       });
     }
   }
   return rapport;
+}
+
+/* ---------------------------------------------- géométrie des seuils --- */
+
+const DEG = Math.PI / 180;
+
+/**
+ * La matrice de rotation d'une œuvre ou d'un portail : Euler XYZ en degrés
+ * (l'ordre de three), ou le seul `rotationY`. Rendue en lignes.
+ */
+export function matriceRotation(cfg) {
+  const rot = Array.isArray(cfg?.rotation) ? cfg.rotation : [0, cfg?.rotationY ?? 0, 0];
+  const a = (rot[0] ?? 0) * DEG, b = (rot[1] ?? 0) * DEG, c = (rot[2] ?? 0) * DEG;
+  const ca = Math.cos(a), sa = Math.sin(a), cb = Math.cos(b), sb = Math.sin(b);
+  const cc = Math.cos(c), sc = Math.sin(c);
+  return [
+    [cb * cc, -cb * sc, sb],
+    [ca * sc + sa * sb * cc, ca * cc - sa * sb * sc, -sa * cb],
+    [sa * sc - ca * sb * cc, sa * cc + ca * sb * sc, ca * cb]
+  ];
+}
+
+/** R · v — un vecteur du repère de l'objet vers le monde (sans translation). */
+export function depuisLocal(R, v) {
+  return [0, 1, 2].map((i) => R[i][0] * v[0] + R[i][1] * v[1] + R[i][2] * v[2]);
+}
+
+/** Rᵀ · v — un vecteur du monde vers le repère de l'objet. */
+export function versLocal(R, v) {
+  return [0, 1, 2].map((i) => R[0][i] * v[0] + R[1][i] * v[1] + R[2][i] * v[2]);
+}
+
+/** Les cellules PLEINES d'un modèle voxel (RLE de voxel.js) : un Set d'indices. */
+export function cellulesPleines(m) {
+  const set = new Set();
+  const rle = m?.cells ?? [];
+  let i = 0;
+  for (let k = 0; k + 1 < rle.length; k += 2) {
+    if (rle[k + 1]) for (let n = 0; n < rle[k]; n++) set.add(i + n);
+    i += rle[k];
+  }
+  return set;
+}
+
+/**
+ * Un POINT du monde est-il dans la matière d'une œuvre ?
+ *
+ * Voxel : on ramène le point dans la grille (rotation complète, échelle,
+ * serpentement défait par `serpentin(dims, cell)` si la loi est fournie)
+ * et on lit la cellule — pleine ou non. C'est ce qui manquait : la règle
+ * lisait une boîte axée sur le monde, aveugle à une volée tournée de 90°,
+ * posée sur un mur, ou serpentée par le style fluide. Autres formes : la
+ * boîte d'emprise, dans le repère de l'objet, élargie de `marge`.
+ * `cellules` (Set) peut être fourni pour ne pas redécoder le RLE à chaque
+ * point ; sinon il est décodé et mémorisé sur `ctx.cellules`.
+ */
+export function pointDansOeuvre(w, point, emprise, ctx = {}) {
+  const s = w.scale ?? [1, 1, 1];
+  const R = matriceRotation(w);
+  const pos = w.position ?? [0, 0, 0];
+  const l = versLocal(R, [point[0] - pos[0], point[1] - pos[1], point[2] - pos[2]])
+    .map((v, i) => v / (s[i] || 1));
+  const m = w.model ?? {};
+  if (m.type === 'voxel' && Array.isArray(m.cells)) {
+    const dims = m.dims ?? [16, 16, 16];
+    const cell = m.cell ?? 0.25;
+    const loi = ctx.serpentin ? ctx.serpentin(dims, cell) : null;
+    const q = loi ? deserpenterLocal(loi, dims, cell, l) : l;
+    const x = Math.floor(q[0] / cell + dims[0] / 2);
+    const y = Math.floor(q[1] / cell);
+    const z = Math.floor(q[2] / cell + dims[2] / 2);
+    if (x < 0 || y < 0 || z < 0 || x >= dims[0] || y >= dims[1] || z >= dims[2]) return false;
+    if (!ctx.cellules) ctx.cellules = new Map();
+    let set = ctx.cellules.get(w.id);
+    if (!set) { set = cellulesPleines(m); ctx.cellules.set(w.id, set); }
+    return set.has(x + dims[0] * (y + dims[1] * z));
+  }
+  const e = emprise(w);
+  const marge = ctx.marge ?? 0;
+  // l'emprise est donnée dans le monde pour un objet droit : demi-largeurs
+  // par axe et hauteurs relatives à la position — on la lit ici dans le
+  // repère local, l'échelle déjà comprise dans `emprise`
+  const dx = e.demiX / (s[0] || 1), dz = e.demiZ / (s[2] || 1);
+  const bas = e.bas / (s[1] || 1), haut = e.haut / (s[1] || 1);
+  // la marge (l'air autour du seuil) est HORIZONTALE — une nappe d'eau ou
+  // une dalle à ras du sol ne bloque pas un corps qui la surplombe — et se
+  // lit EN MÈTRES DU MONDE : `l` est déjà divisé par l'échelle, la marge
+  // l'est donc aussi (sinon 0,70 m d'air devenaient 1,80 m autour d'une
+  // couronne d'arbre à l'échelle 2,6)
+  return Math.abs(l[0]) <= dx + marge / (s[0] || 1)
+    && Math.abs(l[2]) <= dz + marge / (s[2] || 1)
+    && l[1] >= bas && l[1] <= haut;
+}
+
+/** L'inverse du serpentement, sur un point du repère de l'objet (voir serpentin.js). */
+function deserpenterLocal(loi, dims, cell, local) {
+  const l = [...local];
+  if (loi.axe === 2) {
+    const t = (l[2] / cell + dims[2] / 2) / dims[2];
+    l[0] = (l[0] - loi.decalage(t)) / loi.gonflement(t);
+  } else {
+    const t = (l[0] / cell + dims[0] / 2) / dims[0];
+    l[2] = (l[2] - loi.decalage(t)) / loi.gonflement(t);
+  }
+  return l;
+}
+
+/**
+ * Les points à tester autour d'un portail, dans SON repère (un portail
+ * posé sur un mur a son « haut » le long du mur) : `corps` — le corps d'un
+ * visiteur sur le seuil, trois colonnes (−0,6 · 0 · +0,6 m) de CORPS.bas à
+ * CORPS.haut ; `cadre` — le cadre du portail, 2,4 m de large sur 3 m de
+ * haut, au pas de 30 cm, au-dessus de 30 cm (à zéro, on toucherait la dalle
+ * sur laquelle le portail est légitimement posé).
+ */
+export function echantillonsPortail(p, quoi = 'corps') {
+  const R = matriceRotation(p);
+  const P = p.position ?? [0, 0, 0];
+  const haut = depuisLocal(R, [0, 1, 0]);
+  const droite = depuisLocal(R, [1, 0, 0]);
+  const points = [];
+  const hauteurs = [], largeurs = [];
+  if (quoi === 'corps' || quoi === 'axe') {
+    for (let h = CORPS.bas; h <= CORPS.haut + 1e-6; h += 0.5) hauteurs.push(h);
+    if (quoi === 'corps') largeurs.push(-0.6, 0, 0.6);
+    else largeurs.push(0);            // l'axe seul : la colonne du milieu
+  } else {
+    for (let h = 0.3; h <= 3.0 + 1e-6; h += 0.3) hauteurs.push(h);
+    for (let d = -1.2; d <= 1.2 + 1e-6; d += 0.3) largeurs.push(d);
+  }
+  for (const h of hauteurs) {
+    for (const d of largeurs) {
+      points.push([0, 1, 2].map((i) => P[i] + haut[i] * h + droite[i] * d));
+    }
+  }
+  return points;
 }
 
 /**
@@ -347,7 +490,7 @@ export function seuilsEncombres(salle, oeuvres, emprise, { luminaires = new Set(
  * sur l'accrochage — un panneau à 1,52 m n'est pas un écart.
  */
 export function ecartsSalle(salle, oeuvres, emprise, {
-  tolerance = 0.05, luminaires = new Set()
+  tolerance = 0.05, luminaires = new Set(), serpentin = null
 } = {}) {
   const ecarts = [];
   const siennes = (salle.works ?? [])
@@ -373,10 +516,12 @@ export function ecartsSalle(salle, oeuvres, emprise, {
     }
   }
 
-  for (const s of seuilsEncombres(salle, oeuvres, emprise, { luminaires })) {
+  for (const s of seuilsEncombres(salle, oeuvres, emprise, { luminaires, serpentin })) {
     ecarts.push({
       regle: 'seuil', objet: s.objet,
-      texte: `« ${s.objet} » encombre le seuil du portail vers ${s.portail} (air ${s.air} m, minimum ${AIR_SEUIL})`
+      texte: s.genre === 'corps'
+        ? `« ${s.objet} » est DANS le seuil du portail vers ${s.portail} : un visiteur y serait pris dans la matière (${s.touches} point(s) du corps, air minimum ${AIR_SEUIL} m)`
+        : `« ${s.objet} » traverse le cadre du portail vers ${s.portail} (${s.touches} point(s) du cadre) — gênant, pas bloquant`
       // pas de correction automatique : le bon côté du dégagement est un choix
     });
   }

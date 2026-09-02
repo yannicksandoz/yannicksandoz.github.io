@@ -456,9 +456,18 @@ test('aucun portail ne s\'ouvre dans un objet', () => {
   // c'est la faute bête, celle qu'on ne voit qu'en jouant : un portail
   // planté dans un escalier, un buisson, un rayonnage. On la mesure une
   // fois pour toutes plutôt que de la déplacer à la main chaque fois.
+  // La règle lit désormais la MATIÈRE : les cellules pleines d'un voxel,
+  // rotation complète et serpentement du style fluide compris (une volée
+  // tournée, posée sur un mur ou ondulée était invisible à l'ancienne
+  // boîte axée sur le monde). `corps` : un visiteur sur le seuil serait
+  // dans l'objet — bloquant ; `cadre` : le cadre du portail traverse la
+  // matière — gênant, toléré ici mais compté.
   const encombres = auditSeuils();
-  assert.deepEqual(encombres.map((f) => `${f.salle} → ${f.portail} : ${f.objet}`
-    + ` (${f.air.toFixed(2)} m)`), []);
+  assert.deepEqual(encombres.filter((f) => f.genre === 'corps')
+    .map((f) => `${f.salle} → ${f.portail} : ${f.objet} (${f.touches} point(s) du corps)`), []);
+  const cadres = encombres.filter((f) => f.genre === 'cadre');
+  assert.ok(cadres.length <= 2,
+    `trop de cadres de portail dans la matière : ${cadres.map((f) => `${f.salle} → ${f.portail} : ${f.objet}`).join(' ; ')}`);
 });
 test('la règle a de quoi juger, et sait dire non', () => {
   // sans garde-fou, une règle qui ne trouve plus rien à mesurer passe

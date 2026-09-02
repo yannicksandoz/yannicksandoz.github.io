@@ -32,6 +32,7 @@ register('data:text/javascript,'
 const { setStyle, styleCourant, estFluide, patcherStries, dessinerCouronne,
   tesseler, courberParoi, loiParoi, loiCouronne, serpentinVoxel } =
   await import('../engine/src/core/style.js');
+const { BASE_SERPENTIN } = await import('../engine/src/core/serpentin.js');
 const { buildPrimitive } = await import('../engine/src/core/primitives.js');
 const { buildVoxelMeshMerged, buildVoxelCollider } =
   await import('../engine/src/core/voxel.js');
@@ -401,8 +402,14 @@ test('serpentinVoxel : allongé seulement, extrémités fixes, milieu qui gonfle
     pas = Math.max(pas, Math.abs(s.decalage((i + 1) / 32) - s.decalage(i / 32)));
   }
   assert.ok(pas < larg * 0.45, `le pas latéral reste franchissable (${pas.toFixed(2)} m)`);
-  assert.ok(s.gonflement(0.5) > 1.1, 'la forme gonfle en son milieu');
-  assert.ok(Math.abs(s.gonflement(0) - 1) < 1e-9, 'sans gonfler ses extrémités');
+  assert.ok(s.gonflement(0.5) > s.gonflement(0) + 0.1, 'la forme gonfle en son milieu');
+  // Les extrémités NE BOUGENT pas (décalage nul, testé plus haut) mais sont
+  // ÉLARGIES : à largeur nominale, le pied d'une volée de 1,68 m était trop
+  // fin pour s'y engager d'un pas sûr — un cinquième de plus, d'un bout à
+  // l'autre, le milieu gonflant encore par-dessus.
+  assert.ok(Math.abs(s.gonflement(0) - BASE_SERPENTIN) < 1e-9
+    && Math.abs(s.gonflement(1) - BASE_SERPENTIN) < 1e-9, 'les extrémités ont la largeur de base');
+  assert.ok(BASE_SERPENTIN >= 1.15 && BASE_SERPENTIN <= 1.35, 'une base élargie, sans devenir un palier');
   setStyle('brut');
   assert.equal(serpentinVoxel([7, 16, 32], 0.5), null, 'hors mode fluide, rien ne bouge');
 });

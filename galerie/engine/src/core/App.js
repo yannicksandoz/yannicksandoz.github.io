@@ -885,8 +885,11 @@ export class App {
         // l'éditeur a ses propres surbrillances (gizmo, charte) : le
         // liseré se tait dès qu'il est ouvert
         if (this.editor?.enabled) this.survol.viser(null);
+        // la pièce courante occulte : ce qu'elle cache (sous le sol,
+        // derrière un mur) ne se détoure pas
         const dessine = this.survol.rendre(this.camera, dt,
-          { reducedMotion: this.quality.reducedMotion });
+          { reducedMotion: this.quality.reducedMotion,
+            occulteurs: this.rooms?.current?.group ?? null });
         const u = this.sortie.uniforms;
         // léger : un trait blanc à moitié fondu dans l'image, pas un néon
         u.uContour.value = dessine ? this.survol.force * 0.45 : 0;
