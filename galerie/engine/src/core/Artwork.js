@@ -760,17 +760,22 @@ export class Artwork {
     // le fond, puis les CALQUES (voir isf-ecran.js) : un calque illisible
     // laisse un trou à sa place (null) pour que les index du document
     // restent ceux de l'écran — l'inspecteur dit lequel manque
-    const calques = [{ source: await lire(model), reglages: model.reglages ?? {} }];
-    for (const c of model.calques ?? []) {
-      if (!c || (!c.glsl && !c.file)) { calques.push(null); continue; }
-      try {
-        calques.push({ source: await lire(c), reglages: c.reglages ?? {},
-          fondu: c.fondu ?? 'normal', opacite: c.opacite ?? 1 });
-      } catch (e) {
-        console.warn(`[galerie] Œuvre ${this.config.id} : calque illisible (${c.file ?? 'glsl'}) — ${e.message}`);
-        calques.push(null);
-      }
-    }
+    // le fond et les calques se téléchargent EN MÊME TEMPS : trois fichiers
+    // en série, c'est trois allers-retours avant la première image
+    const [fond, ...autres] = await Promise.all([
+      lire(model),
+      ...(model.calques ?? []).map(async (c) => {
+        if (!c || (!c.glsl && !c.file)) return null;
+        try {
+          return { source: await lire(c), reglages: c.reglages ?? {},
+            fondu: c.fondu ?? 'normal', opacite: c.opacite ?? 1 };
+        } catch (e) {
+          console.warn(`[galerie] Œuvre ${this.config.id} : calque illisible (${c.file ?? 'glsl'}) — ${e.message}`);
+          return null;
+        }
+      })
+    ]);
+    const calques = [{ source: fond, reglages: model.reglages ?? {} }, ...autres];
     const resolution = model.resolution
       ?? (this.app.quality.isMobile ? 256 : 512);
     const ecran = new EcranISF(calques, { resolution });
@@ -806,7 +811,9 @@ export class Artwork {
       matiere.displacementScale = model.relief ?? 0.4;
     }
     const mesh = new THREE.Mesh(geometrie, matiere);
-    mesh.castShadow = forme !== 'panneau';
+    // un panneau plat ne projette pas d'ombre (`_setMesh` repose castShadow
+    // sur tout ce qui n'a pas le drapeau : c'est lui qu'il faut poser)
+    if (forme === 'panneau') mesh.userData.sansOmbre = true;
     return mesh;
   }
 
@@ -848,8 +855,10 @@ export class Artwork {
       tranche.position.z = -p / 2 + p * (k / (n - 1));
       tranche.userData.tranche = k;
       // l'ombre : la tranche du fond seulement — la passe d'ombre ne
-      // connaît pas le seuil, chaque tranche projetterait un rectangle
-      tranche.castShadow = k === 0;
+      // connaît pas le seuil, chaque tranche projetterait un rectangle.
+      // `sansOmbre` est le drapeau que `_setMesh` respecte (il repose
+      // castShadow sur tout ce qu'il traverse : l'écrire ici ne suffirait pas)
+      if (k > 0) tranche.userData.sansOmbre = true;
       groupe.add(tranche);
     }
     groupe.userData.isfVolume = { tranches: n };
