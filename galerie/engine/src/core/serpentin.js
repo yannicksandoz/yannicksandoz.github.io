@@ -37,9 +37,17 @@ export function loiSerpentin(dims, cell) {
   // étroite ne doit pas se contenter d'un frisson de dix centimètres. Elle
   // reste bornée par sa propre largeur — c'est ce qui garantit qu'une
   // marche recouvre encore largement la précédente : le décalage latéral
-  // d'un pas au suivant vaut au pire A·8,3/nombre de marches, soit un
-  // cinquième de la largeur pour une volée de trente marches.
-  const A = Math.min(long * 0.17, larg * 0.7);
+  // d'un pas au suivant vaut au pire A·8,3/nombre de marches. Coefficients
+  // ramenés de 0,17 à 0,06 de la longueur et de 0,7 à 0,29 de la largeur :
+  // à 1,18 m sur une volée de 7,7 m, le S se lisait comme un toboggan et
+  // une volée s'écartait de sa voie de près de 5 m de dessin — rien ne
+  // pouvait plus se coller à un mur. À 0,46 m, il ondoie encore, et la
+  // bande qu'une volée balaie (2,9 m de dessin) tient sous la poitrine du
+  // visiteur qui marche sur le mur voisin — c'est ce qui permet aux volées
+  // du belvédère de longer les murs (genere-belvedere.py, VOIE).
+  // (Port en Python dans scripts/genere-belvedere.py, `loi_serpentin` :
+  // les deux doivent changer ensemble.)
+  const A = Math.min(long * 0.06, larg * 0.29);
   const phase = ((dims[0] * 3 + dims[1] * 5 + dims[2] * 7) % 13) / 13 * Math.PI * 2;
   // DEUX ONDES plutôt qu'une : la porteuse donne le grand S, l'harmonique
   // le repentir en son milieu — une vraie sinuosité, pas un arc. L'enveloppe

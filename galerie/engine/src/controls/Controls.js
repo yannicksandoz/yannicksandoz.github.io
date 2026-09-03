@@ -588,12 +588,21 @@ export class Controls {
     // longeait un bord en biais jusqu'à ce que le milieu du corps soit
     // au-dessus du vide — et la caméra, elle, y était déjà à moitié.
     const sols = this._targets(GROUND_REACH);
-    const vide = (x, z) => {
+    const rayonVide = (x, z) => {
       _rayOrigin.set(x, feetY, z);
       this._voidRay.set(_rayOrigin, DOWN);
       this._voidRay.far = CHEST + CHUTE_MAX;
       return this._voidRay.intersectObjects(sols, true).length === 0;
     };
+    // LE FIL DU RASOIR. Deux masses qui se touchent — la crête d'une volée
+    // et le palier qu'elle rejoint — partagent un plan de faces ; un rayon
+    // tombé EXACTEMENT sur ce plan peut manquer les deux triangles, et la
+    // sonde voyait le vide là où deux sols se joignent : le pas était
+    // refusé, sans rien de visible. Quand un rayon ne trouve rien, un
+    // second, quatre centimètres plus loin dans le sens du pas, tranche —
+    // une vraie fente de quatre centimètres n'est pas un trou où l'on tombe.
+    const vide = (x, z) => rayonVide(x, z)
+      && rayonVide(x + _tryDir.x * 0.04, z + _tryDir.z * 0.04);
     const tombe = (dx, dz, dist) => {
       if (this._groundY === null || !sols.length) return false;
       _tryDir.set(dx, 0, dz).normalize();
@@ -660,8 +669,21 @@ export class Controls {
     this._groundRay.far = GROUND_REACH;   // reposé à chaque frame : un rayon
                                           // partagé est un rayon qu'on retrouve
                                           // réglé par quelqu'un d'autre
-    const hit = this._groundRay.intersectObjects(targets, true)[0];
+    let hit = this._groundRay.intersectObjects(targets, true)[0];
     if (!hit) return; // hors de tout : on garde l'altitude
+    // LE FIL DU RASOIR (voir `_collide`) : posé exactement sur la jointure
+    // de deux marches, le rayon peut passer entre leurs faces et trouver
+    // le plancher trois marches plus bas — la caméra plongeait à travers
+    // l'escalier. Un sol qui chute d'un coup de plus d'une marche se
+    // vérifie à trois centimètres de là ; on garde le plus haut.
+    if (this._groundY !== null && this._groundY - hit.point.y > 0.3) {
+      for (const [ox, oz] of [[0.03, 0], [0, 0.03]]) {
+        _rayOrigin.set(cam.x + ox, Math.max(pieds, cam.y - EYE) + SONDE_SOL, cam.z + oz);
+        this._groundRay.set(_rayOrigin, DOWN);
+        const autre = this._groundRay.intersectObjects(targets, true)[0];
+        if (autre && autre.point.y > hit.point.y) hit = autre;
+      }
+    }
     // VOL PLANÉ : tant que le sol est loin dessous, on n'y est pas rappelé.
     // Le suivi de sol tire la caméra vers la hauteur d'yeux quelle que soit
     // la distance — c'est lui qui faisait redescendre le visiteur laissé en

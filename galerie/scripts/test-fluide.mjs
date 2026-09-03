@@ -382,10 +382,12 @@ test('serpentinVoxel : allongé seulement, extrémités fixes, milieu qui gonfle
   const larg = 7 * 0.5;
   let max = 0;
   for (let t = 0; t <= 1; t += 0.005) max = Math.max(max, Math.abs(s.decalage(t)));
-  // l'ondulation doit se VOIR : au moins la moitié de la largeur de la volée
-  assert.ok(max > larg * 0.5, `l'ondulation est franche (${max.toFixed(2)} m)`);
-  // …sans jamais dépasser la largeur, sinon la volée se déchire
-  assert.ok(max <= larg * 0.71, `bornée par sa largeur (${max.toFixed(2)} m)`);
+  // l'ondulation doit se VOIR : au moins un quart de la largeur de la volée
+  // (c'était la moitié — à ce compte, une volée de 7,7 m s'écartait de sa
+  // voie de 1,18 m, un toboggan, et rien ne pouvait se coller à un mur)
+  assert.ok(max > larg * 0.25, `l'ondulation est franche (${max.toFixed(2)} m)`);
+  // …sans jamais approcher la moitié de la largeur, sinon la volée se déchire
+  assert.ok(max <= larg * 0.36, `bornée par sa largeur (${max.toFixed(2)} m)`);
   // DEUX ONDES, pas une : une simple sinusoïde n'a qu'un maximum de chaque
   // signe ; on exige au moins trois changements de sens
   let sens = 0, avant = null;

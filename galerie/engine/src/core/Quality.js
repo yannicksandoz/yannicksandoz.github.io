@@ -59,8 +59,13 @@ export class QualityManager {
           projecteursOmbre: 0,
           envIntensity: 0.5,
           // LA SONDE DE REFLETS (reflets.js) : un cube de 64 px, une face
-          // toutes les deux images — le reflet est flou de toute façon
-          reflets: { resolution: 64, cadence: 2 }
+          // toutes les deux images — le reflet est flou de toute façon — et
+          // PARESSEUSE : une photo à l'entrée, puis seulement tous les 2,5 m
+          // de marche. Mesuré sous profil mobile au belvédère (287
+          // maillages), la sonde continue coûtait les deux tiers de l'image :
+          // chaque face est un rendu complet de la salle, et à 64 px c'est
+          // le compte de maillages qui paie, pas les pixels.
+          reflets: { resolution: 64, cadence: 2, pas: 2.5 }
         }
       : {
           tier: 'desktop',

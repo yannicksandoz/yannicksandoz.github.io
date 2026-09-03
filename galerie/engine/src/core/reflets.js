@@ -156,9 +156,19 @@ function triangleEcran(material) {
 const CAMERA_ECRAN = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
 
 export class SondeReflets {
-  constructor(app, { resolution = 128, cadence = 1 } = {}) {
+  constructor(app, { resolution = 128, cadence = 1, pas = 0 } = {}) {
     this.app = app;
     this.cadence = Math.max(1, cadence);
+    // LA SONDE PARESSEUSE. `pas` > 0 : une fois les six faces prises, la
+    // sonde s'endort jusqu'à ce que le visiteur ait marché `pas` mètres
+    // (ou changé de salle) — les reflets sont flous, un déplacement d'un
+    // mètre ne les change pas à l'œil. À 0 (bureau), elle tourne sans
+    // cesse. Sur téléphone, chaque face étant un rendu complet de la
+    // salle, c'est la différence entre une sonde qui coûte les deux tiers
+    // de l'image et une sonde qui ne coûte rien à l'arrêt.
+    this.pas = Math.max(0, pas);
+    this._depart = null;       // d'où la photo courante a été prise
+    this._salle = null;
     // une puissance de deux : c'est ce que le PMREM garde de toute façon
     resolution = 2 ** Math.floor(Math.log2(Math.max(16, resolution)));
     reglerTailleSonde(resolution);
@@ -207,6 +217,16 @@ export class SondeReflets {
     const r = this.app.renderer;
     const scene = this.app.scene;
     const cam = this.app.camera;
+    if (this.pas > 0 && this._face === 0) {
+      // entre deux photos : on dort tant qu'on n'a pas marché assez loin
+      const salle = this.app.rooms?.current ?? null;
+      const loin = !this._depart || salle !== this._salle
+        || this._depart.distanceToSquared(cam.position) >= this.pas * this.pas;
+      if (!loin) return;
+      this._depart = (this._depart ?? new THREE.Vector3()).copy(cam.position);
+      this._salle = salle;
+    }
+    if (this._face === 0) this.photos = (this.photos ?? 0) + 1;   // compteur (sondes, tests)
     // la sonde suit le visiteur — au niveau des yeux, là où sont les reflets
     this.camera.position.copy(cam.position);
     // pendant la photo, la salle ne se reflète pas dans elle-même (une

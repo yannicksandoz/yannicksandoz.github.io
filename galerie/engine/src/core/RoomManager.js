@@ -595,7 +595,7 @@ export class RoomManager {
    * (pièce inconnue ou fondu déjà en cours) — l'appelant ne doit pas
    * annoncer une pièce dans laquelle on n'est jamais entré.
    */
-  async setCurrent(id, { instant = false, arrival = null, plane = 'sol' } = {}) {
+  async setCurrent(id, { instant = false, arrival = null, plane = 'sol', regard = null } = {}) {
     // nouvelle salle = nouvelle carte d'ombre, tout de suite
     this.app.ombresSales = true;
     const room = this.rooms.get(id);
@@ -636,7 +636,10 @@ export class RoomManager {
     // `ambiance-salle.js` — c'est le rebond que le téléphone ne calcule pas.
     if (ambianceArmee()) majAmbiance(room, segmentsMonde(room, this.app?.camera ?? null));
     else oublierAmbiance();
-    this._placeCamera(arrival ?? room.config.spawn ?? [0, 2.2, 10]);
+    // le regard composé du portail ; sans arrivée propre, celui de la pièce
+    // (sa scène d'entrée, valable aussi pour un saut par le menu)
+    this._placeCamera(arrival ?? room.config.spawn ?? [0, 2.2, 10],
+      regard ?? (arrival ? null : room.config.regard ?? null));
     // Un portail dans lequel on ATTERRIT est désarmé : il ne se re-déclenche
     // qu'une fois sa zone quittée — sinon, arrivée près du portail de retour
     // = renvoi immédiat d'où l'on vient.
@@ -696,7 +699,7 @@ export class RoomManager {
     }
   }
 
-  _placeCamera(pos) {
+  _placeCamera(pos, regard = null) {
     const cam = this.app.camera;
     cam.position.set(pos[0], pos[1], pos[2]);
     // une téléportation n'est pas un pas : sans cela, le saut d'arrivée se
@@ -705,6 +708,19 @@ export class RoomManager {
     this._dep.set(0, 0, 0);
     // téléportation : la collision doit repartir d'ici, pas d'il y a une frame
     this.app.controls?.resyncCollision?.();
+    // LA SCÈNE D'ENTRÉE COMPOSÉE : l'auteur a dit où regarder (`regard`
+    // d'un portail ou d'une pièce, dans le repère de l'arrivée — celui du
+    // plan si l'on débarque sur un mur). La caméra vise ce point, hauteur
+    // comprise : on peut lever les yeux vers ce qui flotte. Le reste de ce
+    // qui suit — cadrer l'œuvre la plus proche — est le choix par défaut.
+    if (Array.isArray(regard) && regard.length === 3) {
+      const vise = new THREE.Vector3(regard[0], regard[1], regard[2]).sub(cam.position);
+      if (vise.lengthSq() > 0.01) {
+        vise.normalize();
+        this.app.controls?.orbit.target.copy(cam.position).addScaledVector(vise, 4);
+        return;
+      }
+    }
     // Premier regard : une ŒUVRE dans le cadre plutôt que le vide — le
     // visiteur qui apparaît sait immédiatement vers quoi marcher.
     //
@@ -1159,7 +1175,8 @@ export class RoomManager {
     const arrival = portal.cfg.arrival ?? target.config.spawn ?? [0, 2.2, 10];
     // `plane` : sur quel plan de la pièce cible on débarque (Escher).
     // La cible peut être LA MÊME pièce — on en ressort sur un autre mur.
-    this.setCurrent(target.config.id, { arrival, plane: portal.cfg.plane ?? 'sol' })
+    this.setCurrent(target.config.id, { arrival, plane: portal.cfg.plane ?? 'sol',
+      regard: portal.cfg.regard ?? null })
       .then(() => {
         // On date l'ARRIVÉE, pas le départ : compter depuis le début aurait
         // laissé le fondu manger la moitié du répit. Passé ce court instant,

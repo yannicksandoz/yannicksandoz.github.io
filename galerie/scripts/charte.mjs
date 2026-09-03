@@ -472,6 +472,11 @@ export function auditHierarchie() {
  * proche du point d'arrivée) doit avoir quelque chose à cadrer : une œuvre
  * ni collée au spawn (< 2 m : on apparaît dessus) ni perdue au-delà de 80 %
  * de la diagonale de la salle (on cadre un point dans la brume).
+ *
+ * Une pièce dont le spawn porte un `regard` (la scène d'entrée composée
+ * par l'auteur — RoomManager._placeCamera) n'a rien à laisser au hasard :
+ * on vérifie seulement que le point visé est dans la pièce et devant soi
+ * (à plus d'un mètre), et l'on dit qu'elle est composée.
  */
 export function auditVista() {
   const oeuvres = new Map(toutesLesOeuvres().map((w) => [w.id, w]));
@@ -483,6 +488,14 @@ export function auditVista() {
     const { w: lw, d: ld } = dimensionsSalle(s);
     const diag = Math.hypot(lw, ld);
     const [sx, , sz] = s.spawn ?? [0, 2.2, 10];
+    if (Array.isArray(s.regard) && s.regard.length === 3) {
+      const [rx, , rz] = s.regard;
+      const d = Math.hypot(rx - sx, rz - sz);
+      const dedans = Math.abs(rx) <= lw / 2 + 1 && Math.abs(rz) <= ld / 2 + 1;
+      rapport.push({ id: s.id, plusProche: d, plafond: 0.8 * diag, compose: true,
+        cadrable: d >= 1 && dedans });
+      continue;
+    }
     const distances = habitants.map((w) => {
       const [x, , z] = w.position ?? [0, 0, 0];
       return Math.hypot(x - sx, z - sz);
@@ -942,8 +955,10 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
   }
   console.log('\nLA VISTA (le premier regard a une œuvre à cadrer)\n');
   for (const v of auditVista()) {
-    console.log(`  ${v.id.padEnd(14)} plus proche à ${v.plusProche.toFixed(1)} m`
-      + ` (plafond ${v.plafond.toFixed(0)} m)  ` + (v.cadrable ? '✓' : '✗'));
+    console.log(`  ${v.id.padEnd(14)} ` + (v.compose
+      ? `regard composé, visé à ${v.plusProche.toFixed(1)} m  `
+      : `plus proche à ${v.plusProche.toFixed(1)} m (plafond ${v.plafond.toFixed(0)} m)  `)
+      + (v.cadrable ? '✓' : '✗'));
   }
   console.log(`\nL'AMPLEUR À L'ARRIVÉE (au moins ${CHARTE.angleMinimal}° de champ)\n`);
   for (const a of auditAmpleur()) {

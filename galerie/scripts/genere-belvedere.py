@@ -35,6 +35,7 @@ SIZE = 50.0          # cube DE DESSIN : largeur = profondeur = hauteur (80 au
 K = 0.48             # échelle de LIVRAISON : 50 m de dessin → 24 m de pièce
 WALL_T = 0.35        # épaisseur des murs (RoomManager)
 HALF = SIZE / 2
+INNER = HALF - WALL_T / 2       # face intérieure des murs : 24,825
 LIBRE = 2.4 / K      # hauteur d'air garantie au-dessus de tout ce qu'on foule
                      # (2,4 m livrés : les yeux à 2,2 m, la tête à 2,3 m)
 
@@ -162,7 +163,7 @@ def loi_serpentin(dims):
     if long_ * K < 5 or long_ < larg * 2.2:
         return None
     axe = 0 if lx >= lz else 2
-    A = min(long_ * 0.17, larg * 0.7)
+    A = min(long_ * 0.06, larg * 0.29)     # = serpentin.js, à changer ensemble
     phase = ((dims[0] * 3 + dims[1] * 5 + dims[2] * 7) % 13) / 13 * 2 * math.pi
     def forme(t):
         return math.sin(math.pi * t) * (0.70 * math.sin(math.pi * 3 * t + phase)
@@ -304,7 +305,6 @@ def pillar(id_, plane, pos, h, rot_y=0):
 
 # --------------------------------------------------------------- parcours --
 # Trois volées enchaînées ; chacune finit contre le mur qui deviendra le sol.
-INNER = HALF - WALL_T / 2       # face intérieure des murs : 39,825
 
 bascules = []
 
@@ -354,15 +354,29 @@ def bascule(plane_from, top_world, to_plane, label, retour=None, decalage=(0, 0)
 H_MAIN = 8.0
 RUN = 2 * H_MAIN
 # la voie des volées : centre de la face ± VOIE. Sur le sol et le plafond,
-# ±15 — leurs volées s'écartent pour laisser le CENTRE à la tour, posée sur
-# l'axe de la pièce, mais pas plus : une volée serpentine s'écarte de sa
-# voie de 2,1 m (ses bouts, élargis) à 4,7 m (son ventre), et vue du mur
-# voisin, cette bande de 2,6 m doit tenir tout entière AU-DESSUS de la tête
-# (5 m du mur) ou sous la poitrine (2,5) — à 17 comme à 18,5, elle passait
-# à hauteur de front ; à 15, son ventre reste à 5,1 m.
-# Sur les quatre murs, ±6,5 (la ligne des 3,12 m) : à 8, la volée est → sud
-# enjambait la crête de la volée sol → est à 1,9 m ; à 6,5, 2,6 m d'air.
-VOIE = {'sol': 15.0, 'plafond': 15.0, 'est': 6.5, 'ouest': 6.5, 'nord': 6.5, 'sud': 6.5}
+# les volées se COLLENT aux murs nord et sud — leur ventre serpentin
+# effleure le mur à 5 cm — et laissent le centre à la tour. La voie s'en
+# DÉDUIT de la loi du serpentin (voie_collee) : le bord extérieur d'une
+# volée balaie, autour de sa voie, de 1,35 m (élargie et repliée vers
+# l'intérieur) à 3,33 m (son ventre vers le mur ; amplitude 0,96 de
+# dessin), et vue du mur voisin cette bande doit tenir tout entière sous
+# la poitrine (2,5 m du mur) ou au-dessus de la tête (5) : collée, son
+# bord le plus rentré reste à 2,0 du mur — un mur qu'on longe. (Avec
+# l'ancienne amplitude de 2,45, la bande faisait 4,9 m et ne tenait nulle
+# part près d'un mur : les volées vivaient à ±15.)
+# Sur les quatre murs, ±8 (la ligne des 3,84 m) : la volée est → sud passe
+# à 5,2 au-dessus de la crête de la volée sol → est — LIBRE, tout juste.
+def voie_collee(dims):
+    """La voie d'une volée dont le bord extérieur (local −x : le côté sans
+    lobe) vient effleurer le mur à 5 cm, telle qu'elle se voit."""
+    demi = WIDE * CELL / 2
+    loi = loi_serpentin(dims)
+    if not loi:
+        return round(INNER - 0.05 - demi, 3)
+    ext = [demi * loi['gonflement'](i / 200) - loi['decalage'](i / 200) for i in range(201)]
+    return round(INNER - 0.05 - max(ext), 3)
+VOIE_COLLEE = voie_collee([WIDE, int(round(8.0 / CELL)), 2 * int(round(8.0 / CELL))])
+VOIE = {'sol': VOIE_COLLEE, 'plafond': VOIE_COLLEE, 'est': 8.0, 'ouest': 8.0, 'nord': 8.0, 'sud': 8.0}
 
 # ── LES DOUZE ARÊTES : une volée par arête, deux par gravité ─────────────
 # Une arête du cube joint deux faces ; la volée se pose sur l'une (PLAN) et
@@ -385,7 +399,7 @@ FACES_REELLES = {'est': ([1, 0, 0], INNER), 'ouest': ([-1, 0, 0], -INNER),
 ARETES = [
     # (plan, vers, côté de la voie : +1 ou −1 par rapport au centre de la face).
     # Sol et plafond montent vers est et ouest : leurs volées courent en x,
-    # à z = ±15, et la tour jumelle tient entre les deux : chaque bras vit
+    # à z = ±VOIE_COLLEE (≈ 21,4), et la tour jumelle tient entre les deux : chaque bras vit
     # dans le quadrant OPPOSÉ à la volée de son côté (x > 0 : z < 0).
     ('sol', 'est', +1), ('sol', 'ouest', -1),
     ('plafond', 'est', +1), ('plafond', 'ouest', -1),
@@ -1183,13 +1197,15 @@ for plane in PLANES:
         colonnes.setdefault((ix, iz), []).append((iy, wid))
     for (ix, iz), piles in colonnes.items():
         piles.sort()
-        # la colonne en MASSES contiguës [bas, haut, id du dessus]
+        # la colonne en MASSES contiguës [bas, haut, id du dessous, id du
+        # dessus] — une volée et son lobe se touchent : c'est le dessous
+        # qui surplombe, le dessus qui porte
         runs = []
         for iy, wid in piles:
             if runs and iy == runs[-1][1] + 1:
-                runs[-1][1], runs[-1][2] = iy, wid
+                runs[-1][1], runs[-1][3] = iy, wid
             else:
-                runs.append([iy, iy, wid])
+                runs.append([iy, iy, wid, wid])
         # le sol : la première masse d'une colonne qui ne touche pas le sol.
         # Sous la poitrine, une masse est un mur qu'on contourne (le rayon de
         # poitrine l'arrête) ; entre la poitrine et la tête, c'est un piège
@@ -1197,15 +1213,15 @@ for plane in PLANES:
         # la caméra. Une marche mince à 1,2 m — le flanc d'une volée
         # serpentine vue d'une autre gravité — passe sous les yeux : on la
         # traverse du buste, la caméra n'y entre pas.
-        a, b, w0 = runs[0]
+        a, b, w0, _ = runs[0]
         if POITRINE_CELLS <= a < LIBRE_CELLS and b >= YEUX_CELLS:
             fautes.append(f'{plane} : {w0} surplombe le sol à {a * CELL * K:.2f} m '
                           f'livrés en ({ix * CELL * K:.1f}, {iz * CELL * K:.1f})')
         # chaque surface foulable de CE plan : de l'air jusqu'à LIBRE
         # au-dessus (une masse plus bas barre le chemin, ou cogne la caméra)
         for k in range(len(runs) - 1):
-            _, haut, wid = runs[k]
-            a2, _, wid2 = runs[k + 1]
+            _, haut, _, wid = runs[k]
+            a2, _, wid2, _ = runs[k + 1]
             if not propre.get(wid):
                 continue                     # une falaise d'un autre plan
             if meme_arete(wid, wid2):

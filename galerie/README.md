@@ -200,27 +200,75 @@ boîte — c'est une assertion du script (« symétrie »), pas une intention.
   demi-tours : deux coins du plafond, les deux coins opposés du sol,
   chacune visant le centre.
 - **Le serpentin est dans le générateur.** En style fluide, le moteur fait
-  ondoyer les volées (`serpentin.js`) : un S de 1,18 m d'amplitude, une
-  largeur de 1,2 à 1,44 fois la nominale, extrémités fixes. Le script
-  dessinait des lobes droits contre des volées qui s'en écartaient d'un
-  mètre, et jugeait chevauchements et hauteur libre sur des grilles
-  droites. La loi est portée (`loi_serpentin`, valeurs identiques à 10⁻⁴) :
-  le lobe est découpé sur le flanc de la volée TELLE QU'ELLE SE VOIT (il
-  la chevauche d'une cellule au plus, jamais de jour — une fente de 7 cm
+  ondoyer les volées (`serpentin.js`) : un S d'amplitude bornée par la
+  largeur, une largeur de 1,2 à 1,44 fois la nominale, extrémités fixes.
+  Le script dessinait des lobes droits contre des volées qui s'en
+  écartaient d'un mètre, et jugeait chevauchements et hauteur libre sur
+  des grilles droites. La loi est portée (`loi_serpentin`, valeurs
+  identiques à 10⁻⁴ ; les coefficients doivent changer ensemble) : le lobe
+  est découpé sur le flanc de la volée TELLE QU'ELLE SE VOIT (il la
+  chevauche d'une cellule au plus, jamais de jour — une fente de 7 cm
   suffisait à la sonde anti-chute pour refuser le pas), et les deux
   contrôles inscrivent les cellules vues. Ce qu'ils ont appris : une volée
   de 6 m de montée court 12 m, pas 16 (un bras s'arrêtait à 4 m de sa
   galerie — d'où l'assertion de raccord) ; côte à côte, la volée sol → est
-  et la volée f1 de la tour se touchaient ; et une volée serpentine
-  s'écarte de sa voie de 2,1 à 4,7 m, une bande de 2,6 m qui, vue du mur
-  voisin, doit tenir tout entière au-dessus de la tête (5 m du mur) —
-  à 17 comme à 18,5 elle passait à hauteur de front, à 15 son ventre
-  reste à 5,1 m.
+  et la volée f1 de la tour se touchaient.
+- **Moins courbes, collées aux murs.** L'amplitude du serpentin a été
+  ramenée de 1,18 m à 0,46 m sur une volée de 7,7 m (coefficients 0,17 →
+  0,06 de la longueur, 0,7 → 0,29 de la largeur) : à 1,18 m le S se lisait
+  comme un toboggan, et surtout une volée balayait 4,9 m de dessin autour
+  de sa voie — vue du mur voisin, cette bande devait tenir tout entière
+  au-dessus de la tête (5 m du mur) ou sous la poitrine (2,5), et ne
+  tenait nulle part près d'un mur : les volées vivaient à ±15, au milieu
+  du sol. À 0,46 m, la bande fait 2 m, et la voie du sol et du plafond se
+  DÉDUIT de la loi (`voie_collee`) : le ventre de la volée effleure le mur
+  nord ou sud à 5 cm, son bord le plus rentré reste à 2 m — un mur qu'on
+  longe. Le sol est libre entre la tour et les murs.
 - **La règle des yeux.** Sous la poitrine, une masse est un mur (le rayon
   de poitrine l'arrête) ; entre la poitrine et la tête, c'est un piège SI
   elle monte jusqu'aux yeux (1,92 m) — une marche mince à 1,2 m, le flanc
   d'une volée serpentine vue d'une autre gravité, passe sous les yeux : on
   la traverse du buste, la caméra n'y entre pas.
+
+**Ça ramait sur téléphone, surtout au belvédère — la sonde paresseuse.**
+Mesuré sous profil mobile (contexte tactile, 64 px, une face toutes les
+deux images) : l'image du belvédère coûtait trois fois celle de l'entrée,
+et la sonde de reflets en prenait les deux tiers — chaque face est un
+rendu complet de la salle, et à 64 px c'est le compte de maillages qui
+paie (287 au belvédère, 36 à l'entrée), pas les pixels. Elle est désormais
+PARESSEUSE sur téléphone (`reflets.pas`, 2,5 m) : une photo à l'entrée
+d'une salle, puis seulement tous les 2,5 m de marche — les reflets sont
+flous, un mètre ne les change pas à l'œil. À l'arrêt, elle ne coûte rien ;
+en marche, une photo toutes les deux secondes environ, six faces sur douze
+images. Sur bureau (`pas` 0), elle tourne sans cesse comme avant. Le reste
+de l'image du belvédère (lampes budgétées à quatre, lisières, gerbes) ne
+pèse qu'un dixième chacun ; la densité de pixels reste ce que le
+gouverneur règle.
+
+**Le fil du rasoir.** Deux masses qui se touchent — la crête d'une volée
+et le palier qu'elle rejoint, deux marches d'une même volée — partagent un
+plan de faces, et un rayon tombé EXACTEMENT sur ce plan peut manquer les
+deux triangles. Mesuré au marcheur, qui avance par pas ronds : la sonde
+anti-chute voyait le vide à la jointure de deux sols et refusait le pas ;
+la sonde de sol trouvait le plancher trois marches plus bas et la caméra
+plongeait à travers l'escalier. Désormais un rayon qui ne trouve rien est
+doublé à quatre centimètres dans le sens du pas, et un sol qui chute
+d'un coup de plus d'une marche se vérifie à trois centimètres de là
+(`Controls._collide`, `_followGround`).
+
+**Les scènes d'entrée — le regard composé.** À l'arrivée, le moteur
+cadrait l'œuvre la plus proche devant soi, sinon l'intérieur de la pièce :
+un premier regard correct, jamais composé. Un portail (ou une pièce, pour
+son spawn) porte désormais un `regard` : le point que la caméra vise en
+débarquant, hauteur comprise, dans le repère de l'arrivée (celui du plan
+si l'on débarque sur un mur). Dans l'éditeur, bloc « Arrivée » du portail
+ou de la pièce : « Ici » prend ce que la caméra vise. Au belvédère, les
+treize arrivées visent la plate-forme de la tour de leur plan (le tore
+au-dessus) ou, sur un mur, la sphère de la volée qui monte devant ; ses
+treize portails visent la profondeur de chaque pièce cible ; le couloir,
+l'entrée et le jardin — dont la charte disait le premier regard pauvre —
+ont le leur (`scripts/…` : posés au JSON, vérifiés par la vista, qui dit
+« regard composé »).
 
 Quatre portails reposés par la charte (allée, archives, couloir, face 4).
 Mesuré au jeu par micro-pas, cinq parcours : sous les deux galeries
@@ -2689,6 +2737,8 @@ chaque salle en reçoit.
   "id": "hall",
   "title": "Hall",
   "spawn": [0, 2.2, 14],           // point d'arrivée (position caméra)
+  "regard": [0, 5.5, 0],           // ce que la caméra vise en arrivant (optionnel :
+                                   // sinon l'œuvre la plus proche devant soi)
   "fogColor": "#05050a",           // ambiance visuelle de la pièce (optionnel)
   "floor": { "size": 80, "color": "#13131f", "grid": true },  // sol (false = aucun)
   "shell": {                       // coque : murs de salle (absent = à ciel
@@ -2736,6 +2786,8 @@ chaque salle en reçoit.
       "rotation": [0, 12, 0],
       "label": "Annexe",           // étiquette flottante
       "arrival": [0, 2.2, 8],      // où l'on apparaît dans la destination
+      "regard": [0, 4.5, -12],     // ce que la caméra y vise (repère de
+                                   // l'arrivée : celui du plan, s'il y en a un)
       "plane": "est"               // Escher : plan d'arrivée (sol par défaut,
     }                              // nord/sud/est/ouest/plafond) — la pièce
                                    // entière pivote pour que ce plan devienne
