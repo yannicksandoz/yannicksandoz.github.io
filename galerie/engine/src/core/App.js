@@ -23,6 +23,7 @@ import { COUCHE_AUTO_ECLAIREE } from './Artwork.js';
 import { WATER_TIME } from './primitives.js';
 import { chauffer } from './cartels.js';
 import { appliquerEnvironnement } from './environnements.js';
+import { SondeReflets } from './reflets.js';
 import * as lettrage from './lettrage.js';
 
 const FOG_COLOR = 0x05050a;
@@ -418,6 +419,15 @@ export class App {
     this._envApplique = 'studio';
     this.envBaseIntensity = this.quality.profile.envIntensity ?? 0.5;
     this.scene.environmentIntensity = this.envBaseIntensity;
+    // LA SONDE DE REFLETS (reflets.js) : la salle elle-même — ses écrans,
+    // ses corniches, ses lanternes — s'ajoute à ce studio dans tous les
+    // reflets. Une face de cube par image, pré-filtrée toutes les six.
+    try {
+      this.reflets = new SondeReflets(this, this.quality.profile.reflets ?? {});
+    } catch (e) {
+      console.warn(`[galerie] Reflets : sonde indisponible — ${e?.message ?? e}`);
+      this.reflets = null;
+    }
 
     // L'hémisphérique ne fait plus que teinter (voûte violette / sol sombre) :
     // le remplissage vient de l'environnement, qui modèle bien mieux.
@@ -877,6 +887,8 @@ export class App {
       majLignes(this.camera);
       // la sonde ne change pas, le repère si : on tourne son ordre 1
       orienterAmbiance(this.camera);
+      // une face de la sonde de reflets, avant que la scène ne se rende
+      this.reflets?.update();
 
       this.vistas?.update(dt); // la pièce apparue se rend avant la vraie
       // le masque de l'œuvre survolée, puis sa force à la sortie : à zéro

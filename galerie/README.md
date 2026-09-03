@@ -1392,6 +1392,8 @@ l'onglet **Pièce** de l'éditeur) :
                 "azimuth": 210, "elevation": 55,
                 "shadows": false },        // couper les ombres de CETTE pièce
   "envIntensity": 1,                       // ambiance IBL (image d'environnement)
+  "reflets": 1,                            // la salle dans ses propres reflets
+                                           // (false | nombre | { force, rebond })
   "ambient": { "color": "#404050", "intensity": 0.6 }, // lavis uniforme
   "floor": { "size": 40, "color": "#141420", "texture": "dalles",
              "textureRepeat": 2, "roughness": 0.4, "metalness": 0.1 },
@@ -2707,6 +2709,35 @@ vérifications : Portails (bloquant), Attributions (bloquant), Charte
 (avertit seulement). Un orphelin de portail refuse toute écriture — zip,
 dossier, publication, mise en ligne — avec la raison affichée.
 
+## Les reflets : toute lumière émise se voit sur les autres surfaces
+
+L'image d'environnement donne aux matières leur modelé, mais elle ne
+sait rien de la salle : un écran de shader, une corniche, une lanterne
+n'existaient dans aucun reflet — une surface polie en face d'un bandeau
+de lumière renvoyait un studio gris. Désormais une **sonde** (`reflets.js`)
+photographie la pièce autour du visiteur dans un cube à basse résolution
+(128 px au bureau, 64 sur mobile), UNE FACE PAR IMAGE ; le cube est
+pré-filtré (PMREM, comme l'environnement) et s'ajoute dans tous les
+matériaux standard — coques, sols, voxels, primitives, modèles — comme
+radiance supplémentaire, floutée selon la rugosité de la surface, et pour
+une petite part comme irradiance : la lueur d'une corniche rougit le sol
+devant elle, la lumière d'une œuvre se voit sur le mur d'en face, une
+lampe posée dans l'éditeur se reflète aussitôt dans la vitrine voisine.
+
+Ce n'est pas une réflexion écran (SSR) : la sonde est prise en UN point,
+les reflets n'ont pas de parallaxe. Sur des surfaces rugueuses (les
+nôtres, 0,6–0,95) c'est invisible ; sur un sol poli c'est un lavis
+lumineux qui suit le visiteur, pas un miroir. Les constructions voxel
+acceptent désormais `roughness` et `metalness` dans leur modèle : un
+escalier laqué renvoie la corniche d'en face, une masse mate l'absorbe.
+Par pièce, `"reflets"` dose la chose (`false` la coupe, un nombre module
+la force, `{ force, rebond }` sépare reflet et rebond coloré) — curseur
+« reflets de la salle » dans Pièce › Lumière. Ce qui refuse une caméra
+étrangère (`userData.horsSurvol`, ou `horsReflets`) se cache le temps de
+la photo ; pendant cette photo la sonde est coupée, pour que la salle ne
+se reflète pas dans son propre reflet. Coût mesuré : un sixième de la
+pièce par image à 128 px, un pré-filtrage toutes les six.
+
 ## Le survol : un liseré sur l'œuvre visée
 
 Passer le pointeur sur une œuvre la souligne d'un fin liseré blanc, à
@@ -2800,8 +2831,8 @@ retrait d'un calque reconstruit l'œuvre comme un nouveau shader. Un
 calque illisible est SAUTÉ en le disant : l'écran vit sans lui, et
 l'inspecteur montre lequel manque.
 
-Dans l'éditeur : « ＋ Primitive… → Shader ISF » liste les shaders de
-`content/shaders/`, et « ISF depuis un fichier… » embarque la source d'un
+Dans l'éditeur : « ＋ Ajouter → Shader ISF » liste les shaders de
+`content/shaders/`, et « Depuis un fichier… » embarque la source d'un
 `.fs` de l'auteur directement dans l'œuvre. L'inspecteur est GÉNÉRÉ par
 l'en-tête : chaque INPUT devient curseur, case ou couleur — pendant le
 glissement, la valeur part droit dans l'écran (aucune reconstruction), au
@@ -2824,16 +2855,40 @@ champs numériques pour le placement précis, barre d'outils défilante.
 **Barre d'outils** (icônes [Lucide](https://lucide.dev), ISC, vendorées —
 un trait SVG est le même sur toutes les plateformes, ce qu'aucun émoji ne
 garantit) : Objets / Voxel (**V**) / Découpe (**C**),
-Médias (import de fichiers), URL (média distant),
+**＋ Ajouter** (voir ci-dessous — tout ce qui entre dans la galerie),
 Mixage (l'onglet du même nom, ci-dessous),
+Exporter (`galerie.zip`, toute la galerie rangée),
 Photo (un rendu **path-tracé** de la vue courante — ombres douces,
 rebonds de lumière — téléchargé en PNG : l'image de presse tirée de la
 vraie scène ; Échap annule ; les œuvres à shader — ciel, eau, monolithe,
 lettrage, scans — n'y figurent pas, par construction),
-＋ Objet, gizmos déplacer / tourner / échelle (raccourcis
-1 / 2 / 3), dupliquer, supprimer (Suppr), Importer et Exporter
-(`galerie.zip`, toute la galerie rangée), Publier… (le panneau
+gizmos déplacer / tourner / échelle (raccourcis
+1 / 2 / 3), dupliquer, supprimer (Suppr), Publier… (le panneau
 *Sauvegarde* : fichier, dossier `content/`, mise en ligne), quitter.
+
+**Le menu Ajouter** (bouton **＋ Ajouter**, ou **Maj+A**, à l'esprit de
+Blender) regroupe tout ce qui peut être créé ou importé, en un seul
+endroit — la barre n'a plus une file de boutons d'import à parcourir :
+
+- **Primitive ▸** cube, sphère, plan, cylindre, cône, tore, monolithe
+  (shader) ; **Construction voxel** ; **Shader ISF ▸** le catalogue de
+  `content/shaders/` et « Depuis un fichier… » ;
+- **Lampe (omnidirectionnelle)** — une petite sphère auto-éclairée qui
+  porte une ponctuelle (décor, sans fiche) ; couleur, intensité, portée et
+  décroissance se règlent dans Œuvre › Aspect ; **Éclairage
+  directionnel** — un astre qui se déclare lumière clé de la pièce
+  (`cleDeSalle`) : sa position donne la direction du soleil et des ombres,
+  le déplacer les réoriente ; une seule par pièce fait foi, et le menu le
+  dit s'il en existe déjà une ;
+- **Bibliothèque 3D…**, **Poly Pizza…**, **Sons du projet…**,
+  **Freesound…** (les panneaux) ; **Fichiers média…**, **Dossier
+  entier…**, **Média par URL…** ;
+- **Pièce…** (les modèles de pièce), **Portail vers ▸** (chaque pièce,
+  la courante en Escher) ; **Importer une galerie…** (`galerie.zip`,
+  `galerie.json`, `works.json` / `rooms.json`).
+
+Ce qui se crée naît là où le regard pointe. Toute lumière ajoutée se
+reflète aussitôt dans les surfaces voisines (voir *Les reflets*).
 
 ### Le volet droit : trois onglets
 
@@ -3084,7 +3139,7 @@ grille. Elle accepte donc **stems, modules et transformation** comme les
 autres, sans réglage particulier — on peut spatialiser un son dans une
 maison qu'on vient de bâtir.
 
-Créer : « ＋ Primitive… → Construction voxel », ou le bouton
+Créer : « ＋ Ajouter → Construction voxel », ou le bouton
 « ＋ Nouvelle construction » du panneau. L'objet apparaît devant la caméra,
 posé au sol, avec son volume de construction et son quadrillage.
 

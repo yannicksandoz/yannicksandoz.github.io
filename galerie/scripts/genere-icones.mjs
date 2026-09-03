@@ -31,6 +31,7 @@ const CIBLE = join(ici, '..', 'engine', 'src', 'editor', 'icones.js');
  */
 export const NOMS = [
   'box', 'grid-3x3', 'scissors',                      // modes
+  'plus',                                             // le menu Ajouter
   'blocks', 'pizza', 'music', 'volume-2', 'headphones',
   'folder', 'folder-open', 'link', 'download', 'upload', 'camera',
   'move', 'rotate-cw', 'scaling', 'magnet',           // gizmos

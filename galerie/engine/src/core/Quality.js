@@ -57,7 +57,10 @@ export class QualityManager {
           // aucun accent ne projette sur téléphone : les ombres y sont
           // déjà coupées (shadows: false)
           projecteursOmbre: 0,
-          envIntensity: 0.5
+          envIntensity: 0.5,
+          // LA SONDE DE REFLETS (reflets.js) : un cube de 64 px, une face
+          // toutes les deux images — le reflet est flou de toute façon
+          reflets: { resolution: 64, cadence: 2 }
         }
       : {
           tier: 'desktop',
@@ -86,7 +89,8 @@ export class QualityManager {
           // corniche) ne projette jamais. Trois cartes de 1024 au plus,
           // redessinées à la cadence à la demande — voir ombres.budgetLampes.
           projecteursOmbre: 3,
-          envIntensity: 0.5
+          envIntensity: 0.5,
+          reflets: { resolution: 128, cadence: 1 }
         };
     this.profile.reducedMotion = this.reducedMotion;
     this.profile.isMobile = this.isMobile;

@@ -45,7 +45,9 @@ test('tous les noms passés à icone() sont dans la liste générée', () => {
     'EditorUI.js'), 'utf8');
   const demandes = [...ui.matchAll(/icone\('([a-z0-9-]+)'\)/g)]
     .map((m) => m[1]);
-  assert.ok(demandes.length >= 20, `seulement ${demandes.length} appels`);
+  // les imports sont passés dans le menu Ajouter : la barre a moins de
+  // boutons qu'avant, mais toujours une vingtaine d'icônes
+  assert.ok(demandes.length >= 15, `seulement ${demandes.length} appels`);
   for (const nom of demandes) {
     assert.ok(NOMS.includes(nom), `« ${nom} » absent de genere-icones.mjs`);
   }

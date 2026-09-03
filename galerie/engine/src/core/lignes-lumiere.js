@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { DECLARATION_AMBIANCE, uniformesAmbiance } from './ambiance-salle.js';
+import { patcherReflets } from './reflets.js';
 
 /**
  * LES LIGNES DE LUMIÈRE — une corniche qui éclaire pour le prix d'un point.
@@ -372,8 +373,11 @@ export function patcherArbreLignes(racine) {
   racine.traverse((o) => {
     const m = o.material;
     if (!m) return;
-    if (Array.isArray(m)) m.forEach(patcherLignes);
-    else patcherLignes(m);
+    // les LIGNES (profil mobile) et les REFLETS de la salle (voir
+    // reflets.js) se greffent au même endroit : tout matériau standard,
+    // à sa naissance, reçoit ce que la salle lui renvoie
+    if (Array.isArray(m)) m.forEach((x) => { patcherLignes(x); patcherReflets(x); });
+    else { patcherLignes(m); patcherReflets(m); }
   });
 }
 

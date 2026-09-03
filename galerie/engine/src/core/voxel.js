@@ -359,9 +359,11 @@ export function buildVoxelCollider(model, grid = gridOf(model)) {
  * le bloom, et reste un seul appel de dessin.
  */
 function buildVoxelMaterial(model = {}) {
+  // La matière se règle par œuvre (`roughness`, `metalness`) : un escalier
+  // blanc laqué renvoie la corniche d'en face, une masse mate l'absorbe.
   const material = new THREE.MeshStandardMaterial({
-    roughness: 0.62,
-    metalness: 0.05,
+    roughness: model.roughness ?? 0.62,
+    metalness: model.metalness ?? 0.05,
     emissive: new THREE.Color(0xffffff),
     // L'AUTO-ÉCLAIRAGE, ramené à ce qu'il doit être.
     //
@@ -416,7 +418,7 @@ function buildVoxelMaterial(model = {}) {
     const dims = model.dims ?? DEFAULT_DIMS;
     const cell = model.cell ?? DEFAULT_CELL;
     const montee = [0, dims[1] * cell, dims[2] * cell];
-    material.roughness = 0.42;
+    material.roughness = model.roughness ?? 0.42;
     material.emissiveIntensity = 0.05;
     patcherGrain(material, 'poli', { echelle: 0.38, force: 0.1, relief: 0.18 });
     patcherStries(material, {
