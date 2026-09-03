@@ -1,0 +1,36 @@
+{
+  "id": "ruban-r6-d",
+  "title": "Ruban de lumière",
+  "description": "",
+  "position": [
+    -3.84,
+    2.462,
+    -10.392
+  ],
+  "rotation": [
+    0.0,
+    -63.435,
+    -90.0
+  ],
+  "scale": [
+    0.0768,
+    0.0461,
+    6.4397
+  ],
+  "modules": [],
+  "role": "decor",
+  "model": {
+    "shape": "box",
+    "color": "#f6f3ff",
+    "emissiveColor": "#d9ccff",
+    "emissive": 1.5,
+    "roughness": 0.5,
+    "metalness": 0.0,
+    "texture": "aucune"
+  },
+  "selfLit": true,
+  "solid": false,
+  "cartel": false,
+  "lightIntensity": 0,
+  "loadDistance": 240
+}

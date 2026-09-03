@@ -985,8 +985,11 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
   console.log(`\nLES SEUILS (≥ ${AIR_SEUIL} m d’air autour de l’axe d’un portail)\n`);
   if (!seuils.length) console.log('  aucun portail encombré ✓');
   for (const f of seuils) {
+    // `corps` : le visiteur serait dans la matière (bloquant) ; `cadre` :
+    // seul le cadre du portail traverse l'objet (gênant) — voir charte-regles
     console.log(`  ${f.salle.padEnd(13)} → ${f.portail.padEnd(13)}`
-      + ` ${f.objet.padEnd(20)} air ${f.air.toFixed(2)} m  ✗`);
+      + ` ${String(f.objet).padEnd(20)} ${f.genre === 'corps' ? 'corps' : 'cadre'}`
+      + ` (${f.touches} point(s))  ✗`);
   }
 
   const corn = auditCorniches();

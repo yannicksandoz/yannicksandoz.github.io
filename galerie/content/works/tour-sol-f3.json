@@ -8,9 +8,9 @@
     -1.92
   ],
   "rotation": [
-    0,
-    0,
-    0
+    -0.0,
+    0.0,
+    0.0
   ],
   "scale": [
     1,
@@ -129,7 +129,9 @@
       1,
       7,
       0
-    ]
+    ],
+    "roughness": 0.3,
+    "metalness": 0.0
   },
   "lightIntensity": 0
 }

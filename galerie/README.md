@@ -117,6 +117,39 @@ vient d'atteindre, et le travelling d'approche tire la même caméra. Un
 portail, une bascule, un point d'arrivée reposent les pieds
 (`resyncCollision`).
 
+**Le belvédère accessible — hauteur libre, bords, rubans.** Trois défauts
+mesurés au jeu, trois règles. *Le rayon de sol partait de 60 cm au-dessus
+des yeux* : toute surface foulable jusqu'à 2,8 m au-dessus des pieds était
+« le sol » — une galerie de la tour jumelle, une volée qui enjambe le
+passage, TÉLÉPORTAIENT le visiteur dessus, et l'on ne passait plus. Il part
+désormais juste au-dessus de la poitrine (`SONDE_SOL`, 1,3 m) : une marche,
+un rebord se voient, ce qui passe au-dessus de la tête ne compte plus. Un
+second rayon horizontal, à hauteur de **tête** (`HEAD`, 2,3 m), traite
+comme un mur ce qui est plus bas que le front — la caméra n'entre plus dans
+l'envers d'un escalier. Et l'**anti-chute** sonde trois points, le milieu du
+corps et les deux épaules (`GARDE_BORD`, 30 cm), avec une chute tolérée
+ramenée de 1,6 à **1 m** (`CHUTE_MAX`) : les marches de 24 cm se descendent,
+un balcon ne se quitte plus par le vide, et l'on ne longe plus un bord en
+biais jusqu'à ce que la caméra soit à moitié dessus.
+
+Côté architecture (`scripts/genere-belvedere.py`), le cube se DESSINE à
+50 m et se LIVRE à 24 (`K = 0,48` : positions, cellules, sphères, jetons) ;
+un fichier existant ne reçoit que sa géométrie et garde ses réglages de
+main. **Plus aucune dalle au pied des volées** — on s'y engage depuis le
+sol, d'un pas. Les balcons au sommet des volées d'agrément sont des lames
+minces (24 cm) qui vont **jusqu'au mur** : un balcon arrêté à 1,7 m du mur
+voisin pendait à hauteur de tête pour qui marche sur ce mur. Chaque volée et
+chaque balcon portent des **rubans de lumière** (`ruban-*`) — des barres
+émissives sans matière, qui ne coûtent aucune lampe et éclairent par leurs
+reflets dans les masses laquées (`roughness` 0,3 sur les grilles voxel) :
+la cage d'escalier de Zaha Hadid, mêlée aux six gravités d'Escher. Le
+script REFUSE d'écrire tant qu'un chemin n'a pas 2,4 m d'air (`LIBRE`) : il
+remplit une grille de cellules par plan avec toutes les masses, de tous les
+plans, et exige cette hauteur au-dessus de chaque surface d'un chemin et de
+chaque colonne du sol (entre poitrine et tête, une masse est un piège ;
+sous la poitrine, un mur qu'on contourne). Trois volées et deux balcons ont
+changé de voie sous cette règle avant que rien ne soit écrit.
+
 **Les jetons ◈.** De petits octaèdres dorés sont **cachés dans les
 pièces** ; on les ramasse en marchant dessus (compteur sur le badge).
 Au bout du parcours connu, `▸` devient `▸ ◈` : **un jeton débloque une

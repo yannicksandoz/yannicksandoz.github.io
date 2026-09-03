@@ -26,8 +26,29 @@ const GROUND_REACH = 40; // portée du rayon de sol (une chute de haut se suit)
 const CHEST = 1.15;    // hauteur du rayon de collision au-dessus des pieds :
                        // au-dessus de deux contremarches (2 × 0,5 m), un
                        // escalier se gravit ; un mur ou une masse bloquent
-const CHUTE_MAX = 1.6; // au-delà, un pas vers le vide est un pas contre un
-                       // mur : on ne tombe pas d'un escalier, on en descend
+// LA TÊTE : un second rayon horizontal, juste au-dessus des yeux. Une volée
+// qui passe au-dessus du chemin, une galerie basse, arrêtaient la POITRINE
+// de rien et laissaient la caméra entrer dans la masse — l'image se
+// remplissait de l'envers d'un escalier. Ce qui est plus bas que la tête
+// est un mur, comme ce qui est plus haut que la poitrine.
+const HEAD = EYE + 0.1;
+// D'OÙ PART LE RAYON DE SOL, au-dessus des pieds. Il partait de 60 cm
+// AU-DESSUS DES YEUX (2,8 m des pieds) : toute surface foulable jusqu'à
+// cette hauteur était « le sol » — et une galerie de la tour jumelle, une
+// volée qui enjambe le passage, à 2,4 m au-dessus de la tête, TÉLÉPORTAIENT
+// le visiteur dessus. Il part désormais juste au-dessus de la poitrine :
+// ce qu'on peut gravir (une marche, un rebord sous 1,15 m) est vu, ce qui
+// passe au-dessus de la tête ne l'est plus.
+const SONDE_SOL = CHEST + 0.15;
+const CHUTE_MAX = 1.0; // au-delà, un pas vers le vide est un pas contre un
+                       // mur : on ne tombe pas d'un escalier, on en descend.
+                       // À 1,6 m on tombait encore d'une galerie ; à 1 m, une
+                       // volée de marches de 24 cm se descend, un balcon non.
+const GARDE_BORD = 0.3; // les deux sondes latérales de l'anti-chute : on
+                        // refuse le pas si le bord est à moins de 30 cm de
+                        // l'épaule, pas seulement du milieu du corps. Pas
+                        // plus : une volée serpentine de 2 m ne laisserait
+                        // plus qu'un couloir d'un mètre à 40 cm.
 const _rayOrigin = new THREE.Vector3();
 const _prevPos = new THREE.Vector3();
 const _delta = new THREE.Vector3();
@@ -506,7 +527,7 @@ export class Controls {
     const cibles = this._targets(GROUND_REACH);
     if (!cibles.length) return null;
     const cam = this.app.camera.position;
-    _rayOrigin.set(cam.x, cam.y + 0.6, cam.z);
+    _rayOrigin.set(cam.x, cam.y - EYE + SONDE_SOL, cam.z);
     this._groundRay.set(_rayOrigin, DOWN);
     this._groundRay.far = GROUND_REACH;
     const hit = this._groundRay.intersectObjects(cibles, true)[0];
@@ -540,11 +561,16 @@ export class Controls {
     // marches, et l'escalier deviendrait un mur.
     const ground = this._groundY ?? (_prevPos.y - EYE);
     const feetY = ground + CHEST;
+    const headY = ground + HEAD;
     const blocked = (dx, dz, dist) => {
       _tryDir.set(dx, 0, dz).normalize();
+      this._wallRay.far = dist + 0.35;
+      // la poitrine, puis la tête : deux hauteurs, un seul verdict
       _rayOrigin.set(_prevPos.x, feetY, _prevPos.z);
       this._wallRay.set(_rayOrigin, _tryDir);
-      this._wallRay.far = dist + 0.35;
+      if (this._wallRay.intersectObjects(targets, true).length > 0) return true;
+      _rayOrigin.set(_prevPos.x, headY, _prevPos.z);
+      this._wallRay.set(_rayOrigin, _tryDir);
       return this._wallRay.intersectObjects(targets, true).length > 0;
     };
 
@@ -556,15 +582,27 @@ export class Controls {
     // et les petites descentes restent libres (la sonde porte CHEST +
     // CHUTE_MAX), et les bascules restent prenables : leur anneau pend à
     // 1,2 m de la crête et se déclenche à 1,7 m — avant le bord.
+    //
+    // TROIS SONDES, pas une : le milieu du corps et les deux épaules
+    // (GARDE_BORD de part et d'autre du pas). Avec une seule sonde, on
+    // longeait un bord en biais jusqu'à ce que le milieu du corps soit
+    // au-dessus du vide — et la caméra, elle, y était déjà à moitié.
     const sols = this._targets(GROUND_REACH);
-    const tombe = (dx, dz, dist) => {
-      if (this._groundY === null || !sols.length) return false;
-      _tryDir.set(dx, 0, dz).normalize();
-      _rayOrigin.set(_prevPos.x + _tryDir.x * (dist + 0.35), feetY,
-        _prevPos.z + _tryDir.z * (dist + 0.35));
+    const vide = (x, z) => {
+      _rayOrigin.set(x, feetY, z);
       this._voidRay.set(_rayOrigin, DOWN);
       this._voidRay.far = CHEST + CHUTE_MAX;
       return this._voidRay.intersectObjects(sols, true).length === 0;
+    };
+    const tombe = (dx, dz, dist) => {
+      if (this._groundY === null || !sols.length) return false;
+      _tryDir.set(dx, 0, dz).normalize();
+      const ax = _prevPos.x + _tryDir.x * (dist + 0.35);
+      const az = _prevPos.z + _tryDir.z * (dist + 0.35);
+      if (vide(ax, az)) return true;
+      // les épaules : perpendiculaire au pas
+      const px = -_tryDir.z * GARDE_BORD, pz = _tryDir.x * GARDE_BORD;
+      return vide(ax + px, az + pz) || vide(ax - px, az - pz);
     };
     const gene = (dx, dz, dist) => blocked(dx, dz, dist) || tombe(dx, dz, dist);
 
@@ -590,10 +628,10 @@ export class Controls {
   /**
    * Suivi du sol : la caméra épouse ce qu'elle foule — plancher, mur devenu
    * sol (Escher) et surtout ESCALIERS (`walkable: true` sur l'objet). Un
-   * rayon part des genoux vers le bas ; la hauteur d'yeux est lissée, les
-   * marches deviennent une pente douce. Le rayon part BAS (60 cm au-dessus
-   * des yeux) : une volée d'escalier qui passe au-dessus de la tête ne doit
-   * pas nous téléporter dessus.
+   * rayon part de juste au-dessus de la poitrine vers le bas (SONDE_SOL) ;
+   * la hauteur d'yeux est lissée, les marches deviennent une pente douce.
+   * Le rayon part BAS : une volée d'escalier, une galerie qui passent
+   * au-dessus de la tête ne doivent pas nous téléporter dessus.
    *
    * Le lissage est ASYMÉTRIQUE : on gravit une marche d'un pas (montée
    * franche), on redescend en douceur. Un amortissement symétrique assez
@@ -613,7 +651,11 @@ export class Controls {
     const targets = this._targets(GROUND_REACH);
     if (!targets.length) return;
     const cam = app.camera.position;
-    _rayOrigin.set(cam.x, cam.y + 0.6, cam.z);
+    // depuis les pieds CONNUS quand on en a (la hauteur d'yeux traîne sous
+    // la pente en montée : partir de la caméra ferait plonger la sonde dans
+    // les marches), sinon depuis la caméra
+    const pieds = this._groundY ?? (cam.y - EYE);
+    _rayOrigin.set(cam.x, Math.max(pieds, cam.y - EYE) + SONDE_SOL, cam.z);
     this._groundRay.set(_rayOrigin, DOWN);
     this._groundRay.far = GROUND_REACH;   // reposé à chaque frame : un rayon
                                           // partagé est un rayon qu'on retrouve

@@ -1,0 +1,36 @@
+{
+  "id": "ruban-ond-f1-g",
+  "title": "Ruban de lumière",
+  "description": "",
+  "position": [
+    2.942,
+    22.392,
+    1.92
+  ],
+  "rotation": [
+    26.565,
+    0.0,
+    180.0
+  ],
+  "scale": [
+    0.0768,
+    0.0461,
+    6.4397
+  ],
+  "modules": [],
+  "role": "decor",
+  "model": {
+    "shape": "box",
+    "color": "#f6f3ff",
+    "emissiveColor": "#d9ccff",
+    "emissive": 1.5,
+    "roughness": 0.5,
+    "metalness": 0.0,
+    "texture": "aucune"
+  },
+  "selfLit": true,
+  "solid": false,
+  "cartel": false,
+  "lightIntensity": 0,
+  "loadDistance": 240
+}

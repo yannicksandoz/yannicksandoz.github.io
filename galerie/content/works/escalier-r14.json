@@ -3,14 +3,14 @@
   "title": "Escalier",
   "description": "",
   "position": [
-    -7.929,
+    -7.93,
     9.12,
     12.0
   ],
   "rotation": [
-    -90,
-    -90,
-    0
+    -90.0,
+    -90.0,
+    0.0
   ],
   "scale": [
     1,
@@ -155,7 +155,9 @@
       0,
       224,
       1
-    ]
+    ],
+    "roughness": 0.3,
+    "metalness": 0.0
   },
   "lightIntensity": 0
 }

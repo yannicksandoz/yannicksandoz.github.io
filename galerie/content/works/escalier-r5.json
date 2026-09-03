@@ -4,13 +4,13 @@
   "description": "",
   "position": [
     12.0,
-    9.12,
-    3.6
+    7.68,
+    -3.6
   ],
   "rotation": [
-    0,
-    0,
-    90
+    -180.0,
+    0.0,
+    90.0
   ],
   "scale": [
     1,
@@ -139,7 +139,9 @@
       0,
       196,
       1
-    ]
+    ],
+    "roughness": 0.3,
+    "metalness": 0.0
   },
   "lightIntensity": 0
 }

@@ -1,0 +1,36 @@
+{
+  "id": "ruban-passerelle-r6-s",
+  "title": "Ruban de lumière",
+  "description": "",
+  "position": [
+    -9.24,
+    2.582,
+    -8.923
+  ],
+  "rotation": [
+    90.0,
+    90.0,
+    0.0
+  ],
+  "scale": [
+    0.0768,
+    0.0461,
+    5.1552
+  ],
+  "modules": [],
+  "role": "decor",
+  "model": {
+    "shape": "box",
+    "color": "#f6f3ff",
+    "emissiveColor": "#d9ccff",
+    "emissive": 1.5,
+    "roughness": 0.5,
+    "metalness": 0.0,
+    "texture": "aucune"
+  },
+  "selfLit": true,
+  "solid": false,
+  "cartel": false,
+  "lightIntensity": 0,
+  "loadDistance": 240
+}
