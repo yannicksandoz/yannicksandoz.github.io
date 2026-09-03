@@ -1,0 +1,37 @@
+{
+  "id": "gerbe-bel-3",
+  "title": "Gerbe",
+  "role": "decor",
+  "position": [
+    -11.712,
+    0.288,
+    11.712
+  ],
+  "rotation": [
+    0,
+    0,
+    0
+  ],
+  "scale": [
+    0.48,
+    0.48,
+    0.48
+  ],
+  "model": {
+    "shape": "gerbe",
+    "nombre": 7,
+    "portee": 34.0,
+    "ouverture": 13,
+    "vers": [
+      1,
+      1,
+      -1
+    ],
+    "color": "#cbb4ff",
+    "emissive": 0.144,
+    "rayonBout": 0.789
+  },
+  "solid": false,
+  "cartel": false,
+  "loadDistance": 130
+}

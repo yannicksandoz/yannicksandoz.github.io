@@ -3,9 +3,9 @@
   "title": "Palier",
   "description": "",
   "position": [
-    -7.2,
-    16.051,
-    -0.6
+    0.0,
+    17.971,
+    0.0
   ],
   "rotation": [
     -180.0,
@@ -24,16 +24,16 @@
   "model": {
     "type": "voxel",
     "dims": [
-      6,
+      20,
       1,
-      6
+      20
     ],
     "cell": 0.24,
     "palette": [
       "#485668"
     ],
     "cells": [
-      36,
+      400,
       1
     ],
     "roughness": 0.3,

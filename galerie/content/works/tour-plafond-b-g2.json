@@ -1,11 +1,11 @@
 {
-  "id": "tour-plafond-g1",
-  "title": "Palier",
+  "id": "tour-plafond-b-g2",
+  "title": "Balcon",
   "description": "",
   "position": [
-    2.04,
-    21.331,
-    6.36
+    -7.2,
+    19.651,
+    2.64
   ],
   "rotation": [
     -180.0,
@@ -24,16 +24,16 @@
   "model": {
     "type": "voxel",
     "dims": [
-      22,
+      8,
       1,
-      6
+      10
     ],
     "cell": 0.24,
     "palette": [
       "#485668"
     ],
     "cells": [
-      132,
+      80,
       1
     ],
     "roughness": 0.3,

@@ -1,0 +1,48 @@
+{
+  "id": "tour-plafond-b-g1",
+  "title": "Balcon",
+  "description": "",
+  "position": [
+    -7.2,
+    21.331,
+    -3.36
+  ],
+  "rotation": [
+    -180.0,
+    0.0,
+    0.0
+  ],
+  "scale": [
+    1,
+    1,
+    1
+  ],
+  "modules": [],
+  "role": "decor",
+  "walkable": true,
+  "loadDistance": 240,
+  "model": {
+    "type": "voxel",
+    "dims": [
+      8,
+      1,
+      8
+    ],
+    "cell": 0.24,
+    "palette": [
+      "#485668"
+    ],
+    "cells": [
+      64,
+      1
+    ],
+    "roughness": 0.3,
+    "metalness": 0.0,
+    "lisiere": {
+      "cote": "droite",
+      "couleur": "#d9ccff",
+      "emissive": 0.9
+    }
+  },
+  "lightIntensity": 0
+}

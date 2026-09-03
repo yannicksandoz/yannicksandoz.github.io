@@ -1,0 +1,31 @@
+{
+  "id": "tour-sol-a-p1",
+  "title": "Pilier",
+  "description": "",
+  "position": [
+    7.2,
+    1.296,
+    -3.36
+  ],
+  "rotation": [
+    -0.0,
+    0.0,
+    0.0
+  ],
+  "scale": [
+    0.576,
+    1.728,
+    0.576
+  ],
+  "modules": [],
+  "role": "decor",
+  "model": {
+    "shape": "box",
+    "color": "#2b2440",
+    "roughness": 0.9,
+    "metalness": 0.05,
+    "emissive": 0.04
+  },
+  "lightIntensity": 0,
+  "loadDistance": 240
+}

@@ -1,16 +1,16 @@
 {
-  "id": "tour-plafond-f1",
+  "id": "tour-sol-b-f1",
   "title": "Escalier",
   "description": "",
   "position": [
-    3.84,
-    24.0,
-    2.88
+    -3.36,
+    0.0,
+    3.36
   ],
   "rotation": [
     0.0,
-    0.0,
-    180.0
+    -90.0,
+    0.0
   ],
   "scale": [
     1,
@@ -30,7 +30,7 @@
     ],
     "cell": 0.24,
     "palette": [
-      "#5a6a80"
+      "#6c6288"
     ],
     "cells": [
       7,
@@ -127,7 +127,7 @@
     "roughness": 0.3,
     "metalness": 0.0,
     "lisiere": {
-      "cote": "gauche",
+      "cote": "droite",
       "couleur": "#d9ccff",
       "emissive": 0.9
     }

@@ -139,6 +139,39 @@ def modele_voxel(dims, cells, color):
     return {'type': 'voxel', 'dims': dims, 'cell': CELL,
             'palette': [color], 'cells': cells, **MATIERE}
 
+# LE SERPENTIN. En style fluide, le moteur fait ONDOYER les masses allongées
+# (engine/src/core/serpentin.js, loiSerpentin) : un S à trois ventres,
+# d'amplitude jusqu'à 0,7 fois la largeur (1,18 m livrés pour une volée),
+# extrémités fixes, et une largeur de 1,2 à 1,44 fois la nominale. Le rendu,
+# le collider et la charte appliquent cette loi ; le générateur DOIT la
+# connaître, sinon il dessine des lobes droits contre des volées qui
+# s'écartent d'un mètre, et juge des chevauchements sur des grilles
+# droites. Port fidèle, en unités de DESSIN : le seuil d'allongement se
+# juge en mètres livrés (long · K), l'amplitude est linéaire en l'échelle.
+try:
+    FLUIDE = json.load(open(f'{ROOT}/reglages.json')).get('style') == 'fluide'
+except (OSError, ValueError):
+    FLUIDE = False
+BASE_SERPENTIN, GONFLEMENT_SERPENTIN = 1.2, 0.24
+
+def loi_serpentin(dims):
+    if not FLUIDE:
+        return None
+    lx, lz = dims[0] * CELL, dims[2] * CELL
+    long_, larg = max(lx, lz), min(lx, lz)
+    if long_ * K < 5 or long_ < larg * 2.2:
+        return None
+    axe = 0 if lx >= lz else 2
+    A = min(long_ * 0.17, larg * 0.7)
+    phase = ((dims[0] * 3 + dims[1] * 5 + dims[2] * 7) % 13) / 13 * 2 * math.pi
+    def forme(t):
+        return math.sin(math.pi * t) * (0.70 * math.sin(math.pi * 3 * t + phase)
+                                        + 0.32 * math.sin(math.pi * 5 * t + 1.6 * phase))
+    crete = max(abs(forme(i / 240)) for i in range(241))
+    g = A / crete if crete > 1e-6 else 0.0
+    return {'axe': axe, 'decalage': lambda t: g * forme(t),
+            'gonflement': lambda t: BASE_SERPENTIN + GONFLEMENT_SERPENTIN * math.sin(math.pi * t)}
+
 def stair(id_, plane, start, end_h, lane, heading, color, base=0.0, walkable=True,
           lisiere=None):
     """Escalier posé sur `plane`, dans le repère de ce plan.
@@ -320,15 +353,29 @@ def bascule(plane_from, top_world, to_plane, label, retour=None, decalage=(0, 0)
 # 0,3 + 16 du mur pour que la crête le touche.
 H_MAIN = 8.0
 RUN = 2 * H_MAIN
-VOIE = 8.0        # la voie de toute volée : centre de sa face ± 8 (ligne des 3,84 m)
+# la voie des volées : centre de la face ± VOIE. Sur le sol et le plafond,
+# ±15 — leurs volées s'écartent pour laisser le CENTRE à la tour, posée sur
+# l'axe de la pièce, mais pas plus : une volée serpentine s'écarte de sa
+# voie de 2,1 m (ses bouts, élargis) à 4,7 m (son ventre), et vue du mur
+# voisin, cette bande de 2,6 m doit tenir tout entière AU-DESSUS de la tête
+# (5 m du mur) ou sous la poitrine (2,5) — à 17 comme à 18,5, elle passait
+# à hauteur de front ; à 15, son ventre reste à 5,1 m.
+# Sur les quatre murs, ±6,5 (la ligne des 3,12 m) : à 8, la volée est → sud
+# enjambait la crête de la volée sol → est à 1,9 m ; à 6,5, 2,6 m d'air.
+VOIE = {'sol': 15.0, 'plafond': 15.0, 'est': 6.5, 'ouest': 6.5, 'nord': 6.5, 'sud': 6.5}
 
 # ── LES DOUZE ARÊTES : une volée par arête, deux par gravité ─────────────
 # Une arête du cube joint deux faces ; la volée se pose sur l'une (PLAN) et
 # monte vers l'autre (VERS). Répartition : deux volées par plan, PARALLÈLES
-# et OPPOSÉES, l'une à la voie +8, l'autre à −8 du centre de la face — un
-# S par gravité, le centre libre pour le tore et la tour. Le sens de la
+# et OPPOSÉES, l'une à la voie +VOIE, l'autre à −VOIE du centre de la face —
+# un S par gravité, le centre libre pour le tore et la tour. Le sens de la
 # montée, le pied, la crête, le côté du lobe et celui de la lisière se
 # DÉDUISENT des matrices, jamais ne se devinent.
+#
+# SYMÉTRIE. Chaque volée a son image par le demi-tour autour de chacun des
+# trois axes de la pièce (le groupe D2) : la table ci-dessous est close par
+# ces trois demi-tours, et tout ce qui suit (tour, lanternes, bancs, gerbes,
+# jetons) l'est aussi — voir l'assertion « symétrie » en fin de script.
 NOMS = {'sol': 'Sol', 'plafond': 'Plafond', 'est': 'Mur est', 'ouest': 'Mur ouest',
         'nord': 'Mur nord', 'sud': 'Mur sud'}
 # normale réelle de chaque face, et la coordonnée réelle de sa surface
@@ -338,9 +385,8 @@ FACES_REELLES = {'est': ([1, 0, 0], INNER), 'ouest': ([-1, 0, 0], -INNER),
 ARETES = [
     # (plan, vers, côté de la voie : +1 ou −1 par rapport au centre de la face).
     # Sol et plafond montent vers est et ouest : leurs volées courent en x,
-    # à z = ±8, et la tour jumelle (z de −15 à +3 dans le monde du plan)
-    # se laisse enjamber par la voie −8 sans être traversée ; une volée en
-    # z à x = ±8 la traverserait de part en part.
+    # à z = ±15, et la tour jumelle tient entre les deux : chaque bras vit
+    # dans le quadrant OPPOSÉ à la volée de son côté (x > 0 : z < 0).
     ('sol', 'est', +1), ('sol', 'ouest', -1),
     ('plafond', 'est', +1), ('plafond', 'ouest', -1),
     ('est', 'nord', +1), ('est', 'sud', -1),
@@ -369,17 +415,33 @@ def cap_vers(plane, face):
             return f"{axe}{'+' if n[i] > 0 else '-'}"
     raise AssertionError(f'{face} n\'est pas une face voisine de {plane}')
 
-def lobe(id_, plane, centre, size, color, axe=0, cote=1):
-    """Le LOBE : une dalle mince, DROITE contre la volée (toute la largeur
-    s'y raccorde, pas une pointe) et arrondie vers le vide en demi
+def lobe(id_, plane, centre, size, color, axe=0, cote=1, voie=0.0, bord=None):
+    """Le LOBE : une dalle mince qui ÉPOUSE le flanc de la volée — son bord
+    intérieur est le bord de la volée telle qu'elle se voit (`bord`, la loi
+    du serpentin), à un dixième près — et s'arrondit vers le vide en demi
     super-ellipse (exposant 2,5 — l'arrondi des balcons de Hadid), lisière
     en pourtour. Le belvédère d'une volée. `axe` est l'axe de la montée,
-    `cote` le côté du lobe par rapport à la voie."""
+    `cote` le côté de la voie par rapport au centre de la face : le lobe est
+    de l'autre côté (intérieur), `e` compte les mètres depuis l'axe de la
+    voie vers lui. L'arrondi commence à 3,75 m de l'axe et finit à 5,75."""
     n = 2.5
+    lat = 2 - axe
     def masque(u, v):
-        long_, lat = (u, v) if axe == 0 else (v, u)
-        dehors = max(lat * cote, 0.0)          # 0 contre la volée, 1 au bord
-        return abs(long_) ** n + dehors ** n <= 1.0
+        P = [centre[0] + u * size[0] / 2, 0.0, centre[2] + v * size[1] / 2]
+        long_n = (P[axe] - centre[axe]) / (size[axe // 2] / 2)
+        e = (P[lat] - voie) * -cote
+        dehors = max(0.0, (e - 3.75) / 2.0)
+        if abs(long_n) ** n + dehors ** n > 1.0:
+            return False
+        # `e` est le CENTRE de la colonne : on garde toute colonne dont une
+        # part dépasse le flanc — la première chevauche donc la volée d'au
+        # plus une cellule (24 cm livrés), et il n'y a JAMAIS de jour entre
+        # les deux. Avec une marge, il restait des fentes de 7 à 17 cm où la
+        # sonde anti-chute ne trouvait pas de sol : un pas refusé sans
+        # raison visible. Le recouvrement est une lisse le long du bord de
+        # la volée, au plus à hauteur de genou ; les contrôles de
+        # chevauchement et de hauteur libre exemptent ce couple (meme_arete).
+        return e + CELL / 2 > (bord(P[axe]) if bord else 1.75)
     slab(id_, plane, centre, size, color, lisiere='pourtour', masque=masque)
 
 def arete(plane, face, cote):
@@ -389,7 +451,7 @@ def arete(plane, face, cote):
     signe = 1 if cap[1] == '+' else -1
     lat = 2 - axe                                   # l'axe de la voie
     centre = monde_de(plane, [0.0, HALF, 0.0])      # le centre de la face
-    voie = round(centre[lat] + cote * VOIE, 2)
+    voie = round(centre[lat] + cote * VOIE[plane], 2)
     # la surface de la face cible, dans le monde du plan, le long de la montée
     surface = FACES_REELLES[face][1]
     normale = FACES_REELLES[face][0]
@@ -404,14 +466,32 @@ def arete(plane, face, cote):
     gauche = mvec(ry(math.radians(HEAD[cap])), [-1, 0, 0])[lat]
     lisiere = 'gauche' if gauche * cote > 0 else 'droite'
     w, top = stair(id_, plane, pied, H_MAIN, voie, cap, TEINTES[plane], lisiere=lisiere)
-    # le lobe : contre la crête, côté extérieur, à la hauteur de la crête
+    # le lobe : contre la crête, côté INTÉRIEUR (vers le centre de la face),
+    # à la hauteur de la crête. Côté extérieur, son arrondi surplombait le
+    # sol de la face voisine entre poitrine et tête (2 à 6 m du mur) ; côté
+    # intérieur, il en est à plus de 9 m — de l'air pour la tête.
+    # La dalle du lobe couvre de l'axe de la voie à 6 m vers l'intérieur ;
+    # le masque en retire ce que la volée serpentine occupe (et remplit ce
+    # qu'elle libère) : le lobe suit la courbe, marche après marche.
     demi = WIDE * CELL / 2
-    LOBE = (6.0, 4.0)                               # le long de la montée × en travers
+    LOBE = (6.0, 6.0)                               # le long de la montée × en travers
     c = [0.0, H_MAIN, 0.0]
     c[axe] = crete - signe * LOBE[0] / 2
-    c[lat] = voie + cote * (demi + LOBE[1] / 2)
+    c[lat] = voie - cote * LOBE[1] / 2
     size = (LOBE[0], LOBE[1]) if axe == 0 else (LOBE[1], LOBE[0])
-    lobe(f'lobe-{plane}-{face}', plane, c, size, TEINTES[plane], axe=axe, cote=cote)
+    loi = loi_serpentin(w['model']['dims'])
+    # le lobe est-il du côté +x ou −x LOCAL de la volée ? Le serpentin
+    # décale vers le +x local ; vu du lobe, c'est vers lui ou loin de lui
+    # selon le cap (les volées des murs nord et sud l'ont à leur −x)
+    sl = 1 if mvec(ry(math.radians(HEAD[cap])), [1, 0, 0])[lat] * -cote > 0 else -1
+    def bord(X):
+        """Le flanc de la volée côté lobe, à l'abscisse X, tel qu'il se voit."""
+        if not loi:
+            return demi
+        t = min(1.0, max(0.0, (X - pied) * signe / RUN))
+        return demi * loi['gonflement'](t) + sl * loi['decalage'](t)
+    lobe(f'lobe-{plane}-{face}', plane, c, size, TEINTES[plane], axe=axe, cote=cote,
+         voie=voie, bord=bord)
     # la sphère : 1,2 m avant la crête, au-dessus des dernières marches ; le
     # point de chute, vu de la face cible, est poussé au-delà de la crête de
     # la volée (qui y est une falaise) le long de SA montée — 2,5 m au-dessus
@@ -437,12 +517,16 @@ for plane, face, cote in ARETES:
 
 # ── LA TOUR JUMELLE : deux gravités INVERSES qui se font face ────────────
 # La gravure de « Relativity » : un même espace sert deux mondes
-# tête-bêche. Deux tours identiques — trois galeries à colonnades (6 m,
-# 11,5 m, 17 m) reliées par des volées à DOUBLE face — se construisent aux
-# mêmes coordonnées de leur plan, l'une sur le sol, l'autre sur le
-# plafond : dans la pièce, la seconde pend au-dessus de la première,
-# marches renversées vers le bas. Au sommet de chacune, un anneau bascule
-# sur le sommet de l'AUTRE : on échange les gravités inverses en marchant.
+# tête-bêche. Deux tours identiques — deux BRAS en spirale (volée posée,
+# galerie à 6 m, volée-lame, galerie à 9,5 m, volée-lame) qui montent en
+# tournant dans le même sens jusqu'à une plate-forme commune à 13 m, au
+# CENTRE de la face — se construisent aux mêmes coordonnées de leur plan,
+# l'une sur le sol, l'autre sur le plafond : dans la pièce, la seconde pend
+# au-dessus de la première, marches renversées vers le bas. Le second bras
+# est l'image du premier par le demi-tour autour de l'axe vertical : la
+# tour est un moulinet, et le tore flotte sur son axe. Au sommet de
+# chacune, un anneau bascule sur le sommet de l'AUTRE : on échange les
+# gravités inverses en marchant.
 
 def stair_double(id_, plane, start, end_h, lane, heading, color, base=0.0):
     """Volée-LAME : une épaisseur constante d'un mètre suit la pente — le
@@ -483,6 +567,23 @@ def stair_double(id_, plane, start, end_h, lane, heading, color, base=0.0):
         'model': modele_voxel(dims, cells, color),
         'lightIntensity': 0, '_plan': plane
     })
+    # la crête : le bord haut de la dernière marche, à base + end_h + 0,5
+    if heading[0] == 'x':
+        return [start + sign * run_len, base + end_h + 0.5, lane]
+    return [lane, base + end_h + 0.5, start + sign * run_len]
+
+def raccord(quoi, top, heading, centre, size):
+    """PREUVE de raccord : la crête `top` d'une volée touche le bord de la
+    dalle (`centre`, `size`, dans le monde du plan) à sa hauteur. Une volée
+    de 6 m de montée court 12 m, pas 16 : sans cette preuve, un bras s'est
+    arrêté quatre mètres avant sa galerie et le script n'a rien dit."""
+    sign = 1 if heading[1] == '+' else -1
+    p = list(top)
+    p[0 if heading[0] == 'x' else 2] += sign * 0.3           # un pas au-delà
+    dedans = (abs(p[0] - centre[0]) <= size[0] / 2 + 1e-6
+              and abs(p[2] - centre[2]) <= size[1] / 2 + 1e-6)
+    assert dedans, f'{quoi} : la crête {[round(v, 2) for v in top]} ne touche pas la dalle {centre}'
+    near(top[1], centre[1], 0.1, f'{quoi} : hauteur de crête')
 
 def anneau(plane_from, pos_world, to_plane, arr_world, label):
     """Sphère à ARRIVÉE EXPLICITE (repère du plan cible) — l'échange des
@@ -501,51 +602,118 @@ def anneau(plane_from, pos_world, to_plane, arr_world, label):
         '_pose': plane_from
     })
 
-def tour(plane, teintes, dz=-2.0):
-    """`dz` recule la tour vers le nord : la rampe sol → ouest passe à sa voie −8."""
+PLATEAU = 10.0        # la plate-forme haute : 10 × 10 de dessin, au centre
+SOMMET = 13.0         # sa hauteur : galeries à 6 et 9,5, crête à base + montée + 0,5
+PORTEE = 15.0         # l'axe des galeries d'un bras (x = ±15) : la galerie
+                      # finit à 7,8 du mur est ou ouest et la volée-lame f2,
+                      # qui serpente de 2 m vers le mur, à 5,3 — plus que la
+                      # tête du visiteur qui y marche (LIBRE) ; plus près,
+                      # elle serait un piège à hauteur de front dans cette
+                      # gravité
+BRAS_Z = -7.0         # la voie de la volée posée d'un bras : z = −7 pour
+                      # le bras +x, +7 pour le bras −x — le quadrant OPPOSÉ
+                      # à la volée de sol du même côté (sol → est à z = +15,
+                      # x > 0). Côte à côte, la volée serpentait de 2,2 m
+                      # vers f1 et f1 de 1,6 m vers elle : elles se
+                      # touchaient (contrôle par cellules vues). Et pas plus
+                      # loin que 7 : f1 serpente jusqu'à z = ∓11,6, à 2,4 m
+                      # (LIBRE) de la crête et du lobe de la volée nord → sol
+                      # (z = ∓16,5), qui sont un sol pour la gravité nord
+
+def bras(plane, s, t1, t2):
+    """Un bras de la spirale, `s` = +1 (côté +x) ou −1 : le bras −1 est
+    l'IMAGE du bras +1 par le demi-tour autour de l'axe vertical (x → −x,
+    z → −z, caps retournés). Les lisières ourlent le bord extérieur."""
+    n = f'tour-{plane}-{"a" if s > 0 else "b"}'
+    ext_x = 'droite' if s > 0 else 'gauche'        # le bord ±x d'une dalle longue en z
+    ext_z = 'gauche' if s > 0 else 'droite'        # le bord −z (bras +x) d'une dalle longue en x
+    # F1 : du sol du plan à la première galerie (volée classique, posée),
+    # le long de z = ∓7, de x = ±1 à x = ±13 (6 m de montée, 12 de
+    # course) ; « droite » (le +x local tourné par le cap) est le bord loin
+    # du centre pour les deux bras
+    cap1 = 'x+' if s > 0 else 'x-'
+    _, top1 = stair(f'{n}-f1', plane, s * (PORTEE - 14.0), 6.0, s * BRAS_Z, cap1, t1, lisiere='droite')
+    # G1 : galerie basse (h 6), 4 × 4 au bout de F1 — carrée, son axe long
+    # est x et son bord extérieur le côté ∓z
+    g1 = [s * PORTEE, 6.0, s * BRAS_Z]
+    slab(f'{n}-g1', plane, g1, (4.0, 4.0), t2, lisiere=ext_z)
+    raccord(f'{n}-f1', top1, cap1, g1, (4.0, 4.0))
+    # F2 : G1 → G2, volée-lame le long de x = ±15, vers le centre en z (4 m
+    # de montée, 8 de course : trop courte pour serpenter, elle reste droite)
+    cap2 = 'z+' if s > 0 else 'z-'
+    top2 = stair_double(f'{n}-f2', plane, s * (BRAS_Z + 2.0), 4.0, s * PORTEE, cap2, t1, base=5.0)
+    # G2 : galerie médiane (h 9,5), 4 × 5 — longue en z, bord extérieur ±x
+    g2 = [s * PORTEE, 9.5, s * (BRAS_Z + 12.5)]
+    slab(f'{n}-g2', plane, g2, (4.0, 5.0), t2, lisiere=ext_x)
+    raccord(f'{n}-f2', top2, cap2, g2, (4.0, 5.0))
+    # F3 : G2 → plate-forme, volée-lame courte (4 m de montée, 8 de course)
+    # le long de z = ±3,5, vers le centre en x ; sa crête touche le bord
+    # de la plate-forme
+    cap3 = 'x-' if s > 0 else 'x+'
+    top3 = stair_double(f'{n}-f3', plane, s * (PORTEE - 2.0), SOMMET - 9.5 + 0.5, s * 3.5,
+                        cap3, t1, base=8.5)
+    raccord(f'{n}-f3', top3, cap3, [0.0, SOMMET, 0.0], (PLATEAU, PLATEAU))
+    # colonnade : chaque galerie porte sur son pilier
+    pillar(f'{n}-p1', plane, [s * PORTEE, 0, s * BRAS_Z], 5.4)
+    pillar(f'{n}-p2', plane, [s * PORTEE, 0, s * (BRAS_Z + 12.5)], 8.9)
+
+def tour(plane, teintes):
     t1, t2 = teintes
-    # F1 : du sol du plan à la première galerie (volée classique, posée)
-    stair(f'tour-{plane}-f1', plane, 2.0 + dz, 6.0, 8.0, 'z-', t1, lisiere='gauche')
-    # G1 : galerie basse (h 6), le long de z = -11,5 — ourlée côté vide
-    walkway(f'tour-{plane}-g1', plane, (-1.25, -11.25 + dz), (9.75, -11.25 + dz), 3.0, 6.0, t2, lisiere='gauche')
-    # F2 : G1 → G2, volée-lame (double face)
-    stair_double(f'tour-{plane}-f2', plane, -1.0, 6.0, -11.5 + dz, 'x-', t1, base=5.0)
-    # G2 : galerie médiane (h 11,5)
-    walkway(f'tour-{plane}-g2', plane, (-12.75, -11.25 + dz), (-16.75, -11.25 + dz), 3.0, 11.5, t2, lisiere='gauche')
-    # F3 : G2 → G3, volée-lame
-    stair_double(f'tour-{plane}-f3', plane, -10.0 + dz, 6.0, -15.0, 'z+', t1, base=10.5)
-    # G3 : galerie haute (h 17) — le belvédère de la tour, ourlé en pourtour
-    walkway(f'tour-{plane}-g3', plane, (-15.0, 1.75 + dz), (-15.0, 4.75 + dz), 3.0, 17.0, t2, lisiere='pourtour')
-    # colonnade : la galerie porte sur ses piliers
-    pillar(f'tour-{plane}-p1', plane, [0.0, 0, -11.25 + dz], 5.4)
-    pillar(f'tour-{plane}-p2', plane, [6.0, 0, -11.25 + dz], 5.4)
-    pillar(f'tour-{plane}-p3', plane, [-14.75, 0, -11.25 + dz], 10.9)
-    pillar(f'tour-{plane}-p4', plane, [-15.0, 0, 3.5 + dz], 16.4)
+    bras(plane, +1, t1, t2)
+    bras(plane, -1, t1, t2)
+    # la plate-forme — le belvédère de la tour, ourlé en pourtour, sur
+    # quatre piliers d'angle ; la lanterne de la face brûle dessous
+    slab(f'tour-{plane}-g3', plane, [0.0, SOMMET, 0.0], (PLATEAU, PLATEAU), t2,
+         lisiere='pourtour')
+    for k, (px, pz) in enumerate(((4.0, 4.0), (-4.0, 4.0), (-4.0, -4.0), (4.0, -4.0))):
+        pillar(f'tour-{plane}-p{k + 1}', plane, [px, 0, pz], SOMMET - 0.6)
 
 tour('sol', ('#6c6288', '#565070'))
 tour('plafond', ('#5a6a80', '#485668'))
-# l'échange : du sommet d'une tour au sommet de l'autre — les deux anneaux
-# se répondent, chaque monde renversé rend ce qu'il a pris
-anneau('sol', [-15.0, 17.0, 2.2], 'plafond', [-15.0, 17.0, 1.5],
-       'Tour inverse (plafond)')
-anneau('plafond', [-15.0, 17.0, 2.2], 'sol', [-15.0, 17.0, 1.5],
-       'Tour inverse (sol)')
+# l'échange : du centre d'une plate-forme au centre de l'autre — les deux
+# anneaux se répondent, chaque monde renversé rend ce qu'il a pris
+anneau('sol', [0.0, SOMMET, 0.0], 'plafond', [0.0, SOMMET, 0.0], 'Tour inverse (plafond)')
+anneau('plafond', [0.0, SOMMET, 0.0], 'sol', [0.0, SOMMET, 0.0], 'Tour inverse (sol)')
 
-# ── mobilier : lanternes sur chaque plan, piliers d'angle ────────────────
-# Budget de lumières : quatre lanternes éclairent « pour rien » (plafond
-# loin de tout, secondes lanternes d'une face) — intensité 0, halo gardé.
-# UNE lanterne par gravité, posée près du centre de sa face : elle dit
-# « ceci est un sol ». Les autres sont parties avec les piliers d'angle —
-# la lumière d'ambiance vient des corniches et des lisières.
+# ── mobilier : lanternes, bancs, gerbes ──────────────────────────────────
+# UNE lanterne par gravité, AU centre de sa face : elle dit « ceci est un
+# sol » (sur le sol et le plafond, elle brûle sous la plate-forme de la
+# tour). Intensité 2,4 ; la lumière d'ambiance vient des corniches et des
+# lisières.
 for plan_l in PLANES:
     cl = monde_de(plan_l, [0.0, HALF, 0.0])
-    lantern(f'lanterne-bel-{plan_l}-1', plan_l, [cl[0] + 4.0, 0, cl[2] + 4.0], intensity=2.4)
+    lantern(f'lanterne-bel-{plan_l}-1', plan_l, [cl[0], 0, cl[2]], intensity=2.4)
 
-prop('banc-belvedere', 'Banc', 'est', [25.0 - 4, 0, 2.5],
-     {'type': 'gltf', 'url': 'library/models/banc.glb',
-      'fit': 1.8, 'source': 'library'}, rot_y=30)
-works[-1]['credit'] = {'author': 'Galerie', 'license': 'CC0-1.0',
-                       'sourceUrl': 'https://github.com/yannicksandoz/yannicksandoz.github.io'}
+# deux bancs par tour, sous le bord de la plate-forme, de part et d'autre
+# de la lanterne sur l'axe x, tournés vers elle (le banc regarde vers +z :
+# un quart de tour) — hors des volées f1, qui serpentent jusqu'à z = ∓2,4
+BANC = {'type': 'gltf', 'url': 'library/models/banc.glb', 'fit': 1.8,
+        'source': 'library', 'texture': 'bois-use', 'roughness': 0.78,
+        'metalness': 0.0}
+for plan_b in ('sol', 'plafond'):
+    for k, xb in enumerate((6.0, -6.0)):
+        prop(f'banc-bel-{plan_b}-{k + 1}', 'Banc', plan_b, [xb, 0, 0.0], dict(BANC),
+             rot_y=-90 if xb > 0 else 90)
+        works[-1]['credit'] = {'author': 'Galerie', 'license': 'CC0-1.0',
+                               'sourceUrl': 'https://github.com/yannicksandoz/yannicksandoz.github.io'}
+
+# quatre gerbes de lumière aux coins de la pièce, sur les sommets d'un
+# TÉTRAÈDRE inscrit dans le cube (deux coins du plafond, les deux coins
+# opposés du sol) — l'orbite d'un coin sous les trois demi-tours. Chacune
+# vise le centre. Les gerbes ne sont pas des lumières : des rayons émissifs
+# (README, « gerbe »), portée 34 livrée à l'échelle de l'objet.
+COIN = HALF - 0.6
+for k, (sx, haut, sz) in enumerate(((-1, True, -1), (1, True, 1), (-1, False, 1), (1, False, -1))):
+    y = SIZE - 0.6 if haut else 0.6
+    add({
+        'id': f'gerbe-bel-{k + 1}', 'title': 'Gerbe', 'role': 'decor',
+        'position': [sx * COIN, y, sz * COIN], 'rotation': [0, 0, 0],
+        'scale': [1, 1, 1],
+        'model': {'shape': 'gerbe', 'nombre': 7, 'portee': 34.0, 'ouverture': 13,
+                  'vers': [-sx, -1 if haut else 1, -sz],
+                  'color': '#cbb4ff', 'emissive': 0.32, 'rayonBout': 0.789},
+        'solid': False, 'cartel': False, 'loadDistance': 130
+    })
 
 add({
     'id': 'gravite', 'title': 'Gravité',
@@ -571,17 +739,17 @@ def ambiance(id_, model, pos, rot=(0, 0, 0)):
         'lightIntensity': 0.0, 'loadDistance': 240
     })
 
-# (les trois faisceaux ont cédé la place à la gerbe et aux lavages posés à
-# la main — voir les fichiers emprise-bel-*, lavage-bel-*, gerbe-belvedere,
-# que ce script conserve sans les connaître)
+# (les trois faisceaux ont cédé la place aux gerbes et aux lavages posés à
+# la main — voir les fichiers emprise-bel-*, lavage-bel-*, que ce script
+# conserve sans les connaître). Un essaim sous chaque plate-forme.
 ambiance('lucioles-bel-1',
          {'shape': 'lucioles', 'size': 16.0, 'count': 40, 'seed': 11,
           'color': '#ffd97a', 'emissive': 1.1, 'dotSize': 0.24},
          (0.0, 8.0, 0.0))
 ambiance('lucioles-bel-2',
-         {'shape': 'lucioles', 'size': 11.0, 'count': 24, 'seed': 23,
-          'color': '#ffd97a', 'emissive': 0.95, 'dotSize': 0.2},
-         (-2.5, 3.5, -7.5))
+         {'shape': 'lucioles', 'size': 16.0, 'count': 40, 'seed': 23,
+          'color': '#ffd97a', 'emissive': 1.1, 'dotSize': 0.24},
+         (0.0, SIZE - 8.0, 0.0))
 
 # --------------------------------------------------------------- pièce ----
 room = {
@@ -608,7 +776,7 @@ room = {
     'envIntensity': 1.5,
     'works': [w['id'] for w in works],
     'bascules': bascules,
-    'jetons': [[19.0, 1.0, -5.0], [-16.0, 1.0, 16.0]],
+    'jetons': [[15.0, 1.0, -8.0], [-15.0, 1.0, 8.0]],   # au pied des volées-lames f2
     'portals': [
         {'to': 'couloir-est', 'position': [0, 0, 21.5], 'rotationY': 180,
          'label': 'Couloir', 'arrival': [0, 2.2, -6]},
@@ -764,9 +932,17 @@ def aabb(w):
 masses = [(w['id'], aabb(w)) for w in works if w.get('walkable')]
 masses = [(i, b) for i, b in masses if b]
 JEU = 0.3          # on tolère de se frôler, pas de se traverser
+def meme_arete(a, b):
+    """Une volée et SON lobe : la dalle du lobe couvre le flanc de la volée
+    (le masque la découpe sur la courbe), leurs boîtes se recouvrent par
+    construction — c'est le contrôle par cellules, plus bas, qui les juge."""
+    pa, pb = a.split('-', 1), b.split('-', 1)
+    return {pa[0], pb[0]} == {'escalier', 'lobe'} and pa[1] == pb[1]
 for i in range(len(masses)):
     for j in range(i + 1, len(masses)):
         (na, (loa, hia)), (nb, (lob, hib)) = masses[i], masses[j]
+        if meme_arete(na, nb):
+            continue
         chevauche = all(loa[k] < hib[k] - JEU and lob[k] < hia[k] - JEU
                         for k in range(3))
         assert not chevauche, (
@@ -839,6 +1015,59 @@ for w in works:
 ids = [w['id'] for w in works]
 assert len(ids) == len(set(ids)), 'identifiants dupliqués'
 
+# ------------------------------------------------------------ symétrie ----
+# Le belvédère est SYMÉTRIQUE : le demi-tour autour de chacun des trois
+# axes de la pièce (par son centre) envoie chaque masse, chaque pilier,
+# lanterne, banc, gerbe, essaim, sphère et jeton sur un autre du même
+# genre et de la même boîte. Une pièce sans dessus ni dessous n'a pas de
+# raison d'avoir un côté : rien n'est écrit qui rompe le groupe D2.
+def demi_tour(axe, p):
+    x, y, z = p
+    if axe == 'y':
+        return [-x, y, -z]
+    if axe == 'x':
+        return [x, SIZE - y, -z]
+    return [-x, SIZE - y, z]
+
+def boite(w):
+    b = aabb(w)
+    if b:
+        return b
+    x, y, z = w['position']
+    return ([x, y, z], [x, y, z])
+
+def boite_image(axe, b):
+    lo, hi = (demi_tour(axe, b[0]), demi_tour(axe, b[1]))
+    return ([min(lo[i], hi[i]) for i in range(3)], [max(lo[i], hi[i]) for i in range(3)])
+
+def meme_boite(a, b, tol=0.06):
+    return all(abs(a[0][i] - b[0][i]) <= tol and abs(a[1][i] - b[1][i]) <= tol
+               for i in range(3))
+
+SYMETRIQUES = ('Escalier', 'Balcon', 'Pilier', 'Lanterne', 'Banc', 'Gerbe', 'Décor')
+familles = {}
+for w in works:
+    if w['title'] in SYMETRIQUES:
+        familles.setdefault(w['title'], []).append(w)
+for axe in ('x', 'y', 'z'):
+    for titre, membres in familles.items():
+        for w in membres:
+            image = boite_image(axe, boite(w))
+            assert any(meme_boite(image, boite(v)) for v in membres), (
+                f"{w['id']} : pas d'image par le demi-tour autour de {axe}")
+    points = [b['position'] for b in bascules]         # local = repère de la pièce
+    for p in points:
+        q = demi_tour(axe, p)
+        assert any(all(abs(q[i] - r[i]) <= 0.06 for i in range(3)) for r in points), (
+            f'sphère en {p} : pas d\'image par le demi-tour autour de {axe}')
+    for j in room['jetons']:
+        q = demi_tour(axe, j)
+        # les jetons sont POSÉS : leur image par x ou z est au plafond, on
+        # ne la demande qu'à l'axe vertical
+        if axe == 'y':
+            assert any(all(abs(q[i] - r[i]) <= 0.06 for i in range(3)) for r in room['jetons']), (
+                f'jeton en {j} : pas d\'image par le demi-tour vertical')
+
 # ------------------------------------------------------ hauteur libre ----
 # L'ACCESSIBILITÉ, mesurée. Sur chaque plan, on remplit une grille de
 # cellules de dessin (50 cm) avec toutes les masses foulables, quel que
@@ -864,9 +1093,34 @@ def cellules_pleines(w):
         i += run
     return pleines
 
-def occupation(plane):
+def cellules_vues(w):
+    """Les cellules pleines de `w` telles qu'elles se VOIENT, dans le repère
+    de l'objet : (centre, demi-largeur latérale, axe latéral) — le serpentin
+    déplace et élargit chaque cellule en travers de l'axe long."""
+    m = w['model']
+    dims, cell = m['dims'], m['cell']
+    loi = loi_serpentin(dims)
+    out = []
+    for (x, y, z) in cellules_pleines(w):
+        c = [(x + 0.5 - dims[0] / 2) * cell, (y + 0.5) * cell, (z + 0.5 - dims[2] / 2) * cell]
+        if not loi:
+            out.append((c, None, None))
+            continue
+        if loi['axe'] == 2:
+            t, lat = (z + 0.5) / dims[2], 0
+        else:
+            t, lat = (x + 0.5) / dims[0], 2
+        g = loi['gonflement'](t)
+        c[lat] = c[lat] * g + loi['decalage'](t)
+        out.append((c, cell * g / 2, lat))
+    return out
+
+chevauchements = {}
+def occupation(plane, croisements=None):
     """{(ix, iy, iz): id} des cellules pleines des masses foulables, dans
-    le monde du plan `plane`, en cellules de dessin."""
+    le monde du plan `plane`, en cellules de dessin — les masses telles
+    qu'elles se voient (serpentin compris). `croisements` reçoit, par paire
+    de masses, le nombre de cellules qu'elles se disputent."""
     occ = {}
     for w in works:
         if not w.get('walkable') or w['model'].get('type') != 'voxel':
@@ -875,26 +1129,51 @@ def occupation(plane):
         # on les inscrit (elles peuvent surplomber un chemin), mais leurs
         # faces ne sont pas des surfaces foulables dans ce monde
         propre[w['id']] = w.get('_plan') == plane
-        m = w['model']
-        dims, cell = m['dims'], m['cell']
         ex, ey, ez = [math.radians(v) for v in w['rotation']]
         R = mmul(mmul(rx(ex), ry(ey)), rz(ez))
-        for (x, y, z) in cellules_pleines(w):
-            # centre de cellule : grille centrée en x/z, base à y = 0
-            c = [(x + 0.5 - dims[0] / 2) * cell, (y + 0.5) * cell, (z + 0.5 - dims[2] / 2) * cell]
-            v = mvec(R, c)
-            local = [v[i] + w['position'][i] for i in range(3)]
-            p = to_world(plane, local)
-            # les centres tombent à k + ½ cellule : on arrondit avant de
-            # prendre la partie entière, sinon un angle d'Euler arrondi à
-            # trois décimales fait basculer une cellule de bord dans la
-            # colonne voisine
-            cle = tuple(math.floor(round(p[i] / CELL, 3)) for i in range(3))
-            occ[cle] = w['id']
+        for (c, demi, lat) in cellules_vues(w):
+            # une cellule élargie couvre plusieurs colonnes : on inscrit
+            # chaque cellule de dessin dont le centre tombe dans sa largeur
+            if demi is None:
+                centres = [c]
+            else:
+                k0 = math.ceil((c[lat] - demi + 0.01) / CELL - 0.5)
+                k1 = math.floor((c[lat] + demi - 0.01) / CELL - 0.5)
+                centres = []
+                for k in range(k0, k1 + 1):
+                    d = list(c)
+                    d[lat] = (k + 0.5) * CELL
+                    centres.append(d)
+            for d in centres:
+                v = mvec(R, d)
+                local = [v[i] + w['position'][i] for i in range(3)]
+                p = to_world(plane, local)
+                # les centres tombent à k + ½ cellule : on arrondit avant de
+                # prendre la partie entière, sinon un angle d'Euler arrondi à
+                # trois décimales fait basculer une cellule de bord dans la
+                # colonne voisine
+                cle = tuple(math.floor(round(p[i] / CELL, 3)) for i in range(3))
+                if croisements is not None and cle in occ and occ[cle] != w['id']:
+                    paire = tuple(sorted((occ[cle], w['id'])))
+                    croisements[paire] = croisements.get(paire, 0) + 1
+                occ[cle] = w['id']
     return occ
+
+# AUCUNE MASSE N'EN TRAVERSE UNE AUTRE, telles qu'elles se voient : les
+# boîtes droites ne savent rien du serpentin (une volée qui ondoie d'un
+# mètre peut en rencontrer une autre à mi-course, ou son propre lobe).
+# Quelques cellules partagées sont un frôlement d'arrondi ; au-delà, on se
+# traverse.
+propre = {}
+occupation('sol', chevauchements)
+graves = {p: n for p, n in chevauchements.items() if n > 4 and not meme_arete(*p)}
+assert not graves, 'CHEVAUCHEMENTS (cellules vues) :\n  ' + '\n  '.join(
+    f'{a} et {b} : {n} cellules' for (a, b), n in graves.items())
 
 LIBRE_CELLS = int(math.ceil(LIBRE / CELL))        # 10 cellules de 50 cm
 POITRINE_CELLS = int(math.ceil(1.15 / K / CELL))  # 5 : sous ça, c'est un mur
+YEUX_CELLS = 8                                    # 1,92 m livrés : les yeux (2,2)
+                                                  # et la tête (2,3) vivent dans [8, 10)
 fautes = []
 for plane in PLANES:
     propre = {}
@@ -904,25 +1183,35 @@ for plane in PLANES:
         colonnes.setdefault((ix, iz), []).append((iy, wid))
     for (ix, iz), piles in colonnes.items():
         piles.sort()
-        # le sol : la première masse d'une colonne qui ne touche pas le sol
-        # doit laisser LIBRE dessous (celui qui marche dessous)
-        iy0, w0 = piles[0]
-        # sous la poitrine, une masse est un mur qu'on contourne ; entre la
-        # poitrine et la tête, c'est un piège : on passe dessous et l'on s'y
-        # cogne la caméra
-        if POITRINE_CELLS <= iy0 < LIBRE_CELLS:
-            fautes.append(f'{plane} : {w0} surplombe le sol à {iy0 * CELL * K:.2f} m '
+        # la colonne en MASSES contiguës [bas, haut, id du dessus]
+        runs = []
+        for iy, wid in piles:
+            if runs and iy == runs[-1][1] + 1:
+                runs[-1][1], runs[-1][2] = iy, wid
+            else:
+                runs.append([iy, iy, wid])
+        # le sol : la première masse d'une colonne qui ne touche pas le sol.
+        # Sous la poitrine, une masse est un mur qu'on contourne (le rayon de
+        # poitrine l'arrête) ; entre la poitrine et la tête, c'est un piège
+        # SI elle monte jusqu'aux yeux : on passe dessous et l'on s'y cogne
+        # la caméra. Une marche mince à 1,2 m — le flanc d'une volée
+        # serpentine vue d'une autre gravité — passe sous les yeux : on la
+        # traverse du buste, la caméra n'y entre pas.
+        a, b, w0 = runs[0]
+        if POITRINE_CELLS <= a < LIBRE_CELLS and b >= YEUX_CELLS:
+            fautes.append(f'{plane} : {w0} surplombe le sol à {a * CELL * K:.2f} m '
                           f'livrés en ({ix * CELL * K:.1f}, {iz * CELL * K:.1f})')
-        # chaque surface : pleine, vide au-dessus, et de l'air jusqu'à LIBRE
-        for k in range(len(piles) - 1):
-            iy, wid = piles[k]
-            iy2, wid2 = piles[k + 1]
-            if iy2 == iy + 1:
-                continue                     # pas une surface : masse continue
+        # chaque surface foulable de CE plan : de l'air jusqu'à LIBRE
+        # au-dessus (une masse plus bas barre le chemin, ou cogne la caméra)
+        for k in range(len(runs) - 1):
+            _, haut, wid = runs[k]
+            a2, _, wid2 = runs[k + 1]
             if not propre.get(wid):
                 continue                     # une falaise d'un autre plan
-            if wid2 != wid and iy2 - iy - 1 < LIBRE_CELLS:
-                fautes.append(f'{plane} : {wid2} passe à {(iy2 - iy - 1) * CELL * K:.2f} m '
+            if meme_arete(wid, wid2):
+                continue                     # la lisse du lobe sur le bord de sa volée
+            if wid2 != wid and a2 - haut - 1 < LIBRE_CELLS:
+                fautes.append(f'{plane} : {wid2} passe à {(a2 - haut - 1) * CELL * K:.2f} m '
                               f'au-dessus de {wid} en ({ix * CELL * K:.1f}, {iz * CELL * K:.1f})')
 # on ne signale chaque couple qu'une fois
 vus, resume = set(), []
@@ -938,7 +1227,7 @@ assert not resume, 'HAUTEUR LIBRE :\n  ' + '\n  '.join(resume)
 # ses réglages de main et ne reçoit que la géométrie.
 PREFIXES = ('escalier-', 'palier-r', 'passerelle-r', 'ruban-', 'lobe-', 'lanterne-bel',
             'pilier-bel', 'stele-belvedere', 'lanterne-belvedere',
-            'banc-belvedere', 'faisceau-bel', 'lucioles-bel', 'tour-')
+            'banc-bel', 'faisceau-bel', 'lucioles-bel', 'tour-', 'gerbe-bel')
 GEOMETRIE = ('position', 'rotation', 'scale', 'walkable', 'solid')
 
 def livrer(w):

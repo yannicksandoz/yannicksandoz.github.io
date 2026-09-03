@@ -1,16 +1,16 @@
 {
-  "id": "banc-belvedere",
+  "id": "banc-bel-sol-2",
   "title": "Banc",
   "description": "",
   "position": [
-    12.0,
-    10.08,
-    1.2
+    -2.88,
+    0.0,
+    0.0
   ],
   "rotation": [
-    -30.0,
     0.0,
-    90.0
+    90.0,
+    0.0
   ],
   "scale": [
     0.48,
@@ -22,7 +22,7 @@
   "model": {
     "type": "gltf",
     "url": "library/models/banc.glb",
-    "fit": 1.8,
+    "fit": 0.864,
     "source": "library",
     "texture": "bois-use",
     "roughness": 0.78,

@@ -1,14 +1,14 @@
 {
-  "id": "tour-sol-g2",
-  "title": "Palier",
+  "id": "tour-plafond-a-g1",
+  "title": "Balcon",
   "description": "",
   "position": [
-    -7.08,
-    5.309,
-    -6.36
+    7.2,
+    21.331,
+    3.36
   ],
   "rotation": [
-    0.0,
+    -180.0,
     0.0,
     0.0
   ],
@@ -26,14 +26,14 @@
     "dims": [
       8,
       1,
-      6
+      8
     ],
     "cell": 0.24,
     "palette": [
-      "#565070"
+      "#485668"
     ],
     "cells": [
-      48,
+      64,
       1
     ],
     "roughness": 0.3,

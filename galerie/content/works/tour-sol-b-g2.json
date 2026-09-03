@@ -1,11 +1,11 @@
 {
-  "id": "tour-sol-g1",
-  "title": "Palier",
+  "id": "tour-sol-b-g2",
+  "title": "Balcon",
   "description": "",
   "position": [
-    2.04,
-    2.669,
-    -6.36
+    -7.2,
+    4.349,
+    -2.64
   ],
   "rotation": [
     0.0,
@@ -24,16 +24,16 @@
   "model": {
     "type": "voxel",
     "dims": [
-      22,
+      8,
       1,
-      6
+      10
     ],
     "cell": 0.24,
     "palette": [
       "#565070"
     ],
     "cells": [
-      132,
+      80,
       1
     ],
     "roughness": 0.3,

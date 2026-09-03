@@ -140,20 +140,22 @@ Le cube se DESSINE à 50 m et se LIVRE à 24 (`scripts/genere-belvedere.py`,
 `K = 0,48`) ; un fichier existant ne reçoit que sa géométrie et garde ses
 réglages de main. Quatre règles, chacune une assertion du script :
 
-- **La ligne des 3,84 m.** Les douze arêtes du cube reçoivent douze volées,
-  DEUX PAR GRAVITÉ, parallèles et opposées, à la voie ±8 m de dessin du
-  centre de leur face (`ARETES`, `VOIE`). Sol et plafond montent vers est et
-  ouest, est et ouest vers nord et sud, nord et sud vers sol et plafond. Vue
-  d'une gravité voisine, une volée est une bande : toutes à la même hauteur,
-  la corniche continue de Hadid, obtenue par Escher. Cap, pied, crête, côté
-  du lobe et de la lisière se DÉDUISENT des matrices (`cap_vers`,
-  `monde_de`) — le point de chute d'une bascule est poussé au-delà de la
-  crête le long du « haut » du plan de départ, jamais deviné.
+- **La ligne des 3,12 m.** Les douze arêtes du cube reçoivent douze volées,
+  DEUX PAR GRAVITÉ, parallèles et opposées, à la voie ±6,5 m de dessin du
+  centre de leur face sur les quatre murs, ±15 sur le sol et le plafond
+  (`ARETES`, `VOIE`). Sol et plafond montent vers est et ouest, est et ouest
+  vers nord et sud, nord et sud vers sol et plafond. Vue d'une gravité
+  voisine, une volée est une bande : toutes à la même hauteur, la corniche
+  continue de Hadid, obtenue par Escher. Cap, pied, crête, côté du lobe et
+  de la lisière se DÉDUISENT des matrices (`cap_vers`, `monde_de`) — le
+  point de chute d'une bascule est poussé au-delà de la crête le long du
+  « haut » du plan de départ, jamais deviné.
 - **Un lobe au sommet.** Chaque volée finit contre son mur par une dalle
-  mince, droite contre la volée sur toute sa largeur et arrondie vers le vide
-  en demi super-ellipse (exposant 2,5), la sphère de bascule au-dessus :
-  le belvédère de la volée. Les six volées d'agrément, leurs balcons et la
-  passerelle sont parties. Plus aucune dalle au pied des volées.
+  mince, côté intérieur, qui ÉPOUSE le flanc de la volée et s'arrondit vers
+  le vide en demi super-ellipse (exposant 2,5), la sphère de bascule
+  au-dessus : le belvédère de la volée. Les six volées d'agrément, leurs
+  balcons et la passerelle sont parties. Plus aucune dalle au pied des
+  volées.
 - **Une lisière, pas un ruban.** La ligne de lumière est une propriété de la
   masse voxel (`model.lisiere`, voir plus bas) : le moteur la trace le long
   du bord extérieur des marches ou du pourtour du lobe, dans la grille, et
@@ -169,13 +171,61 @@ réglages de main. Quatre règles, chacune une assertion du script :
   des arrivées et la règle des seuils de la charte, rien n'est écrit qui
   ne passe.
 
-La tour jumelle reste au centre, reculée de 2 m vers le nord pour laisser
-passer la rampe sol → ouest ; ses galeries sont ourlées d'une lisière, ses
-volées-lames non (elles se lisent par leur double face). Une lanterne par
-gravité, plus de piliers d'angle ; le tore, la gerbe, les corniches ne
-bougent pas. Cinq portails ont été reposés entre les pilastres d'arrivée.
-Mesuré au jeu par micro-pas : on passe sous la galerie basse, on gravit une
-volée serpentine jusqu'à sa crête, on est retenu au bord du lobe.
+La tour jumelle est au centre — voir plus bas, « Le belvédère symétrique ».
+Ses galeries sont ourlées d'une lisière, ses volées-lames non (elles se
+lisent par leur double face). Une lanterne par gravité, plus de piliers
+d'angle ; le tore et les corniches ne bougent pas. Mesuré au jeu par
+micro-pas : on passe sous la galerie basse, on gravit une volée serpentine
+jusqu'à sa crête, on est retenu au bord du lobe.
+
+**Le belvédère symétrique — le groupe D2, et le serpentin dans le
+générateur.** Une pièce sans dessus ni dessous n'a pas de raison d'avoir un
+côté. Les douze volées avaient déjà, par construction, une symétrie que le
+reste ignorait : la tour dans un quadrant, les lanternes décalées, un banc,
+une gerbe dans un coin. Désormais le demi-tour autour de CHACUN des trois
+axes de la pièce (le groupe D2) envoie chaque masse, pilier, lanterne, banc,
+gerbe, essaim, sphère et jeton sur un autre du même genre et de la même
+boîte — c'est une assertion du script (« symétrie »), pas une intention.
+
+- **La tour, un moulinet.** Deux bras, images l'un de l'autre par le
+  demi-tour vertical : volée posée (6 m), galerie, volée-lame (4 m),
+  galerie, volée-lame (4 m), plate-forme commune de 10 × 10 à 13 m, au
+  centre exact de la face, sur quatre piliers d'angle, la lanterne de la
+  face dessous. Chaque bras vit dans le quadrant OPPOSÉ à la volée de sol
+  de son côté (x > 0 : z < 0). L'échange des gravités inverses se fait
+  au centre des deux plates-formes ; le tore flotte sur leur axe. Deux
+  bancs par tour, sur l'axe x, tournés vers la lanterne ; deux jetons
+  au pied des volées-lames.
+- **Quatre gerbes en tétraèdre.** L'orbite d'un coin sous les trois
+  demi-tours : deux coins du plafond, les deux coins opposés du sol,
+  chacune visant le centre.
+- **Le serpentin est dans le générateur.** En style fluide, le moteur fait
+  ondoyer les volées (`serpentin.js`) : un S de 1,18 m d'amplitude, une
+  largeur de 1,2 à 1,44 fois la nominale, extrémités fixes. Le script
+  dessinait des lobes droits contre des volées qui s'en écartaient d'un
+  mètre, et jugeait chevauchements et hauteur libre sur des grilles
+  droites. La loi est portée (`loi_serpentin`, valeurs identiques à 10⁻⁴) :
+  le lobe est découpé sur le flanc de la volée TELLE QU'ELLE SE VOIT (il
+  la chevauche d'une cellule au plus, jamais de jour — une fente de 7 cm
+  suffisait à la sonde anti-chute pour refuser le pas), et les deux
+  contrôles inscrivent les cellules vues. Ce qu'ils ont appris : une volée
+  de 6 m de montée court 12 m, pas 16 (un bras s'arrêtait à 4 m de sa
+  galerie — d'où l'assertion de raccord) ; côte à côte, la volée sol → est
+  et la volée f1 de la tour se touchaient ; et une volée serpentine
+  s'écarte de sa voie de 2,1 à 4,7 m, une bande de 2,6 m qui, vue du mur
+  voisin, doit tenir tout entière au-dessus de la tête (5 m du mur) —
+  à 17 comme à 18,5 elle passait à hauteur de front, à 15 son ventre
+  reste à 5,1 m.
+- **La règle des yeux.** Sous la poitrine, une masse est un mur (le rayon
+  de poitrine l'arrête) ; entre la poitrine et la tête, c'est un piège SI
+  elle monte jusqu'aux yeux (1,92 m) — une marche mince à 1,2 m, le flanc
+  d'une volée serpentine vue d'une autre gravité, passe sous les yeux : on
+  la traverse du buste, la caméra n'y entre pas.
+
+Quatre portails reposés par la charte (allée, archives, couloir, face 4).
+Mesuré au jeu par micro-pas, cinq parcours : sous les deux galeries
+et la lame, la montée serpentine jusqu'à la crête, le lobe qui retient, la
+descente, la volée de la tour jusqu'à sa galerie.
 
 **Les jetons ◈.** De petits octaèdres dorés sont **cachés dans les
 pièces** ; on les ramasse en marchant dessus (compteur sur le badge).
@@ -499,15 +549,16 @@ Face 1 (sol) à Face 6 (plafond), murs, sol, brume et lanterne teintés de la
 même famille. Le portail de retour rend le visiteur **sur le plan d'où il
 est parti** (champ `plane`) : on ressort du mur est debout sur le mur est.
 
-**La tour jumelle** (belvédère) : deux tours identiques — trois galeries à
-colonnades (6 m, 11,5 m, 17 m) reliées par des **volées-lames à double
-face**, dont le dessous est lui aussi un escalier — se dressent l'une sur
-le sol, l'autre sur le plafond, aux mêmes coordonnées de leur plan : dans
-la pièce, la seconde pend au-dessus de la première, marches renversées
-vers le bas, comme dans la gravure. Au sommet de chacune, un **anneau
-bascule sur le sommet de l'autre** : on échange les gravités inverses en
-marchant (l'anneau jumeau, désarmé à l'arrivée, se réarme en s'éloignant
-de quelques mètres — pas de va-et-vient involontaire).
+**La tour jumelle** (belvédère) : deux tours identiques — un moulinet à
+deux bras, galeries à 6 et 9,5 m reliées par des **volées-lames à double
+face**, dont le dessous est lui aussi un escalier, jusqu'à une plate-forme
+commune à 13 m — se dressent l'une sur le sol, l'autre sur le plafond, au
+centre de leur face : dans la pièce, la seconde pend au-dessus de la
+première, marches renversées vers le bas, comme dans la gravure. Au centre
+de chaque plate-forme, un **anneau bascule sur le centre de l'autre** : on
+échange les gravités inverses en marchant (l'anneau jumeau, désarmé à
+l'arrivée, se réarme en s'éloignant de quelques mètres — pas de va-et-vient
+involontaire).
 
 **On ne tombe pas d'un escalier — on en descend.** Le vide aussi est un
 mur : à chaque pas, une sonde descend au point où il nous mènerait ; sans
