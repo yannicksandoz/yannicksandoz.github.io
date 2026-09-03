@@ -132,23 +132,50 @@ ramenée de 1,6 à **1 m** (`CHUTE_MAX`) : les marches de 24 cm se descendent,
 un balcon ne se quitte plus par le vide, et l'on ne longe plus un bord en
 biais jusqu'à ce que la caméra soit à moitié dessus.
 
-Côté architecture (`scripts/genere-belvedere.py`), le cube se DESSINE à
-50 m et se LIVRE à 24 (`K = 0,48` : positions, cellules, sphères, jetons) ;
-un fichier existant ne reçoit que sa géométrie et garde ses réglages de
-main. **Plus aucune dalle au pied des volées** — on s'y engage depuis le
-sol, d'un pas. Les balcons au sommet des volées d'agrément sont des lames
-minces (24 cm) qui vont **jusqu'au mur** : un balcon arrêté à 1,7 m du mur
-voisin pendait à hauteur de tête pour qui marche sur ce mur. Chaque volée et
-chaque balcon portent des **rubans de lumière** (`ruban-*`) — des barres
-émissives sans matière, qui ne coûtent aucune lampe et éclairent par leurs
-reflets dans les masses laquées (`roughness` 0,3 sur les grilles voxel) :
-la cage d'escalier de Zaha Hadid, mêlée aux six gravités d'Escher. Le
-script REFUSE d'écrire tant qu'un chemin n'a pas 2,4 m d'air (`LIBRE`) : il
-remplit une grille de cellules par plan avec toutes les masses, de tous les
-plans, et exige cette hauteur au-dessus de chaque surface d'un chemin et de
-chaque colonne du sol (entre poitrine et tête, une masse est un piège ;
-sous la poitrine, un mur qu'on contourne). Trois volées et deux balcons ont
-changé de voie sous cette règle avant que rien ne soit écrit.
+**Le belvédère, deuxième dessin — une arête, une volée, une ligne.** Le
+premier dessin de la cage de Hadid comptait vingt-quatre volées, cinq
+balcons, soixante-quatre rubans de lumière droits posés à part — et les
+volées serpentent : le trait coupait la courbe, et rien n'avait de rythme.
+Le cube se DESSINE à 50 m et se LIVRE à 24 (`scripts/genere-belvedere.py`,
+`K = 0,48`) ; un fichier existant ne reçoit que sa géométrie et garde ses
+réglages de main. Quatre règles, chacune une assertion du script :
+
+- **La ligne des 3,84 m.** Les douze arêtes du cube reçoivent douze volées,
+  DEUX PAR GRAVITÉ, parallèles et opposées, à la voie ±8 m de dessin du
+  centre de leur face (`ARETES`, `VOIE`). Sol et plafond montent vers est et
+  ouest, est et ouest vers nord et sud, nord et sud vers sol et plafond. Vue
+  d'une gravité voisine, une volée est une bande : toutes à la même hauteur,
+  la corniche continue de Hadid, obtenue par Escher. Cap, pied, crête, côté
+  du lobe et de la lisière se DÉDUISENT des matrices (`cap_vers`,
+  `monde_de`) — le point de chute d'une bascule est poussé au-delà de la
+  crête le long du « haut » du plan de départ, jamais deviné.
+- **Un lobe au sommet.** Chaque volée finit contre son mur par une dalle
+  mince, droite contre la volée sur toute sa largeur et arrondie vers le vide
+  en demi super-ellipse (exposant 2,5), la sphère de bascule au-dessus :
+  le belvédère de la volée. Les six volées d'agrément, leurs balcons et la
+  passerelle sont parties. Plus aucune dalle au pied des volées.
+- **Une lisière, pas un ruban.** La ligne de lumière est une propriété de la
+  masse voxel (`model.lisiere`, voir plus bas) : le moteur la trace le long
+  du bord extérieur des marches ou du pourtour du lobe, dans la grille, et
+  la fait passer par la MÊME loi du serpentin que les pavés. Elle suit la
+  courbe parce qu'elle est tracée sur la courbe. Une par masse (assertion),
+  à 0,9 d'émission, sans matière ni ombre ; la sonde de reflets la voit, et
+  les masses laquées (`roughness` 0,3) la renvoient.
+- **2,4 m d'air partout** (`LIBRE`). Le script remplit une grille de
+  cellules par plan avec toutes les masses, de tous les plans, et exige
+  cette hauteur au-dessus de chaque surface d'un chemin et de chaque
+  colonne du sol (entre poitrine et tête, une masse est un piège ; sous la
+  poitrine, un mur qu'on contourne) — avec le chevauchement, l'ensevelissement
+  des arrivées et la règle des seuils de la charte, rien n'est écrit qui
+  ne passe.
+
+La tour jumelle reste au centre, reculée de 2 m vers le nord pour laisser
+passer la rampe sol → ouest ; ses galeries sont ourlées d'une lisière, ses
+volées-lames non (elles se lisent par leur double face). Une lanterne par
+gravité, plus de piliers d'angle ; le tore, la gerbe, les corniches ne
+bougent pas. Cinq portails ont été reposés entre les pilastres d'arrivée.
+Mesuré au jeu par micro-pas : on passe sous la galerie basse, on gravit une
+volée serpentine jusqu'à sa crête, on est retenu au bord du lobe.
 
 **Les jetons ◈.** De petits octaèdres dorés sont **cachés dans les
 pièces** ; on les ramasse en marchant dessus (compteur sur le badge).
@@ -768,8 +795,13 @@ au code du moteur** :
     "dims": [16, 16, 16],          // nombre de cellules par axe (64 max)
     "cell": 0.25,                  // arête d'une cellule, en mètres
     "palette": ["#8a7cff", "#66f0d8"],
-    "cells": [40, 0, 3, 1, 4053, 0] // RLE : longueur, valeur, longueur, valeur…
-  },                               // valeur 0 = vide, n ≥ 1 = couleur n−1
+    "cells": [40, 0, 3, 1, 4053, 0], // RLE : longueur, valeur, longueur, valeur…
+                                   // valeur 0 = vide, n ≥ 1 = couleur n−1
+    "roughness": 0.3, "metalness": 0, // la matière des cellules (défaut 0,62 / 0,05)
+    "lisiere": { "cote": "gauche",   // une LIGNE DE LUMIÈRE tracée dans la masse,
+                 "couleur": "#d9ccff", // le long du bord du dessus : "gauche" /
+                 "emissive": 0.9 }   // "droite" (vu vers l'axe long) ou "pourtour"
+  },                               // (dalle, lobe) ; suit le serpentin fluide
   "scale": [1, 1, 1],              // échelle par axe (gizmo « échelle »)
 
   // ou un SCAN — une capture volumétrique en splats gaussiens (Polycam,

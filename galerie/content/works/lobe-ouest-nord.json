@@ -1,16 +1,16 @@
 {
-  "id": "tour-sol-g1",
-  "title": "Palier",
+  "id": "lobe-ouest-nord",
+  "title": "Balcon",
   "description": "",
   "position": [
-    2.04,
-    2.669,
-    -6.36
+    -8.371,
+    6.36,
+    -10.332
   ],
   "rotation": [
+    -0.0,
     0.0,
-    0.0,
-    0.0
+    -90.0
   ],
   "scale": [
     1,
@@ -24,22 +24,36 @@
   "model": {
     "type": "voxel",
     "dims": [
-      22,
+      8,
       1,
-      6
+      12
     ],
     "cell": 0.24,
     "palette": [
-      "#565070"
+      "#5c4a44"
     ],
     "cells": [
-      132,
-      1
+      6,
+      1,
+      2,
+      0,
+      7,
+      1,
+      1,
+      0,
+      71,
+      1,
+      1,
+      0,
+      6,
+      1,
+      2,
+      0
     ],
     "roughness": 0.3,
     "metalness": 0.0,
     "lisiere": {
-      "cote": "gauche",
+      "cote": "pourtour",
       "couleur": "#d9ccff",
       "emissive": 0.9
     }

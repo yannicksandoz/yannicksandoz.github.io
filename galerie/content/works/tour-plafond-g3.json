@@ -5,7 +5,7 @@
   "position": [
     -7.2,
     16.051,
-    -1.56
+    -0.6
   ],
   "rotation": [
     -180.0,
@@ -37,7 +37,12 @@
       1
     ],
     "roughness": 0.3,
-    "metalness": 0.0
+    "metalness": 0.0,
+    "lisiere": {
+      "cote": "pourtour",
+      "couleur": "#d9ccff",
+      "emissive": 0.9
+    }
   },
   "lightIntensity": 0
 }

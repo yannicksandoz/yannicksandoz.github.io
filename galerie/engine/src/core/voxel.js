@@ -173,6 +173,8 @@ export function buildVoxelMesh(model, grid = gridOf(model)) {
 
   // permet de retrouver la cellule d'une instance cliquée
   mesh.userData.voxelCells = visible.map(([x, y, z]) => [x, y, z]);
+  const lisiere = buildLisiere(model, grid);
+  if (lisiere) mesh.add(lisiere);
   return mesh;
 }
 
@@ -251,6 +253,125 @@ export function buildVoxelMeshMerged(model, grid = gridOf(model)) {
   }
   mesh.instanceMatrix.needsUpdate = true;
   if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
+  const lisiere = buildLisiere(model, grid);
+  if (lisiere) mesh.add(lisiere);
+  return mesh;
+}
+
+/* ------------------------------------------------------------- lisière --- */
+
+/**
+ * LA LISIÈRE — une ligne de lumière qui appartient à la masse.
+ *
+ * Les rubans posés à part (des pavés émissifs droits du pied à la crête)
+ * coupaient la courbe des volées serpentines : la volée ondoie au rendu,
+ * le ruban restait droit. La lisière se trace ICI, dans le repère de la
+ * grille, le long des cellules de bord du dessus — le nez des marches d'un
+ * côté, ou le pourtour d'une dalle — puis chaque point passe par la MÊME
+ * loi du serpentin que les pavés (poserPave). Elle suit la courbe parce
+ * qu'elle est tracée sur la courbe.
+ *
+ *   "lisiere": { "cote": "gauche" | "droite" | "pourtour",
+ *                "couleur": "#d9ccff", "emissive": 0.9, "rayon": 0.03,
+ *                "hauteur": 0.08 }
+ *
+ * `gauche`/`droite` se lisent en regardant vers +axe long (z croissant si
+ * la masse est longue en z, x croissant sinon) : gauche = côté −latéral.
+ * `pourtour` ferme la boucle sur le contour du dessus (un lobe, un balcon).
+ * Rien n'est solide : ni collider, ni survol, ni ombre — la lisière ne
+ * fait que dessiner, et la sonde de reflets la voit.
+ */
+export const LISIERE_DEFAUT = { couleur: '#d9ccff', emissive: 0.9, rayon: 0.03, hauteur: 0.08 };
+
+/** Colonne (i, j) → hauteur du dessus (index de cellule +1) ou 0 si vide. */
+function hauteursDessus(grid, dims) {
+  const h = new Uint16Array(dims[0] * dims[2]);
+  for (let z = 0; z < dims[2]; z++) {
+    for (let x = 0; x < dims[0]; x++) {
+      let top = 0;
+      for (let y = dims[1] - 1; y >= 0; y--) {
+        if (grid[cellIndex(dims, x, y, z)]) { top = y + 1; break; }
+      }
+      h[x + dims[0] * z] = top;
+    }
+  }
+  return h;
+}
+
+/**
+ * Les points de la lisière, dans le repère de l'objet et DÉJÀ serpentés
+ * (fonction pure : le test au nœud la conduit sans WebGL).
+ * Rend { points: [[x, y, z], …], ferme } ou null si rien à tracer.
+ */
+export function tracerLisiere(model, grid = gridOf(model), serpent = serpentinVoxel(
+  model.dims ?? DEFAULT_DIMS, model.cell ?? DEFAULT_CELL)) {
+  const lis = model.lisiere;
+  if (!lis || typeof lis !== 'object') return null;
+  const dims = model.dims ?? DEFAULT_DIMS;
+  const cell = model.cell ?? DEFAULT_CELL;
+  const hauteur = Number.isFinite(lis.hauteur) ? lis.hauteur : LISIERE_DEFAUT.hauteur;
+  const dessus = hauteursDessus(grid, dims);
+  const top = (x, z) => dessus[x + dims[0] * z];
+  // l'axe long : celui du serpent s'il y en a un, sinon la plus grande dimension
+  const axe = serpent ? serpent.axe : (dims[0] * cell >= dims[2] * cell ? 0 : 2);
+  const nLong = axe === 0 ? dims[0] : dims[2];
+  const nLat = axe === 0 ? dims[2] : dims[0];
+  const at = (i, j) => (axe === 0 ? top(i, j) : top(j, i)); // i le long, j en travers
+  // le point du bord d'une colonne, côté −latéral (signe −1) ou +latéral
+  const point = (i, j, signe, h) => {
+    const [cx, , cz] = axe === 0 ? cellCenter(dims, cell, i, 0, j) : cellCenter(dims, cell, j, 0, i);
+    let long = axe === 0 ? cx : cz;
+    let lat = (axe === 0 ? cz : cx) + signe * cell / 2;
+    if (serpent) {
+      const t = (i + 0.5) / nLong;
+      lat = lat * serpent.gonflement(t) + serpent.decalage(t);
+    }
+    const y = h * cell + hauteur;
+    return axe === 0 ? [long, y, lat] : [lat, y, long];
+  };
+  const bord = (signe) => {
+    const pts = [];
+    for (let i = 0; i < nLong; i++) {
+      // la cellule pleine la plus au bord de ce côté, sur cette colonne
+      let j = signe < 0 ? 0 : nLat - 1;
+      const fin = signe < 0 ? nLat : -1;
+      while (j !== fin && !at(i, j)) j += -signe;
+      if (j === fin) continue;                       // colonne vide
+      pts.push(point(i, j, signe, at(i, j)));
+    }
+    return pts;
+  };
+  if (lis.cote === 'pourtour') {
+    const a = bord(-1), b = bord(1);
+    if (a.length < 2 || b.length < 2) return null;
+    return { points: [...a, ...b.reverse()], ferme: true };
+  }
+  const pts = bord(lis.cote === 'droite' ? 1 : -1);
+  return pts.length >= 2 ? { points: pts, ferme: false } : null;
+}
+
+/** Le maillage de la lisière (un tube fin émissif), ou null. */
+export function buildLisiere(model, grid = gridOf(model)) {
+  const trace = tracerLisiere(model, grid);
+  if (!trace) return null;
+  const lis = model.lisiere;
+  const rayon = Number.isFinite(lis.rayon) ? lis.rayon : LISIERE_DEFAUT.rayon;
+  const courbe = new THREE.CatmullRomCurve3(
+    trace.points.map((p) => new THREE.Vector3(p[0], p[1], p[2])), trace.ferme, 'centripetal');
+  const geometry = new THREE.TubeGeometry(courbe, Math.max(8, trace.points.length * 3), rayon, 6, trace.ferme);
+  const couleur = new THREE.Color(lis.couleur ?? LISIERE_DEFAUT.couleur);
+  const material = new THREE.MeshStandardMaterial({
+    color: couleur, emissive: couleur,
+    emissiveIntensity: Number.isFinite(lis.emissive) ? lis.emissive : LISIERE_DEFAUT.emissive,
+    roughness: 0.5, metalness: 0
+  });
+  const mesh = new THREE.Mesh(geometry, material);
+  mesh.name = 'lisiere';
+  // elle dessine, elle ne pèse rien : pas d'ombre, pas de cible, pas de
+  // lumière reçue (couche auto-éclairée, posée par Artwork._setMesh)
+  mesh.userData.sansOmbre = true;
+  mesh.userData.ignoreRaycast = true;
+  mesh.userData.autoEclaire = true;
   return mesh;
 }
 

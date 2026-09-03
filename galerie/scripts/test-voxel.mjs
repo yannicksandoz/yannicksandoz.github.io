@@ -8,7 +8,8 @@ import {
   DEFAULT_DIMS, DEFAULT_CELL,
   cellIndex, inBounds, cellCount,
   encodeRLE, decodeRLE, gridOf, buildVoxelMesh,
-  cellCenter, cellAt, newVoxelModel, filledCount, fillBox
+  cellCenter, cellAt, newVoxelModel, filledCount, fillBox,
+  tracerLisiere, buildLisiere
 } from '../engine/src/core/voxel.js';
 
 let passed = 0, failed = 0;
@@ -199,6 +200,42 @@ console.log('\nrendu — instanciation et occlusion');
   const grid4 = new Uint8Array(27);
   grid4[0] = 9;
   check('index de palette invalide toléré', buildVoxelMesh(model, grid4).count, 1);
+}
+
+console.log('\nlisière — la ligne de lumière suit le bord de la masse');
+{
+  // une volée de 4 marches, 3 de large, 8 de long (2 cellules par marche)
+  const dims = [3, 4, 8];
+  const grid = new Uint8Array(cellCount(dims));
+  for (let z = 0; z < 8; z++) {
+    for (let y = 0; y <= Math.min(3, Math.floor(z / 2)); y++) {
+      for (let x = 0; x < 3; x++) grid[cellIndex(dims, x, y, z)] = 1;
+    }
+  }
+  const model = { type: 'voxel', dims, cell: 0.5, lisiere: { cote: 'gauche', hauteur: 0.1 } };
+  const t = tracerLisiere(model, grid, null);
+  check('une volée ouverte : autant de points que de colonnes', t.points.length, 8);
+  check('pas fermée', t.ferme, false);
+  check('gauche = bord −x de la grille (x = −0,75)', t.points.every((p) => Math.abs(p[0] + 0.75) < 1e-9), true);
+  check('la ligne monte avec les marches', t.points[0][1] < t.points[7][1], true);
+  check('hauteur de la première marche + 10 cm', +t.points[0][1].toFixed(2), 0.6);
+  check('hauteur de la crête + 10 cm', +t.points[7][1].toFixed(2), 2.1);
+  const d = tracerLisiere({ ...model, lisiere: { cote: 'droite' } }, grid, null);
+  check('droite = bord +x', d.points.every((p) => Math.abs(p[0] - 0.75) < 1e-9), true);
+  // le serpentin déplace et gonfle : une loi jouet, décalage 1 partout
+  const serpent = { axe: 2, decalage: () => 1, gonflement: () => 2 };
+  const s = tracerLisiere(model, grid, serpent);
+  check('serpenté : x = −0,75 × 2 + 1', s.points.every((p) => Math.abs(p[0] - (-0.5)) < 1e-9), true);
+  // pourtour d'une dalle pleine 4 × 1 × 6
+  const dalle = { type: 'voxel', dims: [4, 1, 6], cell: 0.5, lisiere: { cote: 'pourtour' } };
+  const g2 = new Uint8Array(24).fill(1);
+  const p = tracerLisiere(dalle, g2, null);
+  check('pourtour fermé', p.ferme, true);
+  check('pourtour : deux bords de 6 colonnes', p.points.length, 12);
+  check('sans lisière : rien', tracerLisiere({ type: 'voxel', dims, cell: 0.5 }, grid, null), null);
+  const mesh = buildLisiere(model, grid);
+  check('un maillage nommé lisiere', mesh?.name, 'lisiere');
+  check('qui ne pèse rien : ni ombre, ni cible', [mesh.userData.sansOmbre, mesh.userData.ignoreRaycast], [true, true]);
 }
 
 console.log(`\n${passed} réussis, ${failed} échoués\n`);

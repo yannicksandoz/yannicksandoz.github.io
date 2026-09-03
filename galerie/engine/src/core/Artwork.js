@@ -1037,6 +1037,12 @@ export class Artwork {
         o.layers.set(COUCHE_AUTO_ECLAIREE);
         if (o.isMesh) o.castShadow = false;
       });
+    } else {
+      // une partie peut s'auto-éclairer seule (la lisière d'une masse
+      // voxel) : même couche, sans que la masse la suive
+      mesh.traverse?.((o) => {
+        if (o.userData.autoEclaire) { o.layers.set(COUCHE_AUTO_ECLAIREE); o.castShadow = false; }
+      });
     }
     this.group.add(mesh);
     // Le projecteur se recadre maintenant que le format est connu : à la

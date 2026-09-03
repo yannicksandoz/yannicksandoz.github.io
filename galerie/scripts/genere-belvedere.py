@@ -139,7 +139,8 @@ def modele_voxel(dims, cells, color):
     return {'type': 'voxel', 'dims': dims, 'cell': CELL,
             'palette': [color], 'cells': cells, **MATIERE}
 
-def stair(id_, plane, start, end_h, lane, heading, color, base=0.0, walkable=True):
+def stair(id_, plane, start, end_h, lane, heading, color, base=0.0, walkable=True,
+          lisiere=None):
     """Escalier posé sur `plane`, dans le repère de ce plan.
 
     start   : abscisse de départ le long de la course (monde du plan)
@@ -176,60 +177,37 @@ def stair(id_, plane, start, end_h, lane, heading, color, base=0.0, walkable=Tru
         top = [start + sign * run_len, base + end_h, lane]
     else:
         top = [lane, base + end_h, start + sign * run_len]
-    # LES RUBANS DE LUMIÈRE : un trait lumineux le long de chaque bord de
-    # la volée, du pied à la crête — les lignes de la cage d'escalier de
-    # Hadid, et ce que les masses laquées reflètent.
-    pied = [start, base, lane] if heading[0] == 'x' else [lane, base, start]
-    demi = WIDE * CELL / 2 + 0.12
-    for cote, signe in (('g', -1), ('d', 1)):
-        if heading[0] == 'x':
-            a = [pied[0], pied[1] + 0.35, pied[2] + signe * demi]
-            b = [top[0], top[1] + 0.35, top[2] + signe * demi]
-        else:
-            a = [pied[0] + signe * demi, pied[1] + 0.35, pied[2]]
-            b = [top[0] + signe * demi, top[1] + 0.35, top[2]]
-        ruban(f'ruban-{id_[len("escalier-"):]}-{cote}', plane, a, b)
+    if lisiere:
+        w['model']['lisiere'] = {'cote': lisiere, **LISIERE}
     return w, top
 
-RUBAN = {'shape': 'box', 'color': '#f6f3ff', 'emissiveColor': '#d9ccff',
-         'emissive': 1.5, 'roughness': 0.5, 'metalness': 0.0, 'texture': 'aucune'}
+# LA LISIÈRE : la ligne de lumière appartient à la masse (voxel.js
+# buildLisiere) — tracée le long du bord du dessus, dans la grille, puis
+# serpentée par la même loi que les pavés. Une par masse, sur le bord
+# extérieur ; en pourtour sur un lobe.
+LISIERE = {'couleur': '#d9ccff', 'emissive': 0.9}
 
-def ruban(id_, plane, a, b, epaisseur=0.16):
-    """Un RUBAN DE LUMIÈRE : une barre émissive fine de `a` à `b` (monde du
-    plan), qui suit une pente s'il le faut. Elle n'éclaire pas par une lampe
-    (le budget de lumières est compté) : elle brille, fleurit dans le bloom,
-    et se REFLÈTE dans les masses laquées — c'est par les reflets qu'elle
-    éclaire. Sans matière (solid: false) : on la traverse, on ne bute pas."""
-    dx, dy, dz = b[0] - a[0], b[1] - a[1], b[2] - a[2]
-    L = math.hypot(dx, dy, dz)
-    assert L > 0.5, f'{id_} : ruban trop court'
-    centre = [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2, (a[2] + b[2]) / 2]
-    # l'axe long est +z de l'objet : cap (autour de y) puis pente (autour de x)
-    cap = math.atan2(dx, dz)
-    pente = -math.atan2(dy, math.hypot(dx, dz))
-    R = mmul(ry(cap), rx(pente))
-    # PREUVE : +z de l'objet, tourné, pointe bien de a vers b
-    bout = mvec(R, [0, 0, L / 2])
-    for k in range(3):
-        assert abs(centre[k] + bout[k] - b[k]) < 1e-6, f'{id_} : orientation du ruban'
-    add({
-        'id': id_, 'title': 'Ruban de lumière', 'description': '',
-        'position': [round(v, 3) for v in to_local(plane, centre)],
-        'rotation': local_rot(plane, R),
-        'scale': [epaisseur, epaisseur * 0.6, round(L, 3)],
-        'modules': [], 'role': 'decor', 'model': dict(RUBAN),
-        'selfLit': True, 'solid': False, 'cartel': False,
-        'lightIntensity': 0, 'loadDistance': 240
-    })
-
-def slab(id_, plane, centre, size, color, walkable=True, rubans=()):
+def slab(id_, plane, centre, size, color, walkable=True, lisiere=None, masque=None):
     """Balcon : dalle MINCE, foulable — les repos de « Relativity », devenus
     les rubans de béton blanc de Hadid. `rubans` : les côtés ('n', 's',
     'e', 'o' du monde du plan) qui portent un ruban de lumière."""
     nx, nz = int(size[0] / CELL), int(size[1] / CELL)
     ny = 1                                     # 50 cm de dessin, 24 livrés
     dims = [nx, ny, nz]
-    cells = [nx * ny * nz, 1]                  # plein
+    if masque:
+        # une dalle DÉCOUPÉE : le masque dit quelles colonnes sont pleines
+        grid = [1 if masque((x + 0.5) / nx * 2 - 1, (z + 0.5) / nz * 2 - 1) else 0
+                for z in range(nz) for x in range(nx)]
+        cells, run, val = [], 1, grid[0]
+        for v in grid[1:]:
+            if v == val:
+                run += 1
+            else:
+                cells += [run, val]
+                run, val = 1, v
+        cells += [run, val]
+    else:
+        cells = [nx * ny * nz, 1]              # plein
     # base à y = 0 de l'objet : on descend d'une épaisseur pour que la face
     # supérieure du palier affleure la hauteur demandée. LIFT : six
     # centimètres de plus, car une dalle posée EXACTEMENT au niveau d'une
@@ -246,24 +224,17 @@ def slab(id_, plane, centre, size, color, walkable=True, rubans=()):
         'model': modele_voxel(dims, cells, color),
         'lightIntensity': 0, '_plan': plane
     })
-    h = centre[1] + LIFT + 0.35
-    hx, hz = size[0] / 2 + 0.12, size[1] / 2 + 0.12
-    bords = {'n': ([centre[0] - hx, h, centre[2] - hz], [centre[0] + hx, h, centre[2] - hz]),
-             's': ([centre[0] - hx, h, centre[2] + hz], [centre[0] + hx, h, centre[2] + hz]),
-             'o': ([centre[0] - hx, h, centre[2] - hz], [centre[0] - hx, h, centre[2] + hz]),
-             'e': ([centre[0] + hx, h, centre[2] - hz], [centre[0] + hx, h, centre[2] + hz])}
-    for cote in rubans:
-        a, b = bords[cote]
-        ruban(f'ruban-{id_}-{cote}', plane, a, b)
+    if lisiere:
+        works[-1]['model']['lisiere'] = {'cote': lisiere, **LISIERE}
 
-def walkway(id_, plane, a, b, width, top_h, color, walkable=True, rubans=()):
+def walkway(id_, plane, a, b, width, top_h, color, walkable=True, lisiere=None):
     """Passerelle : une dalle qui RELIE — le sommet d'une volée au mur,
     dans le monde du plan. `a` et `b` sont les deux bouts (x, z), la face
     supérieure affleure `top_h`."""
     cx, cz = (a[0] + b[0]) / 2, (a[1] + b[1]) / 2
     lx = max(abs(b[0] - a[0]), width)
     lz = max(abs(b[1] - a[1]), width)
-    slab(id_, plane, [cx, top_h, cz], (lx, lz), color, walkable=walkable, rubans=rubans)
+    slab(id_, plane, [cx, top_h, cz], (lx, lz), color, walkable=walkable, lisiere=lisiere)
 
 def prop(id_, title, plane, centre, model, rot_y=0, light=None, scale=None):
     w = {
@@ -345,148 +316,124 @@ def bascule(plane_from, top_world, to_plane, label, retour=None, decalage=(0, 0)
     })
     return local, arr
 
-# À 50 m, les volées principales font 8 m de haut (16 m de course) : le
-# pied se pose à INNER − course − 0,3 pour que la crête touche le mur.
+# À 50 m, les volées font 8 m de haut (16 m de course) : le pied se pose à
+# 0,3 + 16 du mur pour que la crête le touche.
 H_MAIN = 8.0
 RUN = 2 * H_MAIN
-PIED = round(INNER - RUN - 0.3, 2)        # ≈ 8,5 : départ des volées murales
+VOIE = 8.0        # la voie de toute volée : centre de sa face ± 8 (ligne des 3,84 m)
 
-# ── plan SOL : on monte vers l'est ────────────────────────────────────────
-S1_LANE, S1_H = 6.0, H_MAIN
-s1, top1 = stair('escalier-r1', 'sol', PIED, S1_H, S1_LANE, 'x+', '#5b5478')
-# Vue du plan est, la volée S1 se couche en falaise le long du nouveau sol :
-# le point de chute se décale au-delà de sa crête, sinon on atterrit dedans.
-loc1, arr1 = bascule('sol', [top1[0] - 1.2, S1_H, S1_LANE], 'est', 'Mur est',
-                     retour='Retour au sol', decalage=(2.5, 0))
+# ── LES DOUZE ARÊTES : une volée par arête, deux par gravité ─────────────
+# Une arête du cube joint deux faces ; la volée se pose sur l'une (PLAN) et
+# monte vers l'autre (VERS). Répartition : deux volées par plan, PARALLÈLES
+# et OPPOSÉES, l'une à la voie +8, l'autre à −8 du centre de la face — un
+# S par gravité, le centre libre pour le tore et la tour. Le sens de la
+# montée, le pied, la crête, le côté du lobe et celui de la lisière se
+# DÉDUISENT des matrices, jamais ne se devinent.
+NOMS = {'sol': 'Sol', 'plafond': 'Plafond', 'est': 'Mur est', 'ouest': 'Mur ouest',
+        'nord': 'Mur nord', 'sud': 'Mur sud'}
+# normale réelle de chaque face, et la coordonnée réelle de sa surface
+FACES_REELLES = {'est': ([1, 0, 0], INNER), 'ouest': ([-1, 0, 0], -INNER),
+                 'sud': ([0, 0, 1], INNER), 'nord': ([0, 0, -1], -INNER),
+                 'plafond': ([0, 1, 0], SIZE), 'sol': ([0, -1, 0], 0.0)}
+ARETES = [
+    # (plan, vers, côté de la voie : +1 ou −1 par rapport au centre de la face).
+    # Sol et plafond montent vers est et ouest : leurs volées courent en x,
+    # à z = ±8, et la tour jumelle (z de −15 à +3 dans le monde du plan)
+    # se laisse enjamber par la voie −8 sans être traversée ; une volée en
+    # z à x = ±8 la traverserait de part en part.
+    ('sol', 'est', +1), ('sol', 'ouest', -1),
+    ('plafond', 'est', +1), ('plafond', 'ouest', -1),
+    ('est', 'nord', +1), ('est', 'sud', -1),
+    ('ouest', 'nord', +1), ('ouest', 'sud', -1),
+    ('nord', 'sol', +1), ('nord', 'plafond', -1),
+    ('sud', 'sol', -1), ('sud', 'plafond', +1)
+]
+TEINTES = {'sol': '#5b5478', 'plafond': '#4a4a66', 'est': '#3f5c4e',
+           'ouest': '#5c4a44', 'nord': '#6a4a54', 'sud': '#44584a'}
 
-# ── plan EST : le sol est le mur est ; on monte vers le nord ──────────────
-# après la bascule on arrive vers (x ≈ hauteur atteinte, z = voie)
-S2_LANE = round(arr1[0], 2)
-S2_H = H_MAIN
-s2, top2 = stair('escalier-r2', 'est', -PIED, S2_H, S2_LANE, 'z-', '#3f5c4e')
-# le sommet de S2 aboutit contre le flanc de sa propre volée, vue du plan
-# nord : on pose le pied trois mètres et demi à côté, au ras de S3
-loc2, arr2 = bascule('est', [S2_LANE, S2_H, top2[2] + 1.2], 'nord', 'Mur nord',
-                     retour='Retour au mur est', decalage=(-3.5, 0))
+def monde_de(plane, reel):
+    """Un point RÉEL de la pièce, vu dans le monde du plan."""
+    R, lift = PLANES[plane]
+    w = mvec(R, reel)
+    return [w[0], w[1] + lift, w[2]]
 
-# ── plan NORD : le sol est le mur nord ; on remonte vers le sol d'origine ──
-# 6 m de côté : la volée du plan nord passe à côté de la rampe du plan
-# est au lieu de la traverser (les deux murs se rejoignent ici).
-S3_LANE = round(arr2[0], 2) - 6
-# Volée courte : son pied tombe à côté du point de chute, six mètres sur la
-# gauche — on atterrit sur une arête, on fait un pas de côté, on repart.
-S3_H = 4.0
-s3, top3 = stair('escalier-r3', 'nord', -8.5, S3_H, S3_LANE, 'z+', '#6a4a54')
-# de retour sur le sol d'origine, la volée S3 surplombe le point de chute
-# comme un auvent : trois mètres vers le centre et l'on retrouve le ciel
-loc3, arr3 = bascule('nord', [S3_LANE, S3_H, top3[2] - 1.2], 'sol', 'Sol',
-                     retour='Retour au mur nord', decalage=(0, 3))
+def vecteur_monde(plane, reel):
+    """Un VECTEUR réel, vu dans le monde du plan (sans translation)."""
+    return mvec(PLANES[plane][0], reel)
 
-# Repères des trois nouveaux plans, PROUVÉS par les matrices (et non
-# devinés) : le monde du plan ouest s'étend en x ∈ [-SIZE, 0] (0 = sol
-# réel, -SIZE = plafond réel) ; celui du plan sud en z ∈ [0, SIZE] ; celui
-# du plafond en x, z ∈ [-HALF, HALF] comme le sol.
-PIED_HAUT = round(SIZE - 0.5 - RUN, 2)    # départ des volées vers le plafond
+def cap_vers(plane, face):
+    """Le cap ('x+', 'x-', 'z+', 'z-') qui, dans le monde du plan, mène à la face."""
+    n = vecteur_monde(plane, FACES_REELLES[face][0])
+    for axe, i in (('x', 0), ('z', 2)):
+        if abs(n[i]) > 0.5:
+            return f"{axe}{'+' if n[i] > 0 else '-'}"
+    raise AssertionError(f'{face} n\'est pas une face voisine de {plane}')
 
-# ── plan OUEST : une volée du sol y mène, et l'on en revient ─────────────
-S7_LANE, S7_H = -2.0, H_MAIN
-s7, top7 = stair('escalier-r7', 'sol', -PIED, S7_H, S7_LANE, 'x-', '#5c4a44')
-loc7, arr7 = bascule('sol', [top7[0] + 1.2, S7_H, S7_LANE], 'ouest', 'Mur ouest',
-                     retour='Retour au sol (ouest)', decalage=(-2.5, 0))
+def lobe(id_, plane, centre, size, color, axe=0, cote=1):
+    """Le LOBE : une dalle mince, DROITE contre la volée (toute la largeur
+    s'y raccorde, pas une pointe) et arrondie vers le vide en demi
+    super-ellipse (exposant 2,5 — l'arrondi des balcons de Hadid), lisière
+    en pourtour. Le belvédère d'une volée. `axe` est l'axe de la montée,
+    `cote` le côté du lobe par rapport à la voie."""
+    n = 2.5
+    def masque(u, v):
+        long_, lat = (u, v) if axe == 0 else (v, u)
+        dehors = max(lat * cote, 0.0)          # 0 contre la volée, 1 au bord
+        return abs(long_) ** n + dehors ** n <= 1.0
+    slab(id_, plane, centre, size, color, lisiere='pourtour', masque=masque)
 
-# ── plan SUD : même chose, plein sud ─────────────────────────────────────
-S8_LANE, S8_H = -12.0, H_MAIN
-s8, top8 = stair('escalier-r8', 'sol', PIED, S8_H, S8_LANE, 'z+', '#44584a')
-loc8, arr8 = bascule('sol', [S8_LANE, S8_H, top8[2] - 1.2], 'sud', 'Mur sud',
-                     retour='Retour au sol (sud)', decalage=(0, 2.5))
+def arete(plane, face, cote):
+    """Pose la volée d'une arête : montée, lobe, sphère aller-retour."""
+    cap = cap_vers(plane, face)
+    axe = 0 if cap[0] == 'x' else 2
+    signe = 1 if cap[1] == '+' else -1
+    lat = 2 - axe                                   # l'axe de la voie
+    centre = monde_de(plane, [0.0, HALF, 0.0])      # le centre de la face
+    voie = round(centre[lat] + cote * VOIE, 2)
+    # la surface de la face cible, dans le monde du plan, le long de la montée
+    surface = FACES_REELLES[face][1]
+    normale = FACES_REELLES[face][0]
+    reel_face = [normale[i] * abs(surface) if normale[i] else 0.0 for i in range(3)]
+    mur = monde_de(plane, reel_face)[axe]
+    crete = mur - signe * 0.3
+    pied = crete - signe * RUN
+    id_ = f'escalier-{plane}-{face}'
+    # la lisière : le bord EXTÉRIEUR (loin du centre de la face). « gauche »
+    # est le −x local ; tourné par le cap, il pointe vers ±voie
+    HEAD = {'z+': 0, 'z-': 180, 'x+': 90, 'x-': -90}
+    gauche = mvec(ry(math.radians(HEAD[cap])), [-1, 0, 0])[lat]
+    lisiere = 'gauche' if gauche * cote > 0 else 'droite'
+    w, top = stair(id_, plane, pied, H_MAIN, voie, cap, TEINTES[plane], lisiere=lisiere)
+    # le lobe : contre la crête, côté extérieur, à la hauteur de la crête
+    demi = WIDE * CELL / 2
+    LOBE = (6.0, 4.0)                               # le long de la montée × en travers
+    c = [0.0, H_MAIN, 0.0]
+    c[axe] = crete - signe * LOBE[0] / 2
+    c[lat] = voie + cote * (demi + LOBE[1] / 2)
+    size = (LOBE[0], LOBE[1]) if axe == 0 else (LOBE[1], LOBE[0])
+    lobe(f'lobe-{plane}-{face}', plane, c, size, TEINTES[plane], axe=axe, cote=cote)
+    # la sphère : 1,2 m avant la crête, au-dessus des dernières marches ; le
+    # point de chute, vu de la face cible, est poussé au-delà de la crête de
+    # la volée (qui y est une falaise) le long de SA montée — 2,5 m au-dessus
+    # de sa hauteur, en direction du « haut » du plan de départ
+    sommet = [0.0, H_MAIN, 0.0]
+    sommet[axe] = top[axe] - signe * 1.2
+    sommet[lat] = voie
+    # le « haut » du plan de départ, en réel : real = Rᵀ · monde
+    haut_reel = mvec(transpose(PLANES[plane][0]), [0, 1, 0])
+    haut_cible = vecteur_monde(face, haut_reel)
+    decalage = (round(2.5 * haut_cible[0], 2), round(2.5 * haut_cible[2], 2))
+    bascule(plane, sommet, face, NOMS[face], retour=f'Retour : {NOMS[plane]}',
+            decalage=decalage)
+    # PREUVES : la crête touche la face, le pied est dans la face
+    near(top[axe], mur - signe * 0.3, 0.6, f'{id_} atteint {face}')
+    assert abs(pied) <= SIZE + 1 and abs(voie) <= SIZE + 1, f'{id_} : hors du cube'
 
-# ── PLAFOND : on y grimpe depuis le plan ouest ───────────────────────────
-# (dans le monde du plan ouest, le plafond réel est le mur à x = -SIZE)
-S9_LANE, S9_H = 6.0, H_MAIN
-s9, top9 = stair('escalier-r9', 'ouest', -PIED_HAUT, S9_H, S9_LANE, 'x-', '#4a4a66')
-loc9, arr9 = bascule('ouest', [top9[0] + 1.2, S9_H, S9_LANE], 'plafond', 'Plafond',
-                     retour='Retour au mur ouest', decalage=(2.5, 0))
+def near(a, b, tol, what):
+    assert abs(a - b) <= tol, f'{what} : {a:.2f} ≠ {b:.2f} (±{tol})'
 
-# ── LE LABYRINTHE : le graphe complet du cube ────────────────────────────
-# Un cube a douze paires de faces adjacentes. Les six volées ci-dessus n'en
-# relient que six : les six autres arêtes manquaient, et le belvédère se
-# parcourait comme une boucle, pas comme un labyrinthe. Chaque paire reçoit
-# sa volée + sa bascule aller-retour : de n'importe quel plan, QUATRE
-# passages partent vers les quatre plans voisins.
-#
-# Décalages d'arrivée : vue du plan cible, la volée qui vient de la toucher
-# est une falaise contre le mur partagé — le point de chute est poussé de
-# 2,5 m au-delà de sa crête (vérifié par enseveli(), pas à l'œil).
-
-# est → sud (la volée grimpe plein sud sur le mur est). Voie 20 : à 12, sa
-# masse passait 1,6 m au-dessus du balcon r4 du plan sol (hauteur libre).
-S10_LANE, S10_H = 20.0, H_MAIN
-s10, top10 = stair('escalier-r10', 'est', PIED, S10_H, S10_LANE, 'z+', '#3f6a54')
-bascule('est', [S10_LANE, S10_H, top10[2] - 1.2], 'sud', 'Mur sud',
-        retour="Retour au mur est", decalage=(-2.5, 0))
-
-# nord → ouest
-S11_LANE, S11_H = -12.0, H_MAIN
-s11, top11 = stair('escalier-r11', 'nord', -PIED, S11_H, S11_LANE, 'x-', '#6a5444')
-bascule('nord', [top11[0] + 1.2, S11_H, S11_LANE], 'ouest', 'Mur ouest',
-        retour='Retour au mur nord', decalage=(0, 2.5))
-
-# sud → plafond (dans le monde du plan sud, le plafond réel est à z = +SIZE)
-S12_LANE, S12_H = 5.0, H_MAIN
-s12, top12 = stair('escalier-r12', 'sud', PIED_HAUT, S12_H, S12_LANE, 'z+', '#585444')
-bascule('sud', [S12_LANE, S12_H, top12[2] - 1.2], 'plafond', 'Plafond',
-        retour='Retour au mur sud', decalage=(0, 2.5))
-
-# nord → plafond (le plafond réel est à z = -SIZE du monde du plan nord)
-S13_LANE, S13_H = -5.0, H_MAIN
-s13, top13 = stair('escalier-r13', 'nord', -PIED_HAUT, S13_H, S13_LANE, 'z-', '#4a5a6a')
-bascule('nord', [S13_LANE, S13_H, top13[2] + 1.2], 'plafond', 'Plafond',
-        retour='Retour au mur nord', decalage=(0, -2.5))
-
-# sud → ouest
-S14_LANE, S14_H = 19.0, H_MAIN
-s14, top14 = stair('escalier-r14', 'sud', -PIED, S14_H, S14_LANE, 'x-', '#5a4a62')
-bascule('sud', [top14[0] + 1.2, S14_H, S14_LANE], 'ouest', 'Mur ouest',
-        retour='Retour au mur sud', decalage=(0, -2.5))
-
-# est → plafond (le plafond réel est à x = +SIZE du monde du plan est)
-S15_LANE, S15_H = -15.0, H_MAIN
-s15, top15 = stair('escalier-r15', 'est', PIED_HAUT, S15_H, S15_LANE, 'x+', '#44606a')
-bascule('est', [top15[0] - 1.2, S15_H, S15_LANE], 'plafond', 'Plafond',
-        retour='Retour au mur est', decalage=(-2.5, 0))
-
-# ── volées d'agrément : la densité de la gravure — RATTACHÉES au mur par
-#    des passerelles (une volée qui finit dans le vide est une erreur, pas
-#    un mystère) ─────────────────────────────────────────────────────────
-# À 50 m : volées de 7 m (14 m de course), crête vers ±14,5 — le palier la
-# touche (centre à crête ± 3,5), la passerelle court du palier au mur.
-stair('escalier-r4', 'sol', 0.5, 7.0, 16.0, 'x+', '#4a4468')
-# r5 monte vers le NORD (z−) : côté sud, son balcon pendait à 2,1 m
-# au-dessus du balcon r4 du plan sol (hauteur libre)
-stair('escalier-r5', 'est', -0.5, 7.0, 16.0, 'z-', '#3a5058')
-# voie −7 : à −4, la volée pendait à 1,1 m au-dessus du sol réel (hauteur libre)
-stair('escalier-r6', 'nord', -2.0, 6.0, -7.0, 'x-', '#584464')
-# les paliers TOUCHENT la crête de leur volée : un interstice de 30 cm
-# est un piège à visiteur, pas un détail
-stair('escalier-r16', 'ouest', 0.5, 7.0, -12.0, 'z+', '#564639')
-stair('escalier-r17', 'plafond', 0.5, 7.0, 10.0, 'x+', '#514266')
-stair('escalier-r18', 'sud', 0.5, 7.0, 28.0, 'x+', '#3d5a50')
-# LES BALCONS DE HADID : au sommet de chaque volée d'agrément, une dalle
-# mince, ourlée de lumière sur ses bords LIBRES (pas du côté de la volée,
-# ni du côté de la passerelle) ; la passerelle qui la rattache au mur
-# porte ses deux rubans. Vu d'en bas, ce sont des lames blanches qui
-# flottent dans le cube, soulignées d'un trait de lumière — et qui se
-# reflètent dans les volées laquées.
-# Chaque balcon va de la crête de sa volée JUSQU'AU MUR (dix mètres de
-# dessin) : un balcon qui s'arrêtait à 3,5 m du mur, rattaché par une
-# passerelle étroite, laissait deux lames pendre à 1,7 m au-dessus du sol
-# du plan voisin — un piège à tête (hauteur libre).
-slab('palier-r4', 'sol', [19.5, 7.0, 16.0], (10.0, 7.0), '#443e5c', rubans='ns')
-slab('palier-r5', 'est', [16.0, 7.0, -19.5], (7.0, 10.0), '#33474e', rubans='eo')
-walkway('passerelle-r6', 'nord', (-14.0, -7.0), (-24.5, -7.0), 3.0, 6.0, '#4e3c58', rubans='ns')
-slab('palier-r16', 'ouest', [-12.0, 7.0, 19.5], (7.0, 10.0), '#4a3c30', rubans='eo')
-slab('palier-r17', 'plafond', [19.5, 7.0, 10.0], (10.0, 7.0), '#453858', rubans='ns')
-slab('palier-r18', 'sud', [19.5, 7.0, 28.0], (10.0, 7.0), '#344e44', rubans='ns')
+for plane, face, cote in ARETES:
+    arete(plane, face, cote)
 
 # ── LA TOUR JUMELLE : deux gravités INVERSES qui se font face ────────────
 # La gravure de « Relativity » : un même espace sert deux mondes
@@ -554,57 +501,47 @@ def anneau(plane_from, pos_world, to_plane, arr_world, label):
         '_pose': plane_from
     })
 
-def tour(plane, teintes):
+def tour(plane, teintes, dz=-2.0):
+    """`dz` recule la tour vers le nord : la rampe sol → ouest passe à sa voie −8."""
     t1, t2 = teintes
     # F1 : du sol du plan à la première galerie (volée classique, posée)
-    stair(f'tour-{plane}-f1', plane, 2.0, 6.0, 8.0, 'z-', t1)
-    # G1 : galerie basse (h 6), le long de z = -11,5 — ourlée de lumière
-    walkway(f'tour-{plane}-g1', plane, (-1.25, -11.25), (9.75, -11.25), 3.0, 6.0, t2, rubans='ns')
+    stair(f'tour-{plane}-f1', plane, 2.0 + dz, 6.0, 8.0, 'z-', t1, lisiere='gauche')
+    # G1 : galerie basse (h 6), le long de z = -11,5 — ourlée côté vide
+    walkway(f'tour-{plane}-g1', plane, (-1.25, -11.25 + dz), (9.75, -11.25 + dz), 3.0, 6.0, t2, lisiere='gauche')
     # F2 : G1 → G2, volée-lame (double face)
-    stair_double(f'tour-{plane}-f2', plane, -1.0, 6.0, -11.5, 'x-', t1, base=5.0)
+    stair_double(f'tour-{plane}-f2', plane, -1.0, 6.0, -11.5 + dz, 'x-', t1, base=5.0)
     # G2 : galerie médiane (h 11,5)
-    walkway(f'tour-{plane}-g2', plane, (-12.75, -11.25), (-16.75, -11.25), 3.0, 11.5, t2, rubans='ns')
+    walkway(f'tour-{plane}-g2', plane, (-12.75, -11.25 + dz), (-16.75, -11.25 + dz), 3.0, 11.5, t2, lisiere='gauche')
     # F3 : G2 → G3, volée-lame
-    stair_double(f'tour-{plane}-f3', plane, -10.0, 6.0, -15.0, 'z+', t1, base=10.5)
-    # G3 : galerie haute (h 17) — le belvédère de la tour
-    walkway(f'tour-{plane}-g3', plane, (-15.0, 1.75), (-15.0, 4.75), 3.0, 17.0, t2, rubans='eo')
+    stair_double(f'tour-{plane}-f3', plane, -10.0 + dz, 6.0, -15.0, 'z+', t1, base=10.5)
+    # G3 : galerie haute (h 17) — le belvédère de la tour, ourlé en pourtour
+    walkway(f'tour-{plane}-g3', plane, (-15.0, 1.75 + dz), (-15.0, 4.75 + dz), 3.0, 17.0, t2, lisiere='pourtour')
     # colonnade : la galerie porte sur ses piliers
-    pillar(f'tour-{plane}-p1', plane, [0.0, 0, -11.25], 5.4)
-    pillar(f'tour-{plane}-p2', plane, [6.0, 0, -11.25], 5.4)
-    pillar(f'tour-{plane}-p3', plane, [-14.75, 0, -11.25], 10.9)
-    pillar(f'tour-{plane}-p4', plane, [-15.0, 0, 3.5], 16.4)
+    pillar(f'tour-{plane}-p1', plane, [0.0, 0, -11.25 + dz], 5.4)
+    pillar(f'tour-{plane}-p2', plane, [6.0, 0, -11.25 + dz], 5.4)
+    pillar(f'tour-{plane}-p3', plane, [-14.75, 0, -11.25 + dz], 10.9)
+    pillar(f'tour-{plane}-p4', plane, [-15.0, 0, 3.5 + dz], 16.4)
 
 tour('sol', ('#6c6288', '#565070'))
 tour('plafond', ('#5a6a80', '#485668'))
 # l'échange : du sommet d'une tour au sommet de l'autre — les deux anneaux
 # se répondent, chaque monde renversé rend ce qu'il a pris
-anneau('sol', [-15.0, 17.0, 4.2], 'plafond', [-15.0, 17.0, 3.5],
+anneau('sol', [-15.0, 17.0, 2.2], 'plafond', [-15.0, 17.0, 1.5],
        'Tour inverse (plafond)')
-anneau('plafond', [-15.0, 17.0, 4.2], 'sol', [-15.0, 17.0, 3.5],
+anneau('plafond', [-15.0, 17.0, 2.2], 'sol', [-15.0, 17.0, 1.5],
        'Tour inverse (sol)')
 
 # ── mobilier : lanternes sur chaque plan, piliers d'angle ────────────────
 # Budget de lumières : quatre lanternes éclairent « pour rien » (plafond
 # loin de tout, secondes lanternes d'une face) — intensité 0, halo gardé.
-lantern('lanterne-bel-sol-1', 'sol', [7.5, 0, 2.5])
-lantern('lanterne-bel-sol-2', 'sol', [-12.5, 0, 7.5])
-lantern('lanterne-bel-sol-3', 'sol', [2.5, 0, -14.0])
-lantern('lanterne-bel-est-1', 'est', [S2_LANE + 5, 0, 2.5], intensity=3.2)
-lantern('lanterne-bel-est-2', 'est', [7.5, 0, 11.0], intensity=0.0)
-lantern('lanterne-bel-nord-1', 'nord', [S3_LANE - 5, 0, -9.0], intensity=3.2)
-lantern('lanterne-bel-nord-2', 'nord', [-9.0, 0, -16.0], intensity=0.0)
-# chaque gravité habitée a sa lumière posée au sol — sans elle, un plan se
-# lit comme un mur, pas comme un pays
-lantern('lanterne-bel-ouest-1', 'ouest', [-19.0, 0, -7.5])
-lantern('lanterne-bel-sud-1', 'sud', [11.0, 0, 5.0])
-lantern('lanterne-bel-plafond-1', 'plafond', [7.5, 0, 9.0], intensity=0.0)
-lantern('lanterne-bel-plafond-2', 'plafond', [-16.0, 0, 5.0], intensity=0.0)
-# (les piliers des plans est, ouest et sud ont été retirés à la main : ils
-# gênaient les portails ; on ne les remet pas)
-pillar('pilier-bel-1', 'sol', [-19.0, 0, -19.0], 10.0)
-pillar('pilier-bel-2', 'sol', [19.0, 0, -19.0], 10.0)
+# UNE lanterne par gravité, posée près du centre de sa face : elle dit
+# « ceci est un sol ». Les autres sont parties avec les piliers d'angle —
+# la lumière d'ambiance vient des corniches et des lisières.
+for plan_l in PLANES:
+    cl = monde_de(plan_l, [0.0, HALF, 0.0])
+    lantern(f'lanterne-bel-{plan_l}-1', plan_l, [cl[0] + 4.0, 0, cl[2] + 4.0], intensity=2.4)
 
-prop('banc-belvedere', 'Banc', 'est', [S2_LANE - 4, 0, 2.5],
+prop('banc-belvedere', 'Banc', 'est', [25.0 - 4, 0, 2.5],
      {'type': 'gltf', 'url': 'library/models/banc.glb',
       'fit': 1.8, 'source': 'library'}, rot_y=30)
 works[-1]['credit'] = {'author': 'Galerie', 'license': 'CC0-1.0',
@@ -786,23 +723,6 @@ for fid, titre, plane, couleur, (px, pz), (cx, cz) in FACES:
     chambres.append(chambre)
 
 # ------------------------------------------------------------- contrôles --
-def near(a, b, tol, what):
-    assert abs(a - b) <= tol, f'{what} : {a:.2f} ≠ {b:.2f} (±{tol})'
-
-# chaque escalier de parcours touche-t-il le mur qui deviendra son sol ?
-near(top1[0], INNER, 1.5, 'S1 atteint le mur est')
-near(top2[2], -INNER, 1.5, 'S2 atteint le mur nord (repère du plan est)')
-near(top3[2], -0.5, 1.5, "S3 atteint le sol d'origine (repère du plan nord)")
-near(top7[0], -INNER, 1.5, 'S7 atteint le mur ouest')
-near(top8[2], INNER, 1.5, 'S8 atteint le mur sud')
-near(top9[0], -SIZE + 0.5, 1.5, 'S9 atteint le plafond (repère du plan ouest)')
-near(top10[2], INNER, 1.5, 'S10 atteint le mur sud (repère du plan est)')
-near(top11[0], -INNER, 1.5, 'S11 atteint le mur ouest (repère du plan nord)')
-near(top12[2], SIZE - 0.5, 1.5, 'S12 atteint le plafond (repère du plan sud)')
-near(top13[2], -SIZE + 0.5, 1.5, 'S13 atteint le plafond (repère du plan nord)')
-near(top14[0], -INNER, 1.5, 'S14 atteint le mur ouest (repère du plan sud)')
-near(top15[0], SIZE - 0.5, 1.5, 'S15 atteint le plafond (repère du plan est)')
-
 # chaque arrivée tombe-t-elle juste au-dessus du nouveau sol (y ≈ 2,2 + marge) ?
 for b in bascules:
     for t in b['transferts']:
@@ -905,6 +825,16 @@ for b in bascules:
     dedans = enseveli(plan_pose, to_world(plan_pose, b['position']))
     assert not dedans, f"sphère « {b['label']} » ensevelie dans {dedans}"
 
+# UNE LIGNE PAR MASSE : toute masse foulable porte exactement une lisière
+# (les volées-lames de la tour se lisent par leur double face, elles n'en
+# ont pas) ; rien d'autre ne brille que les lanternes
+for w in works:
+    if not w.get('walkable') or w['model'].get('type') != 'voxel':
+        continue
+    lame = w['id'].startswith('tour-') and '-f' in w['id'] and not w['id'].endswith('f1')
+    assert lame or w['model'].get('lisiere'), f"{w['id']} : masse sans lisière"
+    assert not (lame and w['model'].get('lisiere')), f"{w['id']} : une lame ne s'ourle pas"
+
 # identifiants uniques
 ids = [w['id'] for w in works]
 assert len(ids) == len(set(ids)), 'identifiants dupliqués'
@@ -1006,7 +936,7 @@ assert not resume, 'HAUTEUR LIBRE :\n  ' + '\n  '.join(resume)
 # ------------------------------------------------------------- écriture ---
 # Tout se LIVRE à l'échelle K (voir l'en-tête) ; un fichier existant garde
 # ses réglages de main et ne reçoit que la géométrie.
-PREFIXES = ('escalier-r', 'palier-r', 'passerelle-r', 'ruban-', 'lanterne-bel',
+PREFIXES = ('escalier-', 'palier-r', 'passerelle-r', 'ruban-', 'lobe-', 'lanterne-bel',
             'pilier-bel', 'stele-belvedere', 'lanterne-belvedere',
             'banc-belvedere', 'faisceau-bel', 'lucioles-bel', 'tour-')
 GEOMETRIE = ('position', 'rotation', 'scale', 'walkable', 'solid')
@@ -1055,6 +985,11 @@ def fusionner(nouveau, chemin):
                 am[k] = nm[k]
             for k in MATIERE:
                 am.setdefault(k, nm[k])
+            # la lisière est de la géométrie : elle suit, ou disparaît
+            if 'lisiere' in nm:
+                am['lisiere'] = nm['lisiere']
+            else:
+                am.pop('lisiere', None)
         else:
             for k in ('shape', 'type'):
                 if k in nm:
