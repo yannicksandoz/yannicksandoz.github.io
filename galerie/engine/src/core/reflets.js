@@ -46,7 +46,15 @@ export const REFLETS_DEFAUT = { force: 1.0, rebond: 0.22 };
  * compile (la sonde naît avec l'environnement, voir App).
  */
 let TAILLE_SONDE = 128;
-export function reglerTailleSonde(resolution) { TAILLE_SONDE = resolution; }
+// L'ÉCHANTILLONNAGE SIMPLE (téléphone) : un seul niveau de flou par pixel
+// au lieu du mélange de deux, et pas de rebond — quatre lectures au lieu
+// de seize. Le reflet est flou de toute façon, et le rebond, sur
+// téléphone, c'est la sonde d'ambiance qui le porte (ambiance-salle.js).
+let SIMPLE = false;
+export function reglerTailleSonde(resolution, simple = false) {
+  TAILLE_SONDE = resolution;
+  SIMPLE = Boolean(simple);
+}
 
 /** Le chunk CubeUV de three, renommé et constant pour la taille de la sonde. */
 export function echantillonneurGLSL(resolution) {
@@ -66,7 +74,14 @@ export function echantillonneurGLSL(resolution) {
     .replace(/\bcubeUV_/g, 'refletsUV_')
     .replace(/\bCUBEUV_MAX_MIP\b/g, maxMip.toFixed(1))
     .replace(/\bCUBEUV_TEXEL_WIDTH\b/g, texelWidth.toFixed(10))
-    .replace(/\bCUBEUV_TEXEL_HEIGHT\b/g, texelHeight.toFixed(10));
+    .replace(/\bCUBEUV_TEXEL_HEIGHT\b/g, texelHeight.toFixed(10))
+    // la variante simple : le niveau de flou le plus proche, sans mélange
+    + `
+vec3 refletsSimple(sampler2D env, vec3 dir, float roughness) {
+  float mip = clamp(floor(refletsMip(roughness) + 0.5), refletsUV_m0, ${maxMip.toFixed(1)});
+  return refletsBilineaire(env, dir, mip);
+}
+`;
 }
 
 /**
@@ -95,9 +110,11 @@ ${echantillonneurGLSL(TAILLE_SONDE)}`)
   if (uRefletsForce > 0.0) {
     vec3 refletsR = reflect(-geometryViewDir, geometryNormal);
     refletsR = inverseTransformDirection(refletsR, viewMatrix);
-    radiance += refletsCubeUV(uReflets, refletsR, material.roughness).rgb * uRefletsForce;
-    vec3 refletsN = inverseTransformDirection(geometryNormal, viewMatrix);
-    iblIrradiance += PI * refletsCubeUV(uReflets, refletsN, 1.0).rgb * uRefletsRebond;
+    radiance += ${SIMPLE ? 'refletsSimple' : 'refletsCubeUV'}(uReflets, refletsR, material.roughness).rgb * uRefletsForce;
+    if (uRefletsRebond > 0.0) {
+      vec3 refletsN = inverseTransformDirection(geometryNormal, viewMatrix);
+      iblIrradiance += PI * refletsCubeUV(uReflets, refletsN, 1.0).rgb * uRefletsRebond;
+    }
   }`);
   };
   material.needsUpdate = true;
@@ -156,9 +173,12 @@ function triangleEcran(material) {
 const CAMERA_ECRAN = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
 
 export class SondeReflets {
-  constructor(app, { resolution = 128, cadence = 1, pas = 0 } = {}) {
+  constructor(app, { resolution = 128, cadence = 1, pas = 0, simple = false, rebond = null } = {}) {
     this.app = app;
     this.cadence = Math.max(1, cadence);
+    // `rebond` : plafond du rebond diffus (0 sur téléphone, où la sonde
+    // d'ambiance le porte déjà) ; null = ce que la pièce demande
+    this.rebondMax = Number.isFinite(rebond) ? rebond : null;
     // LA SONDE PARESSEUSE. `pas` > 0 : une fois les six faces prises, la
     // sonde s'endort jusqu'à ce que le visiteur ait marché `pas` mètres
     // (ou changé de salle) — les reflets sont flous, un déplacement d'un
@@ -171,7 +191,7 @@ export class SondeReflets {
     this._salle = null;
     // une puissance de deux : c'est ce que le PMREM garde de toute façon
     resolution = 2 ** Math.floor(Math.log2(Math.max(16, resolution)));
-    reglerTailleSonde(resolution);
+    reglerTailleSonde(resolution, simple);
     const options = {
       type: THREE.HalfFloatType, generateMipmaps: false,
       minFilter: THREE.LinearFilter, magFilter: THREE.LinearFilter
@@ -196,9 +216,12 @@ export class SondeReflets {
   _reglages() {
     const cfg = this.app.rooms?.current?.config;
     const r = cfg?.reflets;
-    if (r === false) return { force: 0, rebond: 0 };
-    if (typeof r === 'number') return { force: r, rebond: REFLETS_DEFAUT.rebond * Math.min(1, r) };
-    return { force: r?.force ?? REFLETS_DEFAUT.force, rebond: r?.rebond ?? REFLETS_DEFAUT.rebond };
+    let reg;
+    if (r === false) reg = { force: 0, rebond: 0 };
+    else if (typeof r === 'number') reg = { force: r, rebond: REFLETS_DEFAUT.rebond * Math.min(1, r) };
+    else reg = { force: r?.force ?? REFLETS_DEFAUT.force, rebond: r?.rebond ?? REFLETS_DEFAUT.rebond };
+    if (this.rebondMax !== null) reg.rebond = Math.min(reg.rebond, this.rebondMax);
+    return reg;
   }
 
   /**

@@ -17,7 +17,7 @@ import { QualityManager } from './Quality.js';
 import { LoadingTracker, assetUrl } from './utils.js';
 import { setDefaultAnisotropy } from './textures.js';
 import { setBudgetSourcesEtendues, setEclatLuminaires } from './primitives.js';
-import { majLignes, activerLignes, segmentsMonde } from './lignes-lumiere.js';
+import { majLignes, activerLignes, segmentsMonde, reglerBudgetLignes, MAX_LIGNES } from './lignes-lumiere.js';
 import { orienterAmbiance, majAmbiance, armerAmbiance, ambianceArmee } from './ambiance-salle.js';
 import { COUCHE_AUTO_ECLAIREE } from './Artwork.js';
 import { WATER_TIME } from './primitives.js';
@@ -321,6 +321,8 @@ export class App {
     // lavage mourait (déséquilibre est/ouest du labo). Les corniches
     // droites gardent leur LTC. Voir Artwork._courberCorniche.
     activerLignes(true);
+    // combien de lignes le shader intègre par pixel (le reste va à la sonde)
+    reglerBudgetLignes(this.quality.profile.lignesProches ?? MAX_LIGNES);
     // La SONDE d'ambiance, elle, reste affaire de téléphone : elle
     // compense les sources que les budgets éteignent. Le bureau n'éteint
     // presque rien et son éclairage est réglé à l'œil, salle par salle —
@@ -543,18 +545,42 @@ export class App {
    * marchant ne l'est pas.
    */
   triggerAction() {
-    const cx = window.innerWidth / 2;
-    const cy = window.innerHeight / 2;
-    const r = Math.min(window.innerWidth, window.innerHeight) * 0.06;
-    const offsets = [[0, 0], [0, -r], [0, r], [-r, 0], [r, 0]];
-    for (const [dx, dy] of offsets) {
-      const hit = this.pickAt(cx + dx, cy + dy);
-      if (!hit) continue;
-      for (const h of this._clickHandlers) {
-        if (h(hit, { source: 'action' })) return true;
-      }
+    const hit = this.viseeCentre();
+    if (!hit) return false;
+    for (const h of this._clickHandlers) {
+      if (h(hit, { source: 'action' })) return true;
     }
     return false;
+  }
+
+  /**
+   * CE QUE VISE LE CENTRE DE L'ÉCRAN, avec de la marge.
+   *
+   * Le centre exact d'abord ; sinon deux couronnes de huit points, à 7 %
+   * puis 14 % du petit côté de l'écran (sur un téléphone, 27 et 55 px).
+   * Le liseré du réticule et l'action (Espace, le bouton « découvrir »)
+   * passent tous deux par ici : ce qui s'allume est ce qu'un geste va
+   * toucher. La première version n'avait de tolérance que pour l'action,
+   * et quatre points à 6 % — au doigt, il fallait viser l'œuvre au pixel
+   * pour la voir s'allumer ; un regard un peu à côté ne montrait rien.
+   * Dix-sept rayons au plus, dix fois par seconde : rien.
+   */
+  viseeCentre(raycaster = this._raycasterCentre ??= new THREE.Raycaster(),
+    ndc = this._ndcCentre ??= new THREE.Vector2()) {
+    const cx = window.innerWidth / 2;
+    const cy = window.innerHeight / 2;
+    const centre = this.pickAt(cx, cy, raycaster, ndc);
+    if (centre) return centre;
+    const petit = Math.min(window.innerWidth, window.innerHeight);
+    for (const k of [0.07, 0.14]) {
+      const r = petit * k;
+      for (let i = 0; i < 8; i++) {
+        const a = (i / 8) * Math.PI * 2;
+        const hit = this.pickAt(cx + Math.cos(a) * r, cy + Math.sin(a) * r, raycaster, ndc);
+        if (hit) return hit;
+      }
+    }
+    return null;
   }
 
   _setupPicking() {
@@ -600,7 +626,8 @@ export class App {
       this._reticuleAcc = (this._reticuleAcc ?? 0) + dt;
       if (this._reticuleAcc < 0.1) return;
       this._reticuleAcc = 0;
-      const hit = this.pickAt(window.innerWidth / 2, window.innerHeight / 2, raycaster, ndc);
+      // avec la marge de `viseeCentre` : au doigt, on ne vise pas au pixel
+      const hit = this.viseeCentre(raycaster, ndc);
       this.survol.viser(hit?.type === 'artwork' ? hit.artwork : null);
     });
 

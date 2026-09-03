@@ -102,6 +102,21 @@ let actif = false;
 export function activerLignes(oui) { actif = Boolean(oui); }
 export function lignesActives() { return actif; }
 
+/**
+ * LE BUDGET PAR PIXEL. Le shader boucle sur `MAX_LIGNES` segments mais
+ * s'arrête à `uLigneNombre` : c'est ce nombre que le profil règle
+ * (Quality, `lignesProches`). Chaque segment coûte une trentaine
+ * d'opérations par pixel sur chaque surface éclairée — seize au belvédère
+ * sur téléphone, c'est un tiers de l'image. Ce que le shader ne porte pas,
+ * la sonde d'ambiance le porte (poids 1 dans `ponderer`) : la salle ne
+ * s'assombrit pas, le dégradé au mur s'en va.
+ */
+let budget = MAX_LIGNES;
+export function reglerBudgetLignes(n) {
+  budget = Math.max(0, Math.min(MAX_LIGNES, Number.isFinite(n) ? Math.round(n) : MAX_LIGNES));
+}
+export function budgetLignes() { return budget; }
+
 /** Toutes les lignes déclarées pour la salle courante. */
 const lignes = [];
 
@@ -202,7 +217,7 @@ function ponderer(segments, camera) {
     s._d = _mid.distanceToSquared(_cam);
   }
   const ordre = segments.slice().sort((x, y) => x._d - y._d);
-  ordre.forEach((s, i) => { s.poids = i < MAX_LIGNES ? null : 1; });
+  ordre.forEach((s, i) => { s.poids = i < budget ? null : 1; });
   return segments;
 }
 
@@ -247,9 +262,9 @@ export function majLignes(camera) {
     vivantes.push(l);
   }
   if (!vivantes.length) { UNIFORMES.uLigneNombre.value = 0; return 0; }
-  const retenues = vivantes.length <= MAX_LIGNES
+  const retenues = vivantes.length <= budget
     ? vivantes
-    : vivantes.sort((x, y) => x._d - y._d).slice(0, MAX_LIGNES);
+    : vivantes.sort((x, y) => x._d - y._d).slice(0, budget);
 
   for (let i = 0; i < retenues.length; i++) {
     const l = retenues[i];

@@ -240,10 +240,32 @@ PARESSEUSE sur téléphone (`reflets.pas`, 2,5 m) : une photo à l'entrée
 d'une salle, puis seulement tous les 2,5 m de marche — les reflets sont
 flous, un mètre ne les change pas à l'œil. À l'arrêt, elle ne coûte rien ;
 en marche, une photo toutes les deux secondes environ, six faces sur douze
-images. Sur bureau (`pas` 0), elle tourne sans cesse comme avant. Le reste
-de l'image du belvédère (lampes budgétées à quatre, lisières, gerbes) ne
-pèse qu'un dixième chacun ; la densité de pixels reste ce que le
-gouverneur règle.
+images. Sur bureau (`pas` 0), elle tourne sans cesse comme avant.
+
+**La performance mobile d'abord, partout.** Relevé poste par poste, sous
+profil mobile, dans quatre salles (rasterisation logicielle, donc des
+millisecondes relatives) : la densité de pixels 1,5 → 1,25 rend un quart
+de l'image, le multi-échantillonnage ×2 → 0 en rend encore un tiers, les
+reflets pleins 13 à 19 %, le bloom et le grain presque rien. Le profil
+mobile est donc réglé ainsi (`Quality.js`) : densité 1,25, sans
+anticrénelage (le gouverneur le remonte si la machine suit), reflets
+SIMPLES (`reflets.simple` : un niveau de flou par pixel au lieu de deux
+mélangés, et pas de rebond diffus — la sonde d'ambiance le porte déjà sur
+téléphone — quatre lectures au lieu de seize), et huit lignes de lumière
+par pixel au lieu de seize (`lignesProches`, `reglerBudgetLignes` : les
+plus proches ; les autres vont à la sonde d'ambiance, la salle ne
+s'assombrit pas). Mesuré après : entrée 741 → 336, labo 840 → 422, jardin
+654 → 331, belvédère 2 188 → 1 001 — l'image coûte moitié moins partout.
+La surbrillance active y ajoute 4 %.
+
+**Viser au doigt, avec de la marge.** Sur tactile, le liseré allume
+l'œuvre au centre de l'écran — au pixel : un regard un peu à côté ne
+montrait rien, et l'action (le bouton « découvrir ») avait sa propre
+tolérance, différente. `App.viseeCentre` sert désormais aux deux : le
+centre exact, sinon deux couronnes de huit points à 7 % puis 14 % du petit
+côté de l'écran (27 et 55 px sur un téléphone) — ce qui s'allume est ce
+qu'un geste va toucher. Mesuré : le tore du belvédère visé 0,9 m à côté de
+son centre, à 8 m, s'allume.
 
 **Le fil du rasoir.** Deux masses qui se touchent — la crête d'une volée
 et le palier qu'elle rejoint, deux marches d'une même volée — partagent un

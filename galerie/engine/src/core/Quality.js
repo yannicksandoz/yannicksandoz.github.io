@@ -21,10 +21,14 @@ export class QualityManager {
           tier: 'mobile',
           // MSAA de la passe de scène (c'est ELLE qui lisse, voir App) :
           // deux échantillons sur mobile — la bande passante y est le mur.
-          msaa: 2,
+          // LA PERFORMANCE D'ABORD sur téléphone (mesuré sous profil mobile,
+          // entrée : la densité 1,5 → 1,25 rend un quart de l'image, le
+          // multi-échantillonnage ×2 → 0 en rend encore autant). Le
+          // gouverneur remonte l'anticrénelage si la machine suit.
+          msaa: 0,
           gtao: false,          // l'occlusion ambiante coûte un G-buffer
           anisotropy: 4,
-          pixelRatio: Math.min(window.devicePixelRatio || 1, 1.5),
+          pixelRatio: Math.min(window.devicePixelRatio || 1, 1.25),
           bloomResScale: 0.25,  // bloom calculé au quart de la résolution
           bloomStrength: 0.8,
           grain: !this.reducedMotion,
@@ -54,6 +58,10 @@ export class QualityManager {
           // manque encore dans ces deux salles n'est pas un accent de plus,
           // c'est qu'elles sont vastes et sans plafond.
           lampesProches: { points: 4, cones: 3 },
+          // les lignes de lumière (corniches analytiques) intégrées par
+          // pixel : huit au plus, les plus proches — la sonde d'ambiance
+          // porte les autres (lignes-lumiere.reglerBudgetLignes)
+          lignesProches: 8,
           // aucun accent ne projette sur téléphone : les ombres y sont
           // déjà coupées (shadows: false)
           projecteursOmbre: 0,
@@ -65,7 +73,11 @@ export class QualityManager {
           // maillages), la sonde continue coûtait les deux tiers de l'image :
           // chaque face est un rendu complet de la salle, et à 64 px c'est
           // le compte de maillages qui paie, pas les pixels.
-          reflets: { resolution: 64, cadence: 2, pas: 2.5 }
+          // Et SIMPLE au pixel : un niveau de flou au lieu de deux mélangés,
+          // pas de rebond (la sonde d'ambiance le porte) — quatre lectures
+          // au lieu de seize. Mesuré à l'entrée, les reflets pleins
+          // coûtaient 13 % de l'image.
+          reflets: { resolution: 64, cadence: 2, pas: 2.5, simple: true, rebond: 0 }
         }
       : {
           tier: 'desktop',
