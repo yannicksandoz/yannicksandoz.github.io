@@ -22,10 +22,13 @@ export class QualityManager {
           // MSAA de la passe de scène (c'est ELLE qui lisse, voir App) :
           // deux échantillons sur mobile — la bande passante y est le mur.
           // LA PERFORMANCE D'ABORD sur téléphone (mesuré sous profil mobile,
-          // entrée : la densité 1,5 → 1,25 rend un quart de l'image, le
-          // multi-échantillonnage ×2 → 0 en rend encore autant). Le
-          // gouverneur remonte l'anticrénelage si la machine suit.
-          msaa: 0,
+          // entrée : la densité 1,5 → 1,25 rend un quart de l'image). Le
+          // multi-échantillonnage ×2 reste : mesuré en rasterisation
+          // logicielle il coûtait un tiers, mais un GPU de téléphone (à
+          // tuiles) le résout presque pour rien, et sans lui les arêtes
+          // fines (un banc, une lisière) scintillent — le gouverneur le
+          // coupe de lui-même sous 50 images par seconde.
+          msaa: 2,
           gtao: false,          // l'occlusion ambiante coûte un G-buffer
           anisotropy: 4,
           pixelRatio: Math.min(window.devicePixelRatio || 1, 1.25),

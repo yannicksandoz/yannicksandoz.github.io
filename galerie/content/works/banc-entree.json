@@ -3,13 +3,13 @@
   "title": "Banc",
   "description": "",
   "position": [
-    -0.02,
+    8.0,
     0,
-    1.2
+    6.0
   ],
   "rotation": [
     0,
-    8,
+    0,
     0
   ],
   "scale": [

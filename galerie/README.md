@@ -247,8 +247,8 @@ profil mobile, dans quatre salles (rasterisation logicielle, donc des
 millisecondes relatives) : la densité de pixels 1,5 → 1,25 rend un quart
 de l'image, le multi-échantillonnage ×2 → 0 en rend encore un tiers, les
 reflets pleins 13 à 19 %, le bloom et le grain presque rien. Le profil
-mobile est donc réglé ainsi (`Quality.js`) : densité 1,25, sans
-anticrénelage (le gouverneur le remonte si la machine suit), reflets
+mobile est donc réglé ainsi (`Quality.js`) : densité 1,25, anticrénelage
+×2 gardé (voir plus bas, le banc de l'entrée), reflets
 SIMPLES (`reflets.simple` : un niveau de flou par pixel au lieu de deux
 mélangés, et pas de rebond diffus — la sonde d'ambiance le porte déjà sur
 téléphone — quatre lectures au lieu de seize), et huit lignes de lumière
@@ -257,6 +257,34 @@ plus proches ; les autres vont à la sonde d'ambiance, la salle ne
 s'assombrit pas). Mesuré après : entrée 741 → 336, labo 840 → 422, jardin
 654 → 331, belvédère 2 188 → 1 001 — l'image coûte moitié moins partout.
 La surbrillance active y ajoute 4 %.
+
+**Le dégagement à l'arrivée — mesuré au jeu.** Un regard composé ne suffit
+pas : on arrivait de l'entrée au belvédère le nez dans une volée de la
+tour, à 2,4 m. Une sonde se pose désormais à CHAQUE arrivée de chaque
+pièce (le spawn, et chaque portail qui y mène, plan compris), exactement
+comme le moteur le fait, et tire neuf rayons devant les yeux — le centre,
+±12° en travers, ±8° en hauteur — contre tout ce qui se voit, murs
+compris : le rayon central doit trouver plus de 5 m, aucun rayon moins de
+2,5 m (`scratch/sonde-arrivees`). Soixante arrivées : une seule fautive,
+l'entrée → belvédère ; le portail de l'entrée est reculé de 2 m vers le
+sud, celui de la face 6 s'écarte de la tour du plafond. Reste le couloir
+depuis les shaders, dont le rayon central touche le carillon à 4,4 m :
+c'est l'œuvre visée, pas un obstacle.
+
+**Plus de pincer pour zoomer.** À deux doigts, le pincement avançait la
+caméra d'un coup, d'une longueur qu'on ne choisit pas — et l'on
+franchissait un portail sans l'avoir voulu. Deux doigts ne font plus que
+déplacer (`TOUCH.PAN`), un doigt tourne.
+
+**Le banc de l'entrée.** Posé à 8° sur l'axe de la salle, à 7 m du spawn,
+il mettait ses lattes en biais au centre de la scène d'arrivée : des
+arêtes fines à angle rasant, qui scintillent. Il est droit (0°) et hors
+des lignes de force, à x = 8 — la charte des lignes le vérifie (une
+première tentative à x = 3,6 barrait « départ → archives » à 0,36 m).
+Et l'anticrénelage ×2 reste sur téléphone : mesuré en rasterisation
+logicielle il coûtait un tiers, mais un GPU à tuiles le résout presque
+pour rien, et sans lui les arêtes fines scintillent — le gouverneur le
+coupe de lui-même sous 50 images par seconde.
 
 **Viser au doigt, avec de la marge.** Sur tactile, le liseré allume
 l'œuvre au centre de l'écran — au pixel : un regard un peu à côté ne
