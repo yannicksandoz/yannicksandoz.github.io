@@ -292,8 +292,7 @@ def prop(id_, title, plane, centre, model, rot_y=0, light=None, scale=None):
 # lui reste que son émission.
 LANT = {'shape': 'cylinder', 'color': '#4a4266', 'emissiveColor': '#cbb4ff',
         'roughness': 0.55, 'metalness': 0.0, 'emissive': 0.6}
-ARCH = {'shape': 'box', 'color': '#2b2440',
-        'roughness': 0.9, 'metalness': 0.05, 'emissive': 0.04}
+# (le matériau des piliers est parti avec eux — voir « rien ne porte »)
 
 def lantern(id_, plane, pos, rot_y=0, intensity=2.4):
     # intensity 0 : la lanterne GARDE sa lueur (selfLit + émission + bloom)
@@ -303,10 +302,6 @@ def lantern(id_, plane, pos, rot_y=0, intensity=2.4):
              rot_y=rot_y, light=('#cbb4ff', intensity), scale=[0.5, 1.2, 0.5])
     w['selfLit'] = True
     return w
-
-def pillar(id_, plane, pos, h, rot_y=0):
-    prop(id_, 'Pilier', plane, [pos[0], h / 2, pos[2]], ARCH,
-         rot_y=rot_y, scale=[1.2, h / 1.5, 1.2])
 
 # --------------------------------------------------------------- parcours --
 # Trois volées enchaînées ; chacune finit contre le mur qui deviendra le sol.
@@ -597,16 +592,21 @@ def stair_double(id_, plane, start, end_h, lane, heading, color, base=0.0):
         return [start + sign * run_len, base + end_h + 0.5, lane]
     return [lane, base + end_h + 0.5, start + sign * run_len]
 
-def raccord(quoi, top, heading, centre, size):
+def raccord(quoi, top, heading, centre, size, masque=None):
     """PREUVE de raccord : la crête `top` d'une volée touche le bord de la
     dalle (`centre`, `size`, dans le monde du plan) à sa hauteur. Une volée
     de 6 m de montée court 12 m, pas 16 : sans cette preuve, un bras s'est
-    arrêté quatre mètres avant sa galerie et le script n'a rien dit."""
+    arrêté quatre mètres avant sa galerie et le script n'a rien dit. Sur une
+    dalle DÉCOUPÉE, le rectangle ne suffit pas — la crête pourrait tomber
+    dans le puits d'une couronne : on interroge alors le masque lui-même."""
     sign = 1 if heading[1] == '+' else -1
     p = list(top)
     p[0 if heading[0] == 'x' else 2] += sign * 0.3           # un pas au-delà
     dedans = (abs(p[0] - centre[0]) <= size[0] / 2 + 1e-6
               and abs(p[2] - centre[2]) <= size[1] / 2 + 1e-6)
+    if dedans and masque:
+        dedans = masque((p[0] - centre[0]) / (size[0] / 2),
+                        (p[2] - centre[2]) / (size[1] / 2))
     assert dedans, f'{quoi} : la crête {[round(v, 2) for v in top]} ne touche pas la dalle {centre}'
     near(top[1], centre[1], 0.1, f'{quoi} : hauteur de crête')
 
@@ -634,24 +634,55 @@ def anneau(plane_from, pos_world, to_plane, arr_world, label):
 # carré ÉVIDÉ : une galerie de quatre mètres autour d'un puits ouvert. Du
 # sol au plafond, l'axe du cube est libre — on y voit le tore, et à
 # travers lui la couronne inverse.
-COURONNE = 13.0       # demi-côté extérieur : le bord où la lame f3 se pose
+COURONNE = 13.5       # demi-côté extérieur du galet (le bord courbe où la
+                      # lame f3 se pose est CALCULÉ, voir bord_couronne)
 PUITS = 9.0           # demi-côté du vide central (galerie de 4 m, comme les
                       # autres) — 18 m de dessin, 8,6 livrés, du sol au plafond
-SOMMET = 10.5         # sa hauteur : galeries à 6 et 9,5, crête à base + montée + 0,5
-PORTEE = 18.0         # l'axe des galeries d'un bras (x = ±18). Pas plus :
-                      # une volée posée sur le mur est occupe les huit
-                      # mètres qui le bordent (sa hauteur), soit x > 20,8 —
-                      # la galerie, large de quatre, s'arrête à 20
+SOMMET = 10.5         # sa hauteur : galeries à 6 et 9,5, crête à base + montée
+                      # + 0,5. C'est le BORD COURBE de la couronne qui la
+                      # fixe : la lame f3 s'y pose, part du bord de g2, et
+                      # sa course (deux fois sa montée) lie les deux. Et pas
+                      # plus bas : à 10, la couronne passait à 4,5 m
+                      # au-dessus de la volée f1 qui la rejoint — sous les
+                      # cinq mètres de LIBRE, un piège sur son propre chemin
+PORTEE = 18.0         # l'axe des galeries d'un bras. Il se DÉDUIT : la lame
+                      # f3 se pose au bord courbe de la couronne (13), sa
+                      # course vaut deux fois sa montée (3), et elle part du
+                      # bord intérieur de g2 — d'où 13 + 3 + 2. Et pas
+                      # plus : une volée posée sur le mur est occupe les
+                      # huit mètres qui le bordent (sa hauteur), soit
+                      # x > 20,8 ; la galerie s'arrête à 20
 BRAS_Z = -7.0         # la voie de la volée posée d'un bras : z = −7 pour
                       # le bras +x, +7 pour le bras −x — le quadrant OPPOSÉ
                       # à la volée de sol du même côté. Côte à côte, la
                       # volée serpentait vers f1 et f1 vers elle : elles se
                       # touchaient (contrôle par cellules vues)
 
+# L'EXPOSANT DES COURBES. 2,5 : l'arrondi des balcons de Hadid — ni un
+# cercle (n = 2, qui rogne trop et rend les raccords étroits), ni un carré
+# (n → ∞). C'est déjà celui des lobes ; toutes les dalles du belvédère le
+# partagent désormais. « Rien n'a d'angle droit » est la seule règle de
+# forme qu'on lui connaisse, et la seule que le générateur applique.
+N_SE = 2.5
+
+def super_ellipse(u, v):
+    """La dalle en galet : plus de coins."""
+    return abs(u) ** N_SE + abs(v) ** N_SE <= 1.0
+
 def masque_couronne(u, v):
-    """Le carré évidé, en coordonnées normalisées de la dalle (−1..1)."""
+    """L'anneau : un galet évidé d'un galet, en normalisées (−1..1)."""
     r = PUITS / COURONNE
-    return abs(u) >= r or abs(v) >= r
+    return super_ellipse(u, v) and not (
+        (abs(u) / r) ** N_SE + (abs(v) / r) ** N_SE < 1.0)
+
+def bord_couronne(z):
+    """Le x du bord EXTÉRIEUR de la couronne à cette ordonnée (monde du
+    plan) : c'est là que la lame f3 vient se poser, et il faut le CALCULER
+    — sur une courbe, le bord n'est plus au demi-côté."""
+    v = abs(z) / COURONNE
+    if v >= 1.0:
+        return 0.0
+    return COURONNE * (1.0 - v ** N_SE) ** (1.0 / N_SE)
 
 def bras(plane, s, t1, t2):
     """Un bras de la spirale, `s` = +1 (côté +x) ou −1 : le bras −1 est
@@ -669,7 +700,7 @@ def bras(plane, s, t1, t2):
     # G1 : galerie basse (h 6), 4 × 4 au bout de F1 — carrée, son axe long
     # est x et son bord extérieur le côté ∓z
     g1 = [s * PORTEE, 6.0, s * BRAS_Z]
-    slab(f'{n}-g1', plane, g1, (4.0, 4.0), t2, lisiere=ext_z)
+    slab(f'{n}-g1', plane, g1, (4.0, 4.0), t2, lisiere=ext_z, masque=super_ellipse)
     raccord(f'{n}-f1', top1, cap1, g1, (4.0, 4.0))
     # F2 : G1 → G2, volée-lame le long de x = ±15, vers le centre en z (4 m
     # de montée, 8 de course : trop courte pour serpenter, elle reste droite)
@@ -677,7 +708,7 @@ def bras(plane, s, t1, t2):
     top2 = stair_double(f'{n}-f2', plane, s * (BRAS_Z + 2.0), 4.0, s * PORTEE, cap2, t1, base=5.0)
     # G2 : galerie médiane (h 9,5), 4 × 5 — longue en z, bord extérieur ±x
     g2 = [s * PORTEE, 9.5, s * (BRAS_Z + 12.5)]
-    slab(f'{n}-g2', plane, g2, (4.0, 5.0), t2, lisiere=ext_x)
+    slab(f'{n}-g2', plane, g2, (4.0, 5.0), t2, lisiere=ext_x, masque=super_ellipse)
     raccord(f'{n}-f2', top2, cap2, g2, (4.0, 5.0))
     # F3 : G2 → couronne, volée-lame courte (1,5 m de montée, 3 de course)
     # vers le centre en x, DANS L'AXE DE G2 (z = ±5,5) : à z = ±3,5 elle
@@ -688,12 +719,18 @@ def bras(plane, s, t1, t2):
     # bord intérieur : plus longue, elle passerait SOUS la galerie à moins
     # de LIBRE — un piège à hauteur de front sur le chemin qui y mène.
     cap3 = 'x-' if s > 0 else 'x+'
-    top3 = stair_double(f'{n}-f3', plane, s * (PORTEE - 2.0), SOMMET - 9.5 + 0.5,
-                        s * (BRAS_Z + 12.5), cap3, t1, base=8.5)
-    raccord(f'{n}-f3', top3, cap3, [0.0, SOMMET, 0.0], (2 * COURONNE, 2 * COURONNE))
-    # colonnade : chaque galerie porte sur son pilier
-    pillar(f'{n}-p1', plane, [s * PORTEE, 0, s * BRAS_Z], 5.4)
-    pillar(f'{n}-p2', plane, [s * PORTEE, 0, s * (BRAS_Z + 12.5)], 8.9)
+    z3 = BRAS_Z + 12.5
+    # la crête au premier bord de CELLULE au-delà du bord courbe : elle
+    # affleure la couronne sans la mordre. Le départ s'en déduit (la course
+    # d'une volée-lame vaut deux fois sa montée) et doit tomber sur le bord
+    # intérieur de g2 — c'est ce couple qui fixe PORTEE.
+    x3 = math.ceil(bord_couronne(z3) / CELL) * CELL
+    monte3 = SOMMET - 9.5 + 0.5
+    near(x3 + 2 * monte3, PORTEE - 2.0, 1e-6, 'f3 part du bord de g2')
+    top3 = stair_double(f'{n}-f3', plane, s * (x3 + 2 * monte3), monte3,
+                        s * z3, cap3, t1, base=8.5)
+    raccord(f'{n}-f3', top3, cap3, [0.0, SOMMET, 0.0], (2 * COURONNE, 2 * COURONNE),
+            masque=masque_couronne)
 
 def tour(plane, teintes):
     t1, t2 = teintes
@@ -706,11 +743,6 @@ def tour(plane, teintes):
     # traits concentriques feraient une cible, pas une architecture.
     slab(f'tour-{plane}-g3', plane, [0.0, SOMMET, 0.0], (2 * COURONNE, 2 * COURONNE),
          t2, lisiere='pourtour', masque=masque_couronne)
-    # quatre piliers sous la galerie, aux diagonales — à 14,8 m de l'axe
-    # au lieu de 4 : le centre du sol cesse d'être une forêt de colonnes
-    d = (COURONNE + PUITS) / 2
-    for k, (px, pz) in enumerate(((d, d), (-d, d), (-d, -d), (d, -d))):
-        pillar(f'tour-{plane}-p{k + 1}', plane, [px, 0, pz], SOMMET - 0.6)
 
 tour('sol', ('#6c6288', '#565070'))
 tour('plafond', ('#5a6a80', '#485668'))
@@ -826,7 +858,7 @@ room = {
     'envIntensity': 1.5,
     'works': [w['id'] for w in works],
     'bascules': bascules,
-    'jetons': [[18.0, 1.0, -8.0], [-18.0, 1.0, 8.0]],   # au pied des volées-lames f2
+    'jetons': [[18.0, 1.0, -8.0], [-18.0, 1.0, 8.0]],  # au pied des volées-lames f2
     'portals': [
         {'to': 'couloir-est', 'position': [0, 0, 21.5], 'rotationY': 180,
          'label': 'Couloir', 'arrival': [0, 2.2, -6]},
@@ -983,11 +1015,20 @@ masses = [(w['id'], aabb(w)) for w in works if w.get('walkable')]
 masses = [(i, b) for i, b in masses if b]
 JEU = 0.3          # on tolère de se frôler, pas de se traverser
 def meme_arete(a, b):
-    """Une volée et SON lobe : la dalle du lobe couvre le flanc de la volée
-    (le masque la découpe sur la courbe), leurs boîtes se recouvrent par
-    construction — c'est le contrôle par cellules, plus bas, qui les juge."""
+    """Deux masses qui se POSENT l'une sur l'autre, et dont les boîtes se
+    recouvrent par construction — c'est le contrôle par CELLULES, plus bas,
+    qui les juge :
+      • une volée et SON lobe (le masque découpe le lobe sur la courbe) ;
+      • une lame f3 et la couronne de sa tour : la crête affleure un bord
+        COURBE, que la boîte carrée de la dalle déborde de trente
+        centimètres là où la courbe s'éloigne."""
     pa, pb = a.split('-', 1), b.split('-', 1)
-    return {pa[0], pb[0]} == {'escalier', 'lobe'} and pa[1] == pb[1]
+    if {pa[0], pb[0]} == {'escalier', 'lobe'} and pa[1] == pb[1]:
+        return True
+    lame, couronne = sorted((a, b), key=lambda i: not i.endswith('-f3'))
+    return (lame.endswith('-f3') and couronne.endswith('-g3')
+            and lame.startswith('tour-') and couronne.startswith('tour-')
+            and lame.split('-')[1] == couronne.split('-')[1])
 for i in range(len(masses)):
     for j in range(i + 1, len(masses)):
         (na, (loa, hia)), (nb, (lob, hib)) = masses[i], masses[j]
@@ -1067,7 +1108,7 @@ assert len(ids) == len(set(ids)), 'identifiants dupliqués'
 
 # ------------------------------------------------------------ symétrie ----
 # Le belvédère est SYMÉTRIQUE : le demi-tour autour de chacun des trois
-# axes de la pièce (par son centre) envoie chaque masse, chaque pilier,
+# axes de la pièce (par son centre) envoie chaque masse,
 # lanterne, banc, gerbe, essaim, sphère et jeton sur un autre du même
 # genre et de la même boîte. Une pièce sans dessus ni dessous n'a pas de
 # raison d'avoir un côté : rien n'est écrit qui rompe le groupe D2.

@@ -63,39 +63,23 @@
     "tour-sol-a-f2",
     "tour-sol-a-g2",
     "tour-sol-a-f3",
-    "tour-sol-a-p1",
-    "tour-sol-a-p2",
     "tour-sol-b-f1",
     "tour-sol-b-g1",
     "tour-sol-b-f2",
     "tour-sol-b-g2",
     "tour-sol-b-f3",
-    "tour-sol-b-p1",
-    "tour-sol-b-p2",
     "tour-sol-g3",
-    "tour-sol-p1",
-    "tour-sol-p2",
-    "tour-sol-p3",
-    "tour-sol-p4",
     "tour-plafond-a-f1",
     "tour-plafond-a-g1",
     "tour-plafond-a-f2",
     "tour-plafond-a-g2",
     "tour-plafond-a-f3",
-    "tour-plafond-a-p1",
-    "tour-plafond-a-p2",
     "tour-plafond-b-f1",
     "tour-plafond-b-g1",
     "tour-plafond-b-f2",
     "tour-plafond-b-g2",
     "tour-plafond-b-f3",
-    "tour-plafond-b-p1",
-    "tour-plafond-b-p2",
     "tour-plafond-g3",
-    "tour-plafond-p1",
-    "tour-plafond-p2",
-    "tour-plafond-p3",
-    "tour-plafond-p4",
     "lanterne-bel-sol-1",
     "lanterne-bel-est-1",
     "lanterne-bel-nord-1",
@@ -499,7 +483,7 @@
       "position": [
         0.0,
         5.04,
-        5.28
+        5.4
       ],
       "radius": 1.056,
       "transferts": [
@@ -510,7 +494,7 @@
           "arrival": [
             0.0,
             6.1,
-            5.28
+            5.4
           ]
         }
       ],
@@ -520,7 +504,7 @@
       "position": [
         0.0,
         22.8,
-        -5.28
+        -5.4
       ],
       "radius": 1.056,
       "transferts": [
@@ -531,7 +515,7 @@
           "arrival": [
             0.0,
             6.1,
-            5.28
+            5.4
           ]
         }
       ],
@@ -541,7 +525,7 @@
       "position": [
         0.0,
         5.04,
-        -5.28
+        -5.4
       ],
       "radius": 1.056,
       "transferts": [
@@ -552,7 +536,7 @@
           "arrival": [
             0.0,
             6.1,
-            -5.28
+            -5.4
           ]
         }
       ],
@@ -562,7 +546,7 @@
       "position": [
         0.0,
         22.8,
-        5.28
+        5.4
       ],
       "radius": 1.056,
       "transferts": [
@@ -573,7 +557,7 @@
           "arrival": [
             0.0,
             6.1,
-            -5.28
+            -5.4
           ]
         }
       ],

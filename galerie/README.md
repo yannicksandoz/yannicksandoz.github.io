@@ -173,8 +173,8 @@ réglages de main. Quatre règles, chacune une assertion du script :
 
 La tour jumelle est au centre — voir plus bas, « Le belvédère symétrique ».
 Ses galeries sont ourlées d'une lisière, ses volées-lames non (elles se
-lisent par leur double face). Une lanterne par gravité, plus de piliers
-d'angle ; le tore et les corniches ne bougent pas. Mesuré au jeu par
+lisent par leur double face). Une lanterne par gravité ; le tore et les
+corniches ne bougent pas. Mesuré au jeu par
 micro-pas : on passe sous la galerie basse, on gravit une volée serpentine
 jusqu'à sa crête, on est retenu au bord du lobe.
 
@@ -183,15 +183,14 @@ générateur.** Une pièce sans dessus ni dessous n'a pas de raison d'avoir un
 côté. Les douze volées avaient déjà, par construction, une symétrie que le
 reste ignorait : la tour dans un quadrant, les lanternes décalées, un banc,
 une gerbe dans un coin. Désormais le demi-tour autour de CHACUN des trois
-axes de la pièce (le groupe D2) envoie chaque masse, pilier, lanterne, banc,
+axes de la pièce (le groupe D2) envoie chaque masse, lanterne, banc,
 gerbe, essaim, sphère et jeton sur un autre du même genre et de la même
 boîte — c'est une assertion du script (« symétrie »), pas une intention.
 
 - **La tour, un moulinet.** Deux bras, images l'un de l'autre par le
-  demi-tour vertical : volée posée (6 m), galerie, volée-lame (4 m),
-  galerie, volée-lame (4 m), plate-forme commune de 10 × 10 à 13 m, au
-  centre exact de la face, sur quatre piliers d'angle, la lanterne de la
-  face dessous. Chaque bras vit dans le quadrant OPPOSÉ à la volée de sol
+  demi-tour vertical : volée posée (6 m), galerie-galet, volée-lame (4 m),
+  galerie-galet, volée-lame (4 m), couronne commune au centre exact de la
+  face, la lanterne de la face dessous. Chaque bras vit dans le quadrant OPPOSÉ à la volée de sol
   de son côté (x > 0 : z < 0). L'échange des gravités inverses se fait
   au centre des deux plates-formes ; le tore flotte sur leur axe. Deux
   bancs par tour, sur l'axe x, tournés vers la lanterne ; deux jetons
@@ -267,8 +266,7 @@ dans cet ordre :
 - **Le sommet de la tour devient une COURONNE** : un carré évidé (13 m de
   demi-côté, puits de 9) — une galerie de quatre mètres, comme les autres,
   autour d'un vide ouvert. Du sol au plafond, l'axe du cube est libre : on
-  y voit le tore, et à travers lui la couronne inverse. Ses quatre piliers
-  passent aux diagonales, à 15,6 m de l'axe au lieu de 4. Le centre n'ayant
+  y voit le tore, et à travers lui la couronne inverse. Le centre n'ayant
   plus de sol, les anneaux d'échange se posent sur la galerie — deux par
   tour, de part et d'autre du puits, que le demi-tour vertical échange.
 - **Le cube passe de 50 à 58 m de dessin** (24 → 27,8 m livrés). Les huit
@@ -293,6 +291,57 @@ libre de 4,5 m dans les huit directions depuis le centre, aucun obstacle
 au-dessus de la tête sur l'axe, la tour toujours gravissable, les seize
 arrivées dégagées. Et l'image du belvédère sous profil mobile passe de
 1 001 à 814 ms — la couronne évidée coûte moins que deux dalles pleines.
+
+**Le porte-à-faux — plus un seul pilier.** Un pilier est un aveu : il dit
+que la dalle a besoin d'être tenue, donc que la salle obéit à une pesanteur.
+Or elle en a six, et elles se contredisent — c'est tout le sujet. Les seize
+piliers de la tour jumelle racontaient le contraire de la pièce ; ils sont
+supprimés, matériau compris. Rien ne les remplace : les couronnes et les
+galeries flottent, et c'est très bien, parce qu'une salle où l'on marche au
+plafond n'a jamais rien eu à démontrer sur la portance. Le générateur passe
+de 79 à 63 objets.
+
+Le mot de Hadid, ensuite, contre le mot d'Escher :
+
+- **La géométrie devient une super-ellipse** (exposant 2,5,
+  `abs(u)^n + abs(v)^n ≤ 1`) : les deux galeries de chaque bras et la
+  couronne du sommet sont des galets, plus des carrés. La couronne est un
+  galet évidé d'un galet — `masque_couronne` —, le puits garde donc lui
+  aussi son bord courbe. Même exposant que le vide des baies fluides : la
+  salle et ses ouvertures parlent la même langue. Le pas de voxel livré est
+  de 24 cm, assez fin pour que le bord se lise comme une courbe et non
+  comme un escalier.
+- **La cote se DÉDUIT du bord courbe, elle ne se pose plus.** Une volée
+  qui monte vers un galet ne peut plus viser le milieu d'un côté : elle doit
+  attaquer le bord à SON ordonnée. `bord_couronne(z)` donne ce x, la
+  troisième volée en tire sa course, et une assertion (« f3 part du bord de
+  g2 ») refuse le script si le compte ne tombe pas juste. C'est ainsi que
+  `SOMMET` a fini à 10,5 et `COURONNE` à 13,5 : à 10 et 14, la couronne
+  passait à 4,5 m au-dessus d'une volée — sous les 5 m de hauteur libre. Le
+  contrôle de raccordement (`raccord`) reçoit désormais le masque de la
+  forme visée : arriver dans la boîte d'un galet ne suffit plus, il faut
+  arriver dans le galet.
+- **Escher, littéralement.** Le puits est le seul endroit de la galerie où
+  l'on voit deux gravités opposées à la fois, sans montage : la couronne du
+  sol à 4,9 m et celle du plafond à 22,9 m, l'une au-dessus de l'autre, le
+  tore entre les deux. Quatre anneaux d'échange, deux par tour de part et
+  d'autre du vide, font passer de l'une à l'autre — on ressort les pieds sur
+  ce qui était le ciel. Les volées qui grimpent vers ces couronnes montent
+  donc, selon d'où on les regarde, ou descendent.
+
+Mesuré après, à cotes égales : l'axe toujours libre (4,5 m de rayon dans
+les huit directions, rien au-dessus de la tête), les cinquante arrivées de
+la galerie dégagées, la charte à zéro signalement, et l'image du belvédère
+sous profil mobile à 813 ms — les cellules gagnées par les courbes sont
+payées par les piliers perdus.
+
+Un mot sur la sonde des arrivées, qui a d'abord crié au loup : elle
+comptait comme un obstacle tout objet à moins de 5 m devant les yeux, or
+un portail qui porte un `regard` DÉSIGNE ce qu'on doit voir — le carillon
+du couloir est à 4,8 m, et c'est le sujet. Elle sait maintenant reconnaître
+une vue composée : rayon central tombant sur le point visé (à 1 m près) ET
+pourtour dégagé, car une œuvre cadrée est étroite là où un escalier remplit
+le champ.
 
 **Passage en revue de la charte : zéro signalement.** Douze règles, cent
 quatre-vingt-quatorze lignes de rapport. Deux choses en sont sorties.
