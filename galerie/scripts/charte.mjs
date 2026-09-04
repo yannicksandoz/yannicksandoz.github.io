@@ -597,6 +597,41 @@ export function arriveesDe(salleId, toutes) {
 }
 
 /**
+ * LES APPARITIONS D'UNE SALLE, comme objets de regard.
+ *
+ * Une apparition (`vistas`) est une baie percée dans un mur qui montre une
+ * AUTRE pièce, vivante, avec parallaxe : trois mètres de large au minimum,
+ * six à l'entrée. Ce n'est pas du décor qu'on longe, c'est un tableau
+ * qu'on regarde — et c'est souvent le plus ample de sa salle. La règle
+ * d'ampleur ne comptait que les œuvres et déclarait donc « rien à
+ * regarder » un parvis qui en porte trois.
+ *
+ * Le centre de la baie se déduit du mur et de son `offset`, comme dans
+ * `auditCouronnement` ; l'ampleur est sa diagonale.
+ */
+export function apparitionsDe(s) {
+  const coque = s.shell && s.shell !== true ? s.shell : null;
+  if (!coque) return [];
+  const { w: lw, d: ld } = dimensionsSalle(s);
+  const sortie = [];
+  for (const v of s.vistas ?? []) {
+    const largeur = Number(v.width) || 4;
+    const hauteur = Number(v.height) || 2.2;
+    const offset = Number(v.offset) || 0;
+    const y = (Number(v.sill) || 1.1) + hauteur / 2;
+    const mur = v.wall ?? 'nord';
+    let p;
+    if (mur === 'nord') p = [offset, y, -ld / 2];
+    else if (mur === 'sud') p = [offset, y, ld / 2];
+    else if (mur === 'est') p = [lw / 2, y, offset];
+    else p = [-lw / 2, y, offset];
+    sortie.push({ id: `apparition ${v.room}`, position: p,
+      metres: Math.hypot(largeur, hauteur) });
+  }
+  return sortie;
+}
+
+/**
  * L'AMPLEUR À L'ARRIVÉE — ce qui manquait à la charte.
  *
  * La règle de recul dit « pas trop PRÈS » : une œuvre a besoin d'au moins
@@ -607,9 +642,10 @@ export function arriveesDe(salleId, toutes) {
  * de quarante pixels entre deux grandes œuvres. Rien ne le signalait,
  * puisqu'il passait le recul, la vista et la hiérarchie.
  *
- * On mesure donc, pour CHAQUE point d'arrivée d'une salle, l'angle de la
- * plus ample de ses œuvres. Il en faut au moins UNE au-dessus du seuil :
- * en arrivant quelque part, on doit avoir quelque chose à regarder.
+ * On mesure donc, pour CHAQUE point d'arrivée d'une salle, l'angle du plus
+ * ample de ses objets de regard — ses œuvres ET ses apparitions. Il en
+ * faut au moins UN au-dessus du seuil : en arrivant quelque part, on doit
+ * avoir quelque chose à regarder.
  */
 export function auditAmpleur() {
   const oeuvres = new Map(toutesLesOeuvres().map((w) => [w.id, w]));
@@ -619,16 +655,20 @@ export function auditAmpleur() {
     const habitants = (s.works ?? []).map((n) => oeuvres.get(n)).filter(Boolean)
       .filter((w) => w.role !== 'decor' && !w.partOf);
     if (!habitants.length) continue;
+    const cibles = [
+      ...habitants.map((w) => ({ id: w.id, position: w.position ?? [0, 0, 0],
+        ...ampleurOeuvre(w) })),
+      ...apparitionsDe(s).map((a) => ({ ...a, estimee: false }))
+    ];
     for (const arrivee of arriveesDe(s.id, toutes)) {
       const [ax, , az] = arrivee.p;
       let meilleure = null;
-      for (const w of habitants) {
-        const [x, , z] = w.position ?? [0, 0, 0];
+      for (const c of cibles) {
+        const [x, , z] = c.position;
         const distance = Math.hypot(x - ax, z - az);
-        const { metres, estimee } = ampleurOeuvre(w);
-        const angle = angleApparent(metres, distance);
+        const angle = angleApparent(c.metres, distance);
         if (!meilleure || angle > meilleure.angle) {
-          meilleure = { oeuvre: w.id, angle, distance, metres, estimee };
+          meilleure = { oeuvre: c.id, angle, distance, metres: c.metres, estimee: c.estimee };
         }
       }
       rapport.push({
@@ -936,6 +976,14 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
       + ` ${n(l.saturation, 0)} ${n(l.ecartTeinte, 0)}°  `
       + (l.fautes.length ? `✗ ${l.fautes.join(' · ')}` : (l.dehors ? '· extérieur' : '✓')));
   }
+  // LE DÉCOR : il tournait sans être imprimé — une règle qu'on ne lit pas
+  // est une règle qui ne protège rien le jour où elle se met à mordre.
+  const decor = auditDecor();
+  const salis = decor.filter((d) => d.fautes.length);
+  console.log(`\nLE DÉCOR (saturation ≤ ${CHARTE.saturationMax} %)\n`);
+  if (!salis.length) console.log(`  ${decor.length} décors relevés, aucun hors charte ✓`);
+  for (const d of salis) console.log(`  ${d.id.padEnd(22)} ${d.fautes.join(', ')}  ✗`);
+
   console.log('\nL’ACCROCHAGE\n');
   for (const a of auditAccrochage()) {
     console.log(`  ${a.id.padEnd(14)} y=${a.y.toFixed(2)} m  (haut ${a.hauteur} m)`

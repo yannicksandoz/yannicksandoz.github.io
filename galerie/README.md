@@ -258,6 +258,32 @@ s'assombrit pas). Mesuré après : entrée 741 → 336, labo 840 → 422, jardin
 654 → 331, belvédère 2 188 → 1 001 — l'image coûte moitié moins partout.
 La surbrillance active y ajoute 4 %.
 
+**Passage en revue de la charte : zéro signalement.** Douze règles, cent
+quatre-vingt-quatorze lignes de rapport. Deux choses en sont sorties.
+
+- **Une règle qui mentait.** L'ampleur à l'arrivée ne comptait que les
+  ŒUVRES, et déclarait donc « rien à regarder » un parvis qui porte trois
+  APPARITIONS de cinq à six mètres — des baies vivantes sur une autre
+  pièce, avec parallaxe, qui sont exactement ce qu'on regarde en
+  débarquant. Elles comptent désormais (`apparitionsDe`, centre déduit du
+  mur et de l'`offset` comme au couronnement, ampleur = sa diagonale), et
+  le rapport nomme la cible retenue : quand c'est une apparition, on lit
+  du même coup que l'œuvre de la salle n'est pas le sujet. Huit
+  signalements tombent à un.
+- **Une règle qu'on ne lisait pas.** `auditDecor` (saturation des décors)
+  tournait sans être imprimé par le rapport — une règle qu'on ne lit pas
+  ne protège rien le jour où elle se met à mordre. Elle a sa section :
+  97 décors relevés, aucun hors charte.
+
+Le dernier signalement — le jardin vu du belvédère, 11,8° pour 12 exigés —
+tenait à une arrivée posée à huit mètres de sa propre porte de retour : on
+débarquait au milieu du jardin plutôt que devant le portail par lequel on
+venait d'entrer. Reposée devant lui, elle donne 23,8°. La dette d'ampleur
+du test est donc VIDE, et c'est là que son cliquet compte le plus : il
+n'exige pas qu'elle soit réparée, il exige qu'elle ne grandisse pas ET que
+les salles listées échouent encore — une exemption périmée ment. C'est lui
+qui a signalé, l'une après l'autre, les trois sorties de dette.
+
 **Le dégagement à l'arrivée — mesuré au jeu.** Un regard composé ne suffit
 pas : on arrivait de l'entrée au belvédère le nez dans une volée de la
 tour, à 2,4 m. Une sonde se pose désormais à CHAQUE arrivée de chaque

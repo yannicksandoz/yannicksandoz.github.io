@@ -144,29 +144,28 @@ test('l’accent le plus fort va aux œuvres, jamais au décor', () => {
 /**
  * L'AMPLEUR À L'ARRIVÉE, et le cliquet qui la tient.
  *
- * Trois salles arrivent en DETTE sur cette règle — elle est neuve, et elle
- * dit d'elles quelque chose de vrai. Les corriger demande des choix qui
- * appartiennent à l'auteur (agrandir une œuvre, en ajouter une, déplacer
- * une porte), pas au test. Elles sont donc nommées ici, avec leur raison :
+ * La dette comptait TROIS salles (couloir-est, entrée, jardin) : leur seule
+ * œuvre est un anneau d'1,2 m ou un banc de 2,5 m, invisible depuis les
+ * portes lointaines. Elle en compte UNE, parce que la règle a cessé de
+ * mentir : elle ne comptait que les œuvres, et déclarait « rien à
+ * regarder » un parvis qui porte trois APPARITIONS de cinq à six mètres —
+ * des baies vivantes sur une autre pièce, avec parallaxe, qui sont
+ * exactement ce qu'on regarde en arrivant (voir `apparitionsDe`). Le
+ * rapport nomme la cible retenue : quand c'est une apparition, on lit du
+ * même coup que l'œuvre de la salle n'est pas le sujet.
  *
- *   • couloir-est — sa seule œuvre est un anneau d'1,2 m à 21 m du seuil,
- *     soit 3° de champ. Un couloir est un passage, mais celui-là ne montre
- *     RIEN de ce qu'il contient tant qu'on ne l'a pas traversé ;
- *   • entree, jardin — leur seule œuvre est un banc d'écoute de 2,5 m ;
- *     vu depuis les portes lointaines il tombe à 11°, tout juste sous le
- *     seuil. C'est une salle sans œuvre dominante, pas une faute de pose.
+ * La dernière — le jardin vu du belvédère, 11,8° pour 12 exigés — tenait
+ * à une arrivée posée à huit mètres de sa propre porte de retour : on
+ * débarquait au milieu du jardin plutôt que devant le portail par lequel
+ * on venait d'entrer. Reposée devant lui, elle donne 23,8°.
  *
- * Le test n'exige pas qu'elles soient réparées ; il exige que la dette ne
- * GRANDISSE PAS — aucune salle de plus, aucune arrivée de plus. Et il
- * vérifie que les salles listées échouent ENCORE : le jour où l'auteur les
- * répare, la liste devient fausse et le test le dit, plutôt que de laisser
- * dormir une exemption qui ne protège plus rien.
+ * La dette est donc VIDE, et c'est là que ce cliquet compte le plus : il
+ * n'exige pas qu'elle soit réparée, il exige qu'elle ne GRANDISSE PAS
+ * (aucune salle de plus, aucune arrivée de plus) ET que les salles listées
+ * échouent ENCORE — une exemption périmée ment. C'est lui qui a signalé,
+ * l'une après l'autre, les trois sorties de dette.
  */
-const DETTE_AMPLEUR = new Map([
-  ['couloir-est', ['spawn', 'depuis archives', 'depuis bibliotheque']],
-  ['entree', ['depuis archives', 'depuis jardin', 'depuis labo']],
-  ['jardin', ['depuis allee', 'depuis belvedere']]
-]);
+const DETTE_AMPLEUR = new Map();
 
 test('la charte et le moteur s’accordent sur ce qu’est un luminaire', () => {
   // Deux listes qui divergent, c'est une charte qui juge une lampe que la
