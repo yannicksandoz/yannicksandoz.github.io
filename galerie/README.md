@@ -258,6 +258,42 @@ s'assombrit pas). Mesuré après : entrée 741 → 336, labo 840 → 422, jardin
 654 → 331, belvédère 2 188 → 1 001 — l'image coûte moitié moins partout.
 La surbrillance active y ajoute 4 %.
 
+**Le puits — rendre le centre au vide.** Mesuré : deux dalles PLEINES de
+la tour jumelle traversaient l'axe du cube (à 6 et 18 m livrés) et huit
+piliers se tenaient à 2,3 m de lui. Le volume se lisait en trois tranches
+superposées, et le centre du sol était une forêt de colonnes. Trois gestes,
+dans cet ordre :
+
+- **Le sommet de la tour devient une COURONNE** : un carré évidé (13 m de
+  demi-côté, puits de 9) — une galerie de quatre mètres, comme les autres,
+  autour d'un vide ouvert. Du sol au plafond, l'axe du cube est libre : on
+  y voit le tore, et à travers lui la couronne inverse. Ses quatre piliers
+  passent aux diagonales, à 15,6 m de l'axe au lieu de 4. Le centre n'ayant
+  plus de sol, les anneaux d'échange se posent sur la galerie — deux par
+  tour, de part et d'autre du puits, que le demi-tour vertical échange.
+- **Le cube passe de 50 à 58 m de dessin** (24 → 27,8 m livrés). Les huit
+  mètres gagnés vont TOUS au vide : mêmes volées, mêmes hauteurs. À 50, la
+  tour ne pouvait pas s'écarter assez pour que son sommet soit une
+  couronne — les galeries d'un bras butaient sur les volées des murs, qui
+  occupent les huit mètres bordant leur face. La taille du cube est
+  désormais de la géométrie et non un réglage de main : le générateur
+  réécrit la coque, sinon les volées traversent des murs restés en place.
+  Les treize portails suivent leur mur (mise à l'échelle dans le monde de
+  leur plan, cap inchangé), et leurs arrivées de retour avec eux.
+- **Coller les volées des murs : essayé, abandonné, documenté.** Ça ne rend
+  rien au centre — une volée posée sur le mur est borde déjà ce mur, elle
+  occupe les huit mètres qui le longent quelle que soit sa voie, qui ne
+  décide que de sa HAUTEUR. Collée, elle descend au ras du sol, juste là où
+  la crête de la volée sol → est vient toucher le mur : le contrôle par
+  cellules vues les a montrées se traversant dans le coin. Les quatre murs
+  gardent donc ±8 ; seuls le sol et le plafond restent collés.
+
+Mesuré après : plus rien à moins de 4,4 m de l'axe (contre 0), un rayon
+libre de 4,5 m dans les huit directions depuis le centre, aucun obstacle
+au-dessus de la tête sur l'axe, la tour toujours gravissable, les seize
+arrivées dégagées. Et l'image du belvédère sous profil mobile passe de
+1 001 à 814 ms — la couronne évidée coûte moins que deux dalles pleines.
+
 **Passage en revue de la charte : zéro signalement.** Douze règles, cent
 quatre-vingt-quatorze lignes de rapport. Deux choses en sont sorties.
 

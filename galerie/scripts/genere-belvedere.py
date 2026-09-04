@@ -30,12 +30,17 @@ import json, math, os
 
 ROOT = os.path.normpath(os.path.join(os.path.dirname(__file__), '..', 'content'))
 
-SIZE = 50.0          # cube DE DESSIN : largeur = profondeur = hauteur (80 au
-                     # départ, resserré à 50 — mêmes plans, volées plus courtes)
-K = 0.48             # échelle de LIVRAISON : 50 m de dessin → 24 m de pièce
+SIZE = 58.0          # cube DE DESSIN : largeur = profondeur = hauteur (80 au
+                     # départ, resserré à 50, repris à 58 — mêmes plans, mêmes
+                     # volées : les huit mètres gagnés vont TOUS au vide du
+                     # centre. À 50, les douze volées et les deux tours se
+                     # touchaient de partout : la tour ne pouvait pas s'écarter
+                     # assez pour que son sommet soit une couronne, et le
+                     # centre restait coupé en trois par deux dalles pleines.
+K = 0.48             # échelle de LIVRAISON : 58 m de dessin → 27,8 m de pièce
 WALL_T = 0.35        # épaisseur des murs (RoomManager)
 HALF = SIZE / 2
-INNER = HALF - WALL_T / 2       # face intérieure des murs : 24,825
+INNER = HALF - WALL_T / 2       # face intérieure des murs : 28,825
 LIBRE = 2.4 / K      # hauteur d'air garantie au-dessus de tout ce qu'on foule
                      # (2,4 m livrés : les yeux à 2,2 m, la tête à 2,3 m)
 
@@ -364,8 +369,13 @@ RUN = 2 * H_MAIN
 # bord le plus rentré reste à 2,0 du mur — un mur qu'on longe. (Avec
 # l'ancienne amplitude de 2,45, la bande faisait 4,9 m et ne tenait nulle
 # part près d'un mur : les volées vivaient à ±15.)
-# Sur les quatre murs, ±8 (la ligne des 3,84 m) : la volée est → sud passe
-# à 5,2 au-dessus de la crête de la volée sol → est — LIBRE, tout juste.
+# Les quatre murs gardent la voie ±8 (la ligne des 3,84 m). Essayé de les
+# coller aussi : ça ne rend RIEN au centre — une volée posée sur le mur est
+# borde déjà ce mur, elle occupe les huit mètres qui le longent quelle que
+# soit sa voie, et sa voie ne décide que de sa HAUTEUR sur ce mur. Collée,
+# elle descend au ras du sol… juste là où la crête de la volée sol → est
+# vient toucher le mur : les deux se traversent dans le coin (contrôle par
+# cellules vues). Le vide du centre se gagne sur la tour, pas sur elles.
 def voie_collee(dims):
     """La voie d'une volée dont le bord extérieur (local −x : le côté sans
     lobe) vient effleurer le mur à 5 cm, telle qu'elle se voit."""
@@ -376,7 +386,8 @@ def voie_collee(dims):
     ext = [demi * loi['gonflement'](i / 200) - loi['decalage'](i / 200) for i in range(201)]
     return round(INNER - 0.05 - max(ext), 3)
 VOIE_COLLEE = voie_collee([WIDE, int(round(8.0 / CELL)), 2 * int(round(8.0 / CELL))])
-VOIE = {'sol': VOIE_COLLEE, 'plafond': VOIE_COLLEE, 'est': 8.0, 'ouest': 8.0, 'nord': 8.0, 'sud': 8.0}
+VOIE = {'sol': VOIE_COLLEE, 'plafond': VOIE_COLLEE,
+        'est': 8.0, 'ouest': 8.0, 'nord': 8.0, 'sud': 8.0}
 
 # ── LES DOUZE ARÊTES : une volée par arête, deux par gravité ─────────────
 # Une arête du cube joint deux faces ; la volée se pose sur l'une (PLAN) et
@@ -616,23 +627,31 @@ def anneau(plane_from, pos_world, to_plane, arr_world, label):
         '_pose': plane_from
     })
 
-PLATEAU = 10.0        # la plate-forme haute : 10 × 10 de dessin, au centre
-SOMMET = 13.0         # sa hauteur : galeries à 6 et 9,5, crête à base + montée + 0,5
-PORTEE = 15.0         # l'axe des galeries d'un bras (x = ±15) : la galerie
-                      # finit à 7,8 du mur est ou ouest et la volée-lame f2,
-                      # qui serpente de 2 m vers le mur, à 5,3 — plus que la
-                      # tête du visiteur qui y marche (LIBRE) ; plus près,
-                      # elle serait un piège à hauteur de front dans cette
-                      # gravité
+# LA COURONNE. Le sommet de la tour était une dalle PLEINE de 10 × 10 au
+# centre du cube, et les deux tours en posaient une chacune : le volume se
+# lisait en trois tranches — sol, puis dalle, puis dalle, puis plafond — et
+# huit piliers se tenaient à 2,3 m de l'axe. Le sommet est désormais un
+# carré ÉVIDÉ : une galerie de quatre mètres autour d'un puits ouvert. Du
+# sol au plafond, l'axe du cube est libre — on y voit le tore, et à
+# travers lui la couronne inverse.
+COURONNE = 13.0       # demi-côté extérieur : le bord où la lame f3 se pose
+PUITS = 9.0           # demi-côté du vide central (galerie de 4 m, comme les
+                      # autres) — 18 m de dessin, 8,6 livrés, du sol au plafond
+SOMMET = 10.5         # sa hauteur : galeries à 6 et 9,5, crête à base + montée + 0,5
+PORTEE = 18.0         # l'axe des galeries d'un bras (x = ±18). Pas plus :
+                      # une volée posée sur le mur est occupe les huit
+                      # mètres qui le bordent (sa hauteur), soit x > 20,8 —
+                      # la galerie, large de quatre, s'arrête à 20
 BRAS_Z = -7.0         # la voie de la volée posée d'un bras : z = −7 pour
                       # le bras +x, +7 pour le bras −x — le quadrant OPPOSÉ
-                      # à la volée de sol du même côté (sol → est à z = +15,
-                      # x > 0). Côte à côte, la volée serpentait de 2,2 m
-                      # vers f1 et f1 de 1,6 m vers elle : elles se
-                      # touchaient (contrôle par cellules vues). Et pas plus
-                      # loin que 7 : f1 serpente jusqu'à z = ∓11,6, à 2,4 m
-                      # (LIBRE) de la crête et du lobe de la volée nord → sol
-                      # (z = ∓16,5), qui sont un sol pour la gravité nord
+                      # à la volée de sol du même côté. Côte à côte, la
+                      # volée serpentait vers f1 et f1 vers elle : elles se
+                      # touchaient (contrôle par cellules vues)
+
+def masque_couronne(u, v):
+    """Le carré évidé, en coordonnées normalisées de la dalle (−1..1)."""
+    r = PUITS / COURONNE
+    return abs(u) >= r or abs(v) >= r
 
 def bras(plane, s, t1, t2):
     """Un bras de la spirale, `s` = +1 (côté +x) ou −1 : le bras −1 est
@@ -660,13 +679,18 @@ def bras(plane, s, t1, t2):
     g2 = [s * PORTEE, 9.5, s * (BRAS_Z + 12.5)]
     slab(f'{n}-g2', plane, g2, (4.0, 5.0), t2, lisiere=ext_x)
     raccord(f'{n}-f2', top2, cap2, g2, (4.0, 5.0))
-    # F3 : G2 → plate-forme, volée-lame courte (4 m de montée, 8 de course)
-    # le long de z = ±3,5, vers le centre en x ; sa crête touche le bord
-    # de la plate-forme
+    # F3 : G2 → couronne, volée-lame courte (1,5 m de montée, 3 de course)
+    # vers le centre en x, DANS L'AXE DE G2 (z = ±5,5) : à z = ±3,5 elle
+    # repassait dans la largeur de la lame f2, qui monte encore là. Elle
+    # part du BORD de g2 (x = ±16) et non de son milieu, sans quoi elle
+    # empile un mètre et demi de lame dans le palier.
+    # Sa crête se pose sur le bord EXTÉRIEUR de la couronne, pas sur son
+    # bord intérieur : plus longue, elle passerait SOUS la galerie à moins
+    # de LIBRE — un piège à hauteur de front sur le chemin qui y mène.
     cap3 = 'x-' if s > 0 else 'x+'
-    top3 = stair_double(f'{n}-f3', plane, s * (PORTEE - 2.0), SOMMET - 9.5 + 0.5, s * 3.5,
-                        cap3, t1, base=8.5)
-    raccord(f'{n}-f3', top3, cap3, [0.0, SOMMET, 0.0], (PLATEAU, PLATEAU))
+    top3 = stair_double(f'{n}-f3', plane, s * (PORTEE - 2.0), SOMMET - 9.5 + 0.5,
+                        s * (BRAS_Z + 12.5), cap3, t1, base=8.5)
+    raccord(f'{n}-f3', top3, cap3, [0.0, SOMMET, 0.0], (2 * COURONNE, 2 * COURONNE))
     # colonnade : chaque galerie porte sur son pilier
     pillar(f'{n}-p1', plane, [s * PORTEE, 0, s * BRAS_Z], 5.4)
     pillar(f'{n}-p2', plane, [s * PORTEE, 0, s * (BRAS_Z + 12.5)], 8.9)
@@ -675,19 +699,31 @@ def tour(plane, teintes):
     t1, t2 = teintes
     bras(plane, +1, t1, t2)
     bras(plane, -1, t1, t2)
-    # la plate-forme — le belvédère de la tour, ourlé en pourtour, sur
-    # quatre piliers d'angle ; la lanterne de la face brûle dessous
-    slab(f'tour-{plane}-g3', plane, [0.0, SOMMET, 0.0], (PLATEAU, PLATEAU), t2,
-         lisiere='pourtour')
-    for k, (px, pz) in enumerate(((4.0, 4.0), (-4.0, 4.0), (-4.0, -4.0), (4.0, -4.0))):
+    # LA COURONNE — le belvédère de la tour : une galerie de quatre mètres
+    # autour d'un puits ouvert. La lisière en pourtour ourle son contour
+    # EXTÉRIEUR (`bord` prend la cellule la plus au bord de chaque
+    # colonne) ; le bord du puits n'est pas ourlé, et c'est juste : deux
+    # traits concentriques feraient une cible, pas une architecture.
+    slab(f'tour-{plane}-g3', plane, [0.0, SOMMET, 0.0], (2 * COURONNE, 2 * COURONNE),
+         t2, lisiere='pourtour', masque=masque_couronne)
+    # quatre piliers sous la galerie, aux diagonales — à 14,8 m de l'axe
+    # au lieu de 4 : le centre du sol cesse d'être une forêt de colonnes
+    d = (COURONNE + PUITS) / 2
+    for k, (px, pz) in enumerate(((d, d), (-d, d), (-d, -d), (d, -d))):
         pillar(f'tour-{plane}-p{k + 1}', plane, [px, 0, pz], SOMMET - 0.6)
 
 tour('sol', ('#6c6288', '#565070'))
 tour('plafond', ('#5a6a80', '#485668'))
-# l'échange : du centre d'une plate-forme au centre de l'autre — les deux
-# anneaux se répondent, chaque monde renversé rend ce qu'il a pris
-anneau('sol', [0.0, SOMMET, 0.0], 'plafond', [0.0, SOMMET, 0.0], 'Tour inverse (plafond)')
-anneau('plafond', [0.0, SOMMET, 0.0], 'sol', [0.0, SOMMET, 0.0], 'Tour inverse (sol)')
+# l'échange : le centre n'a plus de sol, les anneaux se posent sur la
+# GALERIE — deux par tour, de part et d'autre du puits (le demi-tour
+# vertical envoie l'un sur l'autre). Chaque monde renversé rend ce qu'il
+# a pris : l'anneau du sol dépose au même point de la couronne inverse.
+ANNEAU_Z = (COURONNE + PUITS) / 2
+for _sz in (1, -1):
+    anneau('sol', [0.0, SOMMET, _sz * ANNEAU_Z], 'plafond', [0.0, SOMMET, _sz * ANNEAU_Z],
+           'Tour inverse (plafond)')
+    anneau('plafond', [0.0, SOMMET, _sz * ANNEAU_Z], 'sol', [0.0, SOMMET, _sz * ANNEAU_Z],
+           'Tour inverse (sol)')
 
 # ── mobilier : lanternes, bancs, gerbes ──────────────────────────────────
 # UNE lanterne par gravité, AU centre de sa face : elle dit « ceci est un
@@ -790,7 +826,7 @@ room = {
     'envIntensity': 1.5,
     'works': [w['id'] for w in works],
     'bascules': bascules,
-    'jetons': [[15.0, 1.0, -8.0], [-15.0, 1.0, 8.0]],   # au pied des volées-lames f2
+    'jetons': [[18.0, 1.0, -8.0], [-18.0, 1.0, 8.0]],   # au pied des volées-lames f2
     'portals': [
         {'to': 'couloir-est', 'position': [0, 0, 21.5], 'rotationY': 180,
          'label': 'Couloir', 'arrival': [0, 2.2, -6]},
@@ -1341,6 +1377,13 @@ if os.path.exists(chemin_piece):
     piece['works'] = ids + conserves
     piece['bascules'] = bascules
     piece['jetons'] = [[round(v * K, 2) for v in j] for j in room['jetons']]
+    # LA TAILLE DU CUBE EST DE LA GÉOMÉTRIE, pas un réglage de main : quand
+    # le dessin passe de 50 à 58, la coque doit suivre, sinon les volées
+    # traversent des murs restés où ils étaient. Le reste de la coque
+    # (couleurs, texture, plafond) appartient au fichier.
+    cote = round(SIZE * K, 2)
+    piece['floor'] = {**piece.get('floor', {}), 'size': cote}
+    piece['shell'] = {**piece.get('shell', {}), 'width': cote, 'depth': cote, 'height': cote}
 else:
     piece = dict(room)
     piece['spawn'] = [round(v * K, 2) for v in room['spawn']]
