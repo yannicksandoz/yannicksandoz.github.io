@@ -28,7 +28,7 @@
  * Lancer avec : npm test
  */
 import assert from 'node:assert/strict';
-import { copieSceneNecessaire, BloomFleur } from '../engine/src/core/PasseSortie.js';
+import { copieSceneNecessaire, BloomFleur, PasseSortie } from '../engine/src/core/PasseSortie.js';
 
 let ok = 0;
 let ko = 0;
@@ -119,6 +119,69 @@ test('sans échelle déclarée, on retombe sur la moitié (le défaut de three)'
 test('une fenêtre minuscule ne produit jamais une cible de zéro pixel', () => {
   const [w, h] = dimensionner(0.25, 3, 2);
   assert.ok(w >= 1 && h >= 1, `cible ${w}×${h}`);
+});
+
+/* -------------------------------------------------------- 3. la netteté --- */
+
+groupe('la netteté : un affûtage dans la passe déjà payée, jamais ailleurs');
+
+/**
+ * Même procédé : la vraie méthode, appelée sur un objet qui n'a que ce
+ * qu'elle touche. Le composer passe des PIXELS d'image (densité comprise),
+ * et c'est ce pas-là que l'affûtage doit lire — pas des pixels CSS.
+ */
+const dimensionnerSortie = (w, h) => {
+  const faux = {
+    bloom: null,
+    uniforms: { uTexel: { value: { set(x, y) { this.x = x; this.y = y; } } } }
+  };
+  PasseSortie.prototype.setSize.call(faux, w, h);
+  return [faux.uniforms.uTexel.value.x, faux.uniforms.uTexel.value.y];
+};
+
+test('le pas des voisins est l\'inverse de la taille en pixels d\'image', () => {
+  const [x, y] = dimensionnerSortie(491, 1064);
+  assert.ok(Math.abs(x - 1 / 491) < 1e-12 && Math.abs(y - 1 / 1064) < 1e-12, `${x} × ${y}`);
+});
+
+test('une taille nulle ne divise jamais par zéro', () => {
+  const [x, y] = dimensionnerSortie(0, 0);
+  assert.ok(Number.isFinite(x) && Number.isFinite(y));
+});
+
+const regler = (v) => {
+  const faux = { uniforms: { uNettete: { value: 0 } } };
+  Object.getOwnPropertyDescriptor(PasseSortie.prototype, 'nettete').set.call(faux, v);
+  return faux.uniforms.uNettete.value;
+};
+
+test('la force est bornée à [0, 1] et un réglage absurde vaut zéro', () => {
+  assert.equal(regler(0.5), 0.5);
+  assert.equal(regler(3), 1);
+  assert.equal(regler(-1), 0);
+  assert.equal(regler('n/a'), 0);
+  assert.equal(regler(undefined), 0);
+});
+
+test('le bureau n\'affûte pas : sans réglage au profil, la force reste à zéro', () => {
+  // App fait `sortie.nettete = profile.nettete ?? 0` ; le profil bureau
+  // n'a pas la clé — la branche uniforme du shader saute les quatre lectures
+  assert.equal(regler(undefined ?? 0), 0);
+});
+
+test('le shader lit ses voisins sur la SCÈNE seule, pas sur la fleur', () => {
+  const src = new PasseSortie(null, null).material.fragmentShader;
+  const corps = src.slice(src.indexOf('vec3 affuter'), src.indexOf('void main'));
+  assert.ok(corps.includes('texture2D(tDiffuse'), 'lit la scène');
+  assert.ok(!corps.includes('tFleur'), 'ne lit pas la fleur');
+  assert.ok(src.includes('if (uNettete > 0.0)'), 'branche uniforme');
+});
+
+test('le tramage est fixe (pas de uTime) et vaut un pas de quantification', () => {
+  const src = new PasseSortie(null, null).material.fragmentShader;
+  const ligne = src.split('\n').find((l) => l.includes('float trame ='));
+  assert.ok(ligne && ligne.includes('gl_FragCoord') && !ligne.includes('uTime'), ligne);
+  assert.ok(src.includes('(trame - 0.5) / 255.0'), 'un 255e');
 });
 
 console.log(`\n${ok} ✓ / ${ko} ✗`);

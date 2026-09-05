@@ -392,6 +392,8 @@ export class App {
     this.bloom.echelle = this.quality.profile.bloomResScale;
     this.sortie = new PasseSortie(this.bloom, this.scenePass);
     this.sortie.grainActif = this.quality.profile.grain;
+    // l'affûtage : téléphone (et GPU modeste) seulement — voir Quality
+    this.sortie.nettete = this.quality.profile.nettete ?? 0;
     this.composer.addPass(this.sortie);
     // le liseré de survol : masque rendu avant la frame, dilaté à la sortie
     this.survol = new Survol(this.renderer);

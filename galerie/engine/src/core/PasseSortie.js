@@ -132,6 +132,9 @@ const SORTIE = {
     uGrain: { value: 0.055 },    // 0 = grain coupé
     uVignette: { value: 0.4 },
     uAberration: { value: 0.006 },
+    // LA NETTETÉ (téléphone) : force de l'affûtage, 0 = aucun — voir affuter()
+    uNettete: { value: 0 },
+    uTexel: { value: new Vector2(1 / 1920, 1 / 1080) }, // 1 / taille de l'image
     // LE SURVOL (voir Survol.js) : masque de silhouette de l'œuvre visée,
     // dilaté ici en liseré. `uContour` = force du liseré (0 : rien à faire)
     tMasque: { value: null },      // la silhouette, nette
@@ -155,6 +158,8 @@ const SORTIE = {
     uniform sampler2D tDiffuse;
     uniform sampler2D tFleur;
     uniform float uFleur, uTime, uGrain, uVignette, uAberration;
+    uniform float uNettete;
+    uniform vec2 uTexel;
     uniform sampler2D tMasque, tMasqueFlou;
     uniform float uContour;
     uniform vec3 uContourCouleur;
@@ -184,6 +189,33 @@ const SORTIE = {
       return texture2D(tDiffuse, uv).rgb + texture2D(tFleur, uv).rgb * uFleur;
     }
 
+    // L'AFFÛTAGE ADAPTATIF — pour l'écran de téléphone, qui affiche une
+    // image rendue à densité 1,25 sur une dalle à 3× : molle, forcément.
+    // Le principe de CAS (AMD, MIT) : chaque pixel est tiré vers ses
+    // quatre voisins en croix avec un poids NÉGATIF, d'autant plus fort
+    // que le voisinage a de la marge avant de saturer (ni noir ni blanc) —
+    // une arête déjà franche n'est pas sur-affûtée, un aplat ne prend pas
+    // de grain. Quatre lectures de la scène seule (la fleur est floue par
+    // métier, l'affûter serait absurde), dans la tuile déjà chargée : sur
+    // un GPU à tuiles c'est le seul endroit où quatre lectures ne coûtent
+    // presque rien. Travaille en linéaire, avant la courbe de tons ; la
+    // marge « 1 − max » s'annule au-delà du blanc, donc les hautes
+    // lumières (lanternes) ne sont pas touchées — elles sont au bloom.
+    // Renvoie la CORRECTION à ajouter au pixel central e.
+    vec3 affuter(vec2 uv, vec3 e) {
+      vec3 a = texture2D(tDiffuse, uv + vec2(0.0, -uTexel.y)).rgb;
+      vec3 b = texture2D(tDiffuse, uv + vec2(-uTexel.x, 0.0)).rgb;
+      vec3 c = texture2D(tDiffuse, uv + vec2(uTexel.x, 0.0)).rgb;
+      vec3 d = texture2D(tDiffuse, uv + vec2(0.0, uTexel.y)).rgb;
+      vec3 mn = min(min(min(a, b), min(c, d)), e);
+      vec3 mx = max(max(max(a, b), max(c, d)), e);
+      vec3 marge = clamp(min(mn, 1.0 - mx) / max(mx, 1e-4), 0.0, 1.0);
+      // poids par canal : −1/8 (léger) à −1/5 (franc) pondéré par la marge
+      vec3 w = -sqrt(marge) * mix(0.125, 0.2, uNettete);
+      vec3 affute = ((a + b + c + d) * w + e) / (4.0 * w + 1.0);
+      return affute - e;
+    }
+
     void main() {
       vec2 vers = vUv - 0.5;
       float d = length(vers);
@@ -194,6 +226,15 @@ const SORTIE = {
       // mais un GPU ne saute pas une lecture pour autant.
       vec2 dec = vers * d * d * uAberration;
       vec3 col = vec3(lire(vUv - dec).r, lire(vUv).g, lire(vUv + dec).b);
+
+      // LA NETTETÉ : la correction se calcule sur le pixel central non
+      // décalé et s'ajoute aux trois canaux — à l'excentricité où
+      // l'aberration écarte le rouge du bleu, l'écart est d'un pixel et
+      // l'affûtage d'un pixel s'y confond. La branche est uniforme : un
+      // GPU de bureau (uNettete = 0) ne fait pas les quatre lectures.
+      if (uNettete > 0.0) {
+        col += affuter(vUv, texture2D(tDiffuse, vUv).rgb);
+      }
 
       // COURBE DE TONS puis ESPACE COLORIMÉTRIQUE, dans cet ordre — c'est
       // celui d'OutputPass, dont cette passe reprend le travail mot pour mot.
@@ -221,6 +262,16 @@ const SORTIE = {
       if (uContour > 0.0) {
         sortie.rgb = mix(sortie.rgb, uContourCouleur, contour(vUv) * uContour);
       }
+
+      // LE TRAMAGE : la galerie est sombre et violette, la brume y fait des
+      // dégradés longs qu'un écran 8 bits découpe en bandes. Un bruit d'un
+      // pas de quantification (1/255), fixe, à gradient entrelacé (Jimenez
+      // 2014 : régulier, sans structure visible, un produit scalaire) casse
+      // les bandes sans se voir. Le grain animé le masquait déjà — mais le
+      // grain saute avec « réduire les animations » et au deuxième cran du
+      // gouverneur ; le tramage, lui, ne coûte rien et reste.
+      float trame = fract(52.9829189 * fract(dot(gl_FragCoord.xy, vec2(0.06711056, 0.00583715))));
+      sortie.rgb += (trame - 0.5) / 255.0;
 
       // GRAIN et VIGNETTAGE, après l'encodage : ils se règlent à l'œil sur
       // l'image finie, pas sur des valeurs linéaires.
@@ -263,10 +314,17 @@ export class PasseSortie extends Pass {
   get grainActif() { return this.uniforms.uGrain.value > 0; }
   set grainActif(on) { this.uniforms.uGrain.value = on ? this._grain : 0; }
 
+  /** La netteté (affûtage adaptatif), 0 = aucune, 1 = franche. */
+  get nettete() { return this.uniforms.uNettete.value; }
+  set nettete(v) { this.uniforms.uNettete.value = Math.max(0, Math.min(1, Number(v) || 0)); }
+
   setSize(width, height) {
     // la pyramide du bloom suit la taille de l'image, comme quand elle
     // était une passe du composer
     this.bloom?.setSize(width, height);
+    // le composer passe des PIXELS d'image (densité comprise) : c'est le
+    // pas des voisins que lit l'affûtage
+    this.uniforms.uTexel.value.set(1 / Math.max(1, width), 1 / Math.max(1, height));
   }
 
   render(renderer, writeBuffer, readBuffer) {

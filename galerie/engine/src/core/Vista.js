@@ -104,6 +104,16 @@ const INSET = 0.26;
 const SLOW_PERIOD = 1;
 const SLOW_MOVE2 = 1;      // m²
 const SLOW_MIN = 0.15;     // s — étale la peinture initiale de plusieurs baies
+// L'ARRÊT : en régime lent, une baie ne se repeint qu'après un mètre de
+// marche. Quand le visiteur s'arrête DEVANT une apparition, il garde donc
+// l'image d'un point de vue jusqu'à un mètre à côté — une parallaxe figée
+// de travers, précisément au moment où il la regarde. Une fois immobile
+// (0,3 s sans bouger), on repeint UNE fois les baies dont le point de vue
+// a changé de plus de vingt centimètres, une par image, puis plus rien
+// jusqu'au prochain déplacement. Jamais une image par frame : c'est un
+// solde, pas un régime.
+const ARRET = 0.3;         // s
+const ARRET_MOVE2 = 0.04;  // m² (20 cm)
 
 const _mat = new THREE.Matrix4();
 const _inv = new THREE.Matrix4();
@@ -370,6 +380,13 @@ export class VistaManager {
       // même les baies neuves attendent leur tour : peindre trois pièces
       // dans trois frames consécutives fait décrocher l'entrée dans une
       // salle, là où les étaler sur une demi-seconde ne se voit pas
+      // l'arrêt se mesure sur la position : une baie se peint depuis l'œil,
+      // pas dans la direction du regard (voir plus bas), tourner sur place
+      // ne change rien à son image
+      this._prev ??= camWorld.position.clone();
+      const bouge = this._prev.distanceToSquared(camWorld.position) > 1e-6;
+      this._prev.copy(camWorld.position);
+      this._arret = bouge ? 0 : (this._arret ?? 0) + dt;
       if (this._slow < SLOW_MIN) return;
       const neuve = vistas.find((v) => !v.camAt);
       if (neuve) {
@@ -377,6 +394,15 @@ export class VistaManager {
       } else if (this._slow >= SLOW_PERIOD) {
         vista = vistas.find(
           (v) => v.camAt.distanceToSquared(camWorld.position) > SLOW_MOVE2
+        );
+      }
+      if (!vista && this._arret >= ARRET) {
+        // le solde de l'arrêt : parmi les baies DANS LE CHAMP, celles dont
+        // le point de vue a changé — une par image. Une baie repeinte
+        // porte la position d'arrêt, elle ne revient donc pas ; une baie
+        // qu'on découvre en tournant sur place, elle, aura son tour.
+        vista = vistas.find(
+          (v) => v.camAt.distanceToSquared(camWorld.position) > ARRET_MOVE2
         );
       }
       if (!vista) return;

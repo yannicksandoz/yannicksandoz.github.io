@@ -343,6 +343,47 @@ une vue composée : rayon central tombant sur le point visé (à 1 m près) ET
 pourtour dégagé, car une œuvre cadrée est étroite là où un escalier remplit
 le champ.
 
+**Mieux sur téléphone sans payer un pixel.** Sur un GPU à tuiles, ce qui
+coûte c'est chaque passe plein écran et chaque pixel de plus ; ce qui tient
+dans une passe déjà payée ne coûte presque rien. Six pistes ont été
+mesurées une par une, chacune seule contre la même image de référence dans
+la même session (le bruit de la machine s'annule dans la comparaison), avec
+un budget de +2 % par piste. Trois passent, trois sont écartées.
+
+- **La netteté** (`PasseSortie.affuter`, profil `nettete`). À densité 1,25
+  sur une dalle à 3×, l'image est molle — 491 px de large étirés sur 1080.
+  Un affûtage adaptatif façon CAS (AMD, MIT : quatre voisins en croix à
+  poids négatif, pondéré par la marge du voisinage avant saturation, donc
+  ni sur-affûtage des arêtes franches ni grain sur les aplats) est fondu
+  dans la passe de sortie, sur la scène seule — la fleur du bloom est floue
+  par métier. Il travaille en linéaire avant la courbe de tons : la marge
+  « 1 − max » s'annule au-delà du blanc, les lanternes sont laissées au
+  bloom. Branche uniforme, le bureau ne lit pas les quatre voisins. Mesuré :
+  +2,3 % à l'entrée, −0,3 % au belvédère.
+- **Le tramage.** La galerie est sombre et violette, la brume y fait des
+  dégradés longs qu'un écran 8 bits découpe en bandes. Un bruit d'un pas de
+  quantification (1/255), fixe, à gradient entrelacé (Jimenez 2014), casse
+  les bandes sans se voir. Le grain animé le masquait déjà, mais il saute
+  avec « réduire les animations » et au deuxième cran du gouverneur ; le
+  tramage reste. Un produit scalaire, partout.
+- **Les apparitions se repeignent à l'arrêt.** En régime lent (téléphone),
+  une baie ne se repeignait qu'après un mètre de marche : arrêté DEVANT une
+  apparition, on gardait l'image d'un point de vue jusqu'à un mètre à côté,
+  une parallaxe figée de travers au moment précis où on la regarde. Après
+  0,3 s immobile, les baies dans le champ dont le point de vue a bougé de
+  plus de 20 cm sont repeintes une par image ; une baie repeinte porte la
+  position d'arrêt et ne revient pas, une baie découverte en tournant sur
+  place aura son tour. Sondé au navigateur : 50 cm de marche, zéro rendu ;
+  l'arrêt, un rendu ; ensuite, plus rien.
+
+Écartées, chiffres à l'appui : le **bloom à demi-résolution** (+8,7 % à
+l'entrée, +5,4 % au belvédère — la pyramide reste petite mais elle est
+quatre fois plus grande), les **œuvres ISF à 384 px** (+4,9 % dans la
+salle des shaders, +9,5 % à 512). L'**anisotropie 8** n'a rien coûté ici,
+mais le rastériseur logiciel ne la fait probablement pas : non mesurable
+dans cet environnement, elle reste à 4 en attendant une mesure sur
+l'appareil.
+
 **Passage en revue de la charte : zéro signalement.** Douze règles, cent
 quatre-vingt-quatorze lignes de rapport. Deux choses en sont sorties.
 
