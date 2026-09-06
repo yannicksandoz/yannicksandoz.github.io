@@ -412,12 +412,27 @@ sonde de reflets, les apparitions, les ombres) ne pèsent rien. Deux gestes :
   force)` sur la scène linéaire, la fleur ajoutée après). Même image, deux
   passes de moins ; la force suit `gtao.enabled` à chaque image, le
   gouverneur la coupe et la rend comme avant.
-- **La densité est plafonnée à 1,5, et affûtée.** C'est la seule économie
-  de cette taille (44 % de pixels en moins) qui ne touche ni la lumière ni
-  l'anticrénelage. L'affûtage adaptatif de la sortie, le même que sur
-  téléphone, rend la netteté perdue ; il ne s'allume que si la densité a
-  bien été plafonnée (un écran à densité 1 ne voit rien changer, ni en
-  pixels ni en netteté). Le MSAA ×4 et l'occlusion restent.
+- **La densité devient ADAPTATIVE : native au départ, 1,5 affûtée si
+  l'écran ne suit pas.** Descendre de 2 à 1,5 est la seule économie de
+  cette taille (44 % de pixels en moins) qui ne touche ni la lumière ni
+  l'anticrénelage — mais une machine de bureau qui tient les 120 en natif
+  n'a aucune raison d'y renoncer. Le gouverneur lit donc le taux de
+  l'écran dans l'intervalle MINIMAL entre deux images (`estimerHz` : les
+  intervalles sont des multiples de la période de balayage, à 70 images
+  sur un 120 Hz ils alternent 8,3 et 16,7 ms, et le minimum dit 120), vise
+  85 % de ce taux (`cibleImages` : 102 sur un 120 Hz, 51 sur un 60 Hz — le
+  seuil d'avant, à une image près), et sous cette cible pendant six
+  secondes descend la densité à 1,5, affûtée par la sortie comme sur
+  téléphone. Une seule fois, et seulement s'il y a des pixels à rendre ;
+  jamais l'inverse — à 1,5 plafonné par le balayage, rien ne dirait si le
+  natif tiendrait, et l'essayer ferait osciller l'image. Sous 50 images,
+  la densité passe désormais AVANT l'anticrénelage : affûtée, elle coûte
+  moins à l'œil que le crénelage, et rapporte deux fois plus. La limite
+  de la lecture est assumée : si aucune image ne tient jamais dans une
+  période, le minimum vaut deux périodes, on croit l'écran deux fois plus
+  lent, et le gouverneur agit comme avant, sous 50. Dix tests au nœud
+  (`test-cadence.mjs`) tiennent le taux, la cible, le cran, son ordre et
+  son absence de retour.
 
 Mesuré après, même écran, même session (la densité 2 remise à chaud pour
 la comparaison) : l'image passe de 5 177 à 3 139 ms à l'entrée et de
@@ -430,8 +445,8 @@ où le pixel paie son calcul et non son transport ; il est réel sur un GPU.
 Vérifié à l'image : avec l'occlusion, 28 % des pixels de l'entrée sont
 assombris (jonctions mur-sol, pieds), écart moyen 2,9/255 — une AO qui
 souligne, comme avant. À 120 Hz, le budget est de 8,3 ms : ce qui tenait
-en 12 à 16 ms tient désormais en 7 à 10 ; le gouverneur, inchangé, fait le
-reste sous 50 images.
+en 12 à 16 ms tient en 7 à 10 une fois la densité descendue ; la finition
+(anticrénelage, occlusion) ne cède toujours que sous 50 images.
 
 **Passage en revue de la charte : zéro signalement.** Douze règles, cent
 quatre-vingt-quatorze lignes de rapport. Deux choses en sont sorties.

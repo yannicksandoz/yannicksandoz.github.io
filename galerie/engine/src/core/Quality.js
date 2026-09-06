@@ -10,6 +10,50 @@
  *     grain → apparitions → ombres → bloom), jamais l'inverse
  *     (pas d'oscillation).
  */
+/* -------------------------------------------------------- la cadence --- */
+
+/** Les taux de rafraîchissement qu'on rencontre, pour y accrocher une mesure. */
+const TAUX_CONNUS = [60, 72, 75, 90, 100, 120, 144, 165, 240];
+
+/**
+ * Le taux de rafraîchissement de l'écran, déduit de l'INTERVALLE MINIMAL
+ * observé entre deux images (en secondes).
+ *
+ * Le navigateur cale chaque image sur le balayage : les intervalles sont
+ * des multiples de la période de l'écran. Tant qu'UNE image sur la fenêtre
+ * tient dans une période, le minimum la révèle — à 70 images par seconde
+ * sur un écran à 120 Hz, les intervalles alternent 8,3 et 16,7 ms, et le
+ * minimum dit 120. On accroche la mesure au taux connu le plus proche (à
+ * 12 % près) ; hors de tout taux connu, ou sans mesure, on répond 60 — la
+ * valeur qui ne change rien au comportement d'avant.
+ *
+ * La limite est franche et assumée : si aucune image ne tient jamais dans
+ * une période (une machine très en dessous), le minimum vaut deux périodes
+ * et l'on croit l'écran deux fois plus lent qu'il n'est. On n'y perd rien
+ * — le gouverneur agit alors comme avant, sous 50 images.
+ */
+export function estimerHz(periodeMin) {
+  if (!Number.isFinite(periodeMin) || periodeMin <= 0) return 60;
+  const brut = 1 / periodeMin;
+  let meilleur = null;
+  for (const t of TAUX_CONNUS) {
+    if (Math.abs(brut - t) / t <= 0.12 && (meilleur === null || Math.abs(brut - t) < Math.abs(brut - meilleur))) {
+      meilleur = t;
+    }
+  }
+  return meilleur ?? 60;
+}
+
+/**
+ * La cadence VISÉE pour un écran donné : 85 % de son taux, jamais moins de
+ * 50. À 60 Hz c'est 51 — le seuil de finition d'avant, à une image près ;
+ * à 120 Hz c'est 102 : en dessous, un écran ProMotion montre chaque
+ * saccade, et c'est là que la densité a quelque chose à donner.
+ */
+export function cibleImages(hz) {
+  return Math.max(50, Math.round(0.85 * (Number(hz) || 60)));
+}
+
 export class QualityManager {
   constructor() {
     this.reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -93,19 +137,21 @@ export class QualityManager {
           msaa: 4,     // arêtes franches sur un écran de bureau
           gtao: true,  // occlusion ambiante (GTAO), à demi-résolution
           anisotropy: 16,  // sols nets aux angles rasants (parquet, sable)
-          // LA DENSITÉ, PLAFONNÉE À 1,5 — et affûtée. Sur un portable Retina
-          // (densité 2, 120 Hz), l'image tenait à 60-80 images par seconde :
-          // le compte d'appels est dérisoire (85 par image à l'entrée), tout
-          // part dans le PIXEL — six millions par image, chacun intégrant
-          // huit sources étendues, douze lampes, seize lignes, seize
-          // lectures de reflets, quatre échantillons. À 1,5, c'est 44 % de
-          // pixels en moins, la seule économie de cette taille qui ne
-          // touche ni la lumière ni l'anticrénelage ; l'affûtage adaptatif
-          // de la sortie (le même que sur téléphone) rend la netteté
-          // perdue. Un écran à densité 1 ne voit rien changer.
-          pixelRatio: Math.min(window.devicePixelRatio || 1, 1.5),
-          // …et l'affûtage n'a lieu que si la densité a bien été plafonnée
-          nettete: (window.devicePixelRatio || 1) > 1.5 ? 0.5 : 0,
+          // LA DENSITÉ : native au départ, ADAPTATIVE ensuite. Sur un
+          // portable Retina (densité 2, 120 Hz), l'image tenait à 60-80
+          // images par seconde : le compte d'appels est dérisoire (85 par
+          // image à l'entrée), tout part dans le PIXEL — six millions par
+          // image, chacun intégrant huit sources étendues, douze lampes,
+          // seize lignes, seize lectures de reflets, quatre échantillons. À
+          // 1,5, c'est 44 % de pixels en moins (mesuré : −39 % d'image), la
+          // seule économie de cette taille qui ne touche ni la lumière ni
+          // l'anticrénelage. Mais une machine de bureau qui tient les 120
+          // en natif n'a aucune raison d'y renoncer : c'est le GOUVERNEUR
+          // qui descend à 1,5 — affûté par la sortie, comme sur téléphone —
+          // quand l'écran est rapide et que l'image ne suit pas (voir
+          // `_densite`). Un écran à densité 1 ne voit jamais rien changer.
+          pixelRatio: Math.min(window.devicePixelRatio || 1, 2),
+          nettete: 0,
           bloomResScale: 0.5,
           bloomStrength: 0.9,
           grain: !this.reducedMotion,
@@ -169,19 +215,51 @@ export class QualityManager {
 
   /**
    * Gouverneur : appelé chaque frame par l'App. Moyenne glissante des FPS,
-   * décision toutes les 3 s, DEUX étages :
-   *   — sous 50 fps, seule la FINITION est sacrifiée (anticrénelage, puis
-   *     occlusion ambiante). Un écran fluide (ProMotion, 120 Hz) rend 35 fps
-   *     pénibles bien avant le seuil de survie — attendre 27 fps, c'est
-   *     laisser le visiteur dans la mélasse en trouvant que « ça va » ;
-   *   — sous 27 fps, la survie : densité, grain, apparitions, ombres, bloom.
-   * Jamais l'inverse (pas d'oscillation).
+   * décision toutes les 3 s, TROIS étages :
+   *   — sous la CADENCE VISÉE de l'écran (85 % de son taux, voir
+   *     `cibleImages` : 102 sur un 120 Hz, 51 sur un 60 Hz) pendant deux
+   *     décisions (6 s), la DENSITÉ descend de la native à 1,5, affûtée par
+   *     la sortie — une seule fois, et seulement s'il y a des pixels à
+   *     rendre (densité > 1,5). C'est le cran qui ne touche ni la lumière
+   *     ni l'anticrénelage, et le seul de cette taille (−39 % d'image) ;
+   *   — sous 50 fps, la FINITION (anticrénelage, puis occlusion ambiante).
+   *     Un écran fluide (ProMotion, 120 Hz) rend 35 fps pénibles bien avant
+   *     le seuil de survie — attendre 27 fps, c'est laisser le visiteur
+   *     dans la mélasse en trouvant que « ça va » ;
+   *   — sous 27 fps, la survie : densité encore, grain, apparitions,
+   *     ombres, bloom.
+   * Jamais l'inverse (pas d'oscillation) — sauf la finition, qui remonte
+   * après douze secondes stables (voir `_remonter`).
+   *
+   * Le taux de l'écran se lit dans l'intervalle MINIMAL entre deux images
+   * (voir `estimerHz`) ; on garde le plus haut jamais vu, un écran ne
+   * change pas de taux en cours de visite.
    */
   tick(dt, app) {
     if (dt > 0) this._fps += ((1 / dt) - this._fps) * 0.05;
+    if (dt > 1 / 250) this._periode = Math.min(this._periode ?? Infinity, dt);
     this._acc += dt;
     if (this._acc < 3) return;
     this._acc = 0;
+    this._hz = Math.max(this._hz ?? 60, estimerHz(this._periode));
+    this._periode = Infinity;
+    const cible = cibleImages(this._hz);
+    if (this._fps >= cible) {
+      this._sousCible = 0;
+      this._remonter(app);
+      return;
+    }
+    // sous la cadence visée : la densité d'abord, avec six secondes de
+    // patience — une salle qui charge fait chuter l'image un instant. Sous
+    // 50, plus de patience : c'est le seuil où la finition cédait déjà à la
+    // première décision, et la densité passe avant elle
+    this._sousCible = (this._sousCible ?? 0) + 1;
+    if ((this._sousCible >= 2 || this._fps < 50) && this._densite(app)) {
+      this._fps = cible; // laisse la mesure se re-stabiliser
+      return;
+    }
+    // entre 50 et la cible : rien à sacrifier de plus, mais la finition
+    // cédée plus tôt garde sa porte de sortie (72 stables, voir _remonter)
     if (this._fps >= 50) {
       this._remonter(app);
       return;
@@ -232,6 +310,27 @@ export class QualityManager {
     }
   }
 
+  /**
+   * Étage 0 — LA DENSITÉ ADAPTATIVE. De la densité native à 1,5, affûtée
+   * par la sortie (le même affûtage que sur téléphone), une seule fois, et
+   * seulement s'il y a quelque chose à rendre : un écran à densité 1 ou
+   * déjà sous 1,5 ne change pas. Ne remonte jamais — à 1,5 plafonné par le
+   * balayage de l'écran, rien ne dit si le natif tiendrait, et l'essayer
+   * ferait osciller l'image toutes les quinze secondes. Rend true si le
+   * cran a été pris.
+   */
+  _densite(app) {
+    const p = this.profile;
+    if (!(p.pixelRatio > 1.5) || !app?.renderer) return false;
+    p.pixelRatio = 1.5;
+    p.nettete = 0.5;
+    app.renderer.setPixelRatio(1.5);
+    app.composer?.setPixelRatio(1.5);
+    if (app.sortie) app.sortie.nettete = 0.5;
+    console.info(`[galerie] ${this._fps.toFixed(0)} images sur un écran à ${this._hz} Hz → densité 1,5 affûtée`);
+    return true;
+  }
+
   /** Étage 1 — la finition, cran par cran. Rend true si un cran a été pris. */
   _finition(app) {
     const p = this.profile;
@@ -267,6 +366,8 @@ export class QualityManager {
       p.pixelRatio = Math.max(1, p.pixelRatio - 0.25);
       app.renderer.setPixelRatio(p.pixelRatio);
       app.composer.setPixelRatio(p.pixelRatio);
+      // sous la densité native, la sortie affûte (voir _densite)
+      if (app.sortie && !(p.nettete > 0)) { p.nettete = 0.5; app.sortie.nettete = 0.5; }
       console.info(`[galerie] FPS bas (${this._fps.toFixed(0)}) → pixelRatio ${p.pixelRatio}`);
     } else if (p.grain) {
       p.grain = false;
