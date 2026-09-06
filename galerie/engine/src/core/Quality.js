@@ -93,7 +93,19 @@ export class QualityManager {
           msaa: 4,     // arêtes franches sur un écran de bureau
           gtao: true,  // occlusion ambiante (GTAO), à demi-résolution
           anisotropy: 16,  // sols nets aux angles rasants (parquet, sable)
-          pixelRatio: Math.min(window.devicePixelRatio || 1, 2),
+          // LA DENSITÉ, PLAFONNÉE À 1,5 — et affûtée. Sur un portable Retina
+          // (densité 2, 120 Hz), l'image tenait à 60-80 images par seconde :
+          // le compte d'appels est dérisoire (85 par image à l'entrée), tout
+          // part dans le PIXEL — six millions par image, chacun intégrant
+          // huit sources étendues, douze lampes, seize lignes, seize
+          // lectures de reflets, quatre échantillons. À 1,5, c'est 44 % de
+          // pixels en moins, la seule économie de cette taille qui ne
+          // touche ni la lumière ni l'anticrénelage ; l'affûtage adaptatif
+          // de la sortie (le même que sur téléphone) rend la netteté
+          // perdue. Un écran à densité 1 ne voit rien changer.
+          pixelRatio: Math.min(window.devicePixelRatio || 1, 1.5),
+          // …et l'affûtage n'a lieu que si la densité a bien été plafonnée
+          nettete: (window.devicePixelRatio || 1) > 1.5 ? 0.5 : 0,
           bloomResScale: 0.5,
           bloomStrength: 0.9,
           grain: !this.reducedMotion,

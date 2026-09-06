@@ -169,6 +169,19 @@ class PasseGTAO extends GTAOPass {
     // l'AO souligne, elle n'éteint pas.
     this.updateGtaoMaterial({ radius: 0.55, thickness: 1, scale: 1.1 });
     this.blendIntensity = 0.9;
+    // L'OCCLUSION NE S'APPLIQUE PLUS ICI. La passe de three finissait par
+    // deux images PLEIN CADRE : la scène recopiée dans la chaîne (pour
+    // qu'elle ait quelque chose à lire), puis un mélange multiplicatif de
+    // toute l'image par l'AO. Sur un écran Retina, c'est deux fois quatre
+    // à six millions de pixels lus et réécrits — pour une multiplication.
+    // La passe s'arrête donc à sa texture débruitée (demi-résolution), et
+    // c'est la SORTIE qui la lit, une fois, au pixel (PasseSortie,
+    // `tOcclusion`) : même formule, même image, deux passes de moins. Elle
+    // ne lit pas la chaîne du composer (`litLaChaine`), donc la scène n'a
+    // plus à s'y recopier, et n'échange pas les tampons.
+    this.output = GTAOPass.OUTPUT.Off;
+    this.needsSwap = false;
+    this.litLaChaine = false;
   }
 
   setSize(w, h) {
@@ -394,6 +407,11 @@ export class App {
     this.sortie.grainActif = this.quality.profile.grain;
     // l'affûtage : téléphone (et GPU modeste) seulement — voir Quality
     this.sortie.nettete = this.quality.profile.nettete ?? 0;
+    // l'occlusion ambiante se mélange à la sortie (voir PasseGTAO) : la
+    // cible débruitée garde le même objet texture à travers les
+    // redimensionnements, on la lie une fois ; sa FORCE suit `gtao.enabled`
+    // à chaque image (le gouverneur la coupe et la rend à chaud)
+    if (this.gtao) this.sortie.uniforms.tOcclusion.value = this.gtao.pdRenderTarget.texture;
     this.composer.addPass(this.sortie);
     // le liseré de survol : masque rendu avant la frame, dilaté à la sortie
     this.survol = new Survol(this.renderer);
@@ -944,6 +962,7 @@ export class App {
           u.tMasqueFlou.value = this.survol.textureFloue ?? secours;
         }
       }
+      this.sortie.uniforms.uOcclusion.value = this.gtao?.enabled ? this.gtao.blendIntensity : 0;
       this._reglerCopieScene();
       this.composer.render();
     });

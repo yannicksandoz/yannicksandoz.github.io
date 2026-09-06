@@ -384,6 +384,55 @@ mais le rastériseur logiciel ne la fait probablement pas : non mesurable
 dans cet environnement, elle reste à 4 en attendant une mesure sur
 l'appareil.
 
+**Le bureau à 120 images par seconde.** Sur un portable Retina à 120 Hz,
+presque toutes les pièces tenaient entre 60 et 80. Sondé poste par poste
+(écran de 1280 × 800 à densité 2, profil bureau livré, chaque poste coupé
+seul contre la même image, dans la même session) — à l'entrée :
+
+| poste coupé | image |
+|---|---|
+| occlusion ambiante | −19,9 % |
+| anticrénelage (×4 → 0) | −20,1 % |
+| densité 2 → 1,5 | −37,3 % |
+| reflets paresseux, une face sur deux, apparitions figées, ombres, poussière, grain | entre −1 et +3 % (du bruit) |
+| bloom au quart | −4,0 % |
+
+Le diagnostic tient en une ligne : 85 appels de dessin par image, tout
+part dans le PIXEL. Six millions par image sur un écran Retina, chacun
+intégrant huit sources étendues, douze lampes, seize lignes de lumière,
+seize lectures de reflets et quatre échantillons. Les rendus annexes (la
+sonde de reflets, les apparitions, les ombres) ne pèsent rien. Deux gestes :
+
+- **L'occlusion se mélange à la sortie.** La passe GTAO de three finissait
+  par deux images PLEIN CADRE : la scène recopiée dans la chaîne du
+  composer, puis toute l'image multipliée par l'AO. La passe s'arrête
+  désormais à sa texture débruitée (demi-résolution), déclare ne pas lire
+  la chaîne (`litLaChaine`, honoré par `copieSceneNecessaire`), et c'est
+  `PasseSortie` qui la lit une fois au pixel, même formule (`mix(1, ao,
+  force)` sur la scène linéaire, la fleur ajoutée après). Même image, deux
+  passes de moins ; la force suit `gtao.enabled` à chaque image, le
+  gouverneur la coupe et la rend comme avant.
+- **La densité est plafonnée à 1,5, et affûtée.** C'est la seule économie
+  de cette taille (44 % de pixels en moins) qui ne touche ni la lumière ni
+  l'anticrénelage. L'affûtage adaptatif de la sortie, le même que sur
+  téléphone, rend la netteté perdue ; il ne s'allume que si la densité a
+  bien été plafonnée (un écran à densité 1 ne voit rien changer, ni en
+  pixels ni en netteté). Le MSAA ×4 et l'occlusion restent.
+
+Mesuré après, même écran, même session (la densité 2 remise à chaud pour
+la comparaison) : l'image passe de 5 177 à 3 139 ms à l'entrée et de
+14 650 à 8 901 ms au belvédère, soit **−39 %** dans les deux salles ; la
+netteté y coûte 0,3 % et −1,3 % (du bruit) ; l'occlusion, lue à la sortie,
+pèse encore 14 % à l'entrée et 10 % au belvédère — c'est son G-buffer et
+son débruitage, pas son mélange. Le gain propre de la fusion (deux passes
+plein cadre de bande passante) ne se voit pas en rastérisation logicielle,
+où le pixel paie son calcul et non son transport ; il est réel sur un GPU.
+Vérifié à l'image : avec l'occlusion, 28 % des pixels de l'entrée sont
+assombris (jonctions mur-sol, pieds), écart moyen 2,9/255 — une AO qui
+souligne, comme avant. À 120 Hz, le budget est de 8,3 ms : ce qui tenait
+en 12 à 16 ms tient désormais en 7 à 10 ; le gouverneur, inchangé, fait le
+reste sous 50 images.
+
 **Passage en revue de la charte : zéro signalement.** Douze règles, cent
 quatre-vingt-quatorze lignes de rapport. Deux choses en sont sorties.
 

@@ -135,6 +135,12 @@ const SORTIE = {
     // LA NETTETÉ (téléphone) : force de l'affûtage, 0 = aucun — voir affuter()
     uNettete: { value: 0 },
     uTexel: { value: new Vector2(1 / 1920, 1 / 1080) }, // 1 / taille de l'image
+    // L'OCCLUSION AMBIANTE (bureau) : l'AO débruitée de la passe GTAO, à
+    // demi-résolution, et sa force (0 = aucune, la texture n'est pas lue).
+    // C'est ICI qu'elle se mélange, pas dans une passe à elle — voir
+    // PasseGTAO dans App.js
+    tOcclusion: { value: null },
+    uOcclusion: { value: 0 },
     // LE SURVOL (voir Survol.js) : masque de silhouette de l'œuvre visée,
     // dilaté ici en liseré. `uContour` = force du liseré (0 : rien à faire)
     tMasque: { value: null },      // la silhouette, nette
@@ -160,6 +166,8 @@ const SORTIE = {
     uniform float uFleur, uTime, uGrain, uVignette, uAberration;
     uniform float uNettete;
     uniform vec2 uTexel;
+    uniform sampler2D tOcclusion;
+    uniform float uOcclusion;
     uniform sampler2D tMasque, tMasqueFlou;
     uniform float uContour;
     uniform vec3 uContourCouleur;
@@ -182,11 +190,6 @@ const SORTIE = {
 
     float rand(vec2 co) {
       return fract(sin(dot(co, vec2(12.9898, 78.233))) * 43758.5453);
-    }
-
-    // scène + fleur du bloom, en un point
-    vec3 lire(vec2 uv) {
-      return texture2D(tDiffuse, uv).rgb + texture2D(tFleur, uv).rgb * uFleur;
     }
 
     // L'AFFÛTAGE ADAPTATIF — pour l'écran de téléphone, qui affiche une
@@ -225,7 +228,24 @@ const SORTIE = {
       // trois lectures ; au centre les trois portent sur le même point,
       // mais un GPU ne saute pas une lecture pour autant.
       vec2 dec = vers * d * d * uAberration;
-      vec3 col = vec3(lire(vUv - dec).r, lire(vUv).g, lire(vUv + dec).b);
+      vec3 scene = vec3(texture2D(tDiffuse, vUv - dec).r,
+                        texture2D(tDiffuse, vUv).g,
+                        texture2D(tDiffuse, vUv + dec).b);
+      vec3 fleur = vec3(texture2D(tFleur, vUv - dec).r,
+                        texture2D(tFleur, vUv).g,
+                        texture2D(tFleur, vUv + dec).b) * uFleur;
+
+      // L'OCCLUSION AMBIANTE, mot pour mot le mélange de GTAOPass
+      // (mix(1, ao, intensité), multiplié à la scène linéaire) — mais lue
+      // ICI, une fois, au lieu d'une passe qui recopiait toute l'image pour
+      // la multiplier. Une seule lecture au centre pour les trois canaux :
+      // l'AO est un signal à demi-résolution, un décalage d'aberration de
+      // quelques pixels s'y perd. Branche uniforme : sans AO, pas de lecture.
+      float ao = 1.0;
+      if (uOcclusion > 0.0) {
+        ao = mix(1.0, texture2D(tOcclusion, vUv).r, uOcclusion);
+      }
+      vec3 col = scene * ao + fleur;
 
       // LA NETTETÉ : la correction se calcule sur le pixel central non
       // décalé et s'ajoute aux trois canaux — à l'excentricité où
@@ -233,7 +253,7 @@ const SORTIE = {
       // l'affûtage d'un pixel s'y confond. La branche est uniforme : un
       // GPU de bureau (uNettete = 0) ne fait pas les quatre lectures.
       if (uNettete > 0.0) {
-        col += affuter(vUv, texture2D(tDiffuse, vUv).rgb);
+        col += affuter(vUv, texture2D(tDiffuse, vUv).rgb) * ao;
       }
 
       // COURBE DE TONS puis ESPACE COLORIMÉTRIQUE, dans cet ordre — c'est
@@ -344,6 +364,9 @@ export class PasseSortie extends Pass {
       ?? this.bloom?.renderTargetsHorizontal?.[0]?.texture
       ?? scene.texture;
     this.uniforms.toneMappingExposure.value = renderer.toneMappingExposure;
+    // même règle pour l'occlusion : un échantillonneur lié à quelque chose
+    // de valide, même quand `uOcclusion` vaut zéro et qu'on ne le lit pas
+    if (!this.uniforms.tOcclusion.value) this.uniforms.tOcclusion.value = scene.texture;
 
     if (this._espace !== renderer.outputColorSpace || this._courbe !== renderer.toneMapping) {
       this._espace = renderer.outputColorSpace;
@@ -396,7 +419,10 @@ export function copieSceneNecessaire(passes, scene, sortie) {
   // l'une des deux manque, ou elles sont dans le désordre : on ne parie pas
   if (debut < 0 || fin < 0 || fin < debut) return true;
   for (let i = debut + 1; i < fin; i++) {
-    if (passes[i].enabled) return true;
+    // une passe qui déclare NE PAS LIRE la chaîne (l'occlusion ambiante :
+    // elle calcule sa texture de son côté, la sortie vient la chercher)
+    // ne compte pas — active ou non
+    if (passes[i].enabled && passes[i].litLaChaine !== false) return true;
   }
   return false;
 }

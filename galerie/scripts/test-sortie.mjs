@@ -71,6 +71,13 @@ test('une passe active APRÈS la sortie ne la concerne pas', () => {
     copieSceneNecessaire([scene, sortie, passe(true)], scene, sortie), false);
 });
 
+test('une passe qui ne LIT pas la chaîne (l\'occlusion) n\'exige pas la copie, même active', () => {
+  const gtao = { enabled: true, litLaChaine: false };
+  assert.equal(copieSceneNecessaire([scene, gtao, sortie], scene, sortie), false);
+  // …mais une passe active à côté d'elle, si (le warp pendant un portail)
+  assert.equal(copieSceneNecessaire([scene, gtao, passe(true), sortie], scene, sortie), true);
+});
+
 test('chaîne inconnue (passe absente, ordre inversé) : on copie, par prudence', () => {
   assert.equal(copieSceneNecessaire([scene], scene, sortie), true);
   assert.equal(copieSceneNecessaire([sortie], scene, sortie), true);
@@ -182,6 +189,24 @@ test('le tramage est fixe (pas de uTime) et vaut un pas de quantification', () =
   const ligne = src.split('\n').find((l) => l.includes('float trame ='));
   assert.ok(ligne && ligne.includes('gl_FragCoord') && !ligne.includes('uTime'), ligne);
   assert.ok(src.includes('(trame - 0.5) / 255.0'), 'un 255e');
+});
+
+/* ------------------------------------------------------ 4. l'occlusion --- */
+
+groupe('l\'occlusion ambiante : lue à la sortie, une fois, sur la scène seule');
+
+test('la formule est celle du mélange de three (mix(1, ao, force)), sur la scène et pas sur la fleur', () => {
+  const src = new PasseSortie(null, null).material.fragmentShader;
+  assert.ok(src.includes('mix(1.0, texture2D(tOcclusion, vUv).r, uOcclusion)'), 'la formule');
+  assert.ok(src.includes('vec3 col = scene * ao + fleur;'), 'la scène est occluse, la fleur ajoutée après');
+  assert.ok(src.includes('if (uOcclusion > 0.0)'), 'branche uniforme : sans AO, pas de lecture');
+  assert.equal(src.split('texture2D(tOcclusion').length - 1, 1, 'une seule lecture');
+});
+
+test('sans occlusion liée, l\'échantillonneur reçoit quand même une texture valide', () => {
+  const p = new PasseSortie(null, null);
+  assert.equal(p.uniforms.tOcclusion.value, null);
+  assert.equal(p.uniforms.uOcclusion.value, 0);
 });
 
 console.log(`\n${ok} ✓ / ${ko} ✗`);
