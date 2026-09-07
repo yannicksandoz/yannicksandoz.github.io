@@ -1001,3 +1001,8 @@ body.editing #minimap { display: none; }
   transition: opacity 0.15s ease;
 }
 #survol-mot.jeton { color: #ffd97a; border-color: rgba(255, 217, 122, 0.4); }
+
+/* le chiffre sous la barre : « Chargement… 37 % », et « 100 % » de la
+   couleur de la fin, la même que la barre pleine */
+.enter-etat { font-variant-numeric: tabular-nums; }
+.enter-etat.fini { color: #6fe0c0; }

@@ -82,6 +82,9 @@ export class QualityManager {
           // endroit où la netteté ne coûte pas de pixels. Le bureau rend à
           // pleine densité avec quatre échantillons : il n'en a pas besoin.
           nettete: 0.5,
+          // le masque du liseré de survol : 0,4 des pixels d'image — ce que
+          // valait « la moitié des pixels CSS » à densité 1,25, inchangé
+          survolEchelle: 0.4,
           bloomResScale: 0.25,  // bloom calculé au quart de la résolution
           bloomStrength: 0.8,
           grain: !this.reducedMotion,
@@ -199,6 +202,7 @@ export class QualityManager {
         tier: 'desktop-low',
         pixelRatio: Math.min(window.devicePixelRatio || 1, 1.25),
         nettete: 0.5,  // même densité réduite que le téléphone : même affûtage
+        survolEchelle: 0.4,
         msaa: 0,     // GPU modeste : la netteté ne vaut pas la chute d'images
         gtao: false,
         anisotropy: 4,

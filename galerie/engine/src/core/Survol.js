@@ -53,8 +53,18 @@ const FLOU_FRAGMENT = /* glsl */`
 `;
 
 export class Survol {
-  constructor(renderer) {
+  /**
+   * `echelle` : la résolution du MASQUE NET, en fraction de l'écran. À 0,5
+   * (téléphone), le bord intérieur du liseré est celui d'une image à
+   * demi-résolution agrandie ×2 : un escalier, dès qu'on le regarde. À 1
+   * (bureau), la silhouette se dessine au pixel, multi-échantillonnée, et
+   * le liseré est net. Le FLOU, lui, reste à demi-résolution quelle que
+   * soit l'échelle — c'est de lui que vient la couronne, et sa portée en
+   * pixels d'écran ne doit pas changer avec la finesse du masque.
+   */
+  constructor(renderer, { echelle = ECHELLE } = {}) {
     this.renderer = renderer;
+    this.echelle = Math.max(0.25, Math.min(1, Number(echelle) || ECHELLE));
     this.cible = null;        // l'Artwork visée, ou null
     this.force = 0;           // 0..1, le fondu
     // Le blanc plat de la cible, TESTÉ en profondeur contre la pièce : ce
@@ -101,9 +111,12 @@ export class Survol {
   }
 
   _cibleAJour() {
-    const t = this.renderer.getSize(new THREE.Vector2());
-    const w = Math.max(2, Math.round(t.x * ECHELLE));
-    const h = Math.max(2, Math.round(t.y * ECHELLE));
+    // la taille en PIXELS d'image (densité comprise) : c'est là que se juge
+    // la finesse du masque — un masque à demi-résolution CSS sur un écran à
+    // densité 2 n'était qu'au quart des pixels réels
+    const t = this.renderer.getDrawingBufferSize(new THREE.Vector2());
+    const w = Math.max(2, Math.round(t.x * this.echelle));
+    const h = Math.max(2, Math.round(t.y * this.echelle));
     if (this._rt && this._rt.width === w && this._rt.height === h) return;
     this._rt?.dispose(); this._rtH?.dispose(); this._rtV?.dispose();
     const options = {
@@ -115,8 +128,13 @@ export class Survol {
     this._rt = new THREE.WebGLRenderTarget(w, h, {
       ...options, depthBuffer: true, samples: ECHANTILLONS
     });
-    this._rtH = new THREE.WebGLRenderTarget(w, h, options);
-    this._rtV = new THREE.WebGLRenderTarget(w, h, options);
+    // le flou, à demi-résolution quoi qu'il arrive : sa première passe lit
+    // le masque net (filtrage linéaire : elle le réduit en même temps)
+    const ef = Math.min(ECHELLE, this.echelle);
+    const wf = Math.max(2, Math.round(t.x * ef));
+    const hf = Math.max(2, Math.round(t.y * ef));
+    this._rtH = new THREE.WebGLRenderTarget(wf, hf, options);
+    this._rtV = new THREE.WebGLRenderTarget(wf, hf, options);
   }
 
   /**
@@ -199,11 +217,13 @@ export class Survol {
       u.tSource.value = this._rt.texture;
       // pas d'un texel et demi (le filtrage linéaire lisse entre deux) :
       // une portée d'une douzaine de pixels à l'écran, le dégradé se lit
-      u.uPas.value.set(PAS / this._rt.width, 0);
+      // …en texels de la cible FLOUE (demi-résolution) : la portée à
+      // l'écran ne dépend pas de la finesse du masque net
+      u.uPas.value.set(PAS / this._rtH.width, 0);
       r.setRenderTarget(this._rtH);
       this._quad.render(r);
       u.tSource.value = this._rtH.texture;
-      u.uPas.value.set(0, PAS / this._rt.height);
+      u.uPas.value.set(0, PAS / this._rtH.height);
       r.setRenderTarget(this._rtV);
       this._quad.render(r);
     } catch (e) {

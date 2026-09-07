@@ -172,6 +172,10 @@ export class UI {
       }
       plafond = Math.max(plafond, Math.min(Math.round(brut), PLAFOND_AVANT_FIN));
       this.loadBarFill.style.width = `${plafond}%`;
+      // …et le CHIFFRE, sous la barre : « Chargement… 37 % ». Il suit le
+      // même plafond que la barre — jamais 100 avant la fin, jamais en recul
+      // (optionnel : le test de la barre appelle bindLoading sur un carton)
+      this._peindreEtat?.(`${t('enter.loading')} ${plafond} %`);
     };
     tracker.onChange((done, total, faits, essentiels) => {
       if (!this.loadBarFill || fini) return;
@@ -186,6 +190,7 @@ export class UI {
           fini = true;
           this.loadBarFill.style.width = '100%';
           this.loadBar.classList.add('complete');
+          this._peindreEtat?.('100 %', true);
         }, 400);
       }
     });
@@ -201,9 +206,24 @@ export class UI {
     this.enterBtn.disabled = false;
     const guidee = document.getElementById('enter-guidee');
     if (guidee) guidee.disabled = false;
-    const etat = document.getElementById('enter-etat');
-    if (etat) etat.hidden = true;
+    // le chiffre reste sous la barre jusqu'à « 100 % » : la galerie est
+    // lue, mais la salle d'arrivée charge encore
     document.getElementById('enter-audio')?.removeAttribute('aria-disabled');
+  }
+
+  /**
+   * La ligne d'état sous la barre : « Chargement… 37 % », puis « 100 % ».
+   * Un chiffre plutôt qu'une barre seule : on sait où l'on en est, et l'on
+   * sait que c'est FINI — une barre pleine et grise se lisait comme une
+   * panne. `fini` la teinte de la couleur de la fin.
+   */
+  _peindreEtat(texte, fini = false) {
+    const etat = document.getElementById('enter-etat');
+    if (!etat) return;
+    etat.hidden = false;
+    etat.textContent = texte;
+    delete etat.dataset.i18n;   // composé : la traduction ne le réécrit pas
+    etat.classList.toggle('fini', fini);
   }
 
   /**

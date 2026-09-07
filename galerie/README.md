@@ -500,6 +500,24 @@ nœud (`test-modes.mjs`) tiennent la mémoire ouverte : elle dit oui à tout,
 n'apprend rien, laisse le stockage de la visite libre intact, et la
 progression la suit.
 
+Deux retouches d'après retour :
+
+- **Le chiffre du chargement.** Sous la barre, « Chargement… 37 % » suit le
+  même plafond qu'elle (jamais 100 avant la fin, jamais en recul), puis
+  « 100 % » de la couleur de la fin. Il ne se cache plus quand la galerie
+  est lue : la salle d'arrivée charge encore, et c'est elle qu'on attend.
+- **Le liseré de survol au pixel.** Le masque net se dessinait à la moitié
+  des pixels CSS — sur un écran à densité 2, au QUART des pixels réels —
+  puis s'agrandissait : le bord intérieur du liseré était un escalier, il
+  piquait les yeux. Sur bureau, le masque se rend désormais à la taille de
+  l'image (`survolEchelle` 1, multi-échantillonné ×4) ; le flou, d'où
+  vient la couronne, reste à demi-résolution pour que sa portée à l'écran
+  ne change pas. Sur téléphone, 0,4 des pixels d'image : exactement ce que
+  valait « la moitié des pixels CSS » à densité 1,25, donc rien de plus à
+  payer. Vérifié à densité 2 : masque 1920 × 1200 pour un tampon de
+  1920 × 1200, flou 960 × 600, et le bord du panneau « marées » agrandi ×3
+  se lit sans marche.
+
 **Passage en revue de la charte : zéro signalement.** Douze règles, cent
 quatre-vingt-quatorze lignes de rapport. Deux choses en sont sorties.
 

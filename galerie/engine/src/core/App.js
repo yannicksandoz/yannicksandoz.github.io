@@ -415,7 +415,9 @@ export class App {
     if (this.gtao) this.sortie.uniforms.tOcclusion.value = this.gtao.pdRenderTarget.texture;
     this.composer.addPass(this.sortie);
     // le liseré de survol : masque rendu avant la frame, dilaté à la sortie
-    this.survol = new Survol(this.renderer);
+    // le masque net au pixel sur bureau (liseré net), réduit sur téléphone
+    // où chaque pixel se paie — voir Survol et le profil (`survolEchelle`)
+    this.survol = new Survol(this.renderer, { echelle: this.quality.profile.survolEchelle ?? 1 });
 
     this._buildEnvironment();
     this._setupPicking();
