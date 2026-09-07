@@ -448,8 +448,8 @@ souligne, comme avant. À 120 Hz, le budget est de 8,3 ms : ce qui tenait
 en 12 à 16 ms tient en 7 à 10 une fois la densité descendue ; la finition
 (anticrénelage, occlusion) ne cède toujours que sous 50 images.
 
-**Deux façons d'entrer.** L'accueil ne dit plus « Entrer » : il demande
-comment on veut visiter.
+**Deux façons d'entrer.** L'accueil ne dit plus « Entrer » : UN bouton,
+carré arrondi, coupé en deux moitiés, demande comment on veut visiter.
 
 - **Visite guidée** — tout est ouvert, et l'on se laisse porter. La carte
   entière, la liste entière, chaque œuvre nommée ; la dérive démarre dès

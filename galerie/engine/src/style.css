@@ -942,24 +942,30 @@ body.editing #minimap { display: none; }
 }
 
 /* ------------------------------------------------- deux façons d'entrer --- */
-/* L'accueil ne propose plus « Entrer » mais un choix : la visite GUIDÉE
-   (tout est ouvert, on se laisse porter) ou la visite LIBRE (on explore,
-   on trouve les jetons). Deux cartes côte à côte, un nom et une ligne. */
+/* L'accueil ne propose plus « Entrer » mais UN bouton, carré arrondi,
+   coupé en deux moitiés : la visite GUIDÉE (tout est ouvert, on se laisse
+   porter) à gauche, la visite LIBRE (on explore, on trouve les jetons) à
+   droite. Un seul cadre, un trait au milieu, un nom et une ligne par côté. */
 .enter-etat { margin-top: 1rem; font-size: 0.78rem; color: var(--dim); letter-spacing: 0.08em; }
 .enter-etat[hidden] { display: none; }
 .enter-choix {
-  display: flex; gap: 0.9rem; justify-content: center; flex-wrap: wrap;
-  margin-top: 1.4rem;
+  display: inline-flex; margin-top: 1.4rem;
+  border: 1px solid rgba(159, 140, 255, 0.5); border-radius: 1.2rem;
+  overflow: hidden; background: rgba(159, 140, 255, 0.04);
 }
-/* l'ancienne règle #enter-btn (id) pèse plus qu'une classe : on nomme
-   les deux boutons pour que la carte l'emporte */
+/* l'ancienne règle #enter-btn (id) pèse plus qu'une classe : on nomme les
+   deux moitiés pour que le cadre commun l'emporte */
 .enter-choix .enter-mode, .enter-choix #enter-btn {
-  margin: 0; padding: 0.9rem 1.6rem; min-width: 12rem;
+  margin: 0; padding: 1rem 1.5rem; min-width: 11.5rem;
   display: flex; flex-direction: column; gap: 0.3rem; align-items: center;
   font-size: 0.95rem; letter-spacing: 0.18em; text-indent: 0.18em; text-transform: uppercase;
   color: var(--fg); background: transparent;
-  border: 1px solid rgba(159, 140, 255, 0.5); border-radius: 1.2rem; cursor: pointer;
+  border: 0; border-radius: 0; cursor: pointer;
   transition: background 0.3s, box-shadow 0.3s;
+}
+/* le trait qui coupe le carré en deux */
+.enter-choix .enter-mode + .enter-mode, .enter-choix .enter-mode + #enter-btn {
+  border-left: 1px solid rgba(159, 140, 255, 0.35);
 }
 .enter-choix .enter-mode .enter-mode-sub, .enter-choix #enter-btn .enter-mode-sub {
   font-size: 0.68rem; letter-spacing: 0.04em; text-indent: 0; text-transform: none;
@@ -967,12 +973,12 @@ body.editing #minimap { display: none; }
 }
 .enter-choix .enter-mode:hover:not(:disabled), .enter-choix #enter-btn:hover:not(:disabled),
 .enter-choix .enter-mode:focus-visible:not(:disabled), .enter-choix #enter-btn:focus-visible:not(:disabled) {
-  background: rgba(159, 140, 255, 0.12); box-shadow: 0 0 24px rgba(159, 140, 255, 0.35);
+  background: rgba(159, 140, 255, 0.16); box-shadow: inset 0 0 24px rgba(159, 140, 255, 0.25);
+  outline: none;
 }
 .enter-choix .enter-mode:disabled, .enter-choix #enter-btn:disabled { opacity: 0.45; cursor: wait; }
 @media (max-width: 640px) {
-  .enter-choix { gap: 0.6rem; }
-  .enter-choix .enter-mode, .enter-choix #enter-btn { min-width: 9.5rem; padding: 0.7rem 1rem; }
+  .enter-choix .enter-mode, .enter-choix #enter-btn { min-width: 8.5rem; padding: 0.8rem 0.9rem; }
 }
 
 /* LE POINTEUR EN OR. Violet, il se fondait dans une galerie violette — on
