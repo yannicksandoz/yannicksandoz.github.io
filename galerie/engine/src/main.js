@@ -14,6 +14,7 @@ import { mountProgression, pointDeVue } from './core/Progression.js';
 import { mountBoussole } from './ui/Boussole.js';
 import { mountToolbox } from './ui/Toolbox.js';
 import { mountDerive } from './core/Derive.js';
+import { MemoireOuverte } from './core/Memoire.js';
 import { mountJetons } from './core/Jetons.js';
 import { mountMemoire } from './core/Memoire.js';
 import { mountMinimap, minimapActive } from './ui/Carte.js';
@@ -92,6 +93,12 @@ async function boot() {
       app.rooms.traverse(hit.portal);
       return true;
     }
+    if (hit?.type === 'jeton') {
+      // un jeton ◈ se ramasse aussi d'un clic (ou d'Espace) : on l'a vu
+      // briller, on le vise, on l'a — sans avoir à marcher dessus
+      app.jetons?.ramasser(hit.jeton?.cle);
+      return true;
+    }
     if (hit?.type === 'artwork') {
       // un membre d'ensemble représente son œuvre maîtresse : cliquer la
       // margelle, c'est ouvrir le bassin
@@ -142,6 +149,7 @@ async function boot() {
     // directement devant l'œuvre. Seul l'audio attend le premier geste
     // (clic, touche, doigt) : c'est la règle des navigateurs, pas la nôtre.
     app.ui.skipEnter();
+    app.modeVisite = 'libre';   // venu par un lien : la visite d'avant, avec sa mémoire
     const geste = () => {
       window.removeEventListener('pointerdown', geste);
       window.removeEventListener('keydown', geste);
@@ -158,9 +166,15 @@ async function boot() {
     mountDerive(app);
     if (minimapActive()) mountMinimap(app);
   } else {
-    const { audioTour } = await app.ui.waitForEnter();
+    const { audioTour, mode } = await app.ui.waitForEnter();
     app.audio.unlock(); // depuis le geste utilisateur : requis par les navigateurs
     app.rooms.onAudioUnlocked();
+    // LE MODE DE VISITE. « guidée » : tout est ouvert — carte, liste,
+    // œuvres — et l'on se laisse porter ; la mémoire de la visite libre
+    // n'est ni lue ni écrite (voir MemoireOuverte). « libre » : le jeu
+    // d'avant, les jetons ◈, la carte qui se dessine sous les pas.
+    app.modeVisite = audioTour ? 'libre' : (mode ?? 'libre');
+    if (app.modeVisite === 'guidee') app.memoire = new MemoireOuverte();
     if (audioTour) {
       // La progression appartient à la VISITE, pas à la 3D : sans elle, le
       // visiteur qui entre par l'oreille n'avait aucune découverte comptée
@@ -177,8 +191,10 @@ async function boot() {
       mountJetons(app);   // avant la dérive : elle lit le porte-monnaie
       mountBoussole(app);
       mountToolbox(app);
-      mountDerive(app);
+      const derive = mountDerive(app);
       if (minimapActive()) mountMinimap(app);
+      // la visite guidée PORTE dès l'entrée : c'est ce qu'on a choisi
+      if (app.modeVisite === 'guidee') derive.demarrer();
     }
   }
 

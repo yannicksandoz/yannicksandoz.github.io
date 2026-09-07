@@ -135,6 +135,60 @@ export function mountMemoire(app) {
   return app.memoire;
 }
 
+/* ----------------------------------------------------- visite guidée --- */
+
+/** Un ensemble qui contient TOUT — et n'apprend rien. */
+class Tout extends Set {
+  has() { return true; }
+  add() { return this; }
+}
+
+/**
+ * LA MÉMOIRE OUVERTE — celle de la visite GUIDÉE.
+ *
+ * Deux façons d'entrer dans la galerie, désormais. La visite LIBRE est le
+ * jeu d'avant : les pièces se dessinent sous les pas, les œuvres entrent
+ * au catalogue quand on les rencontre, les jetons ◈ s'attrapent et se
+ * dépensent — et tout cela se garde d'une fois à l'autre (`Memoire`). La
+ * visite GUIDÉE renonce au jeu : tout est ouvert d'emblée, la carte
+ * entière, la liste entière, et l'on se laisse porter.
+ *
+ * Plutôt que d'apprendre à chaque module ce qu'est « tout ouvert », on lui
+ * donne une mémoire qui a TOUT vu : ses ensembles répondent oui à toute
+ * question, ses jetons sont tous déjà pris (donc aucun n'est posé, aucun
+ * n'a de prix), et elle n'écrit RIEN — ni dans le stockage ni dans ses
+ * propres ensembles. La mémoire de la visite libre reste intacte à côté :
+ * choisir la visite guidée un jour ne dévoile rien de ce qu'on n'a pas
+ * encore trouvé à pied.
+ */
+export class MemoireOuverte {
+  constructor() {
+    this.pieces = new Tout();
+    this.portes = new Tout();
+    this.oeuvres = new Tout();
+    this.revelees = new Tout();
+    this.jetonsPris = new Tout();
+    this.jetonsSolde = 0;
+    this.reprise = false;
+    this.ouverte = true;
+    this._abonnes = new Set();
+  }
+
+  onChange(fn) {
+    this._abonnes.add(fn);
+    return () => this._abonnes.delete(fn);
+  }
+
+  aVu() { return true; }
+  aPris() { return true; }
+  /** Rien n'est jamais nouveau dans une mémoire qui a tout vu. */
+  noter() { return false; }
+  noterPorte() { return false; }
+  setSolde() {}
+  oublier() {}
+  serialiser() { return null; }
+}
+
 /**
  * « Recommencer la visite » — oublier, ET le faire voir tout de suite.
  *

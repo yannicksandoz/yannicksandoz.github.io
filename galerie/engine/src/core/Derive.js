@@ -302,6 +302,14 @@ export class Derive {
       this._suiv.setAttribute('aria-label', t('derive.next'));
     }
     this._suiv.disabled = false;
+    // SELON LE MODE DE VISITE (main.js). En visite LIBRE, « Laisse-toi
+    // porter » quitte le bas de l'écran : on explore à pied, et la dérive
+    // reste à portée du bouton rond de la toolbox, en haut. Le ◈ garde sa
+    // place — c'est le geste de ce mode. En visite GUIDÉE, c'est l'inverse :
+    // la lecture est là, et il n'y a pas de jeton — tout est déjà ouvert.
+    const mode = this.app.modeVisite;
+    this._lecture.hidden = mode === 'libre';
+    this._jeton.hidden = mode === 'guidee';
     this._barre.classList.toggle('en-cours', this.active);
     // L'état de la dérive intéresse d'autres coins de l'interface (le
     // bouton de la toolbox) sans qu'ils aient à connaître ce module :

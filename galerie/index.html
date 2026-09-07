@@ -56,7 +56,21 @@
       <h1>Galerie</h1>
       <p class="sub" data-i18n="enter.sub">Un espace sonore immersif — casque recommandé</p>
       <div id="load-bar"><i></i></div>
-      <button id="enter-btn" disabled data-i18n="enter.loading">Chargement…</button>
+      <p id="enter-etat" class="enter-etat" data-i18n="enter.loading">Chargement…</p>
+      <!-- Deux façons d'entrer : la visite GUIDÉE (tout est ouvert, on se
+           laisse porter) et la visite LIBRE (on explore, on trouve les
+           jetons). #enter-btn reste le bouton de la visite libre — c'est
+           l'entrée d'avant, celle que la touche Entrée choisit. -->
+      <div class="enter-choix">
+        <button id="enter-guidee" class="enter-mode" disabled>
+          <span class="enter-mode-nom" data-i18n="enter.guidee">Visite guidée</span>
+          <span class="enter-mode-sub" data-i18n="enter.guidee.sub">Tout est ouvert · laissez-vous porter</span>
+        </button>
+        <button id="enter-btn" class="enter-mode" disabled>
+          <span class="enter-mode-nom" data-i18n="enter.libre">Visite libre</span>
+          <span class="enter-mode-sub" data-i18n="enter.libre.sub">Explorez · trouvez les jetons ◈</span>
+        </button>
+      </div>
       <!-- En DERNIER : un lecteur d'écran parcourt les deux boutons et
            s'arrête naturellement sur celui-ci. aria-disabled (retiré quand
            la config est prête) plutôt que disabled, qui le rendrait

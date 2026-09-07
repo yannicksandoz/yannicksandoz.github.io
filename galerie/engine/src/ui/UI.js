@@ -46,10 +46,9 @@ export class UI {
   /** (Re)pose les textes traduits, puis les vraies étiquettes de touches. */
   _applyLang() {
     traduireDom();
-    const enterBtn = this.enterBtn;
-    if (enterBtn) {
-      enterBtn.textContent = t(enterBtn.disabled ? 'enter.loading' : 'enter.enter');
-    }
+    // les deux boutons d'entrée portent leurs libellés en data-i18n : c'est
+    // traduireDom qui les repeint ; l'état « Chargement… » est une ligne à
+    // part (#enter-etat), qui disparaît quand la galerie est lue
     this._renderKeyTexts();
     // en plein vol, l'aide parle du vol : la traduction ne la ramène pas
     // aux touches de marche
@@ -200,7 +199,10 @@ export class UI {
     this._base = this._dernierCompte ?? [0, 0];
     if (this._dernierCompte) this._peindreBarre?.(...this._dernierCompte);
     this.enterBtn.disabled = false;
-    this.enterBtn.textContent = t('enter.enter');
+    const guidee = document.getElementById('enter-guidee');
+    if (guidee) guidee.disabled = false;
+    const etat = document.getElementById('enter-etat');
+    if (etat) etat.hidden = true;
     document.getElementById('enter-audio')?.removeAttribute('aria-disabled');
   }
 
@@ -223,6 +225,8 @@ export class UI {
     btn.textContent = t('enter.retry');
     btn.addEventListener('click', () => window.location.reload());
     this.enterBtn.replaceWith(btn);   // il prend la place d'« Entrer », inutile
+    document.getElementById('enter-guidee')?.remove();   // et l'autre entrée avec
+    document.getElementById('enter-etat')?.remove();
     this._retryBtn = btn;
     btn.focus();
   }
@@ -246,22 +250,26 @@ export class UI {
    */
   waitForEnter() {
     return new Promise((resolve) => {
-      const leave = (audioTour) => {
+      // `mode` : 'guidee' (tout ouvert, on se laisse porter) ou 'libre'
+      // (l'exploration, les jetons) — voir MemoireOuverte et main.js
+      const leave = (audioTour, mode = 'libre') => {
         window.removeEventListener('keydown', onKey);
         this._releaseWelcome(); // le reste du document redevient vivant
         this.enterScreen.classList.add('leaving');
         setTimeout(() => { this.enterScreen.remove(); }, 1300);
         if (!audioTour) this.hint.hidden = false;
-        resolve({ audioTour });
+        resolve({ audioTour, mode });
       };
       const onKey = (e) => {
         if (e.key !== 'Enter' || this.enterBtn.disabled) return;
         const a = document.activeElement;
         if (a && a !== document.body && a.matches?.('button, a, input, select, textarea, [tabindex]')) return;
-        leave(false);
+        leave(false, 'libre');
       };
       window.addEventListener('keydown', onKey);
-      this.enterBtn.addEventListener('click', () => leave(false), { once: true });
+      this.enterBtn.addEventListener('click', () => leave(false, 'libre'), { once: true });
+      document.getElementById('enter-guidee')
+        ?.addEventListener('click', () => leave(false, 'guidee'), { once: true });
       const audioBtn = document.getElementById('enter-audio');
       audioBtn?.addEventListener('click', () => {
         if (this.enterBtn.disabled) return; // configuration pas encore lue

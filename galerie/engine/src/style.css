@@ -940,3 +940,58 @@ body.editing #minimap { display: none; }
 @media (prefers-reduced-motion: reduce) {
   #boussole { transition: none; }
 }
+
+/* ------------------------------------------------- deux façons d'entrer --- */
+/* L'accueil ne propose plus « Entrer » mais un choix : la visite GUIDÉE
+   (tout est ouvert, on se laisse porter) ou la visite LIBRE (on explore,
+   on trouve les jetons). Deux cartes côte à côte, un nom et une ligne. */
+.enter-etat { margin-top: 1rem; font-size: 0.78rem; color: var(--dim); letter-spacing: 0.08em; }
+.enter-etat[hidden] { display: none; }
+.enter-choix {
+  display: flex; gap: 0.9rem; justify-content: center; flex-wrap: wrap;
+  margin-top: 1.4rem;
+}
+/* l'ancienne règle #enter-btn (id) pèse plus qu'une classe : on nomme
+   les deux boutons pour que la carte l'emporte */
+.enter-choix .enter-mode, .enter-choix #enter-btn {
+  margin: 0; padding: 0.9rem 1.6rem; min-width: 12rem;
+  display: flex; flex-direction: column; gap: 0.3rem; align-items: center;
+  font-size: 0.95rem; letter-spacing: 0.18em; text-indent: 0.18em; text-transform: uppercase;
+  color: var(--fg); background: transparent;
+  border: 1px solid rgba(159, 140, 255, 0.5); border-radius: 1.2rem; cursor: pointer;
+  transition: background 0.3s, box-shadow 0.3s;
+}
+.enter-choix .enter-mode .enter-mode-sub, .enter-choix #enter-btn .enter-mode-sub {
+  font-size: 0.68rem; letter-spacing: 0.04em; text-indent: 0; text-transform: none;
+  color: var(--dim);
+}
+.enter-choix .enter-mode:hover:not(:disabled), .enter-choix #enter-btn:hover:not(:disabled),
+.enter-choix .enter-mode:focus-visible:not(:disabled), .enter-choix #enter-btn:focus-visible:not(:disabled) {
+  background: rgba(159, 140, 255, 0.12); box-shadow: 0 0 24px rgba(159, 140, 255, 0.35);
+}
+.enter-choix .enter-mode:disabled, .enter-choix #enter-btn:disabled { opacity: 0.45; cursor: wait; }
+@media (max-width: 640px) {
+  .enter-choix { gap: 0.6rem; }
+  .enter-choix .enter-mode, .enter-choix #enter-btn { min-width: 9.5rem; padding: 0.7rem 1rem; }
+}
+
+/* LE POINTEUR EN OR. Violet, il se fondait dans une galerie violette — on
+   ne le voyait plus. Or, c'est la couleur des jetons et de ce qui se
+   gagne ; il désigne la prochaine œuvre à trouver, il en porte la couleur. */
+#boussole {
+  color: #ffd97a;
+  filter: drop-shadow(0 0 6px rgba(255, 217, 122, 0.55));
+}
+
+/* LE MOT DU SURVOL : le nom de ce qu'on vise, posé au-dessus de l'objet
+   surligné. Un jeton dit ce qu'il vaut. Décoratif, jamais focusable. */
+#survol-mot {
+  position: fixed; left: 0; top: 0; z-index: 12;
+  padding: 0.28rem 0.7rem; border-radius: 0.8rem;
+  font-size: 0.78rem; letter-spacing: 0.04em; white-space: nowrap;
+  color: var(--fg); background: rgba(8, 8, 16, 0.82);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  pointer-events: none; user-select: none;
+  transition: opacity 0.15s ease;
+}
+#survol-mot.jeton { color: #ffd97a; border-color: rgba(255, 217, 122, 0.4); }

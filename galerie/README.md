@@ -448,6 +448,58 @@ souligne, comme avant. À 120 Hz, le budget est de 8,3 ms : ce qui tenait
 en 12 à 16 ms tient en 7 à 10 une fois la densité descendue ; la finition
 (anticrénelage, occlusion) ne cède toujours que sous 50 images.
 
+**Deux façons d'entrer.** L'accueil ne dit plus « Entrer » : il demande
+comment on veut visiter.
+
+- **Visite guidée** — tout est ouvert, et l'on se laisse porter. La carte
+  entière, la liste entière, chaque œuvre nommée ; la dérive démarre dès
+  l'entrée et « Laisse-toi porter » reste en bas pour reprendre ou rendre
+  la main. Pas de jeton : il n'y a rien à débloquer. Plutôt que
+  d'apprendre « tout ouvert » à chaque module, ce mode reçoit une MÉMOIRE
+  QUI A TOUT VU (`MemoireOuverte`) : ses ensembles répondent oui à toute
+  question, ses jetons sont tous déjà pris (donc aucun n'est posé), et
+  elle n'écrit rien — ni dans le stockage ni en elle-même. La progression,
+  la carte, le menu, les portes, le pointeur, la dérive la suivent sans
+  savoir qu'ils sont en visite guidée, et la mémoire de la visite libre
+  reste intacte à côté : choisir la visite guidée un jour ne dévoile rien
+  de ce qu'on n'a pas encore trouvé à pied.
+- **Visite libre** — le jeu d'avant : les pièces se dessinent sous les
+  pas, les œuvres entrent au catalogue quand on les rencontre, les jetons
+  ◈ s'attrapent et se dépensent pour atteindre une œuvre inconnue. Le
+  bouton « Laisse-toi porter » quitte le bas de l'écran (on explore à
+  pied) ; la dérive reste à portée du bouton rond de la toolbox, en haut.
+  Le ◈ garde sa place, c'est le geste de ce mode. Entrée au clavier et
+  liens profonds mènent ici, comme avant.
+
+Trois retouches vont avec :
+
+- **Le pointeur est en or.** Violet, il se fondait dans une galerie
+  violette. Or, c'est la couleur des jetons et de ce qui se gagne ; il
+  désigne la prochaine œuvre à trouver, il en porte la couleur.
+- **Le survol dit un mot.** Au-dessus de ce qu'on vise, le nom de l'œuvre —
+  ou « ??? — approchez pour découvrir » en visite libre tant qu'elle n'est
+  pas découverte : le catalogue ne ment pas plus ici que dans sa liste. Le
+  mot suit le liseré, même fondu, même cible (`App._motSurvol`).
+- **Les jetons se visent et se ramassent d'un clic.** Un ◈ visé s'allume
+  d'un liseré DORÉ (la couleur du liseré est désormais celle de la cible,
+  `Survol.couleur`) avec son mot au-dessus, « Jeton : atteindre une œuvre
+  inconnue », et un clic ou Espace le prend, sans marcher jusqu'à lui. Les
+  octaèdres restent transparents à tout rayon générique (collisions, sol,
+  son) — un jeton qui flotte à hauteur de poitrine arrêterait la marche ;
+  le picking les cherche à part, par un rayon-sphère de 45 cm autour de
+  chacun (`App.pickAt`), le plus proche gagnant contre les œuvres et les
+  portails.
+
+Vérifié au navigateur, dans les deux entrées : la dérive porte dès
+l'entrée guidée, le badge compte 18/18, le menu liste 16/16 pièces sans
+« inconnue », aucun jeton n'est posé, le pointeur se tait ; en visite libre
+le bouton du bas est absent, le ◈ présent, le pointeur doré, un jeton visé
+au centre est reconnu, doré, nommé, et Espace le ramasse (0 → 1), la
+toolbox lance la dérive, une œuvre visée porte son « ??? ». Six tests au
+nœud (`test-modes.mjs`) tiennent la mémoire ouverte : elle dit oui à tout,
+n'apprend rien, laisse le stockage de la visite libre intact, et la
+progression la suit.
+
 **Passage en revue de la charte : zéro signalement.** Douze règles, cent
 quatre-vingt-quatorze lignes de rapport. Deux choses en sont sorties.
 

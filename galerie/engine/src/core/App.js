@@ -24,6 +24,7 @@ import { WATER_TIME } from './primitives.js';
 import { chauffer } from './cartels.js';
 import { appliquerEnvironnement } from './environnements.js';
 import { SondeReflets } from './reflets.js';
+import { t } from './i18n.js';
 import * as lettrage from './lettrage.js';
 
 const FOG_COLOR = 0x05050a;
@@ -544,11 +545,94 @@ export class App {
     ndc.set((x / window.innerWidth) * 2 - 1, -(y / window.innerHeight) * 2 + 1);
     raycaster.setFromCamera(ndc, this.camera);
     const intersections = raycaster.intersectObjects(this._pickTargets(), true);
-    let obj = intersections[0]?.object ?? null;
+    const premier = intersections[0] ?? null;
+    // LES JETONS ◈ à part : transparents à tout rayon (voir Jetons._poser),
+    // ils se visent par un rayon-sphère de 45 cm autour de chacun — plus
+    // large que l'octaèdre (26 cm), on ne vise pas un jeton au pixel. Le
+    // plus proche gagne, contre les œuvres et les portails comme entre eux.
+    let jeton = null;
+    const restants = this.rooms?.current
+      ? this.jetons?.restants?.(this.rooms.current.config.id) : null;
+    if (restants?.length) {
+      const p = this._pickPoint ??= new THREE.Vector3();
+      const ray = raycaster.ray;
+      for (const mesh of restants) {
+        mesh.getWorldPosition(p);
+        const d = ray.distanceToPoint(p);
+        if (d > 0.45) continue;
+        const le = p.sub(ray.origin).dot(ray.direction);   // abscisse sur le rayon
+        if (le <= 0) continue;
+        if (!jeton || le < jeton.distance) jeton = { distance: le, mesh };
+      }
+    }
+    if (jeton && (!premier || jeton.distance < premier.distance)) {
+      return { type: 'jeton', jeton: jeton.mesh.userData.jeton, mesh: jeton.mesh };
+    }
+    let obj = premier?.object ?? null;
     while (obj && !obj.userData.artwork && !obj.userData.portal) obj = obj.parent;
     if (obj?.userData.artwork) return { type: 'artwork', artwork: obj.userData.artwork };
     if (obj?.userData.portal) return { type: 'portal', portal: obj.userData.portal };
     return null;
+  }
+
+  /**
+   * CE QUE LE SURVOL SOULIGNE, pour une visée : une œuvre, ou un jeton ◈
+   * (par sa cible de survol, voir Jetons.cibleSurvol). Un portail, rien.
+   */
+  _viserSurvol(hit) {
+    if (!this.survol) return;
+    if (hit?.type === 'artwork') this.survol.viser(hit.artwork);
+    else if (hit?.type === 'jeton') this.survol.viser(this.jetons?.cibleSurvol?.(hit.mesh) ?? null);
+    else this.survol.viser(null);
+  }
+
+  /**
+   * LE MOT DU SURVOL : le nom de ce qu'on vise, posé au-dessus de l'objet
+   * surligné. Une œuvre dit son titre — ou « ??? » en visite libre tant
+   * qu'elle n'est pas découverte, le catalogue ne ment pas plus ici que
+   * dans sa liste ; un jeton dit ce qu'il vaut. Le mot suit le liseré :
+   * même fondu, même cible.
+   */
+  _motSurvol(cible, force) {
+    let el = this._survolMot;
+    if (!el) {
+      el = this._survolMot = document.createElement('div');
+      el.id = 'survol-mot';
+      el.setAttribute('aria-hidden', 'true');
+      el.style.opacity = '0';
+      document.body.appendChild(el);
+    }
+    if (!cible || force <= 0) {
+      if (el.style.opacity !== '0') el.style.opacity = '0';
+      return;
+    }
+    if (this._survolMotCible !== cible) {
+      this._survolMotCible = cible;
+      let texte;
+      if (cible.jeton) {
+        texte = t('jeton.mot');
+      } else {
+        const prog = this.progression;
+        const connue = !prog || prog.estDecouverte(cible) || prog.estRevelee?.(cible);
+        texte = connue ? (cible.config?.title ?? cible.config?.id ?? '') : t('survol.inconnue');
+      }
+      el.textContent = texte;
+      el.classList.toggle('jeton', Boolean(cible.jeton));
+    }
+    // au-dessus du haut de l'objet, dans l'écran
+    const boite = this._survolBoite ??= new THREE.Box3();
+    const p = this._survolPoint ??= new THREE.Vector3();
+    const mesh = cible.mesh ?? cible.group;
+    if (!mesh) return;
+    boite.setFromObject(mesh);
+    if (boite.isEmpty()) mesh.getWorldPosition(p);
+    else { boite.getCenter(p); p.y = boite.max.y; }
+    p.project(this.camera);
+    if (p.z > 1) { el.style.opacity = '0'; return; }
+    const x = (p.x + 1) / 2 * window.innerWidth;
+    const y = (1 - p.y) / 2 * window.innerHeight - 14;
+    el.style.transform = `translate(${x.toFixed(0)}px, ${y.toFixed(0)}px) translate(-50%, -100%)`;
+    el.style.opacity = String(Math.min(1, force * 1.2).toFixed(2));
   }
 
   /**
@@ -629,7 +713,7 @@ export class App {
     let souris = false;
     const viserSouris = (x, y) => {
       const hit = this.pickAt(x, y, raycaster, ndc);
-      this.survol?.viser(hit?.type === 'artwork' ? hit.artwork : null);
+      this._viserSurvol(hit);
     };
     this.renderer.domElement.addEventListener('pointermove', (e) => {
       if (e.pointerType !== 'mouse') return;
@@ -648,7 +732,7 @@ export class App {
       this._reticuleAcc = 0;
       // avec la marge de `viseeCentre` : au doigt, on ne vise pas au pixel
       const hit = this.viseeCentre(raycaster, ndc);
-      this.survol.viser(hit?.type === 'artwork' ? hit.artwork : null);
+      this._viserSurvol(hit);
     });
 
     // Action au clavier : la barre d'espace agit sur ce que vise le centre
@@ -950,8 +1034,12 @@ export class App {
           { reducedMotion: this.quality.reducedMotion,
             occulteurs: this.rooms?.current?.group ?? null });
         const u = this.sortie.uniforms;
-        // léger : un trait blanc à moitié fondu dans l'image, pas un néon
+        // léger : un trait blanc à moitié fondu dans l'image, pas un néon —
+        // et DORÉ sur un jeton, la couleur de ce qui se gagne
         u.uContour.value = dessine ? this.survol.force * 0.45 : 0;
+        u.uContourCouleur.value.copy(this.survol.couleur);
+        // le mot au-dessus de ce qu'on vise suit le liseré (même fondu)
+        this._motSurvol(dessine ? this.survol.cible : null, this.survol.force);
         if (dessine && this.survol.texture) {
           u.tMasque.value = this.survol.texture;
           u.tMasqueFlou.value = this.survol.textureFloue;

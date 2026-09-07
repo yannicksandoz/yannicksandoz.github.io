@@ -103,8 +103,16 @@ export class Jetons {
       if (this._pris.has(cle)) return;
       const mesh = new THREE.Mesh(this._geo, this._mat);
       mesh.position.fromArray(pos);
+      // Un jeton SE VISE : il s'allume sous le pointeur comme une œuvre, dit
+      // ce qu'il vaut, et se ramasse d'un clic (main.js). Mais il reste
+      // TRANSPARENT à tout rayon générique — collisions, sol, son : ce n'est
+      // pas un obstacle, et un octaèdre qui flotte à hauteur de poitrine
+      // arrêterait la marche. Le picking ne le trouve donc pas par le
+      // maillage : App.pickAt le cherche par un rayon-sphère à part, sur
+      // `restants()`, et le reconnaît à `userData.jeton`.
       mesh.userData.ignoreRaycast = true;
       mesh.raycast = () => {};
+      mesh.userData.jeton = { cle, roomId: id };
       room.group.add(mesh);
       liste.push({ mesh, cle, y: pos[1] });
     });
@@ -129,14 +137,52 @@ export class Jetons {
       const d = j.mesh.getWorldPosition(_pos).distanceTo(ctx.cameraPos);
       if (d < PORTEE + 1.2 && Math.abs(_pos.y - ctx.cameraPos.y) < 2.6
         && Math.hypot(_pos.x - ctx.cameraPos.x, _pos.z - ctx.cameraPos.z) < PORTEE) {
-        if (this.app.memoire) this.app.memoire.noter('jetonsPris', j.cle);
-        else this._pris.add(j.cle);
-        j.mesh.removeFromParent();
-        liste.splice(i, 1);
-        this.compte++;
-        this._notifier();
+        this._prendre(liste, i);
       }
     }
+  }
+
+  /** Le jeton quitte le monde et entre dans la poche — noté en mémoire. */
+  _prendre(liste, i) {
+    const j = liste[i];
+    if (this.app.memoire) this.app.memoire.noter('jetonsPris', j.cle);
+    else this._pris.add(j.cle);
+    j.mesh.removeFromParent();
+    liste.splice(i, 1);
+    this.compte++;
+    this._notifier();
+  }
+
+  /**
+   * Ramasser un jeton D'UN CLIC (ou d'Espace), par sa clé « pièce:index ».
+   * Le pointeur l'a désigné, le mot au-dessus a dit ce qu'il valait : on
+   * n'a pas à marcher jusqu'à lui. Rend true si un jeton a bien été pris.
+   */
+  ramasser(cle) {
+    if (!cle) return false;
+    for (const liste of this._meshes.values()) {
+      const i = liste.findIndex((j) => j.cle === cle);
+      if (i >= 0) { this._prendre(liste, i); return true; }
+    }
+    return false;
+  }
+
+  /**
+   * La CIBLE DE SURVOL d'un jeton : ce que Survol.js sait détourer (un
+   * maillage) et ce que le mot au-dessus sait dire (un titre). Une par
+   * jeton, réutilisée — le liseré compare les cibles par identité.
+   */
+  cibleSurvol(mesh) {
+    const info = mesh?.userData?.jeton;
+    if (!info) return null;
+    for (const liste of this._meshes.values()) {
+      const j = liste.find((x) => x.mesh === mesh);
+      if (j) {
+        j.cible ??= { mesh, jeton: info, config: { id: `jeton:${info.cle}` } };
+        return j.cible;
+      }
+    }
+    return null;
   }
 
   dispose() {

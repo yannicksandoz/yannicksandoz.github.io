@@ -81,6 +81,11 @@ export class Survol {
     this._echanges = [];       // [objet, matériau] rendus le temps du dessin
     this._caches = [];         // objets `horsSurvol` cachés le temps du dessin
     this._couleur = new THREE.Color();
+    // la couleur du liseré, lue par la sortie à chaque image : blanc pour
+    // une œuvre, or pour un jeton ◈ (voir `viser`)
+    this.couleur = new THREE.Color(0xffffff);
+    this._blanc = new THREE.Color(0xffffff);
+    this._or = new THREE.Color(0xffd97a);
   }
 
   /** Le masque net : la silhouette, bords adoucis par le MSAA. */
@@ -92,6 +97,7 @@ export class Survol {
   /** Vise une œuvre (ou rien) : le fondu fait le reste. */
   viser(artwork) {
     this.cible = artwork ?? null;
+    if (this.cible) this.couleur.copy(this.cible.jeton ? this._or : this._blanc);
   }
 
   _cibleAJour() {
