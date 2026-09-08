@@ -150,7 +150,11 @@ async function boot() {
         // image a coûté en shaders — un coût que le chrono ne voit qu'en
         // creux, entre « porte » et « première image »
         const programmes = app.renderer?.info?.programs?.length ?? 0;
-        console.info(`[galerie] chrono du démarrage\n${chrono.texte()}\nprogrammes GPU compilés : ${programmes}`);
+        const gpu = app.quality?.gpu ?? '';
+        const bilan = `${chrono.texte()}\nprogrammes GPU compilés : ${programmes}\n${navigator.userAgent}${gpu ? `\n${gpu}` : ''}`;
+        console.info(`[galerie] chrono du démarrage\n${bilan}`);
+        // …et à l'écran, pour qui n'a pas de console sous la main
+        import('./ui/Chrono.js').then(({ afficherChrono }) => afficherChrono(bilan));
       }
     };
   } catch {

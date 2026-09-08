@@ -571,8 +571,10 @@ passes, glyphes), `galerie-lue` (works, rooms, réglages), `scene-construite`
 User Timing `galerie:*`, alignée sur les tâches longues dans la frise des
 outils de développement. Le chrono est pur (horloge injectée, cinq tests au
 nœud), lisible par `__galerie.chrono.bilan()`, et `?chrono` dans l'URL
-l'imprime en console au « 100 % », avec le nombre de programmes GPU
-compilés.
+l'imprime au « 100 % » — en console, et À L'ÉCRAN dans un panneau
+copiable (`ui/Chrono.js`), parce qu'un téléphone n'a pas de console sous
+la main — avec le nombre de programmes GPU compilés, le navigateur et la
+carte graphique.
 
 Ce qu'il a montré ici, sur le bundle, réseau local, rendu logiciel :
 
