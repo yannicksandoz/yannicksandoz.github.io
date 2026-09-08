@@ -70,7 +70,11 @@
         "refDistance": 1
       },
       "debut": "0:04.5",
-      "fin": "5:42.5"
+      "fin": "5:42.5",
+      "formats": {
+        "webm": "assets/freesound/ethereal-ambient-sound-for-film-797831.webm",
+        "m4a": "assets/freesound/ethereal-ambient-sound-for-film-797831.m4a"
+      }
     }
   ],
   "lightDecay": 0.75,

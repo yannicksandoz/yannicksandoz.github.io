@@ -8,6 +8,7 @@ import { isWalkable } from './utils.js';
 import { scaleObjetUV } from './textures.js';
 import { jeuDeSurface, habillerModele } from './matieres.js';
 import { ombreDeContact } from './ombres.js';
+import { choisirSource, supportAudio, chargerAvecRepli } from './formats-audio.js';
 import { estFluide } from './style.js';
 import { ajouterLigne, patcherArbreLignes } from './lignes-lumiere.js';
 
@@ -1297,9 +1298,23 @@ export class Artwork {
 
     try {
       const essentiel = this.room ? this.room.isCurrent : true;
+      // LE FORMAT : Opus si le navigateur le lit, AAC sinon, le fichier
+      // d'origine en dernier (formats-audio.js). Le chemin CHOISI se garde
+      // sur la piste — c'est lui qu'il faudra rendre (release), pas `file`.
+      const supporte = engine.supporte ??= supportAudio();
+      this._urlsStems = stemCfgs.map((s) => this._resolve(choisirSource(s, supporte)));
+      // Si l'alternative échoue (un « maybe » que le décodeur dément), on
+      // recharge le fichier d'origine et l'on retient CE chemin-là.
+      const charger = async (s, i) => {
+        const origine = this._resolve(s.file);
+        const { buffer, url } = await chargerAvecRepli(
+          (u) => engine.load(u), this._urlsStems[i], origine,
+          (e) => console.warn(`[galerie] ${this._urlsStems[i]} illisible, repli sur ${s.file} :`, e?.message ?? e));
+        this._urlsStems[i] = url;
+        return buffer;
+      };
       const buffers = await Promise.all(
-        stemCfgs.map((s) => this.app.loading.track(
-          engine.load(this._resolve(s.file)), essentiel))
+        stemCfgs.map((s, i) => this.app.loading.track(charger(s, i), essentiel))
       );
       const ctx = engine.ctx;
 
@@ -1393,11 +1408,12 @@ export class Artwork {
   _unloadAudio() {
     this.setStemsActive(false);
     for (const m of this.modules) m.onAudioReleased?.();
-    for (const s of this.stems) {
+    this.stems.forEach((s, i) => {
       s.gain.disconnect();
       this.app.spatial?.libererVoie(s.voie);
-      this.app.audio.release(this._resolve(s.cfg.file));
-    }
+      // le chemin réellement chargé (format choisi), pas `file`
+      this.app.audio.release(this._urlsStems?.[i] ?? this._resolve(s.cfg.file));
+    });
     if (this.bus) {
       this.app.audio.debrancherCanal(this.bus);
       this.app.audio.lointain?.liberer(this.bus);

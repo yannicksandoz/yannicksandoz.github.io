@@ -518,6 +518,48 @@ Deux retouches d'après retour :
   1920 × 1200, flou 960 × 600, et le bord du panneau « marées » agrandi ×3
   se lit sans marche.
 
+**La première minute du son : trois fichiers, un seul téléchargé.** Le
+poids du site tenait en un fichier : l'ambiance du banc de l'entrée, un
+MP3 de 7,6 Mo (cinq minutes quarante-quatre à 184 kb/s), demandé par tout
+visiteur dès le pas de la porte, en même temps que les onze autres pistes
+de la salle d'arrivée et de ses voisines ; le second, la cascade du jardin,
+1,5 Mo. Le son ne part qu'APRÈS le geste d'entrée — règle des navigateurs —
+donc il ne retenait pas la barre, mais il retardait l'ambiance elle-même et
+tout ce qui se chargeait à côté. Rien n'est raccourci ni bouclé : même
+durée, même son, seul l'encodage change.
+
+- **Deux alternatives à côté de l'original.** `scripts/encode-sons.py`
+  encode toute piste au-dessus d'un seuil (1 Mo) en Opus dans WebM (64 kb/s,
+  3,0 Mo) et en AAC dans MP4 (96 kb/s, 4,0 Mo), et écrit `formats` dans la
+  fiche : `"formats": { "webm": …, "m4a": … }`. Le `file` d'origine reste —
+  c'est lui que l'éditeur montre et que les crédits citent, et c'est le
+  repli. Idempotent (par date), un seul binaire exigé (`ffmpeg`, ou son
+  chemin dans `FFMPEG`).
+- **Le choix au chargement** (`formats-audio.js`, `choisirSource`) est une
+  fonction pure : la piste, un prédicat « ce navigateur lit-il ce type ? »,
+  et l'ordre Opus, AAC, origine. Chrome, Firefox, Edge, Android prennent le
+  WebM ; Safari et iOS, le MP4 ; un navigateur qui ne lit ni l'un ni
+  l'autre, ou une piste sans `formats` (toutes les autres), le fichier tel
+  quel. La détection passe par `canPlayType` (« probably » ou « maybe »,
+  mémorisé par type). Et si l'alternative choisie ne se décode pas malgré
+  un « maybe » (`chargerAvecRepli`), on recharge l'origine et l'on retient
+  ce chemin-là — c'est lui qui sera rendu (`release`) au départ de la salle.
+- **Le visiteur télécharge 60 % de moins** pour la même écoute : 3,0 Mo au
+  lieu de 7,6 pour l'entrée, 0,5 au lieu de 1,5 pour le jardin. Le dépôt,
+  lui, grossit des deux alternatives ; c'est le bon sens du compromis.
+
+Vérifié au navigateur, réseau bridé à 8 Mbit/s : les deux grosses
+ambiances partent en `.webm`, aucun MP3 n'est demandé, l'ambiance de
+l'entrée est prête et joue, sa durée est intacte (344,3 s), le chemin
+retenu est le WebM ; le décodage Opus coûte le même ordre de temps que le
+MP3 (6,8 s contre 5,1 s, en rendu logiciel) pour un téléchargement de
+moitié. Ce Chromium libre n'a pas l'AAC et le dit (`canPlayType` vide) :
+il ne demande donc jamais le `.m4a`. Treize tests au nœud
+(`test-formats-audio.mjs`) tiennent le choix (trois navigateurs de carton,
+formats absents ou faux, m4a seul) et le repli (l'alternative se lit :
+l'origine n'est jamais demandée ; elle échoue : on prévient, on recharge
+l'origine ; sans origine distincte, l'erreur remonte telle quelle).
+
 **Passage en revue de la charte : zéro signalement.** Douze règles, cent
 quatre-vingt-quatorze lignes de rapport. Deux choses en sont sorties.
 
