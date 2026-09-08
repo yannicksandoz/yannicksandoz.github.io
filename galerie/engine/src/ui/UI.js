@@ -191,6 +191,7 @@ export class UI {
           this.loadBarFill.style.width = '100%';
           this.loadBar.classList.add('complete');
           this._peindreEtat?.('100 %', true);
+          this.onComplet?.();   // le chrono du démarrage (main.js)
         }, 400);
       }
     });

@@ -560,6 +560,62 @@ formats absents ou faux, m4a seul) et le repli (l'alternative se lit :
 l'origine n'est jamais demandée ; elle échoue : on prévient, on recharge
 l'origine ; sans origine distincte, l'erreur remonte telle quelle).
 
+**Le chrono du démarrage : savoir de quoi la première minute est faite.**
+Avant de raccourcir, mesurer. `core/chrono.js` pose une marque à chaque
+étape du lancement — `code` (le module s'exécute : tout ce qui précède est
+le HTML et le téléchargement du code), `rendu-installe` (contexte WebGL,
+passes, glyphes), `galerie-lue` (works, rooms, réglages), `scene-construite`
+(les seize salles bâties), `porte` (les deux boutons s'activent),
+`premiere-image` (première boucle complète, shaders compilés), `complet`
+(le « 100 % » : la salle d'arrivée est là). Chaque marque est aussi une
+User Timing `galerie:*`, alignée sur les tâches longues dans la frise des
+outils de développement. Le chrono est pur (horloge injectée, cinq tests au
+nœud), lisible par `__galerie.chrono.bilan()`, et `?chrono` dans l'URL
+l'imprime en console au « 100 % », avec le nombre de programmes GPU
+compilés.
+
+Ce qu'il a montré ici, sur le bundle, réseau local, rendu logiciel :
+
+| marque | instant | écart |
+|---|---|---|
+| code | 0,1 s | |
+| rendu-installe | 0,25 s | +0,15 |
+| galerie-lue | 2,0 s | +1,75 |
+| scene-construite | 2,9 s | +0,85 |
+| porte | 2,9 s | +0 |
+| premiere-image | 4,3 s | +1,4 |
+| complet | 44 s | +40 |
+
+Trois choses en sont sorties, et une leçon de méthode.
+
+- **Les trois JSON sont lus en 40 ms** ; l'écart de 1,75 s jusqu'à
+  « galerie-lue » est un `ReadPixels` du compositeur — le rendu logiciel
+  headless relit le canevas pour l'afficher, ce qu'aucun vrai navigateur ne
+  fait. Une trace Chrome alignée sur les marques l'a désigné ; sans elle, on
+  aurait optimisé une lecture de fichiers qui ne coûte rien.
+- **Construire la scène coûte 0,85 s** de processeur pur (profil V8 sur le
+  serveur de développement : `addRoom` 0,78 s dont la tesselation des
+  parois courbes et leurs attributs de géométrie, `buildPortals` 0,63 s).
+  C'est le seul vrai poste avant la porte qui dépende de nous ; sur un
+  portable il vaut sans doute le tiers. Le différer par salle éloignée
+  toucherait la carte, les jetons, les apparitions — pas pour ce gain.
+- **La première image compile 55 à 57 programmes GPU** dans une seule tâche
+  de 1,5 s ici. Sur un vrai GPU c'est une fraction de seconde, derrière
+  l'écran d'accueil opaque, mais c'est le moment où les deux boutons
+  viennent de s'activer : un clic pendant la compilation attend. La
+  parade connue est `compileAsync` (KHR_parallel_shader_compile) ; ce
+  Chromium libre n'a pas l'extension, donc rien à mesurer ici — le chrono
+  sur une vraie machine dira si l'écart porte → première image le mérite.
+- **Le « 100 % » à 44 s est le rendu logiciel**, pas le chargement : les
+  deux GLB de la salle d'arrivée pèsent 6 et 18 ko et mettent 5 s à être
+  *reçus* parce que le fil principal peint chaque image en une à trois
+  secondes. Sur une machine réelle, ce qui compte est la ligne réseau : la
+  porte n'attend que 21 requêtes et 2,9 Mo (1,9 de code avant compression).
+
+La leçon : ici, le processeur graphique logiciel domine tout ce qui suit la
+porte, et la première minute d'un vrai visiteur ne se mesure que chez lui.
+D'où `?chrono` : un lien à ouvrir, un bilan à coller.
+
 **Passage en revue de la charte : zéro signalement.** Douze règles, cent
 quatre-vingt-quatorze lignes de rapport. Deux choses en sont sorties.
 

@@ -915,6 +915,8 @@ export class App {
 
     const camPos = new THREE.Vector3();
     this.renderer.setAnimationLoop(() => {
+      // la première image est marquée au CHRONO À LA FIN de la première
+      // boucle (compilation des shaders comprise) — voir plus bas
       const dt = Math.min(this.clock.getDelta(), 0.1);
       const t = this.clock.elapsedTime;
       this.camera.getWorldPosition(camPos);
@@ -1055,6 +1057,9 @@ export class App {
       this.sortie.uniforms.uOcclusion.value = this.gtao?.enabled ? this.gtao.blendIntensity : 0;
       this._reglerCopieScene();
       this.composer.render();
+      // « première image » : la première boucle complète, shaders compilés
+      // (le chrono du démarrage, main.js) — une marque posée ne bouge plus
+      this.chrono?.marquer('premiere-image');
     });
   }
 }

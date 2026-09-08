@@ -18,6 +18,13 @@ import { MemoireOuverte } from './core/Memoire.js';
 import { mountJetons } from './core/Jetons.js';
 import { mountMemoire } from './core/Memoire.js';
 import { mountMinimap, minimapActive } from './ui/Carte.js';
+import { creerChrono } from './core/chrono.js';
+
+// LE CHRONO DU DÉMARRAGE : la première marque est posée ici, au moment où
+// le code s'exécute — tout ce qui précède (HTML, téléchargement et lecture
+// du code) est l'écart entre l'origine de la page et « code ».
+const chrono = creerChrono();
+chrono.marquer('code');
 
 // --- enregistrement des modules disponibles -------------------------------
 // Pour ajouter un comportement : créer une classe dans engine/src/modules/
@@ -64,6 +71,7 @@ async function boot() {
   }
 
   const app = new App(document.getElementById('app'));
+  chrono.marquer('rendu-installe');   // contexte WebGL, passes, glyphes
   // La mémoire de visite avant tout le reste : les pièces, les œuvres et les
   // jetons la lisent au moment où ils naissent.
   mountMemoire(app);
@@ -126,14 +134,30 @@ async function boot() {
       loadReglages()
     ]);
     app.reglages = reglages;
+    chrono.marquer('galerie-lue');
     setStyle(reglages?.style);   // le mode architectural, AVANT toute construction   // réglages généraux (délai des passages…)
     buildScene(app, works, rooms);
+    chrono.marquer('scene-construite');
     app.ui.setCredits(works);
     app.ui.setReady();
+    chrono.marquer('porte');
+    // « complet » : la salle d'arrivée est là (le « 100 % »). Avec ?chrono
+    // dans l'URL, le bilan s'imprime alors en console.
+    app.ui.onComplet = () => {
+      chrono.marquer('complet');
+      if (new URLSearchParams(location.search).has('chrono')) {
+        // le nombre de programmes GPU compilés dit ce que la première
+        // image a coûté en shaders — un coût que le chrono ne voit qu'en
+        // creux, entre « porte » et « première image »
+        const programmes = app.renderer?.info?.programs?.length ?? 0;
+        console.info(`[galerie] chrono du démarrage\n${chrono.texte()}\nprogrammes GPU compilés : ${programmes}`);
+      }
+    };
   } catch {
     app.ui.showLoadError(t('enter.error'));
   }
 
+  app.chrono = chrono;   // la première image est marquée par la boucle de rendu
   app.start(); // la scène tourne déjà derrière l'écran d'accueil
   window.__galerie = app; // point d'entrée debug/console
 
