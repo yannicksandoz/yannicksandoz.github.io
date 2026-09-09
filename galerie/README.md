@@ -1020,6 +1020,27 @@ bandeau apparaît, les neuf modèles de l'entrée et du jardin sont rouges et
 disent tous « nouvelle version de la galerie en ligne — rechargez la page ».
 Les suites au nœud passent (1 061 vérifications).
 
+**Et un nom qui ne change plus.** Pourquoi le lecteur de modèles changeait-il
+de nom ? Hors three, il n'a besoin que d'un utilitaire de géométrie
+(`BufferGeometryUtils`) — que le morceau principal utilise aussi, pour les
+voxels. Rollup le rangeait dans le principal, dont l'empreinte change à
+chaque déploiement, et le lecteur en héritait. `vite.config.js` range
+désormais three et cet utilitaire dans un morceau nommé `three`, qui ne
+dépend que de three : le lecteur GLB garde son nom d'un déploiement à
+l'autre (vérifié : même empreinte après une modification du principal),
+et une page ouverte des heures avant le trouve encore. Rien de plus à
+télécharger au départ — three était déjà son propre morceau.
+
+**La fumée de l'éditeur.** `npm run sonde:editeur` ouvre le build auteur,
+entre dans douze pièces, ouvre le volet Pièce, sélectionne la première
+œuvre et ses quatre sous-onglets, puis le Mixage, mesure la taille de
+chaque panneau et relève les erreurs — le volet vide du matin n'aurait pas
+passé. Vérifié : douze pièces, volet Pièce de 18 000 à 76 000 caractères,
+quatre sous-onglets rendus pour la première œuvre de chaque pièce, Mixage
+rendu, zéro erreur. Le seul 404 rencontré, `gabarits/index.json`, est
+attendu : l'éditeur sonde des gabarits de pièce fournis par l'auteur et se
+tait s'il n'y en a pas.
+
 **Passage en revue de la charte : zéro signalement.** Douze règles, cent
 quatre-vingt-quatorze lignes de rapport. Deux choses en sont sorties.
 

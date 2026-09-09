@@ -217,6 +217,24 @@ export default defineConfig({
       input: {
         index: fileURLToPath(new URL('./index.html', import.meta.url)),
         scan: fileURLToPath(new URL('./scan.html', import.meta.url))
+      },
+      output: {
+        // UN NOM STABLE POUR LE LECTEUR DE MODÈLES. Le morceau différé
+        // GLTFLoader n'a besoin, hors three, que de BufferGeometryUtils —
+        // que le morceau principal utilise aussi (voxels). Laissé dans le
+        // principal, cet utilitaire faisait dépendre l'empreinte du lecteur
+        // de celle du principal : renommé à chaque déploiement, et un
+        // visiteur dont la page date d'avant demandait un fichier disparu
+        // (cubes rouges — voir core/chunks.js). Dans son propre morceau, il
+        // ne dépend que de three : le lecteur garde son nom d'un
+        // déploiement à l'autre, et une page ancienne le trouve encore.
+        manualChunks(id) {
+          // three lui-même et cet utilitaire, ensemble, sous un nom qui dit
+          // ce qu'il est ; les autres addons (lecteurs, EXR) restent différés
+          if (/[\\/]three[\\/]build[\\/]three\.module\.js$/.test(id)
+              || id.includes('three/examples/jsm/utils/BufferGeometryUtils')) return 'three';
+          return undefined;
+        }
       }
     }
   }
