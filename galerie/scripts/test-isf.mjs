@@ -6,7 +6,7 @@ import { readFileSync, readdirSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { extraireISF, validerISF, entreesDe, fragmentDe, valeursDe,
-  envelopperCalque, MODES_FONDU } from '../engine/src/core/isf.js';
+  envelopperCalque, MODES_FONDU, lisible } from '../engine/src/core/isf.js';
 
 const racine = join(dirname(fileURLToPath(import.meta.url)), '..');
 let passed = 0, failed = 0;
@@ -112,6 +112,17 @@ void main(void) { gl_FragColor = vec4(v); }`).fragment;
     const r = fragmentDe(readFileSync(join(dossier, f), 'utf8'));
     vrai(`${f} : utilisable en calque`, Boolean(envelopperCalque(r.fragment)));
   }
+}
+
+{
+  check('lisible : soulignés et camelCase deviennent des mots', lisible('mouth_open'), 'mouth open');
+  check('lisible : camelCase', lisible('pupilDilation'), 'pupil dilation');
+  check('lisible : plusieurs séparateurs', lisible('tile__off-color'), 'tile off color');
+  check('lisible : vide', lisible(undefined), '');
+  const meta = extraireISF('/*{ "INPUTS": [{ "NAME": "mouth_open", "TYPE": "float" }, { "NAME": "x", "TYPE": "float", "LABEL": "Ouverture" }] }*/\nvoid main(){ gl_FragColor = vec4(1.0); }');
+  const e = entreesDe(meta?.meta ?? meta);
+  check('étiquette : lisible sans LABEL', e[0]?.etiquette, 'mouth open');
+  check('étiquette : le LABEL du shader gagne', e[1]?.etiquette, 'Ouverture');
 }
 
 console.log(`\n${passed} réussis, ${failed} échoués`);

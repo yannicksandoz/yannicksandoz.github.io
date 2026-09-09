@@ -929,6 +929,22 @@ La règle désormais : on ne montre que ce qui sert.
 Vérifié dans l'éditeur : les deux sondes des liens passent inchangées
 (sept et quatre étapes), captures avant/après du panneau du chat.
 
+**Trois retouches de clarté, dans la foulée.**
+
+- **Des étiquettes lisibles pour les entrées de shader.** Sans `LABEL` dans
+  l'en-tête ISF, l'inspecteur affichait le nom brut — « mouth_open »,
+  « pupil_dilation », « tile_off_color ». `isf.lisible()` rend les mots
+  (« mouth open », « pupil dilation ») sans traduire : le mot reste celui
+  de l'auteur du shader ; le nom brut, celui du JSON, se lit au survol de
+  l'étiquette. Un `LABEL` du shader gagne toujours. Six tests.
+- **Une phrase pour le ♪**, en tête des entrées d'un shader : « ♪ à droite
+  d'une entrée : la faire suivre au son d'une œuvre de la pièce » — seulement
+  s'il y a une œuvre sonore dans la pièce.
+- **Un seul titre « Le son dans la pièce »** dans le volet Pièce, en deux
+  temps : « ce que la pièce fait au son » (réverbération, ambiances) puis
+  « ce que le son fait à la pièce » (les lumières liées). Une section de
+  moins, et le sens est dans le titre.
+
 **Passage en revue de la charte : zéro signalement.** Douze règles, cent
 quatre-vingt-quatorze lignes de rapport. Deux choses en sont sorties.
 

@@ -33,6 +33,21 @@ const TYPES_UNIFORMS = {
  * L'en-tête JSON et le corps GLSL, séparés.
  * Rend null si la source ne ressemble pas à un ISF (pas d'en-tête).
  */
+/**
+ * Un nom d'entrée LISIBLE quand le shader ne donne pas de LABEL :
+ * `mouth_open` → « mouth open », `pupilDilation` → « pupil dilation »,
+ * `tile_off_color` → « tile off color ». On ne traduit pas (le mot est
+ * celui de l'auteur du shader), on rend seulement les mots.
+ */
+export function lisible(nom) {
+  return String(nom ?? '')
+    .replace(/([a-z0-9])([A-Z])/g, '$1 $2')
+    .replace(/[_\-]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .toLowerCase();
+}
+
 export function extraireISF(source) {
   const texte = String(source ?? '');
   const m = texte.match(/\/\*\s*({[\s\S]*?})\s*\*\//);
@@ -85,7 +100,7 @@ export function entreesDe(meta) {
       defaut,
       min: Number.isFinite(e.MIN) ? e.MIN : undefined,
       max: Number.isFinite(e.MAX) ? e.MAX : undefined,
-      etiquette: e.LABEL ?? e.NAME
+      etiquette: e.LABEL ?? lisible(e.NAME)
     });
   }
   return entrees;
