@@ -904,6 +904,31 @@ Pulsation / bande 40–120 Hz », sans min/max, le niveau bat de 0,00 à 0,51 ;
 « — son propre son — » efface `params.lien`, Ctrl+Z le rend. Zéro erreur.
 Vingt-neuf tests au nœud pour les liens.
 
+**La ligne de lien, simplifiée : dévoilement progressif.** Au fil des
+vagues, chaque curseur d'un shader portait dessous deux lignes pleines —
+œuvre, signal, hertz, vu-mètre, fenêtre, plage, enveloppe — qu'il soit lié
+ou non : un shader à quinze entrées, c'était trente lignes de champs gris.
+La règle désormais : on ne montre que ce qui sert.
+
+- **Rien sous un curseur non lié**, sauf un petit **♪** à sa droite, éteint.
+  Le cliquer ouvre la ligne, avec l'œuvre à choisir sous le doigt ; choisir
+  « — rien — » la replie. Lié, le ♪ s'allume (et permet de replier la ligne
+  sans rien perdre).
+- **Une ligne courte quand c'est lié** : « ↳ suit [œuvre] [signal] », le
+  vu-mètre, la valeur reçue, et un bouton **« réglages ▾ »**.
+- **Les réglages fins derrière ce bouton**, en trois lignes étiquetées —
+  « fenêtre du signal » (de … à …, « caler sur la mesure »), « plage de
+  l'entrée » (de … à …), « enveloppe » (montée, descente, courbe,
+  inverser) — chacune avec son explication au survol. Repliés, ces champs
+  restent dans le DOM : relire la ligne au moindre changement ne perd
+  rien. Dépliés ou repliés sur place, sans re-rendu ; l'état survit aux
+  re-rendus du panneau.
+- Les lumières de la pièce et « réagit à » du module gardent leur ligne
+  toujours visible : c'est tout leur contenu.
+
+Vérifié dans l'éditeur : les deux sondes des liens passent inchangées
+(sept et quatre étapes), captures avant/après du panneau du chat.
+
 **Passage en revue de la charte : zéro signalement.** Douze règles, cent
 quatre-vingt-quatorze lignes de rapport. Deux choses en sont sorties.
 
