@@ -19,6 +19,8 @@ import { mountJetons } from './core/Jetons.js';
 import { mountMemoire } from './core/Memoire.js';
 import { mountMinimap, minimapActive } from './ui/Carte.js';
 import { creerChrono } from './core/chrono.js';
+import { monterPriseEnMain } from './ui/PriseEnMain.js';
+import { oeuvresDe } from './core/catalogue.js';
 
 // LE CHRONO DU DÉMARRAGE : la première marque est posée ici, au moment où
 // le code s'exécute — tout ce qui précède (HTML, téléchargement et lecture
@@ -117,7 +119,11 @@ async function boot() {
       if (app.activeFocus && app.activeFocus.artwork !== art) {
         app.activeFocus.release();
       }
-      return art.handleClick();
+      const pris = art.handleClick();
+      // le troisième geste de la prise en main : approcher une œuvre (clic
+      // ou Espace, les deux passent ici)
+      if (pris) app.gestes?.faire('approcher');
+      return pris;
     }
     if (app.activeFocus) {
       app.activeFocus.release();
@@ -139,6 +145,8 @@ async function boot() {
     buildScene(app, works, rooms);
     chrono.marquer('scene-construite');
     app.ui.setCredits(works);
+    // l'accueil dit ce qu'il y a à trouver, compté depuis le contenu
+    app.ui.setCompte?.(oeuvresDe(works).length, app.roomConfigs?.length ?? 1);
     app.ui.setReady();
     chrono.marquer('porte');
     // « complet » : la salle d'arrivée est là (le « 100 % »). Avec ?chrono
@@ -193,6 +201,7 @@ async function boot() {
     mountToolbox(app);
     mountDerive(app);
     if (minimapActive()) mountMinimap(app);
+    monterPriseEnMain(app);
   } else {
     const { audioTour, mode } = await app.ui.waitForEnter();
     app.audio.unlock(); // depuis le geste utilisateur : requis par les navigateurs
@@ -223,6 +232,8 @@ async function boot() {
       if (minimapActive()) mountMinimap(app);
       // la visite guidée PORTE dès l'entrée : c'est ce qu'on a choisi
       if (app.modeVisite === 'guidee') derive.demarrer();
+      // trois gestes, puis silence (à la souris et au clavier seulement)
+      monterPriseEnMain(app);
     }
   }
 

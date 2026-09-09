@@ -53,8 +53,50 @@ export class UI {
     // en plein vol, l'aide parle du vol : la traduction ne la ramène pas
     // aux touches de marche
     if (this._planant && this.hint) this.hint.textContent = t('hint.fly');
+    // la prise en main (un geste à la fois) et le compte de l'accueil sont
+    // des textes composés : ils se repeignent dans la nouvelle langue
+    if (this._geste !== undefined) this.peindreGeste(this._geste, this._porte);
+    this._peindreCompte();
     this._refineKeyLabels();
     this._credits?.();  // les crédits contiennent des libellés traduits
+  }
+
+  /**
+   * L'ACCUEIL DIT CE QU'IL Y A À TROUVER : « 18 œuvres à découvrir dans
+   * 16 salles », compté depuis le contenu au moment où la galerie est lue —
+   * jamais un chiffre à tenir à jour à la main.
+   */
+  setCompte(oeuvres, salles) {
+    this._compte = { oeuvres, salles };
+    this._peindreCompte();
+  }
+
+  _peindreCompte() {
+    const el = document.getElementById('enter-compte');
+    if (!el || !this._compte) return;
+    const { oeuvres, salles } = this._compte;
+    el.textContent = t('enter.compte', { oeuvres, salles });
+    el.hidden = !(oeuvres > 0);
+  }
+
+  /**
+   * LA PRISE EN MAIN : un geste à la fois dans la ligne du bas, puis rien.
+   * `nom` est le geste à faire (`regarder`, `avancer`, `approcher`) ou null
+   * quand tout est fait ; `porte` dit que la dérive porte le visiteur — on
+   * ne lui demande pas d'avancer pendant qu'on le promène. Le vol plané a
+   * la parole avant tout (voir `planer`) : on retrouve le geste en se posant.
+   */
+  peindreGeste(nom, porte = false) {
+    if (!this.hint) return;
+    this._geste = nom ?? null;
+    this._porte = Boolean(porte);
+    if (this._planant) return;
+    if (!this._geste || this._porte || this.tactile) { this.hint.hidden = true; return; }
+    const pivot = '<span data-keylabel="pivot">A/E ou Q/E</span>';
+    this.hint.innerHTML = t(`geste.${this._geste}`, { move: MARCHE, pivot });
+    this.hint.classList.add('geste');
+    this.hint.hidden = false;
+    this._refineKeyLabels();
   }
 
   /**
@@ -70,7 +112,9 @@ export class UI {
       tip.innerHTML = this.tactile
         ? t('enter.tip.touch') : t('enter.tip', { move: MARCHE, pivot });
     }
-    if (this.hint) {
+    if (this.hint && this._geste !== undefined) {
+      // la prise en main tient la ligne : un geste à la fois (peindreGeste)
+    } else if (this.hint) {
       if (this.tactile) {
         this.hint.textContent = t('hint.touch');
       } else {
@@ -321,7 +365,8 @@ export class UI {
     if (!this.hint || this._planant === actif) return;
     this._planant = actif;
     this.hint.classList.toggle('en-vol', actif);
-    if (actif) this.hint.textContent = t('hint.fly');
+    if (actif) { this.hint.textContent = t('hint.fly'); this.hint.hidden = false; }
+    else if (this._geste !== undefined) this.peindreGeste(this._geste, this._porte);
     else this._renderKeyTexts();
   }
 

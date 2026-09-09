@@ -1020,3 +1020,8 @@ body.editing #minimap { display: none; }
   background: rgba(255, 217, 122, 0.14); color: #ffd97a; border: 1px solid rgba(255, 217, 122, 0.4);
   border-radius: 0.4rem; padding: 0.2rem 0.6rem; font-size: 0.7rem; cursor: pointer;
 }
+
+/* L'accueil dit ce qu'il y a à trouver : « 18 œuvres à découvrir dans 16 salles » */
+.enter-compte { margin: 0.6rem 0 1.4rem; color: #ffd97a; font-size: 0.92rem; letter-spacing: 0.03em; }
+/* La prise en main : un geste à la fois, un peu plus lisible que l'ancienne ligne */
+#hint.geste { color: #e8e6f0; font-size: 0.8rem; background: rgba(10, 10, 18, 0.72); }

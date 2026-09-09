@@ -616,7 +616,45 @@ Trois choses en sont sorties, et une leçon de méthode.
 
 La leçon : ici, le processeur graphique logiciel domine tout ce qui suit la
 porte, et la première minute d'un vrai visiteur ne se mesure que chez lui.
-D'où `?chrono` : un lien à ouvrir, un bilan à coller.
+D'où `?chrono` : un lien à ouvrir, un bilan à coller. Le premier bilan
+reçu, un iPhone en Safari : code à 0,82 s, porte à 1,39 s, 51 programmes
+compilés en 0,17 s, salle d'arrivée complète à 2,49 s. Le réseau avant le
+code est le seul poste qui compte ; la compilation parallèle des shaders
+ne se justifie pas ; le chargement est réglé.
+
+**L'accueil dit ce qu'il y a à trouver, et la prise en main se tait.** Deux
+suites données au chrono, sur l'accueil et les trente premières secondes.
+
+- **« 18 œuvres à découvrir dans 16 salles ».** Une ligne dorée sous le
+  sous-titre, comptée depuis le contenu au moment où la galerie est lue
+  (`oeuvresDe`, `roomConfigs`) — jamais un chiffre à tenir à jour. Elle
+  suit la langue (`enter.compte`).
+- **Trois gestes, puis silence.** La ligne grise permanente qui rappelait
+  les touches en bas de l'écran cède la place à UN mot à la fois, qui
+  s'efface dès que le geste est fait : « Regardez autour de vous : glissez
+  la souris, bouton enfoncé » ; « Avancez : ZQSD ou les flèches » ;
+  « Approchez une œuvre : cliquez-la, ou Espace face à elle ». Ensuite plus
+  rien — l'aide reste dans le menu. L'état est pur (`core/gestes.js`, six
+  tests au nœud) : l'ordre d'affichage est canonique, mais un geste fait
+  d'avance compte (qui marche avant d'avoir regardé n'aura plus
+  « avancez ») ; les gestes faits se gardent d'une visite à l'autre
+  (`galerie-gestes`), donc une seule prise en main par appareil.
+  `ui/PriseEnMain.js` branche l'état sur la mémoire et sur la ligne d'aide ;
+  les contrôles disent ce que le visiteur vient de faire — un glissé
+  souris de plus de 24 px bouton enfoncé (pas l'amortissement, pas la
+  molette), un pas au clavier, une œuvre approchée par clic ou Espace (les
+  deux passent par le même gestionnaire). La dérive fait taire l'aide tant
+  qu'elle porte (on ne demande pas d'avancer à qui est promené) et la rend
+  quand le visiteur reprend la main ; le vol plané garde la parole. Rien de
+  tout cela au doigt : le tactile a son encart des trois gestes au premier
+  lancement.
+
+Vérifié au navigateur, à la souris : l'accueil porte « 18 œuvres à
+découvrir dans 16 salles » ; après l'entrée, « Regardez… » ; après un
+glissé, « Avancez… » ; après un pas, « Approchez… » ; Espace devant une
+œuvre, l'aide se tait et la mémoire porte les trois gestes ; à la visite
+suivante, silence d'emblée ; en visite guidée, l'aide se tait tant que la
+dérive porte et revient dès qu'on l'arrête.
 
 **Passage en revue de la charte : zéro signalement.** Douze règles, cent
 quatre-vingt-quatorze lignes de rapport. Deux choses en sont sorties.

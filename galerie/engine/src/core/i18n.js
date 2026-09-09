@@ -30,6 +30,11 @@ const FR = {
   'hint.line': '{move} · {pivot} : pivoter · clic ou Espace : découvrir',
   'hint.touch': '1 doigt : regarder · 2 doigts : se déplacer · joystick : marcher · ≫ maintenu : courir · toucher : découvrir',
   'hint.fly': 'Vous planez · avancez en regardant vers le bas pour vous poser',
+  // la prise en main : un geste à la fois, puis silence (core/gestes.js)
+  'geste.regarder': 'Regardez autour de vous : glissez la souris, bouton enfoncé',
+  'geste.avancer': 'Avancez : {move} ou les flèches',
+  'geste.approcher': 'Approchez une œuvre : cliquez-la, ou Espace face à elle',
+  'enter.compte': '{oeuvres} œuvres à découvrir dans {salles} salles',
 
   'nogl.sub': "Votre navigateur ne prend pas en charge WebGL2, nécessaire à l'affichage 3D. La galerie reste entièrement visitable à l'oreille : navigation au clavier, sons spatialisés — casque recommandé.",
   'nogl.start': 'Visite audio',
@@ -180,6 +185,10 @@ const EN = {
   'hint.line': '{move} · {pivot}: turn · click or Space: discover',
   'hint.touch': '1 finger: look · 2 fingers: move · joystick: walk · hold ≫: run · tap: discover',
   'hint.fly': 'You are gliding · look down and move forward to land',
+  'geste.regarder': 'Look around: drag with the mouse button held',
+  'geste.avancer': 'Move: {move} or the arrow keys',
+  'geste.approcher': 'Approach a work: click it, or Space while facing it',
+  'enter.compte': '{oeuvres} works to discover in {salles} rooms',
 
   'nogl.sub': 'Your browser does not support WebGL2, which the 3D display requires. The gallery remains fully visitable by ear: keyboard navigation, spatialised sound — headphones recommended.',
   'nogl.start': 'Audio tour',

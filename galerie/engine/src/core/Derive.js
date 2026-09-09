@@ -251,6 +251,9 @@ export class Derive {
   }
 
   _peindre() {
+    // la prise en main se tait pendant qu'on porte le visiteur (on ne lui
+    // demande pas d'avancer), et reprend quand il reprend la main
+    if (this.app.gestes) this.app.ui?.peindreGeste?.(this.app.gestes.courant, this.active);
     const connues = this.connues.length;
     const jetons = this.app.jetons?.compte ?? 0;
     const resteInconnues = this.inconnues.length > 0;

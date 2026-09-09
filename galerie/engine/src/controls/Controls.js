@@ -163,6 +163,27 @@ export class Controls {
       return r;
     };
 
+    // Le premier geste de la prise en main : REGARDER — un vrai glissé, bouton
+    // enfoncé, qui a fait tourner l'orbite. `change` seul ne suffit pas :
+    // l'amortissement le déclenche à chaque image, et une molette aussi.
+    {
+      const toile = app.renderer?.domElement;
+      let bouton = false;
+      let depart = null;
+      toile?.addEventListener('pointerdown', (e) => {
+        if (e.pointerType !== 'mouse') return;
+        bouton = true; depart = [e.clientX, e.clientY];
+      });
+      toile?.addEventListener('pointermove', (e) => {
+        if (!bouton || !depart || !this.app.gestes) return;
+        if (Math.hypot(e.clientX - depart[0], e.clientY - depart[1]) > 24) {
+          this.app.gestes.faire('regarder');
+          depart = null;
+        }
+      });
+      window.addEventListener('pointerup', () => { bouton = false; depart = null; });
+    }
+
     window.addEventListener('keydown', (e) => {
       // `e.target` n'est pas toujours un élément (événement synthétique,
       // touche reçue par la fenêtre) : demander `matches` sans vérifier
@@ -327,6 +348,8 @@ export class Controls {
 
       const { x, z } = this._moveInput();
       if (x || z) {
+        // le deuxième geste de la prise en main : avancer (clavier ou manche)
+        this.app.gestes?.faire('avancer');
         const cam = this.app.camera;
         const fwd = _fwd;
         cam.getWorldDirection(fwd);
