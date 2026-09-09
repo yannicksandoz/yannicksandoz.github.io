@@ -9,6 +9,7 @@ import { scaleObjetUV } from './textures.js';
 import { jeuDeSurface, habillerModele } from './matieres.js';
 import { ombreDeContact } from './ombres.js';
 import { choisirSource, supportAudio, chargerAvecRepli } from './formats-audio.js';
+import { liensDuModele, resoudreLien } from './liens.js';
 import { estFluide } from './style.js';
 import { ajouterLigne, patcherArbreLignes } from './lignes-lumiere.js';
 
@@ -1527,16 +1528,17 @@ export class Artwork {
       this._reactiveMaterial.uniforms.uTime.value = ctx.time;
     }
     if (this._isfEcran) {
-      // liaison audio optionnelle : le niveau sonore de l'œuvre pousse UNE
-      // entrée du shader, de sa valeur de repos vers son maximum
-      const lien = this.config.model?.audio;
-      if (lien?.entree) {
-        const e = this._isfEcran.entrees.find((x) => x.nom === lien.entree);
-        if (e && e.type === 'float') {
-          const base = Number(this.config.model?.reglages?.[e.nom] ?? e.defaut) || 0;
-          const portee = (Number.isFinite(e.max) ? e.max : base + 1) - base;
-          this._isfEcran.poser(e.nom,
-            base + this.audioLevel * (lien.gain ?? 1) * portee);
+      // LES LIENS : chaque entrée liée suit un signal du son d'une œuvre
+      // de la pièce (liens.js, signaux.js) — la sienne ou une autre. Les
+      // liens se relisent à chaque image : l'inspecteur les change en direct.
+      const liens = liensDuModele(this.config.model, this.config.id);
+      if (liens.length && this.app.signaux) {
+        const reglages = this.config.model?.reglages ?? {};
+        for (const lien of liens) {
+          const e = this._isfEcran.entrees.find((x) => x.nom === lien.entree);
+          if (!e) continue;
+          const v = resoudreLien(lien, e, this.app.signaux.valeur(lien.oeuvre, lien.signal), reglages[e.nom]);
+          if (v !== null) this._isfEcran.poser(e.nom, v);
         }
       }
       this._isfEcran.rendre(this.app.renderer, ctx.time, dt);

@@ -37,6 +37,7 @@ import { HRTFPanner } from './modules/HRTFPanner.js';
 import { AudioReactive } from './modules/AudioReactive.js';
 import { FocusCamera } from './modules/FocusCamera.js';
 import { TipJar } from './modules/TipJar.js';
+import { Portail } from './modules/Portail.js';
 
 registry.register('SpatialCrossfade', SpatialCrossfade);
 registry.register('StemMixer', StemMixer);
@@ -44,6 +45,7 @@ registry.register('HRTFPanner', HRTFPanner);
 registry.register('AudioReactive', AudioReactive);
 registry.register('FocusCamera', FocusCamera);
 registry.register('TipJar', TipJar);
+registry.register('Portail', Portail);
 
 /** WebGL2 est requis par le rendu : message clair plutôt qu'écran noir. */
 function hasWebGL2() {

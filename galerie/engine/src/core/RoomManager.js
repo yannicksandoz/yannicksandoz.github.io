@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { creerDancefloor } from './dancefloor.js';
 import { assetUrl, isWalkable } from './utils.js';
 import { buildSky, disposeSky, updateSkyUniforms } from './Sky.js';
 import { styleTexture, scaleBoxUV, scalePlaneUV, scaleWorldUV, scaleObjetUV,
@@ -110,6 +111,7 @@ export class RoomManager {
     room.plane = 'sol';
     room.group.visible = false;
     room.floor = buildFloor(config);
+    room.dancefloor = room.floor?.userData?.dancefloor ?? null;
     if (room.floor) room.group.add(room.floor);
     room.shell = buildShell(config);
     if (room.shell) room.group.add(room.shell);
@@ -436,6 +438,7 @@ export class RoomManager {
       room.floor = null;
     }
     room.floor = buildFloor(room.config);
+    room.dancefloor = room.floor?.userData?.dancefloor ?? null;
     if (room.floor) room.group.add(room.floor);
   }
 
@@ -564,6 +567,9 @@ export class RoomManager {
     }
     room.portalMeshes = [];
     for (const cfg of room.config.portals ?? []) {
+      // porté par une œuvre (`via`, module Portail) : l'œuvre est la porte,
+      // rien à dessiner — la carte et les tests voient un portail ordinaire
+      if (cfg.via) continue;
       const target = this.rooms.get(cfg.to);
       const mesh = buildPortalMesh(cfg, target?.config.title ?? cfg.to);
       mesh.userData.portal = { room, cfg, mesh };
@@ -983,6 +989,14 @@ export class RoomManager {
       sky.material.uniforms.uTime.value
         = (sky.material.uniforms.uTime.value + dt) % 3600;
     }
+    // LES DANCEFLOORS visibles (pièce courante et voisines) battent : leur
+    // horloge, puis leurs liens — le son des œuvres pousse leurs entrées
+    for (const room of this.rooms.values()) {
+      const sol = room.dancefloor;
+      if (!sol || (room.state !== 'current' && room.state !== 'adjacent')) continue;
+      if (!this.app.quality.reducedMotion) sol.rendre(ctx.time);
+      sol.suivre(this.app.signaux);
+    }
     // Déplacement de la frame, relevé AVANT tout retour anticipé : c'est le
     // sens du pas (voir _vaVers), et il doit rester juste même les frames
     // où l'on ne déclenche rien.
@@ -1186,6 +1200,30 @@ export class RoomManager {
     return true;
   }
 
+  /**
+   * ALLER dans une pièce par un portail SANS porte — celui qu'une œuvre porte
+   * (module Portail, entrée `via` de `portals`). Même passage qu'une porte :
+   * le trait se gagne sur la carte, l'arrivée et le regard sont ceux de
+   * l'entrée, le fondu et le warp sont ceux de setCurrent. Pas de
+   * fermeture derrière soi : il n'y a pas de porte à fermer, et l'œuvre
+   * reste dans la pièce quittée.
+   * @param {object} cfg  { to, arrival?, regard?, plane? }
+   * @returns {boolean}  true si le départ a lieu
+   */
+  allerA(cfg, { depuis = null } = {}) {
+    const target = cfg?.to ? this.rooms.get(cfg.to) : null;
+    if (!target) {
+      console.warn(`[galerie] Portail vers une pièce inconnue : ${cfg?.to}`);
+      return false;
+    }
+    if (this._transitioning) return false;
+    const origine = depuis ?? this.current?.config.id ?? null;
+    if (origine) this.app.memoire?.noterPorte(origine, target.config.id);
+    const arrival = cfg.arrival ?? target.config.spawn ?? [0, 2.2, 10];
+    this.setCurrent(target.config.id, { arrival, plane: cfg.plane ?? 'sol', regard: cfg.regard ?? null });
+    return true;
+  }
+
   /** L'ambiance démarre après le déblocage audio : à rappeler à ce moment. */
   onAudioUnlocked() {
     for (const room of this.rooms.values()) this._updateAmbience(room);
@@ -1212,6 +1250,14 @@ export const FLOOR_DEFAULTS = { size: 80, color: '#13131f', grid: true, gridColo
 export function buildFloor(config) {
   if (config?.floor === false) return null;
   const opt = { ...FLOOR_DEFAULTS, ...(config?.floor === true ? {} : config?.floor ?? {}) };
+  // LE DANCEFLOOR : des dalles lumineuses à la place d'un plan (dancefloor.js).
+  // Le groupe porte l'objet vivant (`userData.dancefloor`) : la pièce le
+  // fait battre à chaque image et les liens y poussent le son des œuvres.
+  if (opt.type === 'dancefloor') {
+    const sol = creerDancefloor(opt);
+    sol.group.userData.dancefloor = sol;
+    return sol.group;
+  }
   const size = Number.isFinite(opt.size) && opt.size > 0 ? opt.size : FLOOR_DEFAULTS.size;
 
   const group = new THREE.Group();

@@ -15,6 +15,7 @@ import { AudioEngine } from './AudioEngine.js';
 import { Spatialisation } from './Spatialisation.js';
 import { QualityManager } from './Quality.js';
 import { LoadingTracker, assetUrl } from './utils.js';
+import { Signaux } from './signaux.js';
 import { setDefaultAnisotropy } from './textures.js';
 import { setBudgetSourcesEtendues, setEclatLuminaires } from './primitives.js';
 import { majLignes, activerLignes, segmentsMonde, reglerBudgetLignes, MAX_LIGNES } from './lignes-lumiere.js';
@@ -254,6 +255,7 @@ export class App {
     this.quality = new QualityManager();
     this.spatial = new Spatialisation(this);
     this.loading = new LoadingTracker();
+    this.signaux = new Signaux(this);   // ce que le son des œuvres donne à lire (liens)
     this.artworks = [];
     // Fichiers importés dans l'éditeur : chemin de config → URL blob
     this.assetOverrides = new Map();
@@ -905,6 +907,7 @@ export class App {
         this.camera.getWorldPosition(camPos);
         const ctx = { app: this, camera: this.camera, cameraPos: camPos, time: t };
         for (const fn of this._updatables) fn(dt, ctx);
+        this.signaux.update(dt);
         for (const a of this.artworks) a.update(dt, ctx);
         this._stemBudgetAcc += dt;
         if (this._stemBudgetAcc > 0.5) {
@@ -934,6 +937,7 @@ export class App {
       const ctx = { app: this, camera: this.camera, cameraPos: camPos, time: t };
 
       for (const fn of this._updatables) fn(dt, ctx);
+      this.signaux.update(dt);
       for (const a of this.artworks) a.update(dt, ctx);
 
       this._stemBudgetAcc += dt;

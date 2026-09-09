@@ -1,0 +1,86 @@
+{
+  "id": "dancefloor",
+  "title": "Dancefloor",
+  "spawn": [
+    0,
+    2.2,
+    10
+  ],
+  "floor": {
+    "type": "dancefloor",
+    "size": 30,
+    "cols": 12,
+    "rows": 12,
+    "reglages": {
+      "pattern_mode": 2,
+      "pattern_speed": 1.1,
+      "pattern_density": 0.5,
+      "pattern_mix": 1,
+      "glow_strength": 0.35,
+      "hue_spread": 0.35,
+      "brightness": 0.5,
+      "tile_gap": 0.06
+    },
+    "liens": [
+      {
+        "entree": "brightness",
+        "oeuvre": "pulsation-dancefloor",
+        "signal": "basse",
+        "min": 0.4,
+        "max": 1.0
+      },
+      {
+        "entree": "pattern_speed",
+        "oeuvre": "pulsation-dancefloor",
+        "signal": "crete",
+        "min": 0.8,
+        "max": 2.4
+      }
+    ]
+  },
+  "sky": {
+    "zenith": "#04051a",
+    "horizon": "#1a1236",
+    "cloudColor": "#2a2444",
+    "clouds": 0.12,
+    "haze": 0.3
+  },
+  "fogColor": "#07060f",
+  "fogDensity": 0.012,
+  "keyLight": false,
+  "envIntensity": 0.12,
+  "works": [
+    "pulsation-dancefloor",
+    "shader-cat-dancefloor"
+  ],
+  "portals": [
+    {
+      "to": "shaders",
+      "position": [
+        0,
+        0,
+        14.5
+      ],
+      "rotationY": 180,
+      "label": "Salle des shaders",
+      "arrival": [
+        0,
+        2.2,
+        -4.5
+      ],
+      "regard": [
+        0,
+        2.7,
+        -9.85
+      ]
+    }
+  ],
+  "reverb": {
+    "actif": true,
+    "taille": 0.9,
+    "duree": 0.5,
+    "sombre": 0.5,
+    "envoi": 0.12,
+    "premieres": 0.1
+  }
+}

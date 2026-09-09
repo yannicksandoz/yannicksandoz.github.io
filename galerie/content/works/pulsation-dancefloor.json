@@ -1,0 +1,59 @@
+{
+  "id": "pulsation-dancefloor",
+  "title": "Pulsation",
+  "description": "Un battement de synthèse à 120 BPM — grosse caisse et charley — qui allume le sol.",
+  "role": "decor",
+  "position": [
+    0,
+    0.6,
+    -13.5
+  ],
+  "rotation": [
+    0,
+    0,
+    0
+  ],
+  "scale": [
+    1,
+    1,
+    1
+  ],
+  "model": {
+    "shape": "monolith",
+    "height": 1.2,
+    "color": "#1a1626"
+  },
+  "lightColor": "#ff1fd0",
+  "lightIntensity": 1.2,
+  "stems": [
+    {
+      "file": "audio/pulsation-120.wav",
+      "radius": 40,
+      "gain": 0.9
+    }
+  ],
+  "modules": [
+    {
+      "type": "SpatialCrossfade",
+      "params": {
+        "radius": 40,
+        "inner": 0.6
+      }
+    },
+    {
+      "type": "AudioReactive",
+      "params": {
+        "band": "low",
+        "pulseScale": 0.04,
+        "lightBoost": 4,
+        "smoothing": 14
+      }
+    }
+  ],
+  "credit": {
+    "author": "Galerie",
+    "license": "CC0-1.0",
+    "sourceUrl": "https://github.com/yannicksandoz/yannicksandoz.github.io"
+  },
+  "baseGain": 0.9
+}

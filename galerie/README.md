@@ -706,6 +706,67 @@ Vérifié dans l'éditeur (build auteur) : le tiroir du banc de l'entrée dit
 « −17,2 LUFS · eff. −18,6 · −0,6 LU », « → −18 » écrit 1,1 au document et
 au curseur (écart +0,2), Ctrl+Z rend 1.
 
+**L'œuvre-porte, le dancefloor, et les liens.** Trois choses nouvelles qui
+n'en font qu'une : une œuvre peut être une porte, une pièce peut avoir pour
+sol un dancefloor de dalles lumineuses, et n'importe quelle entrée d'un
+shader — ou du sol — peut suivre le son d'une œuvre de la pièce.
+
+- **Le module `Portail`** — une « fonction activable » de l'œuvre, comme
+  FocusCamera. Sa cible se lit dans la PIÈCE : une entrée de `portals` dont
+  `via` est l'id de l'œuvre (`{ "to": "dancefloor", "via": "shader-dancefloor",
+  "arrival": …, "regard": … }`). Pas de porte dessinée pour celle-là : l'œuvre
+  est la porte — mais la carte, les passages fermés et le test « un aller a
+  toujours son retour » y voient un portail comme les autres. Placé après
+  FocusCamera, il ne reçoit le clic qu'une fois l'œuvre approchée : le
+  premier clic approche, la fiche dit « Entrer dans « Dancefloor » », le
+  second — ou Espace, ou le bouton — traverse (`RoomManager.allerA` : le
+  trait sur la carte, l'arrivée, le regard, le fondu et le warp, sans
+  fermeture derrière soi : il n'y a pas de porte à fermer).
+- **Le sol dancefloor** (`core/dancefloor.js`). Le shader « dancefloor.fs »
+  de l'auteur peint un dancefloor en perspective dans une image ; ici le
+  MÊME dallage devient le sol réel d'une pièce : le plan est découpé en
+  `cols × rows` dalles par ses coordonnées, chaque dalle s'allume selon les
+  mêmes lois — mêmes noms d'entrées, mêmes formules (damier pulsant,
+  ondulation, scintillement, balayages, écart, halo, teinte qui tourne),
+  sans la perspective, que la caméra du visiteur fait. Un ShaderMaterial
+  non éclairé, plafonné à 1 : au-delà, la fleur de la passe de sortie
+  transformait tout le sol en brouillard rouge — un dancefloor est net, ce
+  sont ses dalles qui brillent, pas l'air au-dessus. `"floor": { "type":
+  "dancefloor", "cols", "rows", "reglages", "liens" }` ; la pièce le fait
+  battre à chaque image et l'inspecteur le règle à chaud.
+- **Les liens** (`core/liens.js`, `core/signaux.js`). Jusqu'ici un écran ISF
+  ne suivait que SON niveau, sur UNE entrée. Désormais `"liens": [{ "entree",
+  "oeuvre", "signal", "min", "max" }]` sur un modèle ISF ou sur le sol : une
+  entrée float ou bool suit un signal du son d'une œuvre de la pièce —
+  niveau, basses, médiums, aigus, ou les crêtes (attaque immédiate, retombée
+  lente) — de min à max quand le signal va de 0 à 1 (sans plage : de la
+  valeur réglée au maximum de l'entrée). `Signaux` pose UN analyseur par
+  œuvre écoutée, seulement celles qu'un lien nomme, et les relâche quand
+  plus personne n'écoute. La résolution est pure ; l'ancien `model.audio`
+  est traduit en lien. Quatorze tests au nœud.
+- **La pièce « Dancefloor »**, ouverte sur le ciel : douze par douze dalles
+  (ondes, teinte qui tourne), une Pulsation — un battement de synthèse CC0 à
+  120 BPM, grosse caisse et charley, `content/audio/pulsation-120.wav`,
+  décor sonore hors catalogue — dont les basses allument le sol et les
+  crêtes accélèrent le motif ; le Chat de l'auteur, dont la bouche s'ouvre
+  sur les basses et les pupilles sur les crêtes ; un portail de retour vers
+  la salle des shaders. On y entre par le dancefloor en relief.
+- **Dans l'éditeur** : sous chaque entrée liable d'un shader ISF, une ligne
+  « ↳ suit [œuvre] [signal] min max » (les œuvres sonores de la pièce) ; dans
+  le volet Pièce, « type de sol : dancefloor », la grille, les entrées avec
+  leurs liens ; sur un portail, « porté par une œuvre » ; sur une œuvre, la
+  case « porte vers une autre pièce ». Tout s'écrit au document, Ctrl+Z.
+
+Vérifié au navigateur : dans la salle des shaders, deux portails et une
+seule porte dessinée ; face au dancefloor, Espace approche et la fiche dit
+« Entrer dans « Dancefloor » » ; un second Espace traverse, le sol est un
+dancefloor à deux liens, la pulsation s'entend (basses 0,59–0,88) et le sol
+suit (luminosité 0,75–0,93, vitesse 0,84–1,05), la bouche du chat s'ouvre
+(0,76–1,00), un portail de retour ; zéro erreur. Dans l'éditeur : le volet
+Pièce montre le sol dancefloor 12 × 12 et le lien de brightness sur la
+pulsation, changer son signal écrit le document et le sol vivant, Ctrl+Z le
+rend ; le chat montre ses liens ; le dancefloor a sa case cochée.
+
 **Passage en revue de la charte : zéro signalement.** Douze règles, cent
 quatre-vingt-quatorze lignes de rapport. Deux choses en sont sorties.
 

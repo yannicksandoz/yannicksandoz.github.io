@@ -38,6 +38,7 @@ const FR = {
   'geste.avancer.touch': 'Avancez : le manche en bas à gauche, ou deux doigts',
   'geste.approcher.touch': 'Approchez une œuvre : touchez-la',
   'enter.compte': '{oeuvres} œuvres à découvrir dans {salles} salles',
+  'focus.entrer': 'Entrer dans « {salle} »',
 
   'nogl.sub': "Votre navigateur ne prend pas en charge WebGL2, nécessaire à l'affichage 3D. La galerie reste entièrement visitable à l'oreille : navigation au clavier, sons spatialisés — casque recommandé.",
   'nogl.start': 'Visite audio',
@@ -195,6 +196,7 @@ const EN = {
   'geste.avancer.touch': 'Move: the stick bottom left, or two fingers',
   'geste.approcher.touch': 'Approach a work: tap it',
   'enter.compte': '{oeuvres} works to discover in {salles} rooms',
+  'focus.entrer': 'Enter “{salle}”',
 
   'nogl.sub': 'Your browser does not support WebGL2, which the 3D display requires. The gallery remains fully visitable by ear: keyboard navigation, spatialised sound — headphones recommended.',
   'nogl.start': 'Audio tour',

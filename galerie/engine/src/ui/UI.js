@@ -428,7 +428,18 @@ export class UI {
         lien.href = cfg.link;
         lien.textContent = t('focus.link');
       }
-      this.focusActions.hidden = !aImage && !aLien;
+      // L'ŒUVRE-PORTE (module Portail) : la fiche dit où elle mène, et le
+      // bouton fait la traversée — le second clic, ou Espace, aussi.
+      const portail = artwork.modules?.find((m) => typeof m.traverser === 'function' && m.cible);
+      const porteBtn = this.focusActions.querySelector('#focus-portail');
+      if (porteBtn) {
+        porteBtn.hidden = !portail;
+        if (portail) {
+          porteBtn.textContent = t('focus.entrer', { salle: portail.titreCible ?? '' });
+          porteBtn.onclick = () => portail.traverser();
+        }
+      }
+      this.focusActions.hidden = !aImage && !aLien && !portail;
     }
     this.focusOverlay.hidden = false;
   }

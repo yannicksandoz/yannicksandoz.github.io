@@ -49,6 +49,27 @@
         2.6,
         -8.0
       ]
+    },
+    {
+      "to": "dancefloor",
+      "via": "shader-dancefloor",
+      "label": "Dancefloor",
+      "arrival": [
+        0,
+        2.2,
+        9
+      ],
+      "regard": [
+        0,
+        2.0,
+        -12
+      ],
+      "position": [
+        0,
+        0,
+        -9.85
+      ],
+      "rotationY": 0
     }
   ]
 }
