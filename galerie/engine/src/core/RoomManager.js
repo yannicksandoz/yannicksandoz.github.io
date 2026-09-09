@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { creerDancefloor } from './dancefloor.js';
+import { multiplicateursPiece } from './liens.js';
 import { assetUrl, isWalkable } from './utils.js';
 import { buildSky, disposeSky, updateSkyUniforms } from './Sky.js';
 import { styleTexture, scaleBoxUV, scalePlaneUV, scaleWorldUV, scaleObjetUV,
@@ -422,12 +423,64 @@ export class RoomManager {
   applyEnvIntensity(room = this.current) {
     const scene = this.app.scene;
     if (!('environmentIntensity' in scene)) return;
+    scene.environmentIntensity = this.envIntensityDe(room);
+  }
+
+  /** L'intensité d'environnement voulue pour une pièce (avant tout lien). */
+  envIntensityDe(room = this.current) {
     const base = this.app.envBaseIntensity ?? 0.5;
     let env = room?.config.envIntensity ?? 1;
     // coque close : l'IBL n'est plus un ciel, c'est un fond de radiosité —
     // plafonné pour que les VRAIES sources de la pièce fassent la lumière
     if (coqueClose(room?.config)) env = Math.min(env, ENV_CLOS);
-    scene.environmentIntensity = base * env;
+    return base * env;
+  }
+
+  /** La densité de brouillard voulue pour une pièce (avant tout lien). */
+  fogDensityDe(room = this.current) {
+    const d = Number(room?.config.fogDensity);
+    return Number.isFinite(d) && d >= 0 ? d : FOG_DENSITY;
+  }
+
+  /**
+   * LES LIENS D'UNE PIÈCE : ses lumières suivent le son (liens.js,
+   * ENTREES_PIECE). Chaque image, pour la pièce courante et ses voisines :
+   * les multiplicateurs, appliqués sur la valeur voulue (jamais cumulés —
+   * on repart du réglage à chaque image) ; une entrée qui cesse d'être liée
+   * est reposée à 1 une fois. L'environnement et le brouillard sont ceux de
+   * la scène : la pièce courante seule les tient, et pas pendant un fondu.
+   */
+  _suivreLiensPiece(room, dt) {
+    const liens = room.config.liens;
+    const actifs = room._liensActifs ??= new Set();
+    const m = Array.isArray(liens) && liens.length && this.app.signaux
+      ? multiplicateursPiece(liens, (l) => this.app.signaux.valeur(l.oeuvre, l.signal, l.hz), room._etatsLiens ??= new Map(), dt)
+      : {};
+    for (const nom of actifs) if (!(nom in m)) this._poserEntreePiece(room, nom, 1);
+    actifs.clear();
+    for (const nom of Object.keys(m)) { actifs.add(nom); this._poserEntreePiece(room, nom, m[nom]); }
+  }
+
+  _poserEntreePiece(room, nom, v) {
+    const scene = this.app.scene;
+    switch (nom) {
+      case 'keyLight': {
+        if (!room.keyLight) return;
+        const k = (room.cfgCle ?? room.config).keyLight;
+        room.keyLight.intensity = (Number.isFinite(k?.intensity) ? k.intensity : KEYLIGHT_DEFAULTS.intensity) * v;
+        return;
+      }
+      case 'ambient':
+        if (room.ambient) room.ambient.intensity = (Number(room.config.ambient?.intensity) || 0) * v;
+        return;
+      case 'env':
+        if (room.isCurrent && !this._transitioning && 'environmentIntensity' in scene) scene.environmentIntensity = this.envIntensityDe(room) * v;
+        return;
+      case 'fog':
+        if (room.isCurrent && !this._transitioning && scene.fog) scene.fog.density = this.fogDensityDe(room) * v;
+        return;
+      default:
+    }
   }
 
   /** Reconstruit le sol d'une pièce après édition (taille, couleur, absence). */
@@ -516,8 +569,7 @@ export class RoomManager {
       scene.fog.color.set(color);
       scene.background.set(color);
     }
-    const d = Number(room?.config.fogDensity);
-    scene.fog.density = Number.isFinite(d) && d >= 0 ? d : FOG_DENSITY;
+    scene.fog.density = this.fogDensityDe(room);
   }
 
   get(id) {
@@ -992,10 +1044,14 @@ export class RoomManager {
     // LES DANCEFLOORS visibles (pièce courante et voisines) battent : leur
     // horloge, puis leurs liens — le son des œuvres pousse leurs entrées
     for (const room of this.rooms.values()) {
+      if (room.state !== 'current' && room.state !== 'adjacent') continue;
       const sol = room.dancefloor;
-      if (!sol || (room.state !== 'current' && room.state !== 'adjacent')) continue;
-      if (!this.app.quality.reducedMotion) sol.rendre(ctx.time);
-      sol.suivre(this.app.signaux, dt);
+      if (sol) {
+        if (!this.app.quality.reducedMotion) sol.rendre(ctx.time);
+        sol.suivre(this.app.signaux, dt);
+      }
+      // et les lumières de la pièce, si un lien les tient
+      if (room.config.liens?.length || room._liensActifs?.size) this._suivreLiensPiece(room, dt);
     }
     // Déplacement de la frame, relevé AVANT tout retour anticipé : c'est le
     // sens du pas (voir _vaVers), et il doit rester juste même les frames

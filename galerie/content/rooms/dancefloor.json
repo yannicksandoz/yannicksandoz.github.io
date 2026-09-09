@@ -90,5 +90,18 @@
     "sombre": 0.5,
     "envoi": 0.12,
     "premieres": 0.1
-  }
+  },
+  "liens": [
+    {
+      "entree": "env",
+      "oeuvre": "pulsation-dancefloor",
+      "signal": "basse",
+      "min": 0.5,
+      "max": 2.5,
+      "bas": 0.6,
+      "haut": 0.85,
+      "attaque": 10,
+      "retombee": 220
+    }
+  ]
 }

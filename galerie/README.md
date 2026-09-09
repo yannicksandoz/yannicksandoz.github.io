@@ -866,6 +866,44 @@ grosse caisse s'y lit 0,71 et le charley 0,00 ; trois Ctrl+Z rendent
 120–250 0,63–0,93, 250–1 000 0,14–0,29, 2–4 kHz 0,00–0,19, 6–8 kHz
 0,00–0,04. Vingt-sept tests au nœud pour les liens.
 
+**Le son allume la pièce, et une œuvre réagit à une autre.** La même ligne
+de lien, à deux endroits de plus.
+
+- **Les lumières de la pièce** (`room.liens`, `ENTREES_PIECE` dans
+  `core/liens.js`) : la lumière clé, l'ambiante, l'ambiance d'environnement
+  (IBL) et la densité du brouillard peuvent suivre le son d'une œuvre. Ce
+  sont des MULTIPLICATEURS du réglage (1 = tel quel) : la valeur liée ne
+  s'accumule jamais, RoomManager repart du réglage à chaque image
+  (`envIntensityDe`, `fogDensityDe`, la clé depuis sa config, l'ambiante
+  depuis la sienne) et repose une entrée à 1 quand son lien disparaît.
+  L'environnement et le brouillard sont ceux de la scène : la pièce
+  courante seule les tient, et pas pendant un fondu. `multiplicateursPiece`
+  est pur (enveloppes avec état), testé. Dans l'éditeur : volet Pièce,
+  section « Le son allume la pièce », quatre lignes ; `liens` est un champ
+  « lumière seulement » (rien à rebâtir, Ctrl+Z).
+- **Le module `AudioReactive` réagit à une autre œuvre** (`params.lien`, un
+  lien complet sans `entree`) : le niveau transmis au visuel — pulsation
+  d'échelle, lueur, lumière d'appoint — est alors la course de ce lien,
+  passe-bande, fenêtre et enveloppe compris ; sans lien, son propre son
+  comme avant. Dans l'éditeur, sous « Réaction à l'audio » : « ↳ réagit à
+  [— son propre son —|une œuvre] … », sans min/max (la course est le
+  niveau).
+- **Le contenu** : dans la pièce Dancefloor, l'environnement bat avec les
+  basses de la pulsation (× 0,5 à × 2,5, 10 / 220 ms) ; le monolithe de la
+  pulsation réagit à sa propre grosse caisse par la bande 40–120 Hz
+  (fenêtre 0,7–0,98, 0 / 200).
+
+Vérifié dans l'éditeur (build auteur, rendu logiciel) : dans la pièce
+Dancefloor, l'environnement voulu vaut 0,060 et vit entre 0,030 et 0,087
+sur la pulsation, `_liensActifs` dit « env » ; le volet Pièce montre quatre
+lignes, env ← Pulsation / basses, bas 0,6, descente 220, valeur 1,05 ;
+passer à « crêtes » écrit `room.liens`, Ctrl+Z rend « basses » ; retirer
+l'œuvre efface `liens`, repose l'environnement à 0,060 exactement et vide
+les liens actifs, Ctrl+Z rend le lien. Sur le monolithe, « réagit à
+Pulsation / bande 40–120 Hz », sans min/max, le niveau bat de 0,00 à 0,51 ;
+« — son propre son — » efface `params.lien`, Ctrl+Z le rend. Zéro erreur.
+Vingt-neuf tests au nœud pour les liens.
+
 **Passage en revue de la charte : zéro signalement.** Douze règles, cent
 quatre-vingt-quatorze lignes de rapport. Deux choses en sont sorties.
 

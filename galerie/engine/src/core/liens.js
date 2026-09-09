@@ -227,6 +227,38 @@ export function courseDuSignal(lien, signal) {
 }
 
 /**
+ * CE QU'UNE PIÈCE PEUT FAIRE SUIVRE AU SON : ses lumières. Des entrées à la
+ * forme ISF, mais ce sont des MULTIPLICATEURS (1 = le réglage de la pièce
+ * tel quel) : la lumière clé, l'ambiante, l'ambiance d'environnement (IBL),
+ * la densité du brouillard. `room.liens` les nomme comme un shader nomme
+ * les siennes ; RoomManager les applique à chaque image.
+ */
+export const ENTREES_PIECE = [
+  { nom: 'keyLight', type: 'float', defaut: 1, min: 0, max: 3, etiquette: 'lumière clé (× intensité)' },
+  { nom: 'ambient', type: 'float', defaut: 1, min: 0, max: 3, etiquette: 'lumière ambiante (× intensité)' },
+  { nom: 'env', type: 'float', defaut: 1, min: 0, max: 3, etiquette: 'ambiance IBL (× intensité)' },
+  { nom: 'fog', type: 'float', defaut: 1, min: 0, max: 4, etiquette: 'brouillard (× densité)' }
+];
+
+/**
+ * Les multiplicateurs d'une pièce pour cette image : { nom → valeur } pour
+ * chaque lien valide dont l'entrée existe. `valeur(lien)` donne le signal ;
+ * `etats` garde les enveloppes ; pur par ailleurs.
+ */
+export function multiplicateursPiece(liens, valeur, etats, dt) {
+  const m = {};
+  for (const brut of Array.isArray(liens) ? liens : []) {
+    const lien = normaliserLien(brut);
+    if (!lien) continue;
+    const e = ENTREES_PIECE.find((x) => x.nom === lien.entree);
+    if (!e) continue;
+    const v = resoudreLienSuivi(lien, e, valeur(lien), 1, etats, dt);
+    if (v !== null) m[e.nom] = v;
+  }
+  return m;
+}
+
+/**
  * Le portail PORTÉ par une œuvre : dans la pièce, une entrée de `portals`
  * dont `via` est l'id de l'œuvre. Pas de porte à ce portail-là — l'œuvre
  * est la porte ; la carte et le test des passages, eux, voient un portail

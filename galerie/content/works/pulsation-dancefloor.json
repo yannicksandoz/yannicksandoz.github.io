@@ -43,10 +43,21 @@
     {
       "type": "AudioReactive",
       "params": {
-        "band": "low",
-        "pulseScale": 0.04,
+        "pulseScale": 0.05,
         "lightBoost": 4,
-        "smoothing": 14
+        "emissiveBoost": 1.6,
+        "lien": {
+          "oeuvre": "pulsation-dancefloor",
+          "signal": "bande",
+          "hz": [
+            40,
+            120
+          ],
+          "bas": 0.7,
+          "haut": 0.98,
+          "attaque": 0,
+          "retombee": 200
+        }
       }
     }
   ],

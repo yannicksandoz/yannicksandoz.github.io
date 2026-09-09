@@ -10,7 +10,7 @@
  * Lancer avec : npm test
  */
 import assert from 'node:assert/strict';
-import { normaliserLien, liensDuModele, resoudreLien, resoudreLienSuivi, suivreEnveloppe, faconnerCourse, courseSuivie, portailPorte, courseDuSignal, fenetreObservee, normaliserHz, SIGNAUX, ENVELOPPE_DEFAUT } from '../engine/src/core/liens.js';
+import { normaliserLien, liensDuModele, resoudreLien, resoudreLienSuivi, suivreEnveloppe, faconnerCourse, courseSuivie, portailPorte, courseDuSignal, fenetreObservee, normaliserHz, SIGNAUX, ENVELOPPE_DEFAUT, ENTREES_PIECE, multiplicateursPiece } from '../engine/src/core/liens.js';
 import { casesDe, casesHz, niveauBande, crete, observer, niveauGlobal, BANDES } from '../engine/src/core/signaux.js';
 import { creerDancefloor, ENTREES_DANCEFLOOR } from '../engine/src/core/dancefloor.js';
 
@@ -192,6 +192,33 @@ test('courseSuivie / resoudreLienSuivi : l\'état vit dans la Map de l\'appelant
   // inverse : plein signal → min
   const inv = normaliserLien({ entree: 'b', oeuvre: 'p', inverse: true, min: 0.2, max: 1, attaque: 0 });
   assert.equal(resoudreLienSuivi(inv, { ...entree, nom: 'b' }, 1, 0.5, new Map(), 0.016), 0.2);
+});
+
+groupe('les lumières de la pièce');
+
+test('ENTREES_PIECE : quatre multiplicateurs à la forme ISF, repos 1', () => {
+  assert.deepEqual(ENTREES_PIECE.map((e) => e.nom), ['keyLight', 'ambient', 'env', 'fog']);
+  for (const e of ENTREES_PIECE) { assert.equal(e.type, 'float'); assert.equal(e.defaut, 1); assert.ok(e.max > 1 && e.etiquette); }
+});
+
+test('multiplicateursPiece : un multiplicateur par lien valide, enveloppe avec état, entrée inconnue ignorée', () => {
+  const liens = [
+    { entree: 'env', oeuvre: 'p', signal: 'basse', min: 0.5, max: 2.5, bas: 0.6, haut: 0.85, attaque: 0, retombee: 0 },
+    { entree: 'fog', oeuvre: 'p', signal: 'crete', inverse: true, attaque: 0, retombee: 0 },
+    { entree: 'sol', oeuvre: 'p' }, { oeuvre: 'p' }, 'n/a'
+  ];
+  const etats = new Map();
+  const m = multiplicateursPiece(liens, (l) => (l.signal === 'basse' ? 0.85 : 1), etats, 0.016);
+  assert.deepEqual(Object.keys(m), ['env', 'fog']);
+  assert.ok(Math.abs(m.env - 2.5) < 1e-9);
+  // inverse, plein signal : de repos 1 au max… retourné → min = repos 1 ; sans plage : min = repos (1), max = 4 → 1
+  assert.ok(Math.abs(m.fog - 1) < 1e-9);
+  assert.deepEqual(multiplicateursPiece(null, () => 1, etats, 0.016), {});
+  // l'état tient d'une image à l'autre (retombée longue)
+  const lent = [{ entree: 'env', oeuvre: 'p', min: 0, max: 2, attaque: 0, retombee: 5000 }];
+  const e2 = new Map();
+  multiplicateursPiece(lent, () => 1, e2, 0.016);
+  assert.ok(multiplicateursPiece(lent, () => 0, e2, 0.016).env > 1.9);
 });
 
 groupe('le portail porté par une œuvre');
