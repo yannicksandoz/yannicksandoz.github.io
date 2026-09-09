@@ -816,6 +816,56 @@ et au sol vivant, Ctrl+Z rend 0,6/0,85 ; sur le chat, mouth_open suit
 (basses 0,58–0,65), « ajuster » écrit `model.liens`, Ctrl+Z ; zéro erreur.
 Vingt tests au nœud pour les liens.
 
+**L'enveloppe, par lien — comme un Envelope Follower.** Entre le son et le
+paramètre, il manquait ce que tout suiveur d'enveloppe donne (l'Envelope
+Follower d'Ableton, Videosync) : à quelle vitesse ça monte, à quelle vitesse
+ça redescend, avec quelle courbe, et dans quel sens. Jusqu'ici le lissage
+était UN réglage global, caché dans `Signaux`, le même pour toutes les
+entrées de toutes les œuvres.
+
+- **Quatre champs sur chaque lien** (`core/liens.js`) : `attaque` et
+  `retombee` en millisecondes (constante de temps ; 0 = tout de suite ;
+  défaut 20 / 150), `courbe` (1 : droite ; 0,5 : réagit tôt, comme un log ;
+  2 : réagit tard, comme une expo), `inverse` (le sol s'ÉTEINT sur la
+  grosse caisse). L'ordre est fixe : signal × gain → fenêtre [bas, haut] →
+  enveloppe → courbe → inverse → plage [min, max]. L'enveloppe a un état
+  (la course précédente) : les appelants — l'écran ISF, le sol, l'éditeur —
+  le gardent par lien dans une Map et passent dt ; le calcul reste pur
+  (`suivreEnveloppe`, `faconnerCourse`, `courseSuivie`, `valeurDeCourse`,
+  `resoudreLienSuivi`). `Signaux` ne lisse plus qu'un rien (≈ 25 ms contre
+  le grain de la FFT, analyseur à 0,4) : la tenue, c'est le lien qui la
+  donne. Le module `AudioReactive` reçoit les mêmes `attaque` / `retombee`
+  (en ms) : dès que l'une est donnée, elles remplacent l'`smoothing` unique.
+- **Dans l'éditeur** : sous chaque lien, une seconde ligne « enveloppe ↗ ms
+  ↘ ms courbe ☐ inverser » ; la valeur du vu-mètre passe par l'enveloppe de
+  la ligne (avec son propre état), l'info-bulle détaille signal → fenêtre →
+  enveloppe → entrée. Sous « Réaction à l'audio », deux curseurs montée /
+  descente. Tout s'écrit au document, seulement ce qui s'écarte du défaut.
+- **Le passe-bande, avant l'enveloppe.** Les quatre bandes toutes faites
+  (basses, médiums, aigus, niveau) sont des raccourcis ; un lien peut
+  choisir ce qu'il écoute : le signal `bande` avec `hz: [bas, haut]` — la
+  grosse caisse seule (40–120 Hz), une voix (200–3 000), un charley
+  (6 000–12 000). `Signaux` lit la bande dans le spectre déjà mesuré de
+  l'œuvre, une par paire de fréquences, oubliée quand plus personne ne la
+  lit (`casesHz`, `normaliserHz` : bornes 10–20 000 Hz, remise dans l'ordre,
+  jamais vide). Dans l'éditeur, choisir « bande à choisir (Hz) » fait
+  apparaître les deux fréquences sur la ligne.
+- **Le contenu** : le sol s'allume en 10 ms et retombe en 220 (un battement
+  net), le motif accélère d'un coup et ralentit en 600 ; la bouche du chat
+  15 / 120 ; ses pupilles écoutent le charley — mesuré d'abord : dans la
+  pulsation de synthèse il vit entre 2 et 6 kHz (0,00–0,19), presque rien
+  au-dessus de 6 kHz (0,00–0,04) — bande 2–6 kHz, fenêtre 0,02–0,18, 0 / 300.
+
+Vérifié dans l'éditeur (build auteur, rendu logiciel) : sous « brightness »,
+la ligne dit ↗ 10 ↘ 220, courbe 1, inverser décoché ; écrire une descente de
+2 000 ms et cocher inverser va au document et au sol vivant (dont l'état
+d'enveloppe tient : 0,61), deux Ctrl+Z rendent 220 ; choisir « bande » fait
+apparaître 80–4 000 Hz, écrire 40–120 va au document (`hz`) et au sol, la
+grosse caisse s'y lit 0,71 et le charley 0,00 ; trois Ctrl+Z rendent
+« basses » ; zéro erreur. Par bande, dans la pièce : 40–120 Hz 0,71–0,98,
+120–250 0,63–0,93, 250–1 000 0,14–0,29, 2–4 kHz 0,00–0,19, 6–8 kHz
+0,00–0,04. Vingt-sept tests au nœud pour les liens.
+
 **Passage en revue de la charte : zéro signalement.** Douze règles, cent
 quatre-vingt-quatorze lignes de rapport. Deux choses en sont sorties.
 

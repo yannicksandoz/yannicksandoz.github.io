@@ -10,8 +10,8 @@
  * Lancer avec : npm test
  */
 import assert from 'node:assert/strict';
-import { normaliserLien, liensDuModele, resoudreLien, portailPorte, courseDuSignal, fenetreObservee, SIGNAUX } from '../engine/src/core/liens.js';
-import { casesDe, niveauBande, crete, observer, niveauGlobal, BANDES } from '../engine/src/core/signaux.js';
+import { normaliserLien, liensDuModele, resoudreLien, resoudreLienSuivi, suivreEnveloppe, faconnerCourse, courseSuivie, portailPorte, courseDuSignal, fenetreObservee, normaliserHz, SIGNAUX, ENVELOPPE_DEFAUT } from '../engine/src/core/liens.js';
+import { casesDe, casesHz, niveauBande, crete, observer, niveauGlobal, BANDES } from '../engine/src/core/signaux.js';
 import { creerDancefloor, ENTREES_DANCEFLOOR } from '../engine/src/core/dancefloor.js';
 
 let ok = 0;
@@ -26,7 +26,7 @@ groupe('les liens : normaliser');
 
 test('un lien complet garde entrée, œuvre, signal, plage, gain', () => {
   assert.deepEqual(normaliserLien({ entree: 'brightness', oeuvre: 'pulsation', signal: 'basse', min: 0.3, max: 1.2, gain: 2 }),
-    { entree: 'brightness', oeuvre: 'pulsation', signal: 'basse', min: 0.3, max: 1.2, bas: 0, haut: 1, gain: 2 });
+    { entree: 'brightness', oeuvre: 'pulsation', signal: 'basse', hz: undefined, min: 0.3, max: 1.2, bas: 0, haut: 1, gain: 2, ...ENVELOPPE_DEFAUT });
 });
 
 test('la fenêtre du signal : bas/haut bornés à 0..1, 0..1 si elle est vide ou à l\'envers', () => {
@@ -42,18 +42,18 @@ test('sans entrée ou sans œuvre : null ; signal inconnu : niveau ; plage absen
   assert.equal(normaliserLien({ entree: 'a' }), null);
   assert.equal(normaliserLien('n/a'), null);
   const l = normaliserLien({ entree: ' a ', oeuvre: 'x', signal: 'voix', gain: -1 });
-  assert.deepEqual(l, { entree: 'a', oeuvre: 'x', signal: 'niveau', min: undefined, max: undefined, bas: 0, haut: 1, gain: 1 });
+  assert.deepEqual(l, { entree: 'a', oeuvre: 'x', signal: 'niveau', hz: undefined, min: undefined, max: undefined, bas: 0, haut: 1, gain: 1, ...ENVELOPPE_DEFAUT });
 });
 
 test('les cinq signaux sont nommés, niveau d\'abord', () => {
-  assert.deepEqual(SIGNAUX.map((s) => s.cle), ['niveau', 'basse', 'medium', 'aigu', 'crete']);
+  assert.deepEqual(SIGNAUX.map((s) => s.cle), ['niveau', 'basse', 'medium', 'aigu', 'crete', 'bande']);
 });
 
 test('liensDuModele : `liens` plus l\'ancien `audio` (le niveau de l\'œuvre elle-même), sans doublon', () => {
   const m = { liens: [{ entree: 'a', oeuvre: 'autre', signal: 'aigu' }], audio: { entree: 'b', gain: 0.5 } };
   const l = liensDuModele(m, 'moi');
   assert.equal(l.length, 2);
-  assert.deepEqual(l[1], { entree: 'b', oeuvre: 'moi', signal: 'niveau', min: undefined, max: undefined, bas: 0, haut: 1, gain: 0.5 });
+  assert.deepEqual(l[1], { entree: 'b', oeuvre: 'moi', signal: 'niveau', hz: undefined, min: undefined, max: undefined, bas: 0, haut: 1, gain: 0.5, ...ENVELOPPE_DEFAUT });
   // l'ancien n'ajoute rien si un lien nomme déjà son entrée
   assert.equal(liensDuModele({ liens: [{ entree: 'b', oeuvre: 'x' }], audio: { entree: 'b' } }, 'moi').length, 1);
   assert.deepEqual(liensDuModele(null, 'moi'), []);
@@ -115,6 +115,83 @@ test('fenetreObservee : arrondie au centième, ouverte d\'un rien, jamais plus �
   assert.deepEqual(fenetreObservee(0, 0), { bas: 0, haut: 0.05 });
   assert.deepEqual(fenetreObservee(0.99, 1), { bas: 0.95, haut: 1 });
   assert.deepEqual(fenetreObservee(NaN, undefined), { bas: 0, haut: 0.05 });
+});
+
+groupe('le passe-bande (signal « bande », deux fréquences)');
+
+test('normaliserHz : défaut 80–4 000, bornes 10–20 000, remise dans l\'ordre, jamais vide', () => {
+  assert.deepEqual(normaliserHz(undefined), [80, 4000]);
+  assert.deepEqual(normaliserHz([40, 120]), [40, 120]);
+  assert.deepEqual(normaliserHz([120, 40]), [40, 120]);
+  assert.deepEqual(normaliserHz([-5, 1e6]), [10, 20000]);
+  assert.deepEqual(normaliserHz([500, 500]), [500, 501]);
+  assert.deepEqual(normaliserHz(['a', 300]), [80, 300]);
+});
+
+test('un lien « bande » porte ses Hz normalisés ; les autres signaux n\'en portent pas', () => {
+  const l = normaliserLien({ entree: 'a', oeuvre: 'x', signal: 'bande', hz: [6000, 12000] });
+  assert.deepEqual(l.hz, [6000, 12000]);
+  assert.deepEqual(normaliserLien({ entree: 'a', oeuvre: 'x', signal: 'bande' }).hz, [80, 4000]);
+  assert.equal(normaliserLien({ entree: 'a', oeuvre: 'x', signal: 'basse', hz: [1, 2] }).hz, undefined);
+});
+
+test('casesHz : les cases entre deux fréquences, bornées au spectre, jamais à l\'envers', () => {
+  assert.deepEqual(casesHz(40, 120, 48000, 512), [0, 2]);       // 93,75 Hz par case
+  assert.deepEqual(casesHz(6000, 12000, 48000, 512), [64, 128]);
+  assert.deepEqual(casesHz(30000, 40000, 48000, 512), [255, 255]);
+  assert.deepEqual(casesDe('basse', 48000, 512), casesHz(20, 250, 48000, 512));
+});
+
+groupe('l\'enveloppe (Rise / Fall / courbe / inverse)');
+
+test('normaliser : attaque et retombée en ms (≥ 0, bornées), courbe > 0, inverse booléen', () => {
+  const l = normaliserLien({ entree: 'a', oeuvre: 'x', attaque: 5, retombee: 800, courbe: 0.5, inverse: true });
+  assert.deepEqual([l.attaque, l.retombee, l.courbe, l.inverse], [5, 800, 0.5, true]);
+  const d = normaliserLien({ entree: 'a', oeuvre: 'x', attaque: -3, retombee: 'vite', courbe: 0, inverse: 'oui' });
+  assert.deepEqual([d.attaque, d.retombee, d.courbe, d.inverse], [ENVELOPPE_DEFAUT.attaque, ENVELOPPE_DEFAUT.retombee, 1, false]);
+  assert.equal(normaliserLien({ entree: 'a', oeuvre: 'x', retombee: 1e9 }).retombee, 60000);
+});
+
+test('suivreEnveloppe : monte à la vitesse de l\'attaque, descend à celle de la retombée ; 0 = tout de suite', () => {
+  const l = normaliserLien({ entree: 'a', oeuvre: 'x', attaque: 100, retombee: 1000 });
+  // depuis rien : la cible
+  assert.equal(suivreEnveloppe(undefined, 0.8, 0.016, l), 0.8);
+  // montée : une constante de temps (100 ms) → 63 %
+  const m = suivreEnveloppe(0, 1, 0.1, l);
+  assert.ok(Math.abs(m - 0.632) < 0.01, `montée ${m}`);
+  // descente : 100 ms sur une retombée de 1 s → n'a perdu que ~10 %
+  const d = suivreEnveloppe(1, 0, 0.1, l);
+  assert.ok(Math.abs(d - 0.905) < 0.01, `descente ${d}`);
+  // instantané
+  const i = normaliserLien({ entree: 'a', oeuvre: 'x', attaque: 0, retombee: 0 });
+  assert.equal(suivreEnveloppe(0.2, 0.9, 0.016, i), 0.9);
+  assert.equal(suivreEnveloppe(0.9, 0.2, 0.016, i), 0.2);
+  // la cible est bornée
+  assert.equal(suivreEnveloppe(undefined, 3, 0.1, l), 1);
+});
+
+test('faconnerCourse : courbe 1 droite, < 1 réagit tôt, > 1 tard ; inverse retourne', () => {
+  assert.equal(faconnerCourse(normaliserLien({ entree: 'a', oeuvre: 'x' }), 0.5), 0.5);
+  assert.ok(faconnerCourse(normaliserLien({ entree: 'a', oeuvre: 'x', courbe: 0.5 }), 0.25) > 0.49);
+  assert.ok(faconnerCourse(normaliserLien({ entree: 'a', oeuvre: 'x', courbe: 2 }), 0.5) < 0.26);
+  assert.equal(faconnerCourse(normaliserLien({ entree: 'a', oeuvre: 'x', inverse: true }), 0.2), 0.8);
+  assert.equal(faconnerCourse(normaliserLien({ entree: 'a', oeuvre: 'x' }), 7), 1);
+});
+
+test('courseSuivie / resoudreLienSuivi : l\'état vit dans la Map de l\'appelant, par entrée', () => {
+  const l = normaliserLien({ entree: 'brightness', oeuvre: 'p', attaque: 0, retombee: 1000, min: 0, max: 1 });
+  const etats = new Map();
+  assert.equal(courseSuivie(l, 1, etats, 0.016), 1);
+  assert.equal(etats.get('brightness'), 1);
+  // le signal tombe à 0 : la course tient (retombée 1 s)
+  const c = courseSuivie(l, 0, etats, 0.1);
+  assert.ok(c > 0.85 && c < 0.95, `tenue ${c}`);
+  assert.ok(resoudreLienSuivi(l, entree, 0, 0.5, etats, 0.1) > 0.8);
+  // sans Map : instantané, sans erreur
+  assert.equal(resoudreLienSuivi(l, entree, 0, 0.5, null, 0.1), 0);
+  // inverse : plein signal → min
+  const inv = normaliserLien({ entree: 'b', oeuvre: 'p', inverse: true, min: 0.2, max: 1, attaque: 0 });
+  assert.equal(resoudreLienSuivi(inv, { ...entree, nom: 'b' }, 1, 0.5, new Map(), 0.016), 0.2);
 });
 
 groupe('le portail porté par une œuvre');
@@ -201,7 +278,7 @@ test('creerDancefloor : grille, réglages appliqués aux uniforms, poser, bornes
 
 test('suivre : les liens poussent les entrées depuis un service de signaux de carton', () => {
   const sol = creerDancefloor({ reglages: { brightness: 0.5 },
-    liens: [{ entree: 'brightness', oeuvre: 'pulsation', signal: 'basse', max: 1.5 }, { entree: 'nope', oeuvre: 'x' }, 'invalide'] });
+    liens: [{ entree: 'brightness', oeuvre: 'pulsation', signal: 'basse', max: 1.5, attaque: 0, retombee: 0 }, { entree: 'nope', oeuvre: 'x' }, 'invalide'] });
   assert.equal(sol.liens.length, 2);   // l'invalide est écarté ; l'entrée inconnue reste un lien, sans effet
   const signaux = { valeur: (id, s) => (id === 'pulsation' && s === 'basse' ? 0.5 : 0) };
   sol.suivre(signaux);

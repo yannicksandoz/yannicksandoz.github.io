@@ -9,7 +9,7 @@ import { scaleObjetUV } from './textures.js';
 import { jeuDeSurface, habillerModele } from './matieres.js';
 import { ombreDeContact } from './ombres.js';
 import { choisirSource, supportAudio, chargerAvecRepli } from './formats-audio.js';
-import { liensDuModele, resoudreLien } from './liens.js';
+import { liensDuModele, resoudreLienSuivi } from './liens.js';
 import { estFluide } from './style.js';
 import { ajouterLigne, patcherArbreLignes } from './lignes-lumiere.js';
 
@@ -1537,7 +1537,9 @@ export class Artwork {
         for (const lien of liens) {
           const e = this._isfEcran.entrees.find((x) => x.nom === lien.entree);
           if (!e) continue;
-          const v = resoudreLien(lien, e, this.app.signaux.valeur(lien.oeuvre, lien.signal), reglages[e.nom]);
+          // l'enveloppe du lien garde sa course d'une image à l'autre
+          const v = resoudreLienSuivi(lien, e, this.app.signaux.valeur(lien.oeuvre, lien.signal, lien.hz), reglages[e.nom],
+            this._etatsLiens ??= new Map(), dt);
           if (v !== null) this._isfEcran.poser(e.nom, v);
         }
       }

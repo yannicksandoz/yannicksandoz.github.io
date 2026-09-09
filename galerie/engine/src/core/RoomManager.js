@@ -995,7 +995,7 @@ export class RoomManager {
       const sol = room.dancefloor;
       if (!sol || (room.state !== 'current' && room.state !== 'adjacent')) continue;
       if (!this.app.quality.reducedMotion) sol.rendre(ctx.time);
-      sol.suivre(this.app.signaux);
+      sol.suivre(this.app.signaux, dt);
     }
     // Déplacement de la frame, relevé AVANT tout retour anticipé : c'est le
     // sens du pas (voir _vaVers), et il doit rester juste même les frames

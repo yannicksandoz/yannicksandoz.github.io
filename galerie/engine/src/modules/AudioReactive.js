@@ -1,5 +1,6 @@
 import { Module } from './Module.js';
 import { damp } from '../core/utils.js';
+import { suivreEnveloppe } from '../core/liens.js';
 
 const BANDS = {
   low: [20, 250],
@@ -20,6 +21,10 @@ const BANDS = {
  *  - lightBoost    (défaut 2.5)  : multiplicateur de la lumière d'appoint
  *  - gate          (défaut 0.05) : seuil sous lequel le niveau est nul
  *  - smoothing     (défaut 9)    : réactivité du lissage (grand = nerveux)
+ *  - attaque, retombee (ms)      : l'enveloppe, comme sur les liens — quand
+ *                                  l'une des deux est donnée, elles
+ *                                  remplacent `smoothing` (montée et
+ *                                  descente peuvent alors différer)
  */
 export class AudioReactive extends Module {
   onAudioReady() {
@@ -47,7 +52,13 @@ export class AudioReactive extends Module {
     const gate = this.params.gate ?? 0.05;
     if (target < gate) target = 0;
 
-    this.level = damp(this.level, target, this.params.smoothing ?? 9, dt);
+    const { attaque, retombee } = this.params;
+    if (Number.isFinite(attaque) || Number.isFinite(retombee)) {
+      this.level = suivreEnveloppe(this.level, target, dt,
+        { attaque: Number.isFinite(attaque) ? attaque : 20, retombee: Number.isFinite(retombee) ? retombee : 150 });
+    } else {
+      this.level = damp(this.level, target, this.params.smoothing ?? 9, dt);
+    }
     // prefers-reduced-motion : l'émission lumineuse reste, la pulsation
     // géométrique (mouvement) est neutralisée
     const reduced = this.app.quality.reducedMotion;

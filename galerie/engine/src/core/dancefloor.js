@@ -22,7 +22,7 @@
  */
 import * as THREE from 'three';
 import { valeursDe } from './isf.js';
-import { normaliserLien, resoudreLien } from './liens.js';
+import { normaliserLien, resoudreLienSuivi } from './liens.js';
 
 /** Les entrées du dancefloor — celles du shader ISF, moins la perspective. */
 export const ENTREES_DANCEFLOOR = [
@@ -203,13 +203,15 @@ export function creerDancefloor(opt = {}) {
     /** Les liens du JSON, normalisés ; `repos` : la valeur de chaque entrée hors lien. */
     liens: (Array.isArray(opt.liens) ? opt.liens : []).map(normaliserLien).filter(Boolean),
     repos: valeursDe(ENTREES_DANCEFLOOR, opt.reglages ?? {}),
-    /** Pousse les entrées liées depuis les signaux (une fois par image). */
-    suivre(signaux) {
+    /** L'état des enveloppes, par entrée (la course précédente). */
+    etats: new Map(),
+    /** Pousse les entrées liées depuis les signaux (une fois par image, `dt` en s). */
+    suivre(signaux, dt = 1 / 60) {
       if (!signaux || !sol.liens.length) return;
       for (const lien of sol.liens) {
         const e = ENTREES_DANCEFLOOR.find((x) => x.nom === lien.entree);
         if (!e) continue;
-        const v = resoudreLien(lien, e, signaux.valeur(lien.oeuvre, lien.signal), sol.repos[e.nom]);
+        const v = resoudreLienSuivi(lien, e, signaux.valeur(lien.oeuvre, lien.signal, lien.hz), sol.repos[e.nom], sol.etats, dt);
         if (v !== null) sol.poser(e.nom, v);
       }
     },

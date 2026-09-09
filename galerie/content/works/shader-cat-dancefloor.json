@@ -41,16 +41,24 @@
         "min": 0,
         "max": 1,
         "bas": 0.6,
-        "haut": 0.85
+        "haut": 0.85,
+        "attaque": 15,
+        "retombee": 120
       },
       {
         "entree": "pupil_dilation",
         "oeuvre": "pulsation-dancefloor",
-        "signal": "crete",
+        "signal": "bande",
         "min": 0.3,
         "max": 1.0,
-        "bas": 0.25,
-        "haut": 0.45
+        "bas": 0.02,
+        "haut": 0.18,
+        "attaque": 0,
+        "retombee": 300,
+        "hz": [
+          2000,
+          6000
+        ]
       }
     ]
   },
