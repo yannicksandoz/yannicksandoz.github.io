@@ -343,5 +343,17 @@ console.log('\nmédiathèque — recensement des sons du projet');
       { author: 'A', license: 'L', sourceUrl: 'U' }), null);
 }
 
+{
+  // le libellé de ce que Ctrl+Z défera, lu d'avance (la barre et le toast le disent)
+  const h = new History({ mergeWindowMs: 600 });
+  check('rien à annuler : pas de libellé', h.prochainAnnule, null);
+  h.push({ label: 'liens du shader', do() {}, undo() {} }, 1000);
+  h.push({ label: 'couleur de face', do() {}, undo() {} }, 5000);
+  check('le prochain annulé est le dernier geste', h.prochainAnnule, 'couleur de face');
+  h.undo();
+  check('après annulation : le geste d\'avant', h.prochainAnnule, 'liens du shader');
+  check('et le rétabli est celui qu\'on vient de défaire', h.prochainRetabli, 'couleur de face');
+}
+
 console.log(`\n${passed} réussis, ${failed} échoués\n`);
 process.exit(failed ? 1 : 0);

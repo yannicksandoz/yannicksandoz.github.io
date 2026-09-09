@@ -945,6 +945,38 @@ Vérifié dans l'éditeur : les deux sondes des liens passent inchangées
   « ce que le son fait à la pièce » (les lumières liées). Une section de
   moins, et le sens est dans le titre.
 
+**Annuler en le disant, et des mots plutôt que des sigles.**
+
+- **Ctrl+Z dit ce qu'il défait.** Chaque geste de l'éditeur déclare déjà un
+  libellé (« liens du dancefloor », « couleur de face », « ombres
+  portées ») ; il restait invisible. Désormais la barre l'annonce d'avance
+  au survol du bouton — « Annuler : liens du dancefloor » — et, au geste,
+  un toast dit « Annulé : liens du dancefloor » (« Rétabli : … » dans
+  l'autre sens, « Rien à annuler » quand la pile est vide).
+  `History.prochainAnnule` / `prochainRetabli` lisent le libellé sans
+  dépiler ; `Editor.annuler()` / `retablir()` portent le toast, clavier et
+  boutons y passent. Quatre tests.
+- **Le sonomètre du Mixage parle** : « sonie −17,2 · entendu −18,6 · écart
+  −0,6 » au lieu de « −17,2 LUFS · eff. −18,6 · −0,6 LU » ; les unités et
+  la règle (au-delà de 3 LU, l'œuvre détonne) sont dans l'info-bulle. Les
+  en-têtes des voies en direct (modèle, distance, azimut, gain) ont chacun
+  leur explication au survol.
+- **Une régression rattrapée par la sonde.** La vague précédente lisait
+  l'état des lignes de lien dans le volet Pièce avant de l'avoir créé : dans
+  une pièce SANS dancefloor (la seule qui le crée avant), le rendu levait
+  une exception avalée et le volet restait vide — l'entrée, le jardin,
+  toutes les pièces sauf le Dancefloor. C'est la sonde du sonomètre, qui
+  ouvre l'onglet Mixage depuis l'entrée, qui l'a vu ; l'état est désormais
+  créé en tête du rendu, et la sonde d'annulation vérifie d'abord que le
+  volet se rend dans l'entrée (trois onglets, 26 000 caractères).
+
+Vérifié dans l'éditeur (build auteur) : « Rien à annuler » avant tout
+geste ; après un changement de signal, la barre dit « Annuler : liens du
+dancefloor », Ctrl+Z affiche « Annulé : liens du dancefloor » et la barre
+« Rétablir : liens du dancefloor », Ctrl+Maj+Z « Rétabli : … » ; le
+sonomètre du banc de l'entrée dit « sonie −17,2 entendu −18,6 écart −0,6 »,
+« → −18 » écrit 1,1 (écart +0,2), Ctrl+Z rend 1 ; zéro erreur.
+
 **Passage en revue de la charte : zéro signalement.** Douze règles, cent
 quatre-vingt-quatorze lignes de rapport. Deux choses en sont sorties.
 
