@@ -664,6 +664,48 @@ glissé, « Avancez… » ; après un pas, « Approchez… » ; Espace devant un
 suivante, silence d'emblée ; en visite guidée, l'aide se tait tant que la
 dérive porte et revient dès qu'on l'arrête.
 
+**Le sonomètre : la sonie de chaque piste, et ce qu'elle devient.** Deux
+pistes « au même gain » ne s'entendent pas au même niveau. Mesuré au
+sonomètre (EBU R128, sonie intégrée), avec le gain de piste et le fader
+de l'œuvre appliqués, la galerie s'étalait de −11,4 LUFS (les marées
+aiguës) à −21,7 (les rayonnages) — et la cascade du jardin était à −50 :
+un enregistrement à −46 LUFS que ses gains affaiblissaient encore, donc
+inaudible sur le banc, sous les autres sources. Rien dans le JSON ne le
+disait.
+
+- **`core/loudness.js`, un sonomètre pur.** Filtre K (deux biquads calculés
+  pour la fréquence d'échantillonnage réelle — 22 050, 44 100 ou 48 000 Hz),
+  blocs de 400 ms recouverts aux trois quarts, porte absolue à −70 LUFS,
+  porte relative à −10 LU, voies pesées. Dix-sept tests au nœud, dont les
+  onze WAV de la galerie contre les valeurs de ffmpeg (à 0,3 LU près), un
+  sinus à −20 dBFS qui lit −23,0 comme le veut la norme, la stéréo à +3 dB,
+  le silence sans sonie, la porte qui ignore les creux. Avec lui :
+  `niveauEffectif` (sonie + gains) et `gainPourCible` (le gain de piste qui
+  amène à la cible, au pas d'un curseur, borné).
+- **Dans la Table d'écoute**, chaque piste dépliée dit sa sonie mesurée sur
+  la piste DÉCODÉE (une fois par tampon, hors du fil de rendu), son niveau
+  effectif, son écart à la cible −18 LUFS (en orange au-delà de 3 LU), et
+  un bouton « → −18 » qui écrit au document le gain de piste qui l'y amène —
+  l'œuvre gardant son fader, Ctrl+Z rendant l'ancien. La cible n'est pas
+  une loi : un monolithe murmure, une nébuleuse gronde ; mais un écart doit
+  être un choix, pas un accident.
+- **`scripts/niveaux-sons.py`**, la même mesure hors ligne (ffmpeg,
+  ebur128) sur toutes les pistes d'un coup : tableau ou JSON, `--cible`,
+  une étoile quand la borne du curseur est atteinte — le fichier lui-même
+  est alors à normaliser. Il mesure et propose ; il n'écrit rien.
+- **La cascade, réparée à la source.** Un gain n'y pouvait rien : il aurait
+  fallu ×20, le curseur s'arrête à 2, et la crête du fichier (−19 dBFS, un
+  clic de démarrage MP3 dans la première seconde, le reste sous −30) aurait
+  fini à +7. Le fichier est donc remonté linéairement de 28 dB, le premier
+  demi-seconde coupé (−18,3 LUFS, crête −1,8 dBFS), réencodé en WebM et
+  M4A ; gain 1 et fader 0,8 : −20,2 LUFS effectifs, comme les autres
+  ambiances. Le reste de la galerie n'a pas été retouché : les écarts qui
+  restent (10 LU) sont à l'auteur, la table les lui montre désormais.
+
+Vérifié dans l'éditeur (build auteur) : le tiroir du banc de l'entrée dit
+« −17,2 LUFS · eff. −18,6 · −0,6 LU », « → −18 » écrit 1,1 au document et
+au curseur (écart +0,2), Ctrl+Z rend 1.
+
 **Passage en revue de la charte : zéro signalement.** Douze règles, cent
 quatre-vingt-quatorze lignes de rapport. Deux choses en sont sorties.
 

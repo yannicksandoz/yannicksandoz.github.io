@@ -58,7 +58,7 @@
     {
       "file": "assets/freesound/waterfall-nan-lian-garden-zen-848184.mp3",
       "radius": 12,
-      "gain": 0.95,
+      "gain": 1,
       "source": "freesound",
       "credit": {
         "author": "ivolipa",
@@ -71,5 +71,5 @@
       }
     }
   ],
-  "baseGain": 0.65
+  "baseGain": 0.8
 }
