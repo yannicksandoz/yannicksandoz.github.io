@@ -21,6 +21,9 @@ import { mountMinimap, minimapActive } from './ui/Carte.js';
 import { creerChrono } from './core/chrono.js';
 import { monterPriseEnMain } from './ui/PriseEnMain.js';
 import { oeuvresDe } from './core/catalogue.js';
+import { importerChunk, ecouterPreloadVite, surVersionPerimee, rechauffer } from './core/chunks.js';
+import { prechargerLoader } from './core/modelLoaders.js';
+import { installerRayons } from './core/rayons.js';
 
 // LE CHRONO DU DÉMARRAGE : la première marque est posée ici, au moment où
 // le code s'exécute — tout ce qui précède (HTML, téléchargement et lecture
@@ -59,7 +62,7 @@ function hasWebGL2() {
 
 /** La visite audio est chargée à la demande — jamais pour qui ne l'ouvre pas. */
 async function startAudioTour(app) {
-  const { mountAudioTour } = await import('./ui/AudioTour.js');
+  const { mountAudioTour } = await importerChunk(() => import('./ui/AudioTour.js'));
   return mountAudioTour(app);
 }
 
@@ -80,6 +83,11 @@ async function boot() {
   // jetons la lisent au moment où ils naissent.
   mountMemoire(app);
   app.ui = new UI();
+  // La page peut vieillir sous les pieds du visiteur (déploiement pendant sa
+  // visite) : un morceau qui manque est signalé, et l'interface propose de
+  // recharger plutôt que de laisser des cubes rouges (core/chunks.js).
+  ecouterPreloadVite();
+  surVersionPerimee(() => app.ui.signalerVersionPerimee?.());
   app.ui.bindLoading(app.loading);
   app.ui.mountRoomBadge(app);
   // compteur FPS (menu → Réglages → Développement) : s'il était actif à la
@@ -155,6 +163,20 @@ async function boot() {
     // dans l'URL, le bilan s'imprime alors en console.
     app.ui.onComplet = () => {
       chrono.marquer('complet');
+      // RÉCHAUFFER, au calme : les morceaux dont la visite aura besoin sont
+      // importés d'avance. Une fois en mémoire, un redéploiement ne peut
+      // plus les retirer — le visiteur qui a ouvert la page avant ne verra
+      // pas ses bancs devenir des cubes rouges (voir core/chunks.js).
+      const modeles = works.filter((w) => w.model?.url);
+      const chargeurs = [];
+      if (modeles.some((w) => !/\.obj$/i.test(w.model.url))) chargeurs.push(() => prechargerLoader('gltf'));
+      if (modeles.some((w) => /\.obj$/i.test(w.model.url))) chargeurs.push(() => prechargerLoader('obj'), () => prechargerLoader('mtl'));
+      if (works.some((w) => w.model?.type === 'isf')) chargeurs.push(() => importerChunk(() => import('./core/isf-ecran.js')));
+      chargeurs.push(() => installerRayons(THREE));
+      chargeurs.push(() => importerChunk(() => import('./ui/VisitMenu.js')));
+      chargeurs.push(() => importerChunk(() => import('./ui/AudioTour.js')));
+      if (works.some((w) => w.scan)) chargeurs.push(() => importerChunk(() => import('./core/scans.js')));
+      rechauffer(chargeurs).then((bilan) => { app.chunksRechauffes = bilan; });
       if (new URLSearchParams(location.search).has('chrono')) {
         // le nombre de programmes GPU compilés dit ce que la première
         // image a coûté en shaders — un coût que le chrono ne voit qu'en
@@ -242,7 +264,7 @@ async function boot() {
   // du menu de visite — trop petit pour être lu, et doublé par la liste
   // juste dessous.
   app.ouvrirCarte = async () => {
-    const { mountCartePleine } = await import('./ui/Carte.js');
+    const { mountCartePleine } = await importerChunk(() => import('./ui/Carte.js'));
     mountCartePleine(app).ouvrir();
   };
 
@@ -255,7 +277,7 @@ async function boot() {
     if (app.editor?.enabled) return;       // l'éditeur a son propre Échap
     if (app.activeFocus) return;           // FocusCamera gère le recul
     if (app.audioTour?.active) return;     // la visite audio gère les siens
-    const { mountVisitMenu } = await import('./ui/VisitMenu.js');
+    const { mountVisitMenu } = await importerChunk(() => import('./ui/VisitMenu.js'));
     mountVisitMenu(app);
   });
 }
@@ -326,7 +348,7 @@ function bootHeadless() {
     try {
       // Tout ce qui peut échouer passe AVANT le démarrage du moteur : un
       // échec ici laisse zéro boucle, zéro AudioContext débloqué derrière lui.
-      const { mountAudioTour } = await import('./ui/AudioTour.js');
+      const { mountAudioTour } = await importerChunk(() => import('./ui/AudioTour.js'));
       if (!headlessApp) {
         const [works, rooms, reglages] = await Promise.all([
           loadWorks(), loadRooms(), loadReglages()]);

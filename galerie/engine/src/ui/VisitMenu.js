@@ -16,6 +16,7 @@
  * (liste → en-tête → sortie) — quand elle est active, le menu ne s'ouvre
  * pas (garde dans main.js).
  */
+import { importerChunk } from '../core/chunks.js';
 import { peindreLibelles } from '../core/clavier.js';
 import { t, lang, setLang, onLangChange } from '../core/i18n.js';
 import { fpsMeterEnabled, setFpsMeter } from './FpsMeter.js';
@@ -215,7 +216,7 @@ export class VisitMenu {
     // « Laisse-toi porter » : la dérive démarre, le menu s'efface
     el.querySelector('#vm-derive').addEventListener('click', async () => {
       this.hide();
-      const { mountDerive } = await import('../core/Derive.js');
+      const { mountDerive } = await importerChunk(() => import('../core/Derive.js'));
       mountDerive(this.app).demarrer();
     });
 
@@ -349,7 +350,7 @@ export class VisitMenu {
 
   async _toAudioTour() {
     this.hide();
-    const { mountAudioTour } = await import('./AudioTour.js');
+    const { mountAudioTour } = await importerChunk(() => import('./AudioTour.js'));
     mountAudioTour(this.app);
   }
 

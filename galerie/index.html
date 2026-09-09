@@ -142,6 +142,13 @@
   <button id="edit-toggle" title="Mode édition (touche à gauche du 1)" aria-label="Mode édition">✎</button>
   <!-- editor:end -->
 
+  <!-- La page a vieilli (déploiement pendant la visite) : un morceau manque,
+       on propose de recharger (UI.signalerVersionPerimee, core/chunks.js) -->
+  <div id="version-perimee" hidden role="status">
+    <span data-perime-msg>Une nouvelle version de la galerie est en ligne : rechargez la page pour que tout s'affiche.</span>
+    <button type="button" data-perime-btn>Recharger</button>
+  </div>
+
   <!-- Fondu de transition entre pièces -->
   <div id="room-fade"></div>
 

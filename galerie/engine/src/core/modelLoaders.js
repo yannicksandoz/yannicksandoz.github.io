@@ -1,3 +1,4 @@
+import { importerChunk } from './chunks.js';
 import * as THREE from 'three';
 import { reessayer } from './utils.js';
 
@@ -35,17 +36,20 @@ function makeManager() {
   return manager;
 }
 
+/** Importer d'avance un lecteur (voir chunks.rechauffer) : après, un redéploiement ne peut plus le retirer. */
+export function prechargerLoader(kind) { return getLoader(kind); }
+
 async function getLoader(kind) {
   if (loaders[kind]) return loaders[kind];
   const manager = makeManager();
   if (kind === 'gltf') {
-    const { GLTFLoader } = await import('three/addons/loaders/GLTFLoader.js');
+    const { GLTFLoader } = await importerChunk(() => import('three/addons/loaders/GLTFLoader.js'));
     loaders.gltf = new GLTFLoader(manager);
   } else if (kind === 'obj') {
-    const { OBJLoader } = await import('three/addons/loaders/OBJLoader.js');
+    const { OBJLoader } = await importerChunk(() => import('three/addons/loaders/OBJLoader.js'));
     loaders.obj = new OBJLoader(manager);
   } else if (kind === 'mtl') {
-    const { MTLLoader } = await import('three/addons/loaders/MTLLoader.js');
+    const { MTLLoader } = await importerChunk(() => import('three/addons/loaders/MTLLoader.js'));
     loaders.mtl = new MTLLoader(manager);
   }
   return loaders[kind];

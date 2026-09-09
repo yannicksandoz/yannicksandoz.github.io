@@ -16,6 +16,7 @@
  * rapide), donc on rend UNE frame exprès, dans le même tour de boucle que
  * la lecture, et le pixel est encore là. PNG téléchargé, rien d'envoyé.
  */
+import { importerChunk } from '../core/chunks.js';
 import { t, onLangChange } from '../core/i18n.js';
 
 /* Trait 24×24, rond aux bouts — le style d'icône le plus lisible en 1rem. */
@@ -68,14 +69,14 @@ export class Toolbox {
 
     el.querySelector('#tb-carte').addEventListener('click', async () => {
       if (this.app.ouvrirCarte) return this.app.ouvrirCarte();
-      const { mountCartePleine } = await import('./Carte.js');
+      const { mountCartePleine } = await importerChunk(() => import('./Carte.js'));
       mountCartePleine(this.app).ouvrir();
     });
 
     el.querySelector('#tb-capture').addEventListener('click', () => this._capturer());
 
     el.querySelector('#tb-derive').addEventListener('click', async () => {
-      const { mountDerive } = await import('../core/Derive.js');
+      const { mountDerive } = await importerChunk(() => import('../core/Derive.js'));
       const derive = mountDerive(this.app);
       if (derive.active) derive.arreter();
       else derive.demarrer();

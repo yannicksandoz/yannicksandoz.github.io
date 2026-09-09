@@ -99,6 +99,20 @@ html, body {
 /* en vol plané : l'aide change de ton, on ne marche plus */
 #hint.en-vol { color: #cfe4ff; background: rgba(24, 44, 78, 0.72); }
 
+/* ------------------------------------------- nouvelle version en ligne --- */
+#version-perimee {
+  position: fixed; top: calc(0.8rem + env(safe-area-inset-top)); left: 50%; transform: translateX(-50%);
+  z-index: 30; max-width: min(92vw, 34rem); display: flex; gap: 0.8rem; align-items: center;
+  padding: 0.55rem 0.9rem; border-radius: 0.8rem;
+  background: rgba(30, 24, 10, 0.88); color: #f2e3b8; border: 1px solid rgba(255, 176, 80, 0.45);
+  font-size: 0.78rem; line-height: 1.35; box-shadow: 0 6px 24px rgba(0, 0, 0, 0.4);
+}
+#version-perimee button {
+  flex: none; padding: 0.35rem 0.8rem; border-radius: 0.6rem; cursor: pointer;
+  background: #ffb050; color: #1a1206; border: 0; font-weight: 600; font-size: 0.78rem;
+}
+#version-perimee[hidden] { display: none; }
+
 /* --------------------------------------------- transition entre pièces --- */
 #room-fade {
   position: fixed; inset: 0; z-index: 28;

@@ -10,6 +10,7 @@ import { jeuDeSurface, habillerModele } from './matieres.js';
 import { ombreDeContact } from './ombres.js';
 import { choisirSource, supportAudio, chargerAvecRepli } from './formats-audio.js';
 import { liensDuModele, resoudreLienSuivi } from './liens.js';
+import { importerChunk } from './chunks.js';
 import { estFluide } from './style.js';
 import { ajouterLigne, patcherArbreLignes } from './lignes-lumiere.js';
 
@@ -585,7 +586,7 @@ export class Artwork {
         // un SCAN gaussien (splatting) : la bibliothèque de rendu vit dans
         // son propre morceau et n'est téléchargée qu'ici, à la première
         // œuvre qui en a besoin — voir `core/scans.js`
-        const { creerScan } = await import('./scans.js');
+        const { creerScan } = await importerChunk(() => import('./scans.js'));
         const holder = await this.app.loading.track(
           creerScan(this._resolve(cfg.scan), { taille: cfg.scanTaille }), essentiel
         );
@@ -631,8 +632,12 @@ export class Artwork {
       // échec non fatal : l'œuvre garde son placeholder, la visite continue.
       // Cause fréquente pour une URL distante : CORS refusé, 404 ou réseau.
       console.error(`[galerie] Visuel de « ${cfg.id} » impossible à charger :`, err);
-      this.setMediaError(
-        `visuel illisible (${cfg.scan ?? cfg.image ?? cfg.video ?? cfg.model?.url ?? '?'})`);
+      // Un morceau du build qui n'existe plus (page ouverte avant un
+      // redéploiement) n'est pas un média illisible : c'est la page qui a
+      // vieilli — chunks.js l'a signalé, l'interface dit de recharger.
+      this.setMediaError(err?.code === 'version-perimee'
+        ? 'nouvelle version de la galerie en ligne — rechargez la page'
+        : `visuel illisible (${cfg.scan ?? cfg.image ?? cfg.video ?? cfg.model?.url ?? '?'})`);
     }
   }
 
@@ -756,7 +761,7 @@ export class Artwork {
    * topographie animée.
    */
   async _buildISF(model) {
-    const { EcranISF } = await import('./isf-ecran.js');
+    const { EcranISF } = await importerChunk(() => import('./isf-ecran.js'));
     const lire = async (m) => m.glsl
       ?? await (await fetch(this._resolve(m.file))).text();
     // le fond, puis les CALQUES (voir isf-ecran.js) : un calque illisible

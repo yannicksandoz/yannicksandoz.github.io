@@ -39,6 +39,8 @@ const FR = {
   'geste.approcher.touch': 'Approchez une œuvre : touchez-la',
   'enter.compte': '{oeuvres} œuvres à découvrir dans {salles} salles',
   'focus.entrer': 'Entrer dans « {salle} »',
+  'perime.msg': 'Une nouvelle version de la galerie est en ligne : rechargez la page pour que tout s\'affiche.',
+  'perime.btn': 'Recharger',
 
   'nogl.sub': "Votre navigateur ne prend pas en charge WebGL2, nécessaire à l'affichage 3D. La galerie reste entièrement visitable à l'oreille : navigation au clavier, sons spatialisés — casque recommandé.",
   'nogl.start': 'Visite audio',
@@ -197,6 +199,8 @@ const EN = {
   'geste.approcher.touch': 'Approach a work: tap it',
   'enter.compte': '{oeuvres} works to discover in {salles} rooms',
   'focus.entrer': 'Enter “{salle}”',
+  'perime.msg': 'A new version of the gallery is online: reload the page so everything shows.',
+  'perime.btn': 'Reload',
 
   'nogl.sub': 'Your browser does not support WebGL2, which the 3D display requires. The gallery remains fully visitable by ear: keyboard navigation, spatialised sound — headphones recommended.',
   'nogl.start': 'Audio tour',

@@ -1,3 +1,4 @@
+import { importerChunk } from './chunks.js';
 /**
  * LES RAYONS — un arbre de volumes englobants, mais SEULEMENT S'IL SERT.
  *
@@ -119,7 +120,7 @@ export async function installerRayons(THREE) {
   if (etat !== 'dormant') return etat === 'pret';
   etat = 'en-cours';
   try {
-    bvh = await import('three-mesh-bvh');
+    bvh = await importerChunk(() => import('three-mesh-bvh'));
     THREE.BufferGeometry.prototype.computeBoundsTree = bvh.computeBoundsTree;
     THREE.BufferGeometry.prototype.disposeBoundsTree = bvh.disposeBoundsTree;
     // `InstancedMesh` garde le sien, qui délègue au nôtre par instance —

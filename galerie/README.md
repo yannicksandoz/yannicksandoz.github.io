@@ -977,6 +977,49 @@ dancefloor », Ctrl+Z affiche « Annulé : liens du dancefloor » et la barre
 sonomètre du banc de l'entrée dit « sonie −17,2 entendu −18,6 écart −0,6 »,
 « → −18 » écrit 1,1 (écart +0,2), Ctrl+Z rend 1 ; zéro erreur.
 
+**Les cubes rouges : la page qui a vieilli sous les pieds du visiteur.**
+Un cube rouge, c'est la silhouette d'attente d'une œuvre dont le visuel n'a
+pas pu se charger. Balayer les dix-sept pièces du build visiteur en local
+n'en montre aucun : 171 œuvres, zéro erreur, zéro réponse HTTP ≥ 400. La
+cause est ailleurs, et la reconstruction du commit du matin l'a mise à nu :
+le morceau différé du lecteur de modèles s'appelait
+`GLTFLoader-B4bV-5sg.js` le matin, `GLTFLoader-DIVClON-.js` le soir. Son
+empreinte change à chaque déploiement où son voisinage change. Un visiteur
+qui a OUVERT la page avant un déploiement et entre ensuite dans une salle à
+modèles demande un fichier qui n'existe plus : 404, et chaque banc, chaque
+pierre, la lune deviennent des cubes rouges. Sept déploiements dans la
+journée, c'est sept fois ce piège. Trois réponses, dans `core/chunks.js`.
+
+- **Réchauffer, au calme.** Quatre secondes après la porte, à un moment
+  creux, les morceaux dont la visite aura besoin sont importés d'avance,
+  l'un après l'autre : le lecteur GLB (OBJ/MTL seulement si le contenu en
+  a), les écrans ISF, les rayons, le menu de visite, la visite audio, les
+  scans s'il y en a. Une fois dans la mémoire des modules, un
+  redéploiement ne peut plus les retirer — la visite est immunisée passé
+  ses premières secondes, et rien n'est ajouté à la première minute.
+- **Redemander, puis le dire.** Tout import différé passe par
+  `importerChunk` : un morceau qui ne vient pas est redemandé une fois (le
+  réseau d'un téléphone a des creux) ; s'il manque toujours, la version est
+  déclarée périmée — un bandeau propose de recharger (« Une nouvelle version
+  de la galerie est en ligne : rechargez la page pour que tout s'affiche »,
+  fr/en), et la silhouette de l'œuvre porte ce message plutôt que « visuel
+  illisible ». Une exception DU module (pas du réseau) remonte telle
+  quelle, sans nouvel essai. L'événement `vite:preloadError` alimente le
+  même signal. Six tests au nœud (`test-chunks.mjs`).
+- **Une sonde qui reste** : `npm run sonde:visuels` balaie toutes les pièces
+  du build servi en local, relève chaque œuvre sans visuel avec sa cause,
+  refait un tour dans les premières pièces (libération puis rechargement),
+  et en mode `PERIME=1` coupe le morceau GLTFLoader pour vérifier le
+  bandeau et les messages. Playwright et un Chromium suffisent.
+
+Vérifié (build visiteur servi en local, rendu logiciel) : dix-sept pièces
+puis retour dans l'entrée et le jardin, 171 œuvres, zéro rouge, zéro œuvre
+sans visuel, zéro réponse HTTP ≥ 400, bandeau caché, six morceaux
+réchauffés. Puis en mode page périmée (morceau GLTFLoader coupé) : le
+bandeau apparaît, les neuf modèles de l'entrée et du jardin sont rouges et
+disent tous « nouvelle version de la galerie en ligne — rechargez la page ».
+Les suites au nœud passent (1 061 vérifications).
+
 **Passage en revue de la charte : zéro signalement.** Douze règles, cent
 quatre-vingt-quatorze lignes de rapport. Deux choses en sont sorties.
 

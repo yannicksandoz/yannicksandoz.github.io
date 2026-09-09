@@ -1,4 +1,5 @@
 import { collectCredits, collectSources } from '../core/credits.js';
+import { importerChunk } from '../core/chunks.js';
 import { pointeurGrossier } from '../core/utils.js';
 import { t, traduireDom, onLangChange } from '../core/i18n.js';
 import { peindreLibelles } from '../core/clavier.js';
@@ -65,6 +66,24 @@ export class UI {
    * 16 salles », compté depuis le contenu au moment où la galerie est lue —
    * jamais un chiffre à tenir à jour à la main.
    */
+  /**
+   * « Nouvelle version en ligne » : un morceau du build n'existe plus sur le
+   * serveur (page ouverte avant un redéploiement). Un bandeau, une fois, avec
+   * le seul remède : recharger. Le reste de la visite continue.
+   */
+  signalerVersionPerimee() {
+    const el = document.getElementById('version-perimee');
+    if (!el || !el.hidden) return;
+    const msg = el.querySelector('[data-perime-msg]');
+    const btn = el.querySelector('[data-perime-btn]');
+    if (msg) msg.textContent = t('perime.msg');
+    if (btn) {
+      btn.textContent = t('perime.btn');
+      btn.addEventListener('click', () => window.location.reload(), { once: true });
+    }
+    el.hidden = false;
+  }
+
   setCompte(oeuvres, salles) {
     this._compte = { oeuvres, salles };
     this._peindreCompte();
@@ -534,7 +553,7 @@ export class UI {
     label();
     onLangChange(label);
     btn.addEventListener('click', async () => {
-      const { mountVisitMenu } = await import('./VisitMenu.js');
+      const { mountVisitMenu } = await importerChunk(() => import('./VisitMenu.js'));
       mountVisitMenu(app);
     });
   }

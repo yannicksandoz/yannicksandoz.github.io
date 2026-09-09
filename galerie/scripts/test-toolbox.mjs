@@ -60,11 +60,12 @@ test('montée dans les deux entrées 3D de main.js', () => {
   assert.equal(main.split('mountToolbox(app)').length - 1, 2,
     'une entrée 3D sans toolbox (lien profond OU accueil)');
 });
-test('rien de l\'éditeur : imports limités à i18n, Carte, Derive', () => {
+test('rien de l\'éditeur : imports limités à i18n, Carte, Derive, chunks', () => {
   const imports = [...toolbox.matchAll(/import\s*(?:\{[^}]*\}\s*from\s*)?\(?['"]([^'"]+)['"]/g)]
     .map((m) => m[1]);
   for (const i of imports) {
-    assert.ok(['../core/i18n.js', './Carte.js', '../core/Derive.js'].includes(i),
+    // chunks.js : les imports différés passent par importerChunk (page périmée)
+    assert.ok(['../core/i18n.js', './Carte.js', '../core/Derive.js', '../core/chunks.js'].includes(i),
       `import inattendu : ${i}`);
   }
 });
