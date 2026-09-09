@@ -194,7 +194,6 @@ async function boot() {
     };
     window.addEventListener('pointerdown', geste);
     window.addEventListener('keydown', geste);
-    app.ui.maybeShowTouchHint(app.quality.isMobile);
     mountProgression(app).montrerBadge();
     mountJetons(app);     // avant la dérive : elle lit le porte-monnaie
     mountBoussole(app);
@@ -221,8 +220,7 @@ async function boot() {
       mountJetons(app);
       await startAudioTour(app);
     } else {
-      app.ui.maybeShowTouchHint(app.quality.isMobile);
-      // Les compagnons de la visite 3D : la progression (badge-catalogue),
+        // Les compagnons de la visite 3D : la progression (badge-catalogue),
       // les jetons ◈, la boussole d'écran, la dérive guidée.
       mountProgression(app).montrerBadge();
       mountJetons(app);   // avant la dérive : elle lit le porte-monnaie

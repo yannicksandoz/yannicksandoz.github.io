@@ -645,9 +645,17 @@ suites données au chrono, sur l'accueil et les trente premières secondes.
   molette), un pas au clavier, une œuvre approchée par clic ou Espace (les
   deux passent par le même gestionnaire). La dérive fait taire l'aide tant
   qu'elle porte (on ne demande pas d'avancer à qui est promené) et la rend
-  quand le visiteur reprend la main ; le vol plané garde la parole. Rien de
-  tout cela au doigt : le tactile a son encart des trois gestes au premier
-  lancement.
+  quand le visiteur reprend la main ; le vol plané garde la parole.
+- **Au doigt aussi, les mêmes trois gestes**, dits avec les mots du doigt :
+  « glissez un doigt », « le manche en bas à gauche, ou deux doigts »,
+  « touchez-la ». L'encart de six secondes du premier lancement n'existe
+  plus ; sur petit écran la bulle vit en haut, sous la rangée d'outils, hors
+  du pouce. Un doigt qui glisse compte pour regarder, deux doigts pour
+  avancer (le pan de l'orbite), le manche passe par la même entrée que le
+  clavier. Et un tap reçoit la tolérance du réticule (`viseeAutour`, deux
+  couronnes à 7 et 14 % du petit côté) : un tap exact ratait un banc à son
+  centre alors que le réticule, à côté, le trouvait — le doigt n'est pas un
+  pixel.
 
 Vérifié au navigateur, à la souris : l'accueil porte « 18 œuvres à
 découvrir dans 16 salles » ; après l'entrée, « Regardez… » ; après un

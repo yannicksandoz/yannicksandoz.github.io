@@ -7,13 +7,13 @@
  * contrôles disent ce que le visiteur vient de faire (`faire('regarder')`,
  * `faire('avancer')`, `faire('approcher')`).
  *
- * Pas au doigt : le tactile a son aide propre (l'encart des trois gestes au
- * premier lancement) et sa ligne du bas est masquée sur petit écran.
+ * Au doigt aussi : les mêmes trois gestes, dits avec les mots du doigt (un
+ * doigt pour regarder, le manche ou deux doigts pour avancer, toucher une
+ * œuvre) — l'encart de six secondes du premier lancement n'existe plus.
  */
 import { creerGestes, lireGestes, ecrireGestes } from '../core/gestes.js';
 
 export function monterPriseEnMain(app) {
-  if (app.ui?.tactile) return null;
   let memoire = null;
   try { memoire = window.localStorage; } catch { memoire = null; }
   const gestes = creerGestes({

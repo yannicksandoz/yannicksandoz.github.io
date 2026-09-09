@@ -671,10 +671,17 @@ export class App {
    * pour la voir s'allumer ; un regard un peu à côté ne montrait rien.
    * Dix-sept rayons au plus, dix fois par seconde : rien.
    */
-  viseeCentre(raycaster = this._raycasterCentre ??= new THREE.Raycaster(),
+  viseeCentre(raycaster, ndc) {
+    return this.viseeAutour(window.innerWidth / 2, window.innerHeight / 2, raycaster, ndc);
+  }
+
+  /**
+   * La même visée à tolérance, AUTOUR D'UN POINT : celui du doigt. Un tap
+   * exact ratait un banc à son centre (le dossier est mince) alors que le
+   * réticule, à côté, le trouvait — le doigt mérite la même marge.
+   */
+  viseeAutour(cx, cy, raycaster = this._raycasterCentre ??= new THREE.Raycaster(),
     ndc = this._ndcCentre ??= new THREE.Vector2()) {
-    const cx = window.innerWidth / 2;
-    const cy = window.innerHeight / 2;
     const centre = this.pickAt(cx, cy, raycaster, ndc);
     if (centre) return centre;
     const petit = Math.min(window.innerWidth, window.innerHeight);
@@ -700,7 +707,11 @@ export class App {
     });
     this.renderer.domElement.addEventListener('pointerup', (e) => {
       if (Math.hypot(e.clientX - downX, e.clientY - downY) > 6) return;
-      const hit = this.pickAt(e.clientX, e.clientY, raycaster, ndc);
+      // au doigt, la même tolérance que le réticule (viseeAutour) : un
+      // tap n'est pas un pixel
+      const hit = e.pointerType === 'touch'
+        ? this.viseeAutour(e.clientX, e.clientY, raycaster, ndc)
+        : this.pickAt(e.clientX, e.clientY, raycaster, ndc);
       for (const h of this._clickHandlers) {
         if (h(hit, e)) return; // un handler peut consommer le clic
       }

@@ -107,19 +107,6 @@ html, body {
 }
 #room-fade.active { opacity: 1; pointer-events: auto; }
 
-/* ------------------------------------------------------- aide tactile --- */
-#touch-hint {
-  position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
-  z-index: 22; padding: 1.2rem 1.8rem; border-radius: 0.8rem;
-  background: var(--panel); backdrop-filter: blur(12px);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  text-align: center; pointer-events: none;
-  transition: opacity 0.8s ease;
-}
-#touch-hint.leaving { opacity: 0; }
-#touch-hint p { margin: 0.35rem 0; font-size: 0.85rem; color: var(--dim); }
-#touch-hint b { color: var(--fg); font-weight: 500; }
-
 /* ---------------------------------------------------- chapeau (TipJar) --- */
 #tipjar-overlay {
   position: fixed; left: 50%; top: 50%; transform: translate(-50%, -50%);
@@ -323,7 +310,10 @@ html, body {
   #focus-overlay { bottom: 2vh; padding: 1rem 1.1rem; }
   #focus-overlay h2 { font-size: 1.1rem; }
   #focus-overlay p { font-size: 0.82rem; }
-  #hint { display: none; }
+  /* la ligne des touches n'a pas sa place au doigt ; la prise en main (un
+     geste à la fois) si : elle monte sous la barre du haut, hors du pouce */
+  #hint:not(.geste) { display: none; }
+  #hint.geste { bottom: auto; top: calc(8.6rem + env(safe-area-inset-top, 0px)); max-width: 92vw; text-align: center; }
   /* Sur un petit écran, la minimap prend une place que la vue n'a pas à
      donner : elle rétrécit et remonte au-dessus des pastilles. */
   :root { --minimap: 5.2rem; }
@@ -355,7 +345,7 @@ html, body {
 
 /* --------------------------------------------- prefers-reduced-motion --- */
 @media (prefers-reduced-motion: reduce) {
-  #enter-screen, #touch-hint { transition: none; }
+  #enter-screen { transition: none; }
   #focus-overlay, #tipjar-overlay { animation: none; }
 }
 
@@ -1022,6 +1012,6 @@ body.editing #minimap { display: none; }
 }
 
 /* L'accueil dit ce qu'il y a à trouver : « 18 œuvres à découvrir dans 16 salles » */
-.enter-compte { margin: 0.6rem 0 1.4rem; color: #ffd97a; font-size: 0.92rem; letter-spacing: 0.03em; }
+.enter-compte { margin: 0.6rem 0 1.4rem; color: #cbb98a; opacity: 0.85; font-size: 0.92rem; letter-spacing: 0.03em; }
 /* La prise en main : un geste à la fois, un peu plus lisible que l'ancienne ligne */
 #hint.geste { color: #e8e6f0; font-size: 0.8rem; background: rgba(10, 10, 18, 0.72); }

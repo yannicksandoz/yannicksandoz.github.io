@@ -166,22 +166,25 @@ export class Controls {
     // Le premier geste de la prise en main : REGARDER — un vrai glissé, bouton
     // enfoncé, qui a fait tourner l'orbite. `change` seul ne suffit pas :
     // l'amortissement le déclenche à chaque image, et une molette aussi.
+    // Au doigt : UN doigt qui glisse, c'est regarder ; DEUX doigts qui
+    // glissent, c'est avancer (le pan de l'orbite) — le manche, lui, passe
+    // par `_moveInput` comme le clavier.
     {
       const toile = app.renderer?.domElement;
-      let bouton = false;
-      let depart = null;
+      const doigts = new Map();   // pointerId → [x, y] au départ
       toile?.addEventListener('pointerdown', (e) => {
-        if (e.pointerType !== 'mouse') return;
-        bouton = true; depart = [e.clientX, e.clientY];
+        doigts.set(e.pointerId, [e.clientX, e.clientY]);
       });
       toile?.addEventListener('pointermove', (e) => {
-        if (!bouton || !depart || !this.app.gestes) return;
-        if (Math.hypot(e.clientX - depart[0], e.clientY - depart[1]) > 24) {
-          this.app.gestes.faire('regarder');
-          depart = null;
-        }
+        const depart = doigts.get(e.pointerId);
+        if (!depart || !this.app.gestes) return;
+        if (Math.hypot(e.clientX - depart[0], e.clientY - depart[1]) <= 24) return;
+        this.app.gestes.faire(doigts.size >= 2 ? 'avancer' : 'regarder');
+        doigts.set(e.pointerId, null);   // ce doigt a compté ; les autres restent
       });
-      window.addEventListener('pointerup', () => { bouton = false; depart = null; });
+      const lacher = (e) => doigts.delete(e.pointerId);
+      window.addEventListener('pointerup', lacher);
+      window.addEventListener('pointercancel', lacher);
     }
 
     window.addEventListener('keydown', (e) => {

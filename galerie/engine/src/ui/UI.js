@@ -29,7 +29,6 @@ export class UI {
     this.focusActions = document.getElementById('focus-actions');
     this.focusClose = document.getElementById('focus-close');
     this.hint = document.getElementById('hint');
-    this.touchHint = document.getElementById('touch-hint');
     this._onCloseFocus = null;
     // L'aide s'adresse à l'appareil RÉEL : un écran tactile n'a ni ZQSD ni
     // souris — lui parler de touches, c'est parler à quelqu'un d'autre.
@@ -91,9 +90,13 @@ export class UI {
     this._geste = nom ?? null;
     this._porte = Boolean(porte);
     if (this._planant) return;
-    if (!this._geste || this._porte || this.tactile) { this.hint.hidden = true; return; }
+    if (!this._geste || this._porte) { this.hint.hidden = true; return; }
     const pivot = '<span data-keylabel="pivot">A/E ou Q/E</span>';
-    this.hint.innerHTML = t(`geste.${this._geste}`, { move: MARCHE, pivot });
+    // au doigt, les mêmes gestes avec les mots du doigt (un doigt, le
+    // manche, toucher) ; à la souris, les touches, raffinées au clavier réel
+    this.hint.innerHTML = this.tactile
+      ? t(`geste.${this._geste}.touch`)
+      : t(`geste.${this._geste}`, { move: MARCHE, pivot });
     this.hint.classList.add('geste');
     this.hint.hidden = false;
     this._refineKeyLabels();
@@ -368,20 +371,6 @@ export class UI {
     if (actif) { this.hint.textContent = t('hint.fly'); this.hint.hidden = false; }
     else if (this._geste !== undefined) this.peindreGeste(this._geste, this._porte);
     else this._renderKeyTexts();
-  }
-
-  /** Aide tactile éphémère, montrée une seule fois par appareil. */
-  maybeShowTouchHint(isMobile) {
-    if (!isMobile || !this.touchHint) return;
-    try {
-      if (localStorage.getItem('galerie-touch-hint')) return;
-      localStorage.setItem('galerie-touch-hint', '1');
-    } catch { /* stockage indisponible : on montre quand même */ }
-    this.touchHint.hidden = false;
-    setTimeout(() => {
-      this.touchHint.classList.add('leaving');
-      setTimeout(() => this.touchHint.remove(), 900);
-    }, 6000);
   }
 
   showFocus(artwork, onClose) {

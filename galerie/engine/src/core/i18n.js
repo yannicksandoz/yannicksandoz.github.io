@@ -34,6 +34,9 @@ const FR = {
   'geste.regarder': 'Regardez autour de vous : glissez la souris, bouton enfoncé',
   'geste.avancer': 'Avancez : {move} ou les flèches',
   'geste.approcher': 'Approchez une œuvre : cliquez-la, ou Espace face à elle',
+  'geste.regarder.touch': 'Regardez autour de vous : glissez un doigt',
+  'geste.avancer.touch': 'Avancez : le manche en bas à gauche, ou deux doigts',
+  'geste.approcher.touch': 'Approchez une œuvre : touchez-la',
   'enter.compte': '{oeuvres} œuvres à découvrir dans {salles} salles',
 
   'nogl.sub': "Votre navigateur ne prend pas en charge WebGL2, nécessaire à l'affichage 3D. La galerie reste entièrement visitable à l'oreille : navigation au clavier, sons spatialisés — casque recommandé.",
@@ -188,6 +191,9 @@ const EN = {
   'geste.regarder': 'Look around: drag with the mouse button held',
   'geste.avancer': 'Move: {move} or the arrow keys',
   'geste.approcher': 'Approach a work: click it, or Space while facing it',
+  'geste.regarder.touch': 'Look around: drag one finger',
+  'geste.avancer.touch': 'Move: the stick bottom left, or two fingers',
+  'geste.approcher.touch': 'Approach a work: tap it',
   'enter.compte': '{oeuvres} works to discover in {salles} rooms',
 
   'nogl.sub': 'Your browser does not support WebGL2, which the 3D display requires. The gallery remains fully visitable by ear: keyboard navigation, spatialised sound — headphones recommended.',
