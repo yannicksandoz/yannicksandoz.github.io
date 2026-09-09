@@ -15,9 +15,17 @@
  * `entree` nomme l'entrée (INPUT ISF, ou paramètre du sol) ; `oeuvre` l'id
  * de l'œuvre écoutée — de la même pièce, sinon rien ne s'entend — ; `signal`
  * ce qu'on en tire (voir SIGNAUX) ; `min` et `max` la plage parcourue quand
- * le signal va de 0 à 1 (par défaut : de la valeur de repos au maximum de
- * l'entrée). La résolution est PURE : un lien, l'entrée, le signal → la
- * valeur. Les analyses vivent dans Signaux, les uniforms dans les écrans.
+ * le signal va de `bas` à `haut` (par défaut : de la valeur de repos au
+ * maximum de l'entrée, quand le signal va de 0 à 1). La résolution est
+ * PURE : un lien, l'entrée, le signal → la valeur. Les analyses vivent dans
+ * Signaux, les uniforms dans les écrans.
+ *
+ * LA FENÊTRE DU SIGNAL. Un signal mesuré ne parcourt presque jamais 0..1 :
+ * les basses d'une pulsation oscillent entre 0,59 et 0,88, une voix entre
+ * 0,1 et 0,5. Sans fenêtre, l'entrée ne bouge que sur ce tiers de sa plage
+ * et le sol « frémit » au lieu de battre. `bas` et `haut` disent où le
+ * signal vit : à `bas` l'entrée vaut `min`, à `haut` elle vaut `max`. Le
+ * vu-mètre de l'éditeur mesure la fenêtre atteinte et l'écrit d'un bouton.
  */
 
 /** Ce qu'on peut tirer du son d'une œuvre, et comment le dire. */
@@ -41,12 +49,32 @@ export function normaliserLien(lien) {
   const oeuvre = typeof lien.oeuvre === 'string' ? lien.oeuvre.trim() : '';
   if (!entree || !oeuvre) return null;
   const n = (v) => (Number.isFinite(v) ? v : undefined);
+  // la fenêtre du signal : 0..1 sauf si les deux bornes se tiennent
+  let bas = Number.isFinite(lien.bas) ? Math.max(0, Math.min(1, lien.bas)) : 0;
+  let haut = Number.isFinite(lien.haut) ? Math.max(0, Math.min(1, lien.haut)) : 1;
+  if (haut - bas < 1e-3) { bas = 0; haut = 1; }
   return {
     entree, oeuvre,
     signal: CLES_SIGNAUX.has(lien.signal) ? lien.signal : 'niveau',
     min: n(lien.min), max: n(lien.max),
+    bas, haut,
     gain: Number.isFinite(lien.gain) && lien.gain > 0 ? lien.gain : 1
   };
+}
+
+/**
+ * La fenêtre à écrire depuis une plage OBSERVÉE du signal (le vu-mètre de
+ * l'éditeur) : arrondie au centième, ouverte d'un rien de chaque côté pour
+ * que les extrêmes tiennent dedans, et jamais plus étroite que 0,05 — une
+ * fenêtre nulle ferait basculer l'entrée comme un interrupteur.
+ */
+export function fenetreObservee(min, max) {
+  let bas = Math.floor((Number(min) || 0) * 100) / 100;
+  let haut = Math.ceil((Number(max) || 0) * 100) / 100;
+  if (haut - bas < 0.05) { const c = (bas + haut) / 2; bas = c - 0.025; haut = c + 0.025; }
+  bas = Math.max(0, Math.min(0.95, bas));
+  haut = Math.max(bas + 0.05, Math.min(1, haut));
+  return { bas: Math.round(bas * 100) / 100, haut: Math.round(haut * 100) / 100 };
 }
 
 /**
@@ -58,7 +86,8 @@ export function liensDuModele(model, oeuvreId) {
   const ancien = model?.audio;
   if (ancien?.entree && oeuvreId && !liste.some((l) => l.entree === ancien.entree)) {
     liste.push({ entree: String(ancien.entree), oeuvre: oeuvreId, signal: 'niveau',
-      min: undefined, max: undefined, gain: Number.isFinite(ancien.gain) && ancien.gain > 0 ? ancien.gain : 1 });
+      min: undefined, max: undefined, bas: 0, haut: 1,
+      gain: Number.isFinite(ancien.gain) && ancien.gain > 0 ? ancien.gain : 1 });
   }
   return liste;
 }
@@ -73,7 +102,7 @@ export function liensDuModele(model, oeuvreId) {
  */
 export function resoudreLien(lien, entree, signal, repos) {
   if (!lien || !entree) return null;
-  const s = Math.max(0, Math.min(1, (Number(signal) || 0) * (lien.gain ?? 1)));
+  const s = courseDuSignal(lien, signal);
   if (entree.type === 'bool') return s >= 0.5;
   if (entree.type !== 'float') return null;
   const base = Number.isFinite(Number(repos)) ? Number(repos) : (Number(entree.defaut) || 0);
@@ -84,6 +113,17 @@ export function resoudreLien(lien, entree, signal, repos) {
   if (Number.isFinite(entree.min)) v = Math.max(entree.min, v);
   if (Number.isFinite(entree.max)) v = Math.min(entree.max, v);
   return v;
+}
+
+/**
+ * Où en est le signal dans sa fenêtre : 0 à `bas`, 1 à `haut`, borné —
+ * après le gain. C'est la course qui parcourt min → max.
+ */
+export function courseDuSignal(lien, signal) {
+  const v = (Number(signal) || 0) * (lien?.gain ?? 1);
+  const bas = Number.isFinite(lien?.bas) ? lien.bas : 0;
+  const haut = Number.isFinite(lien?.haut) && lien.haut > bas ? lien.haut : 1;
+  return Math.max(0, Math.min(1, (v - bas) / (haut - bas)));
 }
 
 /**

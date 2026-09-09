@@ -10,8 +10,8 @@
  * Lancer avec : npm test
  */
 import assert from 'node:assert/strict';
-import { normaliserLien, liensDuModele, resoudreLien, portailPorte, SIGNAUX } from '../engine/src/core/liens.js';
-import { casesDe, niveauBande, crete, BANDES } from '../engine/src/core/signaux.js';
+import { normaliserLien, liensDuModele, resoudreLien, portailPorte, courseDuSignal, fenetreObservee, SIGNAUX } from '../engine/src/core/liens.js';
+import { casesDe, niveauBande, crete, observer, niveauGlobal, BANDES } from '../engine/src/core/signaux.js';
 import { creerDancefloor, ENTREES_DANCEFLOOR } from '../engine/src/core/dancefloor.js';
 
 let ok = 0;
@@ -26,7 +26,15 @@ groupe('les liens : normaliser');
 
 test('un lien complet garde entrée, œuvre, signal, plage, gain', () => {
   assert.deepEqual(normaliserLien({ entree: 'brightness', oeuvre: 'pulsation', signal: 'basse', min: 0.3, max: 1.2, gain: 2 }),
-    { entree: 'brightness', oeuvre: 'pulsation', signal: 'basse', min: 0.3, max: 1.2, gain: 2 });
+    { entree: 'brightness', oeuvre: 'pulsation', signal: 'basse', min: 0.3, max: 1.2, bas: 0, haut: 1, gain: 2 });
+});
+
+test('la fenêtre du signal : bas/haut bornés à 0..1, 0..1 si elle est vide ou à l\'envers', () => {
+  const l = normaliserLien({ entree: 'a', oeuvre: 'x', bas: 0.55, haut: 0.9 });
+  assert.equal(l.bas, 0.55); assert.equal(l.haut, 0.9);
+  assert.deepEqual([normaliserLien({ entree: 'a', oeuvre: 'x', bas: 0.9, haut: 0.2 }).bas, normaliserLien({ entree: 'a', oeuvre: 'x', bas: 0.9, haut: 0.2 }).haut], [0, 1]);
+  assert.deepEqual([normaliserLien({ entree: 'a', oeuvre: 'x', bas: -2, haut: 7 }).bas, normaliserLien({ entree: 'a', oeuvre: 'x', bas: -2, haut: 7 }).haut], [0, 1]);
+  assert.deepEqual([normaliserLien({ entree: 'a', oeuvre: 'x', bas: 0.5, haut: 0.5 }).bas, normaliserLien({ entree: 'a', oeuvre: 'x', bas: 0.5, haut: 0.5 }).haut], [0, 1]);
 });
 
 test('sans entrée ou sans œuvre : null ; signal inconnu : niveau ; plage absente : undefined', () => {
@@ -34,7 +42,7 @@ test('sans entrée ou sans œuvre : null ; signal inconnu : niveau ; plage absen
   assert.equal(normaliserLien({ entree: 'a' }), null);
   assert.equal(normaliserLien('n/a'), null);
   const l = normaliserLien({ entree: ' a ', oeuvre: 'x', signal: 'voix', gain: -1 });
-  assert.deepEqual(l, { entree: 'a', oeuvre: 'x', signal: 'niveau', min: undefined, max: undefined, gain: 1 });
+  assert.deepEqual(l, { entree: 'a', oeuvre: 'x', signal: 'niveau', min: undefined, max: undefined, bas: 0, haut: 1, gain: 1 });
 });
 
 test('les cinq signaux sont nommés, niveau d\'abord', () => {
@@ -45,7 +53,7 @@ test('liensDuModele : `liens` plus l\'ancien `audio` (le niveau de l\'œuvre ell
   const m = { liens: [{ entree: 'a', oeuvre: 'autre', signal: 'aigu' }], audio: { entree: 'b', gain: 0.5 } };
   const l = liensDuModele(m, 'moi');
   assert.equal(l.length, 2);
-  assert.deepEqual(l[1], { entree: 'b', oeuvre: 'moi', signal: 'niveau', min: undefined, max: undefined, gain: 0.5 });
+  assert.deepEqual(l[1], { entree: 'b', oeuvre: 'moi', signal: 'niveau', min: undefined, max: undefined, bas: 0, haut: 1, gain: 0.5 });
   // l'ancien n'ajoute rien si un lien nomme déjà son entrée
   assert.equal(liensDuModele({ liens: [{ entree: 'b', oeuvre: 'x' }], audio: { entree: 'b' } }, 'moi').length, 1);
   assert.deepEqual(liensDuModele(null, 'moi'), []);
@@ -79,6 +87,36 @@ test('une entrée bool bascule à mi-course ; une couleur ne se lie pas ; sans e
   assert.equal(resoudreLien(l, null, 1, 0), null);
 });
 
+test('la course du signal : 0 à bas, 1 à haut, bornée — le gain s\'applique avant', () => {
+  const l = normaliserLien({ entree: 'a', oeuvre: 'x', bas: 0.5, haut: 0.9 });
+  assert.equal(courseDuSignal(l, 0.5), 0);
+  assert.equal(courseDuSignal(l, 0.9), 1);
+  assert.ok(Math.abs(courseDuSignal(l, 0.7) - 0.5) < 1e-9);
+  assert.equal(courseDuSignal(l, 0.2), 0);
+  assert.equal(courseDuSignal(l, 1), 1);
+  assert.equal(courseDuSignal(normaliserLien({ entree: 'a', oeuvre: 'x', gain: 2 }), 0.25), 0.5);
+  assert.equal(courseDuSignal(null, 0.3), 0.3);
+});
+
+test('avec fenêtre : min à bas, max à haut — la pulsation (0,59–0,88) parcourt toute la plage', () => {
+  const l = normaliserLien({ entree: 'brightness', oeuvre: 'p', min: 0.2, max: 1.0, bas: 0.59, haut: 0.88 });
+  assert.ok(Math.abs(resoudreLien(l, entree, 0.59, 0.5) - 0.2) < 1e-9);
+  assert.ok(Math.abs(resoudreLien(l, entree, 0.88, 0.5) - 1.0) < 1e-9);
+  assert.equal(resoudreLien(l, entree, 0.3, 0.5), 0.2);
+  // une bool bascule au milieu de la fenêtre
+  const b = normaliserLien({ entree: 'animate', oeuvre: 'p', bas: 0.6, haut: 0.8 });
+  assert.equal(resoudreLien(b, { nom: 'animate', type: 'bool', defaut: true }, 0.65, true), false);
+  assert.equal(resoudreLien(b, { nom: 'animate', type: 'bool', defaut: true }, 0.75, true), true);
+});
+
+test('fenetreObservee : arrondie au centième, ouverte d\'un rien, jamais plus étroite que 0,05, dans 0..1', () => {
+  assert.deepEqual(fenetreObservee(0.592, 0.877), { bas: 0.59, haut: 0.88 });
+  assert.deepEqual(fenetreObservee(0.5, 0.5), { bas: 0.48, haut: 0.53 });
+  assert.deepEqual(fenetreObservee(0, 0), { bas: 0, haut: 0.05 });
+  assert.deepEqual(fenetreObservee(0.99, 1), { bas: 0.95, haut: 1 });
+  assert.deepEqual(fenetreObservee(NaN, undefined), { bas: 0, haut: 0.05 });
+});
+
 groupe('le portail porté par une œuvre');
 
 test('portailPorte trouve l\'entrée `via` de la pièce, et rien sinon', () => {
@@ -110,10 +148,29 @@ test('la moyenne d\'une bande vaut 0..1, ignore les bornes hors spectre, 0 sur l
   assert.equal(niveauBande(data, 5, 2), 0);
 });
 
+test('le niveau global est la moyenne des trois bandes — une grosse caisse seule pèse un tiers', () => {
+  assert.ok(Math.abs(niveauGlobal(0.9, 0, 0) - 0.3) < 1e-9);
+  assert.equal(niveauGlobal(1, 1, 1), 1);
+  assert.equal(niveauGlobal(undefined, NaN, null), 0);
+});
+
 test('la crête monte d\'un coup et retombe lentement', () => {
   assert.equal(crete(0.2, 0.9, 0.016), 0.9);
   const apres = crete(0.9, 0, 0.1);
   assert.ok(apres > 0.5 && apres < 0.9, `retombée ${apres}`);
+});
+
+test('observer : la plage suit les extrêmes tout de suite et se resserre lentement', () => {
+  let o = observer(null, 0.7, 0);
+  assert.deepEqual(o, { min: 0.7, max: 0.7, valeur: 0.7 });
+  o = observer(o, 0.9, 0.016);
+  assert.equal(o.max, 0.9);
+  o = observer(o, 0.5, 0.016);
+  assert.equal(o.min, 0.5); assert.ok(o.max > 0.89);
+  // longtemps à 0,6 : les bornes se referment dessus
+  for (let i = 0; i < 600; i++) o = observer(o, 0.6, 0.1);
+  assert.ok(Math.abs(o.min - 0.6) < 0.01 && Math.abs(o.max - 0.6) < 0.01, `${o.min} ${o.max}`);
+  assert.equal(observer(o, 3, 0.1).max, 1);   // borné
 });
 
 groupe('le dancefloor');

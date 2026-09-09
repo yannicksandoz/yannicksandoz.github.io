@@ -767,6 +767,55 @@ Pièce montre le sol dancefloor 12 × 12 et le lien de brightness sur la
 pulsation, changer son signal écrit le document et le sol vivant, Ctrl+Z le
 rend ; le chat montre ses liens ; le dancefloor a sa case cochée.
 
+**Le vu-mètre des liens : mesurer avant de régler.** Le dancefloor battait
+à peine. Un signal mesuré ne parcourt presque jamais 0..1 — les basses de
+la pulsation vivent entre 0,59 et 0,88 — et un lien qui envoie 0..1 sur
+min..max ne fait donc bouger l'entrée que sur ce tiers de sa plage : le sol
+frémissait, il ne battait pas. Deux choses, l'une dans le moteur, l'autre
+dans l'éditeur.
+
+- **La fenêtre du signal** (`bas`, `haut` dans un lien, `core/liens.js`).
+  L'entrée vaut `min` quand le signal est à `bas`, `max` quand il est à
+  `haut` ; hors fenêtre elle s'arrête aux bornes. Sans fenêtre, 0..1 comme
+  avant ; une fenêtre vide ou à l'envers redevient 0..1. La course du signal
+  (`courseDuSignal`) est pure et testée : le gain s'applique avant, la bool
+  bascule au milieu de la fenêtre.
+- **Le vu-mètre, sous chaque lien de l'éditeur.** Une petite barre : le
+  signal maintenant (le trait), la plage qu'il a atteinte ces dernières
+  secondes (la bande, `observer` : les bornes suivent les extrêmes tout de
+  suite et se resserrent lentement, huit secondes), et la fenêtre réglée
+  (le cadre). À côté, la valeur que l'entrée reçoit — ou « silence » quand
+  l'œuvre écoutée ne joue pas d'ici. Et un bouton **« ajuster »** qui écrit
+  dans bas/haut la plage observée (`fenetreObservee` : au centième, ouverte
+  d'un rien, jamais plus étroite que 0,05) — une commande du document comme
+  une saisie à la main, Ctrl+Z la rend. Peint par l'horloge du témoin de
+  niveau (~12 Hz) ; `Signaux` garde un analyseur 600 ms après sa dernière
+  demande, pour qu'un lecteur à 12 Hz ne le fasse pas naître et mourir à
+  chaque image.
+- **Le contenu suit la mesure.** Les liens du dancefloor et du chat portent
+  désormais la fenêtre relevée au vu-mètre : le sol va du sombre au plein
+  sur chaque grosse caisse, la bouche du chat s'ouvre en grand.
+
+Chemin faisant, la mesure a montré deux défauts. Le signal `niveau` (et la
+crête, bâtie dessus) moyennait les 256 cases du spectre : une grosse caisse
+n'en occupe que deux, la crête de la pulsation plafonnait à 0,06 et
+n'accélérait rien. `niveau` est désormais la moyenne des trois bandes —
+à peu près logarithmique, comme l'oreille — et la crête suit (0,18–0,41
+sur la pulsation). Et le relevé à 12 Hz manquait les attaques : l'observation
+se fait à chaque image (`observerLiens`, depuis `Editor.update`), seule la
+peinture attend le témoin ; elle ne commence qu'une demi-seconde après le
+départ de l'œuvre, la montée depuis le silence n'étant pas une plage
+atteinte.
+
+Vérifié dans l'éditeur (build auteur, rendu logiciel — les plages sont
+donc un peu étroites, l'image y est lente) : sous « brightness » du sol, le
+vu-mètre, bas 0,6 haut 0,85, « ajuster » ; après neuf secondes de
+pulsation, basses atteintes 0,34–0,73, crêtes 0,18–0,41, l'entrée vaut ce
+que dit la résolution ; « ajuster » écrit bas 0,45 haut 0,68 au document
+et au sol vivant, Ctrl+Z rend 0,6/0,85 ; sur le chat, mouth_open suit
+(basses 0,58–0,65), « ajuster » écrit `model.liens`, Ctrl+Z ; zéro erreur.
+Vingt tests au nœud pour les liens.
+
 **Passage en revue de la charte : zéro signalement.** Douze règles, cent
 quatre-vingt-quatorze lignes de rapport. Deux choses en sont sorties.
 

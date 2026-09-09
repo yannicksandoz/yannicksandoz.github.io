@@ -26,15 +26,19 @@
         "entree": "brightness",
         "oeuvre": "pulsation-dancefloor",
         "signal": "basse",
-        "min": 0.4,
-        "max": 1.0
+        "min": 0.2,
+        "max": 1.0,
+        "bas": 0.6,
+        "haut": 0.85
       },
       {
         "entree": "pattern_speed",
         "oeuvre": "pulsation-dancefloor",
         "signal": "crete",
         "min": 0.8,
-        "max": 2.4
+        "max": 2.4,
+        "bas": 0.25,
+        "haut": 0.45
       }
     ]
   },

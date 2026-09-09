@@ -39,6 +39,17 @@ export function niveauBande(data, lo, hi) {
 }
 
 /**
+ * Le niveau global : la moyenne des TROIS bandes, pas des 256 cases. Une
+ * grosse caisse n'occupe que deux cases sur 256 : moyennée sur le spectre
+ * entier elle valait 0,02, et une crête bâtie dessus ne bougeait pas. Trois
+ * bandes à poids égal, c'est une moyenne à peu près logarithmique — celle
+ * de l'oreille.
+ */
+export function niveauGlobal(basse, medium, aigu) {
+  return ((Number(basse) || 0) + (Number(medium) || 0) + (Number(aigu) || 0)) / 3;
+}
+
+/**
  * La crête : suit les attaques tout de suite, retombe lentement — ce qui
  * fait « clignoter » une dalle sur une grosse caisse plutôt que respirer.
  */
@@ -47,13 +58,33 @@ export function crete(precedent, cible, dt, retombee = 2.5) {
   return damp(precedent, cible, retombee, dt);
 }
 
+/**
+ * La plage OBSERVÉE d'un signal : le plus bas et le plus haut atteints
+ * récemment. Les deux bornes se resserrent lentement vers la valeur
+ * courante (constante `tau`, en secondes) : ce qui a battu il y a une
+ * minute ne compte plus, ce qui bat maintenant s'y lit tout de suite. Sert
+ * au vu-mètre de l'éditeur pour proposer la fenêtre d'un lien.
+ */
+export function observer(obs, v, dt, tau = 8) {
+  const x = Math.max(0, Math.min(1, Number(v) || 0));
+  if (!obs) return { min: x, max: x, valeur: x };
+  const k = Math.min(1, Math.max(0, dt) / tau);
+  return {
+    min: Math.min(x, obs.min + (x - obs.min) * k),
+    max: Math.max(x, obs.max + (x - obs.max) * k),
+    valeur: x
+  };
+}
+
 const FFT = 512;
+/** Un analyseur survit ce temps-là sans demande : un lecteur à 12 Hz (l'éditeur) ne le fait pas naître et mourir à chaque image. */
+const GRACE_MS = 600;
 
 export class Signaux {
   constructor(app) {
     this.app = app;
     this._ecoutes = new Map();   // oeuvreId → { analyseur, bus, data, valeurs }
-    this._demandes = new Set();  // ids demandés cette image
+    this._demandes = new Map();  // oeuvreId → instant de la dernière demande
   }
 
   /**
@@ -61,15 +92,31 @@ export class Signaux {
    * Demander, c'est s'abonner : l'analyseur naît à la prochaine image.
    */
   valeur(oeuvreId, signal = 'niveau') {
-    this._demandes.add(oeuvreId);
+    this._demandes.set(oeuvreId, this._maintenant());
     return this._ecoutes.get(oeuvreId)?.valeurs[signal] ?? 0;
+  }
+
+  /** Vrai si l'œuvre s'entend : un bus existe et un analyseur l'écoute. */
+  ecoute(oeuvreId) {
+    return this._ecoutes.has(oeuvreId);
+  }
+
+  /** Vrai si l'œuvre JOUE : ses voix sont actives (pas seulement branchées). */
+  joue(oeuvreId) {
+    return !!this.app.artworks?.find((a) => a.config.id === oeuvreId)?._stemsActive;
+  }
+
+  _maintenant() {
+    return typeof performance !== 'undefined' ? performance.now() : Date.now();
   }
 
   /** Une fois par image, avant les œuvres : pose et lit les analyseurs demandés. */
   update(dt) {
     const ctx = this.app.audio?.ctx;
     if (!ctx) return;
-    for (const id of this._demandes) {
+    const t = this._maintenant();
+    for (const [id, depuis] of this._demandes) {
+      if (t - depuis > GRACE_MS) { this._demandes.delete(id); continue; }
       const art = this.app.artworks.find((a) => a.config.id === id);
       const bus = art?.bus ?? null;
       let e = this._ecoutes.get(id);
@@ -86,17 +133,16 @@ export class Signaux {
       }
       if (!e) continue;
       e.analyseur.getByteFrequencyData(e.data);
-      for (const b of Object.keys(BANDES)) {
-        const [lo, hi] = e.cases[b];
-        e.valeurs[b] = damp(e.valeurs[b], niveauBande(e.data, lo, hi), 12, dt);
-      }
-      e.valeurs.crete = crete(e.valeurs.crete, niveauBande(e.data, ...e.cases.niveau), dt);
+      const inst = {};
+      for (const b of ['basse', 'medium', 'aigu']) inst[b] = niveauBande(e.data, ...e.cases[b]);
+      inst.niveau = niveauGlobal(inst.basse, inst.medium, inst.aigu);
+      for (const b of Object.keys(BANDES)) e.valeurs[b] = damp(e.valeurs[b], inst[b], 12, dt);
+      e.valeurs.crete = crete(e.valeurs.crete, inst.niveau, dt);
     }
     // ce qui n'est plus demandé se relâche
     for (const [id, e] of this._ecoutes) {
       if (!this._demandes.has(id)) { this._lacher(e); this._ecoutes.delete(id); }
     }
-    this._demandes.clear();
   }
 
   _lacher(e) {
