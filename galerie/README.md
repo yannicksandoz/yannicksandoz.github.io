@@ -1041,6 +1041,31 @@ rendu, zéro erreur. Le seul 404 rencontré, `gabarits/index.json`, est
 attendu : l'éditeur sonde des gabarits de pièce fournis par l'auteur et se
 tait s'il n'y en a pas.
 
+**La charge des liens, mesurée.** La pièce Dancefloor cumule un analyseur,
+quatre liens de sol, deux du chat, un de pièce et le module du monolithe :
+combien cela coûte-t-il par image ? `npm run sonde:charge` chronomètre
+chaque étage, 240 images durant, dans le build servi (rendu logiciel :
+l'image est lente, mais les millisecondes JS sont celles du processeur, et
+un téléphone est deux à trois fois plus lent).
+
+| étage (visiteur)                         | moyenne  | maximum |
+|------------------------------------------|----------|---------|
+| signaux : analyseur + bandes             | 0,08 ms  | 0,9 ms  |
+| sol : quatre liens                       | 0,03 ms  | 0,2 ms  |
+| pièce : lien lumière                     | 0,03 ms  | 0,2 ms  |
+| monolithe : AudioReactive (bande)        | 0,03 ms  | 0,2 ms  |
+| chat : rendu ISF (RTT), pour comparaison | 0,16 ms  | 0,3 ms  |
+
+Analyseur et liens réunis : 0,16 ms par image ici, donc moins d'un demi
+pour cent d'une image de 16,7 ms même à trois fois plus lent. Rien à
+optimiser côté visiteur — et c'est bon à savoir avant d'en ajouter. Dans
+l'ÉDITEUR, en revanche, le relevé du vu-mètre lisait le DOM à chaque image
+(0,34 ms en moyenne, pics à 3,9 ms, et cela grandissait avec le nombre de
+lignes liées). Les lignes sont désormais mises en cache au rendu — le
+panneau se refait entier à chaque rendu, le cache vit exactement aussi
+longtemps que ses éléments — : 0,15 ms (pics 2,5), le peintre passe de
+0,39 à 0,26 ms. Les deux sondes des liens passent inchangées.
+
 **Passage en revue de la charte : zéro signalement.** Douze règles, cent
 quatre-vingt-quatorze lignes de rapport. Deux choses en sont sorties.
 
