@@ -66,6 +66,9 @@ const FR = {
   'menu.settings.forget.done': 'La galerie vous a oublié',
   'menu.settings.dev': 'Développement',
   'menu.settings.fps': 'Compteur d\'images (FPS)',
+  'menu.settings.eco': 'Mode économe (machine lente)',
+  'menu.settings.eco.note': 'Image moins fine, sans ombres, occlusion ni bloom : pour un ordinateur ou un téléphone qui peine. La galerie s\'en souvient.',
+  'menu.settings.eco.reload': 'Mode économe quitté : la qualité d\'origine revient au prochain chargement de la page.',
   'menu.map.note': 'La carte se dessine en marchant : « ? » marque un passage '
     + 'que vous n\'avez pas encore pris.',
   'carte.titre': 'Plan de la galerie',
@@ -226,6 +229,9 @@ const EN = {
   'menu.settings.forget.done': 'The gallery has forgotten you',
   'menu.settings.dev': 'Development',
   'menu.settings.fps': 'Frame counter (FPS)',
+  'menu.settings.eco': 'Economy mode (slow device)',
+  'menu.settings.eco.note': 'A softer image, without shadows, occlusion or bloom: for a computer or phone that struggles. The gallery remembers it.',
+  'menu.settings.eco.reload': 'Economy mode left: the original quality comes back the next time the page loads.',
   'menu.map.note': 'The map draws itself as you walk: “?” marks a passage you '
     + 'have not taken yet.',
   'carte.titre': 'Map of the gallery',

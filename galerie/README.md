@@ -1066,6 +1066,47 @@ panneau se refait entier à chaque rendu, le cache vit exactement aussi
 longtemps que ses éléments — : 0,15 ms (pics 2,5), le peintre passe de
 0,39 à 0,26 ms. Les deux sondes des liens passent inchangées.
 
+**Basse performance : des crans jusqu'en bas, et un mode économe.** Le
+gouverneur de qualité descendait par étages — la densité, puis la finition
+(anticrénelage, occlusion ambiante), puis, sous 27 images, la survie — et
+s'arrêtait là où les crans manquaient : une machine à 30–45 images
+restait entre deux, ni fluide ni allégée, avec ses ombres, ses écrans ISF
+en 512 et ses apparitions vivantes. Et un visiteur qui SAIT que sa machine
+peine n'avait aucun moyen de le dire.
+
+- **La liste des crans** (`core/crans.js`, pur, cinq tests) dit dans quel
+  ordre la qualité cède ; le gouverneur ne fait plus que l'appliquer. En
+  finition, après l'occlusion : les ombres, les écrans ISF à
+  demi-résolution (256, même texture — les matériaux n'ont rien à savoir,
+  `EcranISF.setResolution`), les apparitions figées, la densité ramenée à
+  1. En survie : la densité SOUS le natif jusqu'à 0,75, affûtée par la
+  sortie (le levier d'un GPU qui manque de fill-rate), puis le grain, le
+  bloom. Le profil porte désormais `isfResolution` (512 bureau, 256
+  téléphone et GPU modeste), que `Artwork` respecte comme plafond.
+- **Le mode économe**, menu → Réglages → « Mode économe (machine lente) »,
+  ou `?eco` dans l'adresse (`?eco=0` pour l'ôter) : tous les crans d'un
+  coup, à chaud, et mémorisé — au prochain chargement le profil part d'en
+  bas, avant même la création du renderer, rien n'est fabriqué pour être
+  jeté trois secondes plus tard. Le gouverneur ne remonte jamais en mode
+  économe. Le quitter efface la mémoire ; la qualité d'origine revient au
+  chargement suivant, et le menu le dit.
+- **Une sonde** : `npm run sonde:basse-perf` — le rendu logiciel du Chromium
+  de test est la machine la plus lente qui soit ; le gouverneur doit y
+  prendre tous ses crans sans erreur, et `?eco` doit partir d'en bas, avec
+  les écrans ISF à 256 et la case du menu cochée.
+
+Vérifié (build visiteur, rendu logiciel à deux images par seconde) : le
+gouverneur est tout en bas en 38 s — anticrénelage 0, occlusion, ombres,
+apparitions coupées, quatre écrans ISF à 256, densité 0,75 affûtée, grain
+et bloom coupés, zéro erreur ; `?eco` part d'en bas (profil
+`desktop-econome`, écrans à 256), la case du menu est cochée, la décocher
+efface la mémoire et le menu annonce le retour au prochain chargement ;
+depuis un profil remonté de force (anticrénelage ×4, occlusion, ombres,
+écrans à 512, apparitions vivantes), le mode économe à chaud éteint tout
+d'un coup, ombres du renderer comprises, densité 0,75 posée sur le
+renderer, mémoire écrite. Cinq tests au nœud pour les crans ; 1 298
+vérifications au total.
+
 **Passage en revue de la charte : zéro signalement.** Douze règles, cent
 quatre-vingt-quatorze lignes de rapport. Deux choses en sont sorties.
 

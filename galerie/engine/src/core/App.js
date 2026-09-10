@@ -518,6 +518,11 @@ export class App {
    * matériaux compilent des variantes différentes avec/sans ombre : il faut
    * les invalider, sinon le changement ne se voit qu'aux prochains objets.
    */
+  /** Les écrans ISF à une autre résolution (le gouverneur, le mode économe). */
+  setIsfResolution(res) {
+    for (const a of this.artworks ?? []) a._isfEcran?.setResolution?.(res);
+  }
+
   setShadowsEnabled(on) {
     if (!this.renderer || this.renderer.shadowMap.enabled === on) return;
     this.renderer.shadowMap.enabled = on;

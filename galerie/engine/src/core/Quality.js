@@ -54,6 +54,8 @@ export function cibleImages(hz) {
   return Math.max(50, Math.round(0.85 * (Number(hz) || 60)));
 }
 
+import { FINITION, SURVIE, prochainCran, etatDe, densiteSuivante, ECONOME, lireEconome, ecrireEconome } from './crans.js';
+
 export class QualityManager {
   constructor() {
     this.reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -94,6 +96,7 @@ export class QualityManager {
           maxHRTF: 4,
           dustCount: 180,
           maxTextureSize: 1024,
+          isfResolution: 256,   // les écrans ISF : un quart des pixels d'un 512
           shadows: false,
           shadowMapSize: 1024,
           // SOURCES ÉTENDUES (corniches) : aucune sur mobile. Mesuré au
@@ -162,6 +165,7 @@ export class QualityManager {
           maxHRTF: 16,
           dustCount: 450,
           maxTextureSize: 2048,
+          isfResolution: 512,
           shadows: true,
           // 4096 : la fenêtre d'ombre couvre désormais la coque entière
           // (jusqu'à 64 m à l'entrée) — à 2048, l'ombre d'un pied de banc
@@ -179,6 +183,15 @@ export class QualityManager {
           envIntensity: 0.5,
           reflets: { resolution: 128, cadence: 1 }
         };
+    // LE MODE ÉCONOME, au choix du visiteur (menu, ou ?eco), mémorisé :
+    // tout en bas tout de suite, avant même le renderer — rien n'est créé
+    // pour être jeté trois secondes plus tard
+    this.econome = lireEconome(typeof location !== 'undefined' ? location.search : '',
+      typeof localStorage !== 'undefined' ? localStorage : null);
+    if (this.econome) {
+      Object.assign(this.profile, ECONOME, { tier: `${this.profile.tier}-econome`,
+        pixelRatio: Math.min(window.devicePixelRatio || 1, 1) });
+    }
     this.profile.reducedMotion = this.reducedMotion;
     this.profile.isMobile = this.isMobile;
 
@@ -211,7 +224,8 @@ export class QualityManager {
         maxHRTF: 6,
         dustCount: 200,
         shadows: false,
-        shadowMapSize: 1024
+        shadowMapSize: 1024,
+        isfResolution: 256
       });
       console.info('[galerie] GPU modeste détecté, profil réduit :', gpu);
     }
@@ -250,7 +264,7 @@ export class QualityManager {
     const cible = cibleImages(this._hz);
     if (this._fps >= cible) {
       this._sousCible = 0;
-      this._remonter(app);
+      if (!this.econome) this._remonter(app);
       return;
     }
     // sous la cadence visée : la densité d'abord, avec six secondes de
@@ -265,7 +279,7 @@ export class QualityManager {
     // entre 50 et la cible : rien à sacrifier de plus, mais la finition
     // cédée plus tôt garde sa porte de sortie (72 stables, voir _remonter)
     if (this._fps >= 50) {
-      this._remonter(app);
+      if (!this.econome) this._remonter(app);
       return;
     }
     if (this._finition(app)) {
@@ -335,61 +349,77 @@ export class QualityManager {
     return true;
   }
 
-  /** Étage 1 — la finition, cran par cran. Rend true si un cran a été pris. */
+  /**
+   * Étage 1 — la finition, cran par cran (voir crans.js : anticrénelage,
+   * occlusion, ombres, écrans ISF, apparitions, densité 1). Rend true si un
+   * cran a été pris.
+   */
   _finition(app) {
     const p = this.profile;
     this._origine ??= { msaa: p.msaa, gtao: !!p.gtao };
-    // L'anticrénelage d'abord : il coûte de la bande passante à chaque
-    // pixel, et une image nette mais crénelée reste plus lisible qu'une
-    // image lissée et molle (baisser la densité, elle, floute tout).
-    if (p.msaa > 2) {
-      p.msaa = 2;
-      app.setMsaa?.(2);
-      console.info(`[galerie] FPS bas (${this._fps.toFixed(0)}) → anticrénelage ×2`);
-      return true;
-    }
-    if (p.msaa > 0) {
-      p.msaa = 0;
-      app.setMsaa?.(0);
-      console.info(`[galerie] FPS bas (${this._fps.toFixed(0)}) → anticrénelage désactivé`);
-      return true;
-    }
-    if (app.gtao?.enabled) {
-      app.gtao.enabled = false;
-      p.gtao = false;
-      console.info(`[galerie] FPS bas (${this._fps.toFixed(0)}) → occlusion ambiante désactivée`);
-      return true;
-    }
-    return false;
+    const cran = prochainCran(etatDe(p, app), FINITION);
+    if (!cran) return false;
+    this._appliquer(cran.cle, app);
+    console.info(`[galerie] FPS bas (${this._fps.toFixed(0)}) → ${cran.dit}`);
+    return true;
   }
 
-  /** Étage 2 — la survie. */
+  /** Étage 2 — la survie (densité sous le natif, grain, bloom). */
   _downgrade(app) {
-    const p = this.profile;
-    if (p.pixelRatio > 1) {
-      p.pixelRatio = Math.max(1, p.pixelRatio - 0.25);
-      app.renderer.setPixelRatio(p.pixelRatio);
-      app.composer.setPixelRatio(p.pixelRatio);
-      // sous la densité native, la sortie affûte (voir _densite)
-      if (app.sortie && !(p.nettete > 0)) { p.nettete = 0.5; app.sortie.nettete = 0.5; }
-      console.info(`[galerie] FPS bas (${this._fps.toFixed(0)}) → pixelRatio ${p.pixelRatio}`);
-    } else if (p.grain) {
-      p.grain = false;
-      app.sortie.grainActif = false;
-      console.info('[galerie] FPS bas → grain désactivé');
-    } else if (app.vistas?.live) {
-      app.vistas.live = false;
-      console.info('[galerie] FPS bas → apparitions figées');
-    } else if (p.shadows) {
-      p.shadows = false;
-      app.setShadowsEnabled?.(false);
-      console.info('[galerie] FPS bas → ombres désactivées');
-    } else if (app.sortie.bloomActif) {
-      // le bloom n'est plus une passe : c'est la sortie qui décide de lui
-      // demander sa fleur ou non (voir PasseSortie.js)
-      app.sortie.bloomActif = false;
-      console.info('[galerie] FPS bas → bloom désactivé');
+    const cran = prochainCran(etatDe(this.profile, app), SURVIE);
+    if (cran) {
+      this._appliquer(cran.cle, app);
+      console.info(`[galerie] FPS bas (${this._fps.toFixed(0)}) → ${cran.dit}`);
     }
     this._fps = 45; // laisse le temps à la mesure de se re-stabiliser
+  }
+
+  /** Applique un cran au profil et à l'app — le seul endroit qui touche au renderer. */
+  _appliquer(cle, app) {
+    const p = this.profile;
+    switch (cle) {
+      case 'msaa2': p.msaa = 2; app.setMsaa?.(2); break;
+      case 'msaa0': p.msaa = 0; app.setMsaa?.(0); break;
+      case 'gtao': if (app.gtao) app.gtao.enabled = false; p.gtao = false; break;
+      case 'ombres': p.shadows = false; app.setShadowsEnabled?.(false); break;
+      case 'isf': p.isfResolution = 256; app.setIsfResolution?.(256); break;
+      case 'apparitions': if (app.vistas) app.vistas.live = false; break;
+      case 'densite1': this._poserDensite(app, 1); break;
+      case 'densite': this._poserDensite(app, densiteSuivante(p.pixelRatio)); break;
+      case 'grain': p.grain = false; if (app.sortie) app.sortie.grainActif = false; break;
+      case 'bloom': if (app.sortie) app.sortie.bloomActif = false; break;
+      default:
+    }
+  }
+
+  /** La densité, affûtée par la sortie dès qu'elle passe sous le natif. */
+  _poserDensite(app, valeur) {
+    const p = this.profile;
+    p.pixelRatio = valeur;
+    app.renderer?.setPixelRatio(valeur);
+    app.composer?.setPixelRatio(valeur);
+    if (app.sortie && !(p.nettete > 0)) { p.nettete = 0.5; app.sortie.nettete = 0.5; }
+  }
+
+  /**
+   * LE MODE ÉCONOME, à chaud : tous les crans d'un coup, mémorisé pour les
+   * prochaines visites (le profil part alors d'en bas, voir le constructeur).
+   */
+  activerEconome(app) {
+    this.econome = true;
+    ecrireEconome(true, typeof localStorage !== 'undefined' ? localStorage : null);
+    const p = this.profile;
+    for (const liste of [FINITION, SURVIE]) {
+      let cran;
+      while ((cran = prochainCran(etatDe(p, app), liste))) this._appliquer(cran.cle, app);
+    }
+    p.tier = p.tier.endsWith('-econome') ? p.tier : `${p.tier}-econome`;
+    console.info('[galerie] mode économe : image à densité 1 affûtée, sans anticrénelage, occlusion, ombres ni bloom');
+  }
+
+  /** Quitter le mode économe : la mémoire s'efface, le profil d'origine revient au prochain chargement. */
+  desactiverEconome() {
+    this.econome = false;
+    ecrireEconome(false, typeof localStorage !== 'undefined' ? localStorage : null);
   }
 }

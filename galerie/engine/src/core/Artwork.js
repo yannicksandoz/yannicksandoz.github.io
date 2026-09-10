@@ -783,8 +783,9 @@ export class Artwork {
       })
     ]);
     const calques = [{ source: fond, reglages: model.reglages ?? {} }, ...autres];
-    const resolution = model.resolution
-      ?? (this.app.quality.isMobile ? 256 : 512);
+    // le profil plafonne (mobile, GPU modeste, mode économe, gouverneur)
+    const resolution = Math.min(model.resolution ?? (this.app.quality.isMobile ? 256 : 512),
+      this.app.quality.profile.isfResolution ?? 1024);
     const ecran = new EcranISF(calques, { resolution });
     this._isfEcran = ecran;
 

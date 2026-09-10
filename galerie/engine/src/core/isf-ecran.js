@@ -119,6 +119,16 @@ export class EcranISF {
 
   get texture() { return this.cible.texture; }
 
+  /** Change la résolution de la cible, même texture : les matériaux qui la montrent n'ont rien à savoir. */
+  setResolution(resolution) {
+    const res = Math.max(128, Math.min(1024, Math.round(resolution)));
+    if (res === this._res) return false;
+    this.cible.setSize(res, res);
+    this._res = res;
+    this._accu = Infinity;   // se redessine à la prochaine image
+    return true;
+  }
+
   /** vec4/vec2 pour three, scalaires tels quels. */
   _enveloppe(entree, valeur) {
     if (entree.type === 'color') {

@@ -138,6 +138,13 @@ export class VisitMenu {
             </div>
           </li>
           <li>
+            <label class="vm-check" title="${t('menu.settings.eco.note')}">
+              <input type="checkbox" id="vm-eco" ${this.app.quality?.econome ? 'checked' : ''}>
+              ${t('menu.settings.eco')}
+            </label>
+            <p class="vm-note" id="vm-eco-note">${t('menu.settings.eco.note')}</p>
+          </li>
+          <li>
             <label class="vm-check">
               <input type="checkbox" id="vm-fps" ${fpsMeterEnabled() ? 'checked' : ''}>
               ${t('menu.settings.fps')}
@@ -176,6 +183,19 @@ export class VisitMenu {
     }
     el.querySelector('#vm-fps').addEventListener('change', (e) => {
       setFpsMeter(this.app, e.currentTarget.checked);
+    });
+    // Le mode économe : tout en bas tout de suite, mémorisé ; le quitter
+    // rend le profil d'origine au prochain chargement (rien ne se remonte
+    // à chaud : le renderer a été créé pour ce profil-là)
+    el.querySelector('#vm-eco').addEventListener('change', (e) => {
+      const note = el.querySelector('#vm-eco-note');
+      if (e.currentTarget.checked) {
+        this.app.quality?.activerEconome?.(this.app);
+        if (note) note.textContent = t('menu.settings.eco.note');
+      } else {
+        this.app.quality?.desactiverEconome?.();
+        if (note) note.textContent = t('menu.settings.eco.reload');
+      }
     });
     el.querySelector('#vm-minimap').addEventListener('change', (e) => {
       setMinimap(this.app, e.currentTarget.checked);
