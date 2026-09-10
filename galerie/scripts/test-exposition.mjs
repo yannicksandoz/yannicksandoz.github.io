@@ -59,10 +59,10 @@ const galerie = () => structuredClone({
   gabarits: []
 });
 
-titre('les gabarits du moteur : quatre JSON valides');
-test('salle, couloir, extérieur, vide — tous lisibles et sains', () => {
+titre('les gabarits du moteur : cinq JSON valides');
+test('salle, archives, couloir, extérieur, vide — tous lisibles et sains', () => {
   const fichiers = readdirSync(DOSSIER_MOTEUR).filter((f) => f.endsWith('.json'));
-  assert.equal(fichiers.length, 4, `${fichiers.length} gabarits, 4 attendus`);
+  assert.equal(fichiers.length, 5, `${fichiers.length} gabarits, 5 attendus`);
   for (const f of fichiers) {
     const g = JSON.parse(readFileSync(join(DOSSIER_MOTEUR, f), 'utf8'));
     const defauts = validerGabarit(g);

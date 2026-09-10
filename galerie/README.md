@@ -3752,8 +3752,8 @@ modèles, se suppriment sans rien casser, se meublent à l'aimant — et la
 charte qui parle pendant qu'on place, au lieu de gronder après coup.
 
 **Gabarits (modèles de pièces).** « ＋ Pièce » ouvre un sélecteur en cartes
-(vignette + description) : les quatre modèles du moteur (Salle, Couloir,
-Extérieur, Vide — devenus des fichiers JSON, `editor/gabarits/*.json`,
+(vignette + description) : les cinq modèles du moteur (Salle, Archives,
+Couloir, Extérieur, Vide — devenus des fichiers JSON, `editor/gabarits/*.json`,
 plus rien d'éditorial dans le bundle visiteur) et LES VÔTRES. Depuis
 l'onglet Pièce, « Enregistrer comme modèle » emporte l'architecture et
 l'atmosphère (coque, matières, lumière, brume, ciel, réverbération) — le
@@ -3762,6 +3762,43 @@ est capturée depuis votre point de vue. Vos gabarits vivent dans le
 document (annulables, publiés dans `content/gabarits/`, embarqués dans
 `galerie.zip` et le brouillon), gérables depuis le sélecteur : renommer,
 mettre à jour depuis la pièce courante, dupliquer, supprimer.
+
+**Une pièce depuis les sons.** Le geste d'archive : déposer ses
+enregistrements dans la médiathèque AVANT toute pièce (« Dossier
+entier… », « Fichiers média… », ou un glisser sur la fenêtre — ils y
+entrent sans créer d'objet), puis « ＋ Ajouter › Pièce depuis les
+sons… » (aussi : la carte « Depuis les sons… » du sélecteur de modèles,
+et le bouton en tête du panneau Sons). Une seule boîte : les sons jamais
+posés en tête et cochés d'office (ceux qui jouent déjà ailleurs restent
+repliés), un bouton « Déposer des sons… » qui coche ce qui arrive, la
+disposition — en ligne, ou en grille 2 × 2, 3 × 2, 3 × 4, ou colonnes ×
+rangées libres —, le nom de la pièce, la finition (Archives bois et
+brique, pierre claire, béton sombre), l'éclairage (tamisé avec lanternes
+et corniches, muséal à lumière clé, nocturne : les stèles seules),
+l'espacement (3,5 / 4,5 / 6 m), et une ligne d'aperçu qui dit à chaque
+geste ce qui va naître : « 6 stèles en grille 3 × 2 — salle de 19 × 18,5
+m ». « Créer la pièce » fabrique une salle Archives TAILLÉE AU LOT
+(marge de cinq mètres autour de la grille, couloir d'arrivée devant,
+jamais moins de 14 m, deux fenêtres hautes, plafond, réverbération des
+Archives), une stèle par son — la boîte polie 0,9 × 1,3 des Archives,
+une teinte propre répartie sur la roue et sa lumière assortie, une piste
+à 8 m, un cartel généré depuis le nom du fichier (« marees-basse.wav » →
+« Marees basse ») avec la place dans la série et, s'il y a quelqu'un à
+citer, l'auteur et la licence reportés en crédit —, puis les lanternes
+aux angles et les quatre corniches, recalculées aux cotes de la salle.
+Jusqu'à trois sons, une ligne ; au-delà, le premier préréglage qui
+contient tout, et juste les rangées qu'il faut (sept sons font 3 × 3
+avec deux places libres) ; une grille choisie à la main est une CAPACITÉ
+(3 × 4 pour sept sons garde cinq places, la salle est taillée pour
+douze). Le tout est UN lot d'historique — « pièce « Mes archives »
+depuis 6 sons » — que Ctrl+Z défait d'un bloc, et l'on entre dans la
+pièce aussitôt : il ne reste qu'à affiner les cartels dans l'onglet
+Fiche, relier un portail, puis exporter le zip ou mettre en ligne.
+Le modèle « Archives » rejoint aussi les gabarits du moteur
+(`editor/gabarits/archives.json`) pour une salle vide meublée. La
+logique (dispositions, cotes, couleurs, cartels, mobilier) vit dans
+`editor/state/PieceDepuisSons.js`, pure, testée par
+`scripts/test-piece-sons.mjs` (22 vérifications).
 
 **Supprimer et dupliquer une pièce.** La boîte de confirmation NOMME tout
 ce qui part : œuvres (avec le choix « déplacer vers… »), portails entrants
@@ -3976,7 +4013,9 @@ endroit — la barre n'a plus une file de boutons d'import à parcourir :
 - **Bibliothèque 3D…**, **Poly Pizza…**, **Sons du projet…**,
   **Freesound…** (les panneaux) ; **Fichiers média…**, **Dossier
   entier…**, **Média par URL…** ;
-- **Pièce…** (les modèles de pièce), **Portail vers ▸** (chaque pièce,
+- **Pièce…** (les modèles de pièce), **Pièce depuis les sons…** (une
+  salle Archives à la taille du lot déposé — voir *Composer une
+  exposition*), **Portail vers ▸** (chaque pièce,
   la courante en Escher) ; **Importer une galerie…** (`galerie.zip`,
   `galerie.json`, `works.json` / `rooms.json`).
 
