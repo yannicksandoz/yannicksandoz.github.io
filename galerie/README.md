@@ -3794,11 +3794,26 @@ douze). Le tout est UN lot d'historique — « pièce « Mes archives »
 depuis 6 sons » — que Ctrl+Z défait d'un bloc, et l'on entre dans la
 pièce aussitôt : il ne reste qu'à affiner les cartels dans l'onglet
 Fiche, relier un portail, puis exporter le zip ou mettre en ligne.
-Le modèle « Archives » rejoint aussi les gabarits du moteur
+**Une image par son, une forme pour toutes.** Une image déposée avec les
+sons et qui porte le MÊME NOM de fichier (« marees.wav » + « marees.jpg »,
+accents, casse et extension confondus) est appariée à son son : la ligne
+le montre, l'en-tête compte « n avec image », et la stèle naît en PANNEAU
+(1,2 m de haut, la largeur au ratio mesuré de l'image, plafonnée à 2,4 m,
+accrochée à la hauteur de la charte) avec sa piste, son cartel et sa
+lumière ; la fiche du visiteur ouvre l'image en grand. Un visuel ne sert
+qu'une fois, et va d'abord à un son coché : un « marees.wav » déjà posé
+dans la galerie ne vole pas l'image du nouveau. « Forme des stèles »
+s'applique à toutes les autres : la boîte des Archives, le monolithe
+(shader réactif), la sphère, ou un modèle de la bibliothèque, choisi dans
+la liste (chargée à la demande) et posé au sol, son crédit reporté sur
+chaque œuvre ; le crédit d'un son, lui, voyage toujours sur sa piste. Le
+modèle « Archives » rejoint aussi les gabarits du moteur
 (`editor/gabarits/archives.json`) pour une salle vide meublée. La
-logique (dispositions, cotes, couleurs, cartels, mobilier) vit dans
-`editor/state/PieceDepuisSons.js`, pure, testée par
-`scripts/test-piece-sons.mjs` (22 vérifications).
+logique (dispositions, cotes, couleurs, cartels, appariement, formes,
+mobilier) vit dans `editor/state/PieceDepuisSons.js`, pure, testée par
+`scripts/test-piece-sons.mjs` (27 vérifications) ; `npm run
+sonde:piece-sons` rejoue tout le parcours au navigateur sur le build
+auteur, image et bibliothèque comprises (28 vérifications).
 
 **Supprimer et dupliquer une pièce.** La boîte de confirmation NOMME tout
 ce qui part : œuvres (avec le choix « déplacer vers… »), portails entrants

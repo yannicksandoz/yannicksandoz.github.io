@@ -19,7 +19,8 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { GRILLES, PAS, STELE, FINITIONS, ECLAIRAGES, dispositionAuto,
   normaliserDisposition, grilleEffective, positionsSteles, dimensionsPiece, couleurStele,
-  cartelDepuisSon, steleDepuisSon, mobilierArchives, pieceDepuisSons, resumePiece }
+  cartelDepuisSon, steleDepuisSon, mobilierArchives, pieceDepuisSons, resumePiece,
+  apparierVisuels, panneauDeVisuel, corpsDeStele, FORMES }
   from '../engine/src/editor/state/PieceDepuisSons.js';
 import { validerGabarit, instancierGabarit } from '../engine/src/editor/state/Gabarits.js';
 import { estOeuvre } from '../engine/src/core/catalogue.js';
@@ -133,6 +134,70 @@ test('stèle : boîte polie, une piste à 8 m, crédit seulement s\'il y a quelq
   assert.deepEqual(banque.credit, { author: 'Matio888', license: 'CC-BY-4.0', sourceUrl: 'https://freesound.org/s/1' });
   assert.equal(banque.stems[0].source, 'freesound');
   assert.equal(banque.stems[0].credit.author, 'Matio888');
+  const signe = steleDepuisSon({ path: 'a/d.wav', meta: { author: 'Yannick', license: 'Tous droits réservés' } }, 0, 1, [0, 0.65, 0]);
+  assert.equal(signe.stems[0].credit.author, 'Yannick', 'un son local signé : le crédit voyage sur la piste');
+  assert.ok(!signe.stems[0].source, 'mais pas de source à citer');
+});
+
+titre('une image par son, une forme pour toutes');
+test('apparier par nom de fichier : accents, casse et extension confondus, un visuel ne sert qu\'une fois', () => {
+  const paires = apparierVisuels(
+    [{ path: 'assets/marees-basse.wav' }, { path: 'assets/Voix_Grave.flac' }, { path: 'assets/seul.wav' }, { path: 'b/marees-basse.wav' }],
+    [{ path: 'assets/Marées-Basse.JPG', ratio: 1.5 }, { path: 'assets/voix-grave.png' }, { path: 'assets/orphelin.jpg' }]);
+  assert.equal(paires.size, 2);
+  assert.equal(paires.get('assets/marees-basse.wav').path, 'assets/Marées-Basse.JPG');
+  assert.equal(paires.get('assets/Voix_Grave.flac').path, 'assets/voix-grave.png');
+  assert.ok(!paires.has('assets/seul.wav') && !paires.has('b/marees-basse.wav'));
+});
+test('le panneau d\'une image : 1,2 m de haut, largeur au ratio, accroché à la hauteur de la charte', () => {
+  assert.deepEqual(panneauDeVisuel({ ratio: 1.5 }), { size: [1.8, 1.2], y: 1.5 });
+  assert.deepEqual(panneauDeVisuel({}), { size: [1.6, 1.2], y: 1.5 });
+  const large = panneauDeVisuel({ ratio: 3 });
+  assert.equal(large.size[0], 2.4, 'plafonné à 2,4 m de large');
+  assert.equal(large.size[1], 0.8);
+  const portrait = panneauDeVisuel({ ratio: 0.5 });
+  assert.deepEqual(portrait.size, [0.6, 1.2]);
+});
+test('une stèle appariée devient un panneau : image, taille, hauteur, la piste reste, plus de corps', () => {
+  const s = steleDepuisSon({ path: 'a/x.wav' }, 0, 1, [1, 0.65, 2], { visuel: { path: 'a/x.jpg', ratio: 1.5 } });
+  assert.equal(s.image, 'a/x.jpg');
+  assert.deepEqual(s.size, [1.8, 1.2]);
+  assert.deepEqual(s.position, [1, 1.5, 2]);
+  assert.ok(!('model' in s));
+  assert.equal(s.stems[0].file, 'a/x.wav');
+  assert.equal(s.lightIntensity, 3.2);
+});
+test('les formes : monolithe, sphère et modèle reposent au sol chacun à sa hauteur', () => {
+  assert.equal(corpsDeStele('boite').y, 0.65);
+  const mono = corpsDeStele('monolithe', { color: '#123456' });
+  assert.equal(mono.model.shape, 'monolith');
+  assert.equal(mono.y, mono.model.height / 2);
+  assert.equal(corpsDeStele('sphere').model.shape, 'sphere');
+  assert.equal(corpsDeStele('sphere').y, 0.6);
+  const item = { url: 'library/models/socle-haut.glb', fit: 1.1, author: 'Galerie', license: 'CC0-1.0', sourceUrl: 'https://x' };
+  const m = corpsDeStele('modele', { modele: item });
+  assert.deepEqual(m.model, { type: 'gltf', url: item.url, fit: 1.1 });
+  assert.equal(m.y, 0);
+  assert.deepEqual(m.credit, { author: 'Galerie', license: 'CC0-1.0', sourceUrl: 'https://x' });
+  assert.equal(corpsDeStele('modele', { modele: null }).model.shape, 'box', 'sans modèle : la boîte');
+  assert.equal(corpsDeStele('inconnue').model.shape, 'box');
+  assert.deepEqual(Object.keys(FORMES), ['boite', 'monolithe', 'sphere', 'modele']);
+});
+test('la pièce : formes et images ensemble, le crédit du modèle sur l\'œuvre, celui du son sur la piste', () => {
+  const item = { url: 'library/models/socle-haut.glb', fit: 1.1, author: 'Galerie', license: 'CC0-1.0' };
+  const r = pieceDepuisSons({
+    sons: [{ path: 'a/un.wav', meta: { source: 'freesound', author: 'ivolipa', license: 'CC0-1.0' } }, { path: 'a/deux.wav' }],
+    visuels: [{ path: 'a/deux.jpg', ratio: 1 }], forme: 'modele', modele: item
+  }, doc());
+  assert.equal(r.images, 1);
+  const [un, deux] = r.oeuvres;
+  assert.equal(un.model.url, item.url);
+  assert.equal(un.position[1], 0);
+  assert.deepEqual(un.credit, { author: 'Galerie', license: 'CC0-1.0' }, 'le modèle est crédité sur l\'œuvre');
+  assert.equal(un.stems[0].credit.author, 'ivolipa', 'le son sur sa piste');
+  assert.equal(deux.image, 'a/deux.jpg');
+  assert.deepEqual(deux.size, [1.2, 1.2]);
+  assert.ok(!('model' in deux));
 });
 
 titre('le mobilier, taillé à la salle');

@@ -2,6 +2,8 @@
 // médiathèque (avant toute pièce), l'assistant les coche, propose 3 × 2, on nomme,
 // on crée ; la pièce est courante, ses douze objets sont là, les stèles ont un
 // cartel, une couleur, une piste ; Ctrl+Z la défait d'un bloc, Ctrl+Maj+Z la rend.
+// Une image du même nom qu'un son devient le panneau de sa stèle ; la forme
+// (monolithe, modèle de la bibliothèque) s'applique à toutes les autres.
 //
 //   npm run build:auteur && npx http-server dist-auteur -p 8124 -s &
 //   npm run sonde:piece-sons        (PORT=8124 par défaut ; CAPTURES=dossier pour les captures)
@@ -33,10 +35,13 @@ const verif = (ok, msg) => { console.log(`${ok ? '✓' : '✗'} ${msg}`); if (!o
       const blob = await fetch(`audio/${n}`).then((r) => r.blob());
       files.push(new File([blob], n.replace('stele-', 'archive-'), { type: 'audio/wav' }));
     }
+    // une image du même nom qu'un son : elle deviendra le panneau de sa stèle
+    const img = await fetch('apercu.jpg').then((r) => r.blob());
+    files.push(new File([img], 'Marees-Basse.jpg', { type: 'image/jpeg' }));
     await window.__galerie.editor.media.handleFiles(files, { asLibrary: true });
-    return [...window.__galerie.assetOverrides.keys()].filter((k) => /\.wav$/.test(k));
+    return [...window.__galerie.assetOverrides.keys()].filter((k) => /\.(wav|jpg)$/.test(k));
   }, FICHIERS);
-  verif(importes.length === 6, `six sons dans la médiathèque : ${importes.join(', ')}`);
+  verif(importes.length === 7 && importes.includes('assets/marees-basse.jpg'), `six sons et une image dans la médiathèque : ${importes.join(', ')}`);
   const apres = await page.evaluate(() => ({ rooms: window.__galerie.editor.doc.rooms.length, works: window.__galerie.editor.doc.works.length }));
   verif(apres.rooms === avant.rooms && apres.works === avant.works, `l'import en médiathèque ne crée rien (${apres.works} œuvres, ${apres.rooms} pièces)`);
 
@@ -52,8 +57,13 @@ const verif = (ok, msg) => { console.log(`${ok ? '✓' : '✗'} ${msg}`); if (!o
     grille: document.querySelector('[data-as-grille].actif')?.dataset.asGrille,
     apercu: document.querySelector('[data-as-apercu]').textContent,
     nom: document.querySelector('[data-as-nom]').value,
-    creer: !document.querySelector('[data-as-creer]').disabled
+    creer: !document.querySelector('[data-as-creer]').disabled,
+    images: [...document.querySelectorAll('[data-as-image]')].map((e) => `${e.closest('.ed-as-son').querySelector('input').dataset.asSon} ← ${e.dataset.asImage}`),
+    compte: document.querySelector('[data-as-compte]').textContent,
+    formes: [...document.querySelectorAll('[data-as-forme] option')].map((o) => o.value)
   }));
+  verif(etat.images.length === 1 && etat.images[0] === 'assets/marees-basse.wav ← assets/marees-basse.jpg' && /1 avec image/.test(etat.compte), `appariement par nom : ${etat.images.join(' ; ')} (« ${etat.compte} »)`);
+  verif(etat.formes.join(',') === 'boite,monolithe,sphere,modele', `formes proposées : ${etat.formes.join(', ')}`);
   verif(etat.coches === 6 && etat.neufs === 6 && etat.replies === etat.total - 6, `assistant : ${etat.coches} cochés, ${etat.neufs} jamais posés en tête, ${etat.replies} déjà posés repliés (${etat.total} en tout)`);
   verif(etat.mode === 'grille' && etat.grille === '3x2', `disposition proposée : ${etat.mode} ${etat.grille}`);
   verif(/^6 stèles en grille 3 × 2 — salle de [\d.]+ × [\d.]+ m$/.test(etat.apercu), `aperçu : « ${etat.apercu} »`);
@@ -86,6 +96,7 @@ const verif = (ok, msg) => { console.log(`${ok ? '✓' : '✗'} ${msg}`); if (!o
     new MutationObserver((ms) => { for (const m of ms) for (const n of m.addedNodes) if (n.classList?.contains('ed-toast')) window.__toasts.push(n.textContent); }).observe(document.body, { childList: true });
     const nom = document.querySelector('[data-as-nom]'); nom.value = 'Mes archives'; nom.dispatchEvent(new Event('input'));
     const pas = document.querySelector('[data-as-pas]'); pas.value = 'large'; pas.dispatchEvent(new Event('change'));
+    const forme = document.querySelector('[data-as-forme]'); forme.value = 'monolithe'; forme.dispatchEvent(new Event('change'));
     document.querySelector('[data-as-creer]').click();
   });
   await page.waitForFunction(() => window.__galerie.rooms.current?.config?.id === 'mes-archives-1', null, { timeout: 30000 });
@@ -99,22 +110,25 @@ const verif = (ok, msg) => { console.log(`${ok ? '✓' : '✗'} ${msg}`); if (!o
     const steles = works.filter((w) => w.role !== 'decor');
     return {
       id: cfg.id, title: cfg.title, shell: [cfg.shell.width, cfg.shell.depth, cfg.shell.height], texture: [cfg.floor.texture, cfg.shell.texture],
-      n: works.length, steles: steles.map((w) => ({ id: w.id, title: w.title, color: w.model.color, stem: w.stems?.[0]?.file, x: w.position[0], z: w.position[2], desc: (w.description || '').slice(0, 40) })),
+      n: works.length, steles: steles.map((w) => ({ id: w.id, title: w.title, color: w.model?.color, shape: w.model?.shape, image: w.image, size: w.size, stem: w.stems?.[0]?.file, x: w.position[0], y: w.position[1], z: w.position[2], desc: (w.description || '').slice(0, 40) })),
       decor: works.filter((w) => w.role === 'decor').map((w) => w.title),
       artworks: room.artworks.length, rouges: room.artworks.filter((a) => a.mediaError).map((a) => a.config.id),
       annule: doc.history.prochainAnnule, dirty: doc.dirty
     };
   });
   verif(piece.title === 'Mes archives' && piece.n === 12, `pièce « ${piece.title} » (${piece.id}) : ${piece.n} objets (${piece.steles.length} stèles + ${piece.decor.length} décors : ${piece.decor.join(', ')})`);
-  verif(new Set(piece.steles.map((s) => s.color)).size === 6, `six couleurs distinctes : ${piece.steles.map((s) => s.color).join(' ')}`);
+  const corps = piece.steles.filter((s) => !s.image); const panneau = piece.steles.find((s) => s.image);
+  verif(corps.length === 5 && new Set(corps.map((s) => s.color)).size === 5 && corps.every((s) => s.shape === 'monolith' && s.y === 0.9), `cinq monolithes de couleurs distinctes, posés au sol : ${corps.map((s) => s.color).join(' ')}`);
+  verif(panneau && panneau.image === 'assets/marees-basse.jpg' && panneau.size && Math.abs(panneau.size[0] / panneau.size[1] - 1200 / 630) < 0.02 && panneau.y === 1.5, `la stèle appariée est un panneau : ${panneau?.image}, ${panneau?.size?.join(' × ')} m à ${panneau?.y} m (ratio de l'image mesuré)`);
   verif(piece.steles.every((s) => s.stem && s.title && s.desc), `cartels et pistes : ${piece.steles.map((s) => `${s.title} ← ${s.stem}`).join(' ; ')}`);
   const xs = piece.steles.map((s) => s.x); const zs = piece.steles.map((s) => s.z);
+  verif(piece.artworks === 12 && piece.rouges.length === 0, `${piece.artworks} objets construits (image comprise), ${piece.rouges.length} en erreur`);
   verif(new Set(zs).size === 2 && Math.abs(xs[1] - xs[0] - 6) < 1e-6, `grille 3 × 2 au pas large : x ${xs.join('/')} z ${zs.join('/')}`);
   verif(piece.shell[0] >= 22 && piece.shell[1] >= 20, `salle ${piece.shell.join(' × ')} m, sol ${piece.texture[0]}, murs ${piece.texture[1]}`);
   verif(piece.artworks === 12 && piece.rouges.length === 0, `${piece.artworks} objets construits dans la scène, ${piece.rouges.length} en erreur`);
   verif(/pièce « Mes archives » depuis 6 sons/.test(piece.annule), `l'historique nomme le lot : « ${piece.annule} »`);
   const toast = await page.evaluate(() => window.__toasts.join(' | '));
-  verif(/Pièce « Mes archives » créée : 6 stèles/.test(toast), `toast : « ${toast.slice(0, 90)} »`);
+  verif(/Pièce « Mes archives » créée : 6 stèles dont 1 avec image/.test(toast), `toast : « ${toast.slice(0, 110)} »`);
 
   // 5. les stèles jouent ? au moins leurs pistes sont chargées
   await page.waitForTimeout(2500);
@@ -162,6 +176,42 @@ const verif = (ok, msg) => { console.log(`${ok ? '✓' : '✗'} ${msg}`); if (!o
     return { carte, archives, bouton };
   });
   verif(portes.carte && portes.archives.includes('Archives') && portes.bouton, `portes : carte « Depuis les sons » ${portes.carte}, modèle Archives ${portes.archives.includes('Archives')}, bouton du panneau Sons ${portes.bouton} (${portes.archives.join(', ')})`);
+
+  // 9. la forme « modèle de la bibliothèque » : toutes les stèles portent le même glb, crédité
+  await page.evaluate(() => window.__galerie.editor.annuler());
+  await page.waitForTimeout(600);
+  await page.evaluate(() => { window.__galerie.editor.ui.assistantPieceSons(); });
+  await page.waitForSelector('.ed-assistant-sons', { state: 'attached' });
+  await page.evaluate(() => { const f = document.querySelector('[data-as-forme]'); f.value = 'modele'; f.dispatchEvent(new Event('change')); });
+  await page.waitForFunction(() => [...document.querySelectorAll('[data-as-modele] option')].some((o) => o.value === 'socle-haut'), null, { timeout: 15000 });
+  const bib = await page.evaluate(() => {
+    const champ = !document.querySelector('[data-as-modele-champ]').hidden;
+    const m = document.querySelector('[data-as-modele]'); m.value = 'socle-haut'; m.dispatchEvent(new Event('change'));
+    const nom = document.querySelector('[data-as-nom]'); nom.value = 'Socles'; nom.dispatchEvent(new Event('input'));
+    const n = m.options.length;
+    document.querySelector('[data-as-creer]').click();
+    return { champ, n };
+  });
+  await page.waitForFunction(() => window.__galerie.rooms.current?.config?.id === 'socles-1', null, { timeout: 30000 });
+  const t0 = Date.now();
+  let socles;
+  while (Date.now() - t0 < 60000) {
+    socles = await page.evaluate(() => {
+      const app = window.__galerie; const room = app.rooms.current; const doc = app.editor.doc;
+      const steles = room.config.works.map((id) => doc.work(id)).filter((w) => w.role !== 'decor');
+      return { modeles: steles.filter((w) => w.model?.url?.endsWith('socle-haut.glb') && w.model.type === 'gltf' && w.position[1] === 0).length, credits: steles.filter((w) => w.credit?.author === 'Galerie').length, images: steles.filter((w) => w.image).length,
+        arts: room.artworks.filter((a) => a.config.role !== 'decor').map((a) => ({ charge: !!a._visualLoaded, erreur: a.mediaError ?? null })) };
+    });
+    if (socles.arts.every((a) => a.charge || a.erreur)) break;
+    await page.waitForTimeout(1000);
+  }
+  verif(bib.champ && bib.n >= 12, `la bibliothèque est proposée : ${bib.n} modèles`);
+  // sept sons cette fois : le septième, jamais posé, est coché d'office à la réouverture
+  verif(socles.modeles === 6 && socles.credits === 6 && socles.images === 1, `« Socles » : ${socles.modeles} stèles sur socle-haut.glb crédité (${socles.credits}), ${socles.images} panneau d'image`);
+  verif(socles.arts.every((a) => a.charge) && socles.arts.every((a) => !a.erreur), `les modèles ont chargé : ${socles.arts.filter((a) => a.charge).length}/${socles.arts.length}, erreurs ${socles.arts.filter((a) => a.erreur).length}`);
+  if (process.env.CAPTURES) await page.screenshot({ path: `${process.env.CAPTURES}/socles.png` });
+  await page.evaluate(() => window.__galerie.editor.annuler());
+  await page.waitForTimeout(400);
 
   for (const b of bruit) console.log(`    ${b}`);
   console.log(`\n${echecs === 0 && bruit.length === 0 ? '✓' : '✗'} bilan : ${echecs} échec(s), ${bruit.length} erreur(s) de page`);
