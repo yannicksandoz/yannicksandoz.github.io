@@ -1,4 +1,4 @@
-import { existsSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { defineConfig } from 'vite';
@@ -136,6 +136,61 @@ function lireJson(chemin) {
 }
 
 /**
+ * LES ORIGINAUX NE PARTENT PAS EN LIGNE.
+ *
+ * Une piste garde son `file` dans le JSON — c'est lui que l'éditeur montre et
+ * que les crédits citent — mais dès qu'elle a ses `fragments`
+ * (scripts/fragmente-sons.py) ou ses `formats` encodés (encode-sons.py), le
+ * fichier d'origine n'a plus de raison d'être servi : 7,6 Mo de mp3 que
+ * personne ne chargeait partaient quand même dans le site. On les retire de
+ * `dist/` à la publication ; les fichiers entiers d'une piste fragmentée
+ * aussi. Un original léger (sous un mégaoctet) reste : c'est le repli d'un
+ * navigateur qui ne lirait ni Opus ni AAC. `scripts/check-visitor-build.mjs`
+ * vérifie ensuite le résultat plutôt que de faire confiance à ce plugin.
+ */
+const SEUIL_ORIGINAL = 1 * 1048576;
+
+function retirerOriginaux() {
+  let sortie = 'dist';
+  return {
+    name: 'galerie-retirer-originaux',
+    configResolved(config) { sortie = config.build.outDir; },
+    closeBundle() {
+      const pistes = [];
+      for (const [genre, cle] of [['works', 'stems'], ['rooms', 'ambience']]) {
+        const dossier = join(sortie, genre);
+        const index = lireJson(join(dossier, 'index.json'));
+        const noms = Array.isArray(index) ? index : index?.[genre];
+        for (const nom of noms ?? []) {
+          const doc = lireJson(join(dossier, String(nom).endsWith('.json') ? String(nom) : `${nom}.json`));
+          for (const p of doc?.[cle] ?? []) if (p && typeof p === 'object') pistes.push(p);
+        }
+      }
+      const retires = [];
+      const retirer = (rel, pourquoi) => {
+        if (typeof rel !== 'string' || !rel) return;
+        const abs = join(sortie, rel.replace(/^\.?\/+/, ''));
+        if (!existsSync(abs)) return;
+        rmSync(abs, { force: true });
+        retires.push(`${rel} (${pourquoi})`);
+      };
+      for (const p of pistes) {
+        const formats = p.formats && typeof p.formats === 'object' ? Object.values(p.formats) : [];
+        if (p.fragments) {
+          retirer(p.file, 'fragmenté');
+          for (const f of formats) retirer(f, 'entier, fragmenté');
+        } else if (formats.length >= 2 && typeof p.file === 'string') {
+          const abs = join(sortie, p.file.replace(/^\.?\/+/, ''));
+          const encodes = formats.every((f) => existsSync(join(sortie, String(f).replace(/^\.?\/+/, ''))));
+          if (encodes && existsSync(abs) && statSync(abs).size > SEUIL_ORIGINAL) retirer(p.file, 'encodé à côté');
+        }
+      }
+      if (retires.length) console.log(`originaux retirés de ${sortie}/ : ${retires.join(', ')}`);
+    }
+  };
+}
+
+/**
  * Proxy local pour l'éditeur (mode Auteur uniquement).
  *
  * L'API Poly Pizza refuse le préflight CORS qu'impose l'en-tête
@@ -185,7 +240,7 @@ export default defineConfig({
   // importés comme des images : Vite ne connaît pas l'extension par défaut.
   assetsInclude: ['**/*.exr'],
 
-  plugins: [retirerDomEditeur(), retirerSauvegardes(), combinerContenu()],
+  plugins: [retirerDomEditeur(), retirerSauvegardes(), combinerContenu(), retirerOriginaux()],
 
   resolve: {
     // Un alias plutôt qu'un `if` dans le code : une condition à l'exécution

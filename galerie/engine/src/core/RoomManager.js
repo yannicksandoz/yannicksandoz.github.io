@@ -14,6 +14,8 @@ import { patcherArbreLignes, segmentsMonde } from './lignes-lumiere.js';
 import { majAmbiance, oublierAmbiance, ambianceArmee } from './ambiance-salle.js';
 import { delaiDe, fermer, estFerme, tick as tickCooldown } from './Cooldown.js';
 import { lancerBoucle } from './son-bornes.js';
+import { choisirSource, supportAudio } from './formats-audio.js';
+import { LecteurFragments, chargerManifeste } from './fragments.js';
 import { reverbDePiece } from './reverb-reglages.js';
 import { creerCartel, majCartel, disposerCartel, tournerVersCamera }
   from './cartels.js';
@@ -907,22 +909,38 @@ export class RoomManager {
       room.ambience = { bus: null, sources: [], loading: true };
       try {
         const engine = this.app.audio;
-        const buffers = await Promise.all(
-          cfgs.map((c) => engine.load(this.app.resolveAsset(c.file)))
-        );
+        // une ambiance par FRAGMENTS (fragments.js) a un lecteur au lieu
+        // d'un buffer : le format se choisit comme pour une piste d'œuvre
+        const supporte = engine.supporte ??= supportAudio();
+        const charges = await Promise.all(cfgs.map(async (c) => {
+          if (!c.fragments) return { buffer: await engine.load(this.app.resolveAsset(c.file)) };
+          const manifeste = await chargerManifeste(this.app.resolveAsset(c.fragments));
+          const motif = choisirSource(manifeste, supporte);
+          if (!motif) throw new Error(`aucun format de fragments lisible pour ${c.fragments}`);
+          const lecteur = new LecteurFragments({
+            engine, manifeste, motif: this.app.resolveAsset(motif), cfg: c, destination: null
+          });
+          await lecteur.precharger();
+          return { lecteur };
+        }));
         // La pièce a pu être libérée pendant le décodage (changement de
         // pièce, reconstruction de la scène en édition) : on abandonne.
-        if (!room.ambience) return;
+        if (!room.ambience) { for (const c of charges) c.lecteur?.liberer(); return; }
         const ctx = engine.ctx;
         const bus = ctx.createGain();
         bus.gain.value = 0;
         engine.brancherCanal(bus);   // l'ambiance est une tranche comme une autre
         room.ambience.bus = bus;
         const t0 = ctx.currentTime + 0.05;
-        room.ambience.sources = buffers.map((buffer, i) => {
+        room.ambience.sources = charges.map(({ buffer, lecteur }, i) => {
           const gain = ctx.createGain();
           gain.gain.value = cfgs[i].gain ?? 0.5;
           gain.connect(bus);
+          if (lecteur) {
+            lecteur.destination = gain;
+            lecteur.demarrer(t0);
+            return { src: null, gain, lecteur };
+          }
           const src = ctx.createBufferSource();
           src.buffer = buffer;
           src.connect(gain);
@@ -947,8 +965,11 @@ export class RoomManager {
   _releaseAmbience(room) {
     if (!room.ambience) return;
     for (const s of room.ambience.sources) {
-      try { s.src.stop(); } catch { /* déjà arrêtée */ }
-      s.src.disconnect();
+      if (s.lecteur) s.lecteur.liberer();
+      else {
+        try { s.src.stop(); } catch { /* déjà arrêtée */ }
+        s.src.disconnect();
+      }
       s.gain.disconnect();
     }
     // La tranche de console de l'ambiance se ferme avec elle : sans cela,
@@ -956,7 +977,8 @@ export class RoomManager {
     if (room.ambience.bus) this.app.audio.debrancherCanal(room.ambience.bus);
     room.ambience.bus?.disconnect();
     for (const c of room.config.ambience ?? []) {
-      this.app.audio.release(this.app.resolveAsset(c.file));
+      // une ambiance par fragments a déjà rendu ses segments (liberer)
+      if (!c.fragments) this.app.audio.release(this.app.resolveAsset(c.file));
     }
     room.ambience = null;
   }

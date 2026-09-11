@@ -7,3 +7,8 @@ dist-auteur/
 # publication, et git est déjà l'historique. Elles servent quand git ne peut
 # pas — un retour immédiat, sans ligne de commande.
 content/.sauvegardes/
+
+# Les MASTERS audio (wav, aiff, flac de studio) vivent ici, hors du dépôt :
+# scripts/fragmente-sons.py et encode-sons.py les y cherchent (--sources,
+# GALERIE_SOURCES). Ce qui part en ligne est une copie d'écoute encodée.
+sources/

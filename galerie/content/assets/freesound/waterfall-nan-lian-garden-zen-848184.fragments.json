@@ -1,0 +1,11 @@
+{
+  "version": 1,
+  "duree": 70.66,
+  "segment": 10.0,
+  "chevauchement": 0.1,
+  "n": 8,
+  "formats": {
+    "webm": "assets/freesound/waterfall-nan-lian-garden-zen-848184.frag/{i}.webm",
+    "m4a": "assets/freesound/waterfall-nan-lian-garden-zen-848184.frag/{i}.m4a"
+  }
+}

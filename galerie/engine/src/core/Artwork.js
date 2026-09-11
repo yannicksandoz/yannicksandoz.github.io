@@ -9,6 +9,7 @@ import { scaleObjetUV } from './textures.js';
 import { jeuDeSurface, habillerModele } from './matieres.js';
 import { ombreDeContact } from './ombres.js';
 import { choisirSource, supportAudio, chargerAvecRepli } from './formats-audio.js';
+import { LecteurFragments, chargerManifeste } from './fragments.js';
 import { liensDuModele, resoudreLienSuivi } from './liens.js';
 import { importerChunk } from './chunks.js';
 import { estFluide } from './style.js';
@@ -1309,7 +1310,7 @@ export class Artwork {
       // d'origine en dernier (formats-audio.js). Le chemin CHOISI se garde
       // sur la piste — c'est lui qu'il faudra rendre (release), pas `file`.
       const supporte = engine.supporte ??= supportAudio();
-      this._urlsStems = stemCfgs.map((s) => this._resolve(choisirSource(s, supporte)));
+      this._urlsStems = stemCfgs.map((s) => s.fragments ? null : this._resolve(choisirSource(s, supporte)));
       // Si l'alternative échoue (un « maybe » que le décodeur dément), on
       // recharge le fichier d'origine et l'on retient CE chemin-là.
       const charger = async (s, i) => {
@@ -1320,8 +1321,23 @@ export class Artwork {
         this._urlsStems[i] = url;
         return buffer;
       };
+      // Une piste PAR FRAGMENTS (voir fragments.js) n'a pas de buffer : un
+      // lecteur, qui ne décode que les dix secondes à venir. Le premier
+      // segment compte comme chargement essentiel, comme un buffer entier.
+      const lecteurs = new Array(stemCfgs.length).fill(null);
+      const preparer = async (s, i) => {
+        if (!s.fragments) return charger(s, i);
+        const manifeste = await chargerManifeste(this._resolve(s.fragments));
+        const motif = choisirSource(manifeste, supporte);
+        if (!motif) throw new Error(`aucun format de fragments lisible pour ${s.fragments}`);
+        lecteurs[i] = new LecteurFragments({
+          engine, manifeste, motif: this._resolve(motif), cfg: s, destination: null
+        });
+        await lecteurs[i].precharger();
+        return null;
+      };
       const buffers = await Promise.all(
-        stemCfgs.map((s, i) => this.app.loading.track(charger(s, i), essentiel))
+        stemCfgs.map((s, i) => this.app.loading.track(preparer(s, i), essentiel))
       );
       const ctx = engine.ctx;
 
@@ -1349,7 +1365,10 @@ export class Artwork {
         // (`"spatial": false`), branchées en direct, canaux intacts.
         const voie = this.app.spatial?.creerVoie(this, cfg, gain, this.entreeSon) ?? null;
         if (!voie) gain.connect(this.entreeSon);
-        return { cfg, gain, source: null, buffer: buffers[i], voie };
+        // le lecteur par fragments joue dans le gain de la piste, là où une
+        // source de buffer se brancherait
+        if (lecteurs[i]) lecteurs[i].destination = gain;
+        return { cfg, gain, source: null, buffer: buffers[i], voie, lecteur: lecteurs[i] };
       });
 
       // Les modules branchent panner/analyser et prennent la main sur les
@@ -1385,6 +1404,7 @@ export class Artwork {
         // qui reconduit les gains chaque frame, masquait le défaut.
         s.gain.gain.cancelScheduledValues(t0);
         s.gain.gain.setTargetAtTime(s.cfg.gain ?? 1, t0, 0.12);
+        if (s.lecteur) { s.lecteur.demarrer(t0); continue; }
         const src = ctx.createBufferSource();
         src.buffer = s.buffer;
         src.connect(s.gain);
@@ -1402,6 +1422,8 @@ export class Artwork {
       for (const s of this.stems) {
         s.gain.gain.cancelScheduledValues(t);
         s.gain.gain.setTargetAtTime(0, t, EXTINCTION / 3);
+        // le lecteur par fragments s'arrête au bout du même fondu
+        if (s.lecteur) { s.lecteur.arreter(t + EXTINCTION); continue; }
         const src = s.source;
         s.source = null;
         if (!src) continue;
@@ -1418,6 +1440,8 @@ export class Artwork {
     this.stems.forEach((s, i) => {
       s.gain.disconnect();
       this.app.spatial?.libererVoie(s.voie);
+      // un lecteur par fragments rend ses segments lui-même
+      if (s.lecteur) { s.lecteur.liberer(); return; }
       // le chemin réellement chargé (format choisi), pas `file`
       this.app.audio.release(this._urlsStems?.[i] ?? this._resolve(s.cfg.file));
     });

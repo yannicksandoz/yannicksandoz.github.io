@@ -1,0 +1,11 @@
+{
+  "version": 1,
+  "duree": 344.38,
+  "segment": 10.0,
+  "chevauchement": 0.1,
+  "n": 35,
+  "formats": {
+    "webm": "assets/freesound/ethereal-ambient-sound-for-film-797831.frag/{i}.webm",
+    "m4a": "assets/freesound/ethereal-ambient-sound-for-film-797831.frag/{i}.m4a"
+  }
+}

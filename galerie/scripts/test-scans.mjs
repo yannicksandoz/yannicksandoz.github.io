@@ -164,8 +164,9 @@ test('une œuvre de salle VOISINE ne retient pas l’écran d’accueil', () => 
   for (const appel of ['taille: cfg.scanTaille }), essentiel',
     'this._resolve(cfg.image)), essentiel',
     'this._loadModelMesh(cfg.model, essentiel)',
-    // le son : le chemin CHOISI (formats-audio.js), avec son repli
-    'this.app.loading.track(charger(s, i), essentiel)']) {
+    // le son : le chemin CHOISI (formats-audio.js) avec son repli, ou le
+    // premier segment d'une piste par fragments (fragments.js)
+    'this.app.loading.track(preparer(s, i), essentiel)']) {
     assert.ok(src.includes(appel), `chargement non marqué : ${appel}`);
   }
 });

@@ -12,7 +12,8 @@
  *   node scripts/check-visitor-build.mjs [dossier]   (défaut : dist)
  */
 import { readdir, readFile, stat } from 'node:fs/promises';
-import { join, extname } from 'node:path';
+import { join, extname, relative } from 'node:path';
+import { auditerPoids, texteRapport } from './poids-audio.mjs';
 
 const RACINE = process.argv[2] ?? 'dist';
 
@@ -222,6 +223,30 @@ if (!licenceSlug) {
     }
   }
 }
+
+// LE POIDS DU SON : ni master, ni fichier obèse, ni original publié à côté
+// de ses fragments ou de ses formats (règles dans poids-audio.mjs). On lit
+// les documents COMBINÉS que le build écrit ; sans eux, les fichiers un par
+// un, comme le chargeur.
+const fichiersAudio = [];
+for (const chemin of tous) {
+  const rel = relative(RACINE, chemin).split('\\').join('/');
+  if (/\.(wav|aiff?|flac|mp3|ogg|oga|opus|webm|m4a|aac|json)$/i.test(rel)) {
+    fichiersAudio.push({ chemin: rel, octets: (await stat(chemin)).size });
+  }
+}
+const lireDocs = async (genre) => {
+  try { return JSON.parse(await readFile(join(RACINE, genre, `${genre}.json`), 'utf8')); } catch { /* pas de combiné */ }
+  try {
+    const index = JSON.parse(await readFile(join(RACINE, genre, 'index.json'), 'utf8'));
+    const noms = Array.isArray(index) ? index : index?.[genre] ?? [];
+    return Promise.all(noms.map(async (n) => JSON.parse(await readFile(
+      join(RACINE, genre, String(n).endsWith('.json') ? String(n) : `${n}.json`), 'utf8'))));
+  } catch { return []; }
+};
+const poids = auditerPoids({ fichiers: fichiersAudio, works: await lireDocs('works'), rooms: await lireDocs('rooms') });
+for (const e of poids.erreurs) erreurs.push(`poids : ${e}`);
+console.log(texteRapport(poids.rapport));
 
 console.log(`${texte.length} fichiers texte inspectés dans ${RACINE}/`);
 

@@ -548,6 +548,70 @@ durée, même son, seul l'encodage change.
   lieu de 7,6 pour l'entrée, 0,5 au lieu de 1,5 pour le jardin. Le dépôt,
   lui, grossit des deux alternatives ; c'est le bon sens du compromis.
 
+**Puis dix secondes à la fois : la lecture par fragments.** Encodée, la
+nappe de l'entrée pesait encore 3 Mo de réseau avant la première note et,
+décodée, 115 Mo de PCM en mémoire pour toute la visite, qu'on l'écoute dix
+secondes ou cinq minutes ; douze pistes à l'entrée, 138 Mo (mesuré par
+`npm run sonde:poids-audio`). Et c'était un fichier, à une URL, qui était
+l'œuvre entière. `scripts/fragmente-sons.py` découpe toute piste longue en
+SEGMENTS de dix secondes (Opus et AAC côte à côte, comme avant), chacun
+prolongé d'un chevauchement de 100 ms qui répète le début du suivant, et
+écrit un manifeste à côté (`x.fragments.json` : durée, segment, nombre,
+motifs `{i}`) que la piste nomme : `"fragments": "assets/x.fragments.json"`.
+Le lecteur (`core/fragments.js`) ne charge que les douze secondes à venir,
+segment par segment, et rend chacun dès qu'il a joué : deux ou trois
+segments décodés en mémoire, jamais la pièce. Au raccord, le segment qui
+finit s'éteint sur le chevauchement pendant que le suivant s'allume : les
+deux portent le même son à cet endroit, et un fondu linéaire les
+additionne exactement à l'original. Les bornes `debut` / `fin` de la piste
+s'appliquent par-dessus les segments, comme à un buffer. Un segment en
+retard (réseau lent) rattrape en sautant ce qui est passé ; un segment
+illisible laisse un trou plutôt qu'une piste morte. Les ambiances de pièce
+en profitent au même titre que les pistes d'œuvre. Mesuré à l'entrée,
+même pièce, même écoute : 2,87 Mo de réseau au lieu de 6,03 ; 16,9 Mo de
+PCM résident au lieu de 137,8 ; premier son inchangé (il attend la scène,
+pas le son). Le chaînage est pur et testé (`test-fragments.mjs`, 13
+vérifications, dont un lecteur sur moteur factice).
+
+**Les masters ne partent jamais en ligne.** Ce qui circule est une copie
+d'écoute ; le fichier d'origine reste chez l'auteur (le script le cherche
+aussi dans un dossier hors dépôt, `--sources` ou `GALERIE_SOURCES`, sous le
+même chemin relatif ou son seul nom). Trois garde-fous, sur le RÉSULTAT du
+build et non sur la configuration : le plugin `retirerOriginaux` de
+`vite.config.js` retire de `dist/` le `file` et les `formats` entiers d'une
+piste fragmentée, et le `file` lourd d'une piste encodée ; puis
+`scripts/check-visitor-build.mjs` (règles pures dans `poids-audio.mjs`,
+`test-poids.mjs`) refuse le build si un master (wav, aiff, flac) de plus
+d'un mégaoctet, un fichier audio de plus de 8 Mo, ou un original publié à
+côté de ses fragments ou de ses formats s'y trouve, et imprime le poids
+par format. Le site publié porte aujourd'hui 11,6 Mo d'audio (contre 21
+avant), dont 3,1 Mo de petits wav sous le seuil.
+
+**Et le jour où GitHub ne suffit plus.** Ses limites : 100 Mo par fichier,
+1 Go pour le site, un dépôt qu'on garde sous le gigaoctet, 100 Go de bande
+passante par mois en limite souple. Quarante archives de cinq minutes en
+Opus et AAC, c'est 200 Mo ; au-delà de quelques centaines de mégaoctets,
+ou d'un public large, on sort l'audio du dépôt vers un stockage d'objets
+sans frais de sortie, et l'on écrit dans `content/reglages.json` :
+
+```json
+"medias": { "sons": "https://sons.exemple.org/galerie/" }
+```
+
+Rien d'autre ne change : les JSON gardent leurs chemins relatifs, seule la
+résolution des sons (pistes, ambiances, manifestes, fragments) part vers
+cet hôte (`core/medias.js`, `test-medias.mjs`) ; `medias.base` fait de
+même pour tout le reste. L'hôte doit répondre `Access-Control-Allow-Origin`
+pour que le navigateur puisse décoder ce qu'il télécharge.
+
+Ce que tout cela ne fait pas, et qu'il faut savoir : ce qu'un navigateur
+joue, une personne décidée peut l'enregistrer, et chiffrer des fichiers
+que la page déchiffre avec une clé qu'elle contient ne protège de rien. La
+lecture par fragments rend la copie inintéressante (il n'y a plus de
+morceau à prendre d'un clic droit, seulement des bouts à recoller) et le
+mixage par position rend l'œuvre inséparable du lieu ; c'est de la
+friction, pas une serrure.
+
 Vérifié au navigateur, réseau bridé à 8 Mbit/s : les deux grosses
 ambiances partent en `.webm`, aucun MP3 n'est demandé, l'ambiance de
 l'entrée est prête et joue, sa durée est intacte (344,3 s), le chemin

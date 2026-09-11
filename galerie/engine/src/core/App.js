@@ -15,6 +15,7 @@ import { AudioEngine } from './AudioEngine.js';
 import { Spatialisation } from './Spatialisation.js';
 import { QualityManager } from './Quality.js';
 import { LoadingTracker, assetUrl } from './utils.js';
+import { resoudreMedia } from './medias.js';
 import { Signaux } from './signaux.js';
 import { setDefaultAnisotropy } from './textures.js';
 import { setBudgetSourcesEtendues, setEclatLuminaires } from './primitives.js';
@@ -769,9 +770,14 @@ export class App {
     });
   }
 
-  /** Chemin de config → URL réelle (les imports de l'éditeur sont des blobs). */
+  /**
+   * Chemin de config → URL réelle (les imports de l'éditeur sont des blobs).
+   * Les réglages `medias` de reglages.json peuvent envoyer les sons, ou tout
+   * le reste, vers un autre hôte (voir core/medias.js).
+   */
   resolveAsset(path) {
-    return this.assetOverrides.get(path) ?? assetUrl(path);
+    return this.assetOverrides.get(path)
+      ?? resoudreMedia(path, this.reglages?.medias, import.meta.env.BASE_URL);
   }
 
   /** Onglet masqué → boucle en pause + audio suspendu (économie de batterie). */
