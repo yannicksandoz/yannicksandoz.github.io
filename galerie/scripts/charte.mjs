@@ -50,7 +50,7 @@ import { cleDepuisOeuvre } from '../engine/src/core/ombres.js';
 export { empriseAuSol, occupationVoxel } from '../engine/src/core/charte-regles.js';
 import { loiSerpentin } from '../engine/src/core/serpentin.js';
 import { empriseAuSol,
-  ACCROCHAGE, hauteurVisee, ecartAccrochage, reculDe, seuilsEncombres,
+  ACCROCHAGE, hauteurVisee, ecartAccrochage, reculDe, seuilsEncombres, encastrement, estPanneau,
   dimensionsSalle as dimensionsPartagees,
   AIR_SEUIL as AIR_SEUIL_PARTAGE, GARDE_CORNICHE as GARDE_PARTAGEE }
   from '../engine/src/core/charte-regles.js';
@@ -427,6 +427,28 @@ const dimensionsSalle = dimensionsPartagees;
  * physiquement pas la voir en entier. On mesure la distance de l'œuvre à
  * la paroi d'en face le long de sa normale (la rotation Y du panneau).
  */
+/**
+ * PRIS DANS LE MUR — un panneau (image, vidéo, écran ISF plat) dont le plan
+ * passe derrière la face intérieure de son mur, ou sans le retrait : la
+ * plaque d'un mur est centrée sur son plan, sa face est à demi − épaisseur
+ * / 2 (charte-regles.EPAISSEUR_MUR). Le chien de la salle des shaders y
+ * était pris de 7,5 cm et ne se voyait qu'où le voile fluide s'écartait.
+ * Les extérieurs, sans murs, sont exemptés.
+ */
+export function auditEncastrement() {
+  const rapport = [];
+  const oeuvres = new Map(toutesLesOeuvres().map((w) => [w.id, w]));
+  for (const s of salles()) {
+    if (EXTERIEURS.has(s.id) || !s.shell) continue;
+    for (const id of s.works ?? []) {
+      const w = oeuvres.get(id);
+      if (!w || !estPanneau(w)) continue;
+      rapport.push({ salle: s.id, id, ...encastrement(w, s) });
+    }
+  }
+  return rapport;
+}
+
 export function auditRecul() {
   const parId = new Map(salles().map((s) => [s.id, s]));
   const salleDe = new Map();

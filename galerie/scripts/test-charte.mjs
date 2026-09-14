@@ -21,7 +21,7 @@ import { fileURLToPath } from 'node:url';
 import { cleDepuisOeuvre } from '../engine/src/core/ombres.js';
 import { CHARTE, EXTERIEURS, LUMINAIRES, clarte, teinteEtSaturation, ecartTeinte,
   bandeLumiere,
-  auditSalles, auditAccrochage, auditRecul, auditHierarchie, auditVista,
+  auditSalles, auditAccrochage, auditRecul, auditHierarchie, auditVista, auditEncastrement,
   auditRythme, auditBancs, auditAmpleur, ampleurOeuvre, angleApparent,
   arriveesDe, salles, auditDecor, auditLignes, empriseAuSol,
   occupationVoxel, LABYRINTHES, auditCouronnement, GARDE_COURONNE,
@@ -128,6 +128,17 @@ test('chaque œuvre murale a son recul — 1,5 fois sa diagonale', () => {
     assert.ok(r.manque <= 0,
       `${r.id} (${r.salle}) : ${r.libre.toFixed(1)} m libres pour `
       + `${r.requis.toFixed(1)} m requis`);
+  }
+});
+test('aucun panneau n’est pris dans son mur — la face, pas le plan', () => {
+  // la plaque d'un mur est centrée sur son plan : sa face intérieure est à
+  // demi − épaisseur / 2. Le chien des shaders, à 12,90 pour une face à
+  // 12,83, ne se voyait qu'où le voile fluide s'écartait (découpe étrange)
+  const pris = auditEncastrement();
+  if (!pris.length) { console.log('    (aucun panneau — sauté)'); return; }
+  for (const p of pris) {
+    assert.ok(p.manque <= 0.05,
+      `${p.id} (${p.salle}) : ${p.face < 0 ? `${(-p.face).toFixed(2)} m derrière la face du mur ${p.mur}` : `${p.face.toFixed(2)} m de la face du mur ${p.mur}, retrait requis`}`);
   }
 });
 test('l’accent le plus fort va aux œuvres, jamais au décor', () => {

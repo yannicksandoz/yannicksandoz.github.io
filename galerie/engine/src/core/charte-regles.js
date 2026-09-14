@@ -25,6 +25,16 @@ export const ACCROCHAGE = { centre: 1.5, basMinimum: 0.9 };
 /** Retrait d'un panneau par rapport au mur qui le porte (évite le z-fight). */
 export const RETRAIT_MUR = 0.06;
 
+/**
+ * L'ÉPAISSEUR D'UN MUR de coque (m) — la plaque est CENTRÉE sur le plan du
+ * mur (RoomManager la lit ici) : sa face intérieure est donc à
+ * `demi − EPAISSEUR_MUR / 2`, pas à `demi`. Un panneau posé à `demi −
+ * RETRAIT_MUR` était PRIS DANS LE MUR : mesuré dans la salle des shaders,
+ * la face du mur est à 12,83 m pour une coque de 26, et le chien à 12,90
+ * disparaissait partout où le voile fluide ne s'écartait pas.
+ */
+export const EPAISSEUR_MUR = 0.35;
+
 /** Air minimal entre un corps solide et un seuil de portail (m). */
 export const AIR_SEUIL = 0.7;
 
@@ -53,7 +63,7 @@ export const MURS = {
 };
 
 /** Les règles que l'éditeur montre EN DIRECT — mêmes noms côté charte. */
-export const REGLES_DIRECT = ['accrochage', 'recul', 'seuil'];
+export const REGLES_DIRECT = ['accrochage', 'encastre', 'recul', 'seuil'];
 
 /* ------------------------------------------------------------ lectures --- */
 
@@ -104,10 +114,34 @@ export function poseSurMur(mur, salle, oeuvre, long = 0) {
   const { w, d } = dimensionsSalle(salle);
   const demi = (m.axe === 'x' ? w : d) / 2;
   const y = hauteurVisee(hauteurMurale(oeuvre));
-  const perp = m.signe * (demi - RETRAIT_MUR);
+  // le retrait se compte depuis la FACE du mur, pas depuis son plan
+  const perp = m.signe * (demi - EPAISSEUR_MUR / 2 - RETRAIT_MUR);
   return {
     position: m.axe === 'x' ? [perp, y, long] : [long, y, perp],
     rotation: [0, m.lacet, 0]
+  };
+}
+
+/** Un PANNEAU : image, vidéo, ou écran ISF plat (panneau, relief). */
+export function estPanneau(w) {
+  return estMurale(w) || ['panneau', 'relief'].includes(w?.model?.forme);
+}
+
+/**
+ * De combien un panneau est pris dans son mur : la distance de son plan à
+ * la FACE intérieure du mur le plus proche, contre le retrait requis.
+ * → { mur, axe, face, manque, valeur } ; `valeur` est la coordonnée qui le
+ *   remettrait à RETRAIT_MUR de la face (sur `axe`).
+ */
+export function encastrement(w, salle) {
+  const proche = murLePlusProche(salle, w.position ?? [0, 0, 0]);
+  const m = MURS[proche.mur];
+  const { w: lw, d: ld } = dimensionsSalle(salle);
+  const demi = (m.axe === 'x' ? lw : ld) / 2;
+  const face = proche.distance - EPAISSEUR_MUR / 2;
+  return {
+    mur: proche.mur, axe: m.axe, face, manque: RETRAIT_MUR - face,
+    valeur: +(m.signe * (demi - EPAISSEUR_MUR / 2 - RETRAIT_MUR)).toFixed(3)
   };
 }
 
@@ -496,6 +530,19 @@ export function ecartsSalle(salle, oeuvres, emprise, {
   const siennes = (salle.works ?? [])
     .map((id) => oeuvres.find((w) => w.id === id))
     .filter(Boolean);
+
+  for (const w of siennes.filter(estPanneau)) {
+    const e = encastrement(w, salle);
+    if (e.manque > tolerance) {
+      ecarts.push({
+        regle: 'encastre', objet: w.id,
+        texte: e.face < 0
+          ? `« ${w.title ?? w.id} » est PRIS DANS le mur ${e.mur} (${(-e.face).toFixed(2)} m derrière sa face) : il ne se voit qu'où le mur s'écarte`
+          : `« ${w.title ?? w.id} » touche le mur ${e.mur} (${e.face.toFixed(2)} m de sa face, il en faut ${RETRAIT_MUR})`,
+        correction: { champ: e.axe, valeur: e.valeur }
+      });
+    }
+  }
 
   for (const w of siennes.filter(estMurale)) {
     const a = ecartAccrochage(w);

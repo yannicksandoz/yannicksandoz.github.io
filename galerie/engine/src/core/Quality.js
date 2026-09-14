@@ -54,7 +54,7 @@ export function cibleImages(hz) {
   return Math.max(50, Math.round(0.85 * (Number(hz) || 60)));
 }
 
-import { FINITION, SURVIE, prochainCran, etatDe, densiteSuivante, ECONOME, lireEconome, ecrireEconome } from './crans.js';
+import { FINITION, SURVIE, prochainCran, etatDe, densiteSuivante, ECONOME, lireEconome, ecrireEconome, lireGouverneur } from './crans.js';
 
 export class QualityManager {
   constructor() {
@@ -87,8 +87,12 @@ export class QualityManager {
           // le masque du liseré de survol : 0,4 des pixels d'image — ce que
           // valait « la moitié des pixels CSS » à densité 1,25, inchangé
           survolEchelle: 0.4,
+          // le masque du liseré SANS multi-échantillonnage : une cible de rendu
+          // multi-échantillonnée avec profondeur se résout de travers sur
+          // WebKit iOS (liseré décalé, agrandi) — le flou fait les bords doux
+          survolEchantillons: 0,
           bloomResScale: 0.25,  // bloom calculé au quart de la résolution
-          bloomStrength: 0.8,
+          bloomStrength: 0.5,
           grain: !this.reducedMotion,
           maxStems: 6,
           // convolution HRTF : chère PAR SOURCE — au-delà, les voies
@@ -159,7 +163,7 @@ export class QualityManager {
           pixelRatio: Math.min(window.devicePixelRatio || 1, 2),
           nettete: 0,
           bloomResScale: 0.5,
-          bloomStrength: 0.9,
+          bloomStrength: 0.55,
           grain: !this.reducedMotion,
           maxStems: 24,
           maxHRTF: 16,
@@ -188,6 +192,8 @@ export class QualityManager {
     // pour être jeté trois secondes plus tard
     this.econome = lireEconome(typeof location !== 'undefined' ? location.search : '',
       typeof localStorage !== 'undefined' ? localStorage : null);
+    // figé par `?gouverneur=0` (sondes de mesure d'image) — voir crans.js
+    this.gouverneur = lireGouverneur(typeof location !== 'undefined' ? location.search : '');
     if (this.econome) {
       Object.assign(this.profile, ECONOME, { tier: `${this.profile.tier}-econome`,
         pixelRatio: Math.min(window.devicePixelRatio || 1, 1) });
@@ -216,6 +222,7 @@ export class QualityManager {
         pixelRatio: Math.min(window.devicePixelRatio || 1, 1.25),
         nettete: 0.5,  // même densité réduite que le téléphone : même affûtage
         survolEchelle: 0.4,
+        survolEchantillons: 0,
         msaa: 0,     // GPU modeste : la netteté ne vaut pas la chute d'images
         gtao: false,
         anisotropy: 4,
@@ -254,6 +261,7 @@ export class QualityManager {
    * change pas de taux en cours de visite.
    */
   tick(dt, app) {
+    if (this.gouverneur === false) return; // figé (?gouverneur=0) : rien ne bouge
     if (dt > 0) this._fps += ((1 / dt) - this._fps) * 0.05;
     if (dt > 1 / 250) this._periode = Math.min(this._periode ?? Infinity, dt);
     this._acc += dt;

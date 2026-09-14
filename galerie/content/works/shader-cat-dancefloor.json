@@ -23,7 +23,7 @@
     "forme": "panneau",
     "width": 5.5,
     "height": 5.5,
-    "intensite": 1.1,
+    "intensite": 0.8,
     "reglages": {
       "show_body": true,
       "bg_color": [

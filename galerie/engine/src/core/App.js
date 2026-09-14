@@ -400,11 +400,15 @@ export class App {
 
     // LA SORTIE — bloom, courbe de tons, sRGB, grain et vignettage réunis
     // en une seule passe plein écran au lieu de trois (voir PasseSortie.js).
+    // LE SEUIL À 0,8 : seules les hautes lumières franches fleurissent. À
+    // 0,55, tout l'émissif d'un écran ISF (un chat pêche à 1,1) et chaque
+    // chambranle de portail passaient le seuil et brûlaient à l'image —
+    // mesuré par `npm run sonde:lumiere`, entrée et dancefloor.
     this.bloom = new BloomFleur(
       tailleBloom(this.quality.profile),
       this.quality.profile.bloomStrength,
-      0.7,   // rayon
-      0.55   // seuil : seules les zones émissives fleurissent
+      0.6,   // rayon
+      0.8    // seuil : les hautes lumières seulement
     );
     this.bloom.echelle = this.quality.profile.bloomResScale;
     this.sortie = new PasseSortie(this.bloom, this.scenePass);
@@ -420,7 +424,10 @@ export class App {
     // le liseré de survol : masque rendu avant la frame, dilaté à la sortie
     // le masque net au pixel sur bureau (liseré net), réduit sur téléphone
     // où chaque pixel se paie — voir Survol et le profil (`survolEchelle`)
-    this.survol = new Survol(this.renderer, { echelle: this.quality.profile.survolEchelle ?? 1 });
+    this.survol = new Survol(this.renderer, {
+      echelle: this.quality.profile.survolEchelle ?? 1,
+      echantillons: this.quality.profile.survolEchantillons ?? 4
+    });
 
     this._buildEnvironment();
     this._setupPicking();

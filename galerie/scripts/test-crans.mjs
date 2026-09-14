@@ -4,7 +4,7 @@
  * Lancer avec : npm test
  */
 import assert from 'node:assert/strict';
-import { FINITION, SURVIE, prochainCran, etatDe, densiteSuivante, ECONOME, lireEconome, ecrireEconome, CLE_ECONOME } from '../engine/src/core/crans.js';
+import { FINITION, SURVIE, prochainCran, etatDe, densiteSuivante, ECONOME, lireEconome, ecrireEconome, CLE_ECONOME, lireGouverneur } from '../engine/src/core/crans.js';
 
 let ok = 0; let ko = 0;
 const test = (nom, fn) => { try { fn(); ok++; console.log(`  ✓ ${nom}`); } catch (e) { ko++; console.log(`  ✗ ${nom}\n      ${e.message}`); } };
@@ -59,6 +59,12 @@ test('le mode économe : tout en bas, et sa mémoire (?eco, ?eco=0, le stockage)
   const stockage = { getItem: (k) => memoire.get(k) ?? null, setItem: (k, v) => memoire.set(k, v), removeItem: (k) => memoire.delete(k) };
   assert.equal(lireEconome('', stockage), false);
   assert.equal(lireEconome('?eco', stockage), true);
+  // le gouverneur ne se fige que sur demande explicite (sondes)
+  assert.equal(lireGouverneur(''), true);
+  assert.equal(lireGouverneur('?eco'), true);
+  assert.equal(lireGouverneur('?gouverneur=0'), false);
+  assert.equal(lireGouverneur('?gouverneur=non'), false);
+  assert.equal(lireGouverneur('?gouverneur=1'), true);
   assert.equal(lireEconome('?eco=1&room=x', stockage), true);
   assert.equal(lireEconome('?eco=0', stockage), false);
   ecrireEconome(true, stockage);

@@ -809,7 +809,7 @@ export class Artwork {
       map: ecran.texture,
       emissive: 0xffffff,
       emissiveMap: ecran.texture,
-      emissiveIntensity: model.intensite ?? 1.1,
+      emissiveIntensity: model.intensite ?? 0.8,
       roughness: 0.85,
       metalness: 0,
       side: forme === 'panneau' || forme === 'relief'
@@ -846,7 +846,7 @@ export class Artwork {
         map: ecran.texture,
         emissive: 0xffffff,
         emissiveMap: ecran.texture,
-        emissiveIntensity: model.intensite ?? 1.1,
+        emissiveIntensity: model.intensite ?? 0.8,
         roughness: 0.85,
         metalness: 0,
         side: THREE.DoubleSide

@@ -62,9 +62,12 @@ export class Survol {
    * soit l'échelle — c'est de lui que vient la couronne, et sa portée en
    * pixels d'écran ne doit pas changer avec la finesse du masque.
    */
-  constructor(renderer, { echelle = ECHELLE } = {}) {
+  constructor(renderer, { echelle = ECHELLE, echantillons = ECHANTILLONS } = {}) {
     this.renderer = renderer;
     this.echelle = Math.max(0.25, Math.min(1, Number(echelle) || ECHELLE));
+    // 0 sur téléphone (voir Quality) : WebKit résout mal une cible
+    // multi-échantillonnée à profondeur, le liseré partait de travers
+    this.echantillons = Math.max(0, Math.min(8, Number(echantillons) ?? ECHANTILLONS));
     this.cible = null;        // l'Artwork visée, ou null
     this.force = 0;           // 0..1, le fondu
     // Le blanc plat de la cible, TESTÉ en profondeur contre la pièce : ce
@@ -126,7 +129,7 @@ export class Survol {
     // le masque a une PROFONDEUR : la pré-passe de la pièce l'écrit, la
     // cible s'y teste — c'est ce qui coupe la partie enterrée d'une œuvre
     this._rt = new THREE.WebGLRenderTarget(w, h, {
-      ...options, depthBuffer: true, samples: ECHANTILLONS
+      ...options, depthBuffer: true, samples: this.echantillons
     });
     // le flou, à demi-résolution quoi qu'il arrive : sa première passe lit
     // le masque net (filtrage linéaire : elle le réduit en même temps)

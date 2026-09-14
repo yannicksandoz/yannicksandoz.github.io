@@ -23,7 +23,7 @@ import { consequencesSuppression, simulerSuppression, validerPortails,
   simulerDuplication, pieceEntree, planDeplacement, planOrdrePiece }
   from '../engine/src/editor/state/pieces-regles.js';
 import { ACCROCHAGE, AIR_SEUIL, hauteurVisee, poseSurMur, murLePlusProche,
-  repartitionSurMur, ecartsSalle, empriseAuSol, RETRAIT_MUR }
+  repartitionSurMur, ecartsSalle, empriseAuSol, RETRAIT_MUR, EPAISSEUR_MUR, encastrement, estPanneau }
   from '../engine/src/core/charte-regles.js';
 import { CHARTE, AIR_SEUIL as AIR_CHARTE, empriseAuSol as empriseCharte }
   from './charte.mjs';
@@ -214,10 +214,11 @@ test('poseSurMur : à plat, face à la salle, avec retrait', () => {
   assert.equal(p.position[1], 1.5);
   // un panneau de 1,4 m est déjà « grand » pour la règle : bas à 0,90 → 1,60
   assert.equal(poseSurMur('nord', salle, { size: [2, 1.4] }, 0).position[1], 1.6);
-  assert.ok(Math.abs(p.position[2] - (-6 + RETRAIT_MUR)) < 1e-9);
+  // depuis la FACE du mur (la plaque est centrée sur son plan), pas depuis son plan
+  assert.ok(Math.abs(p.position[2] - (-6 + EPAISSEUR_MUR / 2 + RETRAIT_MUR)) < 1e-9);
   const est = poseSurMur('est', salle, { size: [2, 1] }, -2);
   assert.deepEqual(est.rotation, [0, -90, 0]);
-  assert.ok(Math.abs(est.position[0] - (10 - RETRAIT_MUR)) < 1e-9);
+  assert.ok(Math.abs(est.position[0] - (10 - EPAISSEUR_MUR / 2 - RETRAIT_MUR)) < 1e-9);
   assert.equal(est.position[2], -2);
 });
 test('murLePlusProche vise le bon côté', () => {
@@ -326,6 +327,38 @@ titre('l’ordre des pièces : monter, descendre, devenir l’entrée');
     assert.equal(pieceEntree(r), 'entree');
   });
 }
+
+titre('pris dans le mur');
+test('encastrement : la face du mur est à demi − épaisseur / 2, le retrait se compte depuis elle', () => {
+  const salle = { shell: { width: 26, depth: 20 } };
+  // le chien des shaders, tel qu'il était : 12,90 pour une face à 12,825
+  const dog = { id: 'dog', position: [12.9, 2, -4], model: { forme: 'panneau' } };
+  const e = encastrement(dog, salle);
+  assert.equal(e.mur, 'est');
+  assert.ok(Math.abs(e.face - (0.1 - EPAISSEUR_MUR / 2)) < 1e-9, `face ${e.face}`);
+  assert.ok(e.manque > 0.1, 'il manque plus de dix centimètres');
+  assert.equal(e.valeur, +(13 - EPAISSEUR_MUR / 2 - RETRAIT_MUR).toFixed(3));
+  // à 12,72 il est devant la face, avec le retrait
+  assert.ok(encastrement({ ...dog, position: [12.72, 2, -4] }, salle).manque <= 0.05);
+  // un mur nord : l'axe z, le signe négatif
+  const nord = encastrement({ id: 'n', position: [0, 2, -9.85], model: { forme: 'relief' } }, salle);
+  assert.equal(nord.axe, 'z');
+  assert.equal(nord.valeur, +(-(10 - EPAISSEUR_MUR / 2 - RETRAIT_MUR)).toFixed(3));
+});
+test('la charte le dit, et sait le corriger sur le bon axe', () => {
+  const salle = { id: 's', shell: { width: 26, depth: 20 }, works: ['dog', 'img', 'loin'] };
+  const oeuvres = [
+    { id: 'dog', title: 'Chien', position: [12.9, 2, -4], model: { forme: 'panneau' } },
+    { id: 'img', title: 'Photo', position: [0, 1.5, -9.9], image: 'a.jpg', size: [2, 1] },
+    { id: 'loin', title: 'Loin', position: [0, 1.5, 0], image: 'b.jpg', size: [2, 1] }
+  ];
+  const ecarts = ecartsSalle(salle, oeuvres, empriseAuSol).filter((e) => e.regle === 'encastre');
+  assert.deepEqual(ecarts.map((e) => e.objet), ['dog', 'img']);
+  assert.match(ecarts[0].texte, /PRIS DANS le mur est/);
+  assert.deepEqual(ecarts[0].correction, { champ: 'x', valeur: +(13 - EPAISSEUR_MUR / 2 - RETRAIT_MUR).toFixed(3) });
+  assert.deepEqual(ecarts[1].correction, { champ: 'z', valeur: +(-(10 - EPAISSEUR_MUR / 2 - RETRAIT_MUR)).toFixed(3) });
+  assert.ok(estPanneau(oeuvres[0]) && estPanneau(oeuvres[1]) && !estPanneau({ id: 'x', model: { shape: 'box' } }));
+});
 
 console.log(`\n${ok} ✓  ${ko} ✗`);
 process.exit(ko ? 1 : 0);

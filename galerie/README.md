@@ -4912,6 +4912,54 @@ salle sombre. Six corniches ajoutées pour compléter les périmètres.
 reste l'indicateur utile — entrée 0,54 · labo 0,56 · archives 0,39 ·
 bibliothèque 0,49 · jardin 0,53.
 
+## L'image sur téléphone : ce qui brûlait, et pourquoi
+
+Trois retours d'un iPhone, trois causes distinctes, mesurées avant de
+toucher (`npm run sonde:lumiere` : quatre vues du build visiteur,
+gouverneur figé par `?gouverneur=0`, luminance moyenne et part des pixels
+brûlés).
+
+**Le chat du dancefloor était une tache blanche.** Le seuil du bloom (0,55)
+laissait fleurir tout l'émissif d'un écran ISF réglé à 1,1 : un pelage
+pêche passait le seuil sur toute sa surface, et le bloom l'étalait. Le
+seuil monte à 0,8 (les hautes lumières franches seulement), la force
+descend (0,55 au bureau, 0,5 sur téléphone), le rayon à 0,6, et les écrans
+ISF s'allument à 0,8 par défaut (les quatre de la galerie à 0,8 et 0,85).
+Le chat a retrouvé ses yeux, sa bouche et ses moustaches.
+
+**Les portails éblouissaient.** Chambranle à 0,8 d'émissif, sablier à
+0,9 : sous le bloom, des cadres blancs. Ils passent à 0,4, 0,45 et 0,3 :
+lisibles de loin, plus des néons.
+
+**Le chien avait un coin arraché.** Rien à voir avec le bloom ni avec
+iOS : le panneau était PRIS DANS LE MUR. La plaque d'un mur de coque est
+centrée sur son plan (épaisseur 0,35 m), sa face intérieure est donc à
+`demi − 0,175` ; le chien, posé à 12,90 dans une salle de 26, était
+7,5 cm derrière la face, et ne se voyait qu'où le voile fluide s'écartait
+(mesuré par rayons : la face passe à 12,83 aux extrémités et près du sol,
+13,30 au milieu). La charte le savait mal elle aussi : `poseSurMur`
+posait à `demi − 0,06`, dans le mur. Désormais `EPAISSEUR_MUR` vit dans
+`charte-regles.js` (RoomManager la lit là), le retrait se compte depuis
+la FACE, et une règle « encastré » (`ecartsSalle`, affichée en direct dans
+l'éditeur, corrigée par « Ranger » sur le bon axe) refuse tout panneau,
+image, vidéo ou écran ISF, dont le plan touche ou traverse la face de son
+mur ; `test-charte` l'applique à tout le contenu. Les trois écrans de la
+salle des shaders ont été reculés (12,72 et 9,72).
+
+**Et deux précautions pour WebKit.** Le masque du liseré de survol se
+rendait dans une cible multi-échantillonnée à profondeur, que WebKit iOS
+résout de travers (liseré agrandi, décalé) : sur téléphone, plus de
+multi-échantillonnage sur ce masque, le flou fait les bords doux. Les
+écrans ISF demandent explicitement la précision haute : sur les GPU
+d'Apple, `mediump` est un demi-flottant, et les distances signées d'un
+shader d'auteur (racines cubiques, arc cosinus) y perdent pied.
+
+| Vue, bureau, gouverneur figé | Avant | Après |
+|---|---|---|
+| Entrée, portails : pixels clairs | 1,24 % | 1,09 % |
+| Archives, corniches : pixels brûlés | 4,52 % | 3,02 % |
+| Salle des shaders, chien approché : pixels brûlés | 0,09 % (et un coin manquant) | 0,00 % (entier) |
+
 ## Qualité adaptative & mobile
 
 Le `QualityManager` (`engine/src/core/Quality.js`) choisit un profil au

@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { creerDancefloor } from './dancefloor.js';
 import { multiplicateursPiece } from './liens.js';
 import { assetUrl, isWalkable } from './utils.js';
+import { EPAISSEUR_MUR } from './charte-regles.js';
 import { buildSky, disposeSky, updateSkyUniforms } from './Sky.js';
 import { styleTexture, scaleBoxUV, scalePlaneUV, scaleWorldUV, scaleObjetUV,
   patcherRepetition, TILE }
@@ -1455,7 +1456,9 @@ export const SHELL_DEFAULTS = {
   walls: null, windows: []
 };
 export const WALL_NAMES = ['nord', 'sud', 'est', 'ouest'];
-const WALL_T = 0.35; // épaisseur des murs
+// épaisseur des murs — celle que la charte connaît (charte-regles.js) : la
+// plaque est centrée sur le plan du mur, sa face intérieure à WALL_T / 2
+const WALL_T = EPAISSEUR_MUR;
 
 /**
  * FORMES D'OUVERTURE — ce qu'on peut percer dans un mur.
@@ -1975,7 +1978,7 @@ export function buildBascules(config) {
   return (config?.bascules ?? []).map((cfg) => {
     const mat = new THREE.MeshStandardMaterial({
       color: 0x0c0c14, roughness: 0.35, metalness: 0.5,
-      emissive: PORTAL_COLOR, emissiveIntensity: 0.9
+      emissive: PORTAL_COLOR, emissiveIntensity: 0.45
     });
 
     // SPHÈRE DE TRANSFERT (`transferts`) : un seul objet pour les deux sens.
@@ -1991,7 +1994,7 @@ export function buildBascules(config) {
         new THREE.SphereGeometry(r * 0.92, 26, 18),
         new THREE.MeshStandardMaterial({
           color: 0x0c0c14, roughness: 0.2, metalness: 0.4,
-          emissive: PORTAL_COLOR, emissiveIntensity: 0.55,
+          emissive: PORTAL_COLOR, emissiveIntensity: 0.3,
           transparent: true, opacity: 0.16, depthWrite: false,
           side: THREE.DoubleSide
         })
@@ -2052,7 +2055,8 @@ function buildPortalMesh(cfg, label) {
     bumpScale: surface?.bumpScale ?? 1,
     roughness: surface?.roughness ?? 0.4,
     metalness: surface?.metalness ?? 0.6,
-    emissive: PORTAL_COLOR, emissiveIntensity: 0.8
+    // 0,4 : à 0,8 le chambranle brûlait sous le bloom (sonde:lumiere)
+    emissive: PORTAL_COLOR, emissiveIntensity: 0.4
   });
   if (estFluide()) {
     // MODE FLUIDE : le chambranle n'est plus trois barres mais UN anneau

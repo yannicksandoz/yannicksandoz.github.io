@@ -5,7 +5,7 @@
   "position": [
     0,
     2.7,
-    -9.85
+    -9.72
   ],
   "rotation": [
     0,
@@ -24,7 +24,7 @@
     "width": 7,
     "height": 3.6,
     "relief": 0.55,
-    "intensite": 1.15,
+    "intensite": 0.85,
     "reglages": {
       "pattern_mode": 2,
       "pattern_speed": 1.1,

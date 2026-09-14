@@ -103,6 +103,11 @@ export class EcranISF {
       vertexShader: VERTEX_ISF,
       fragmentShader: fragment,
       uniforms,
+      // en précision HAUTE, explicitement : sur les GPU d'Apple, mediump est
+      // un demi-flottant, et les distances signées d'un shader d'auteur
+      // (racines cubiques, arc cosinus) y perdent pied — WebGL2 garantit
+      // highp au fragment, autant le demander
+      precision: 'highp',
       depthTest: false,
       depthWrite: false,
       transparent: index > 0,

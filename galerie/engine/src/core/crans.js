@@ -77,6 +77,19 @@ export function lireEconome(search = '', stockage = null) {
   try { return stockage?.getItem?.(CLE_ECONOME) === '1'; } catch { return false; }
 }
 
+/**
+ * `?gouverneur=0` FIGE le gouverneur : aucun cran ne descend ni ne remonte.
+ * Pour les sondes qui mesurent l'image (rendu logiciel à trois images par
+ * seconde : sans cela, tout est coupé avant la première capture) — jamais
+ * pour un visiteur.
+ */
+export function lireGouverneur(search = '') {
+  const params = new URLSearchParams(search ?? '');
+  if (!params.has('gouverneur')) return true;
+  const v = params.get('gouverneur');
+  return !(v === '0' || v === 'false' || v === 'non');
+}
+
 export function ecrireEconome(actif, stockage = null) {
   try {
     if (actif) stockage?.setItem?.(CLE_ECONOME, '1');
