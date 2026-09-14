@@ -765,6 +765,14 @@ disait.
   M4A ; gain 1 et fader 0,8 : −20,2 LUFS effectifs, comme les autres
   ambiances. Le reste de la galerie n'a pas été retouché : les écarts qui
   restent (10 LU) sont à l'auteur, la table les lui montre désormais.
+- **Puis rabaissée, à l'oreille.** À −20 LUFS effectifs, la cascade jouait
+  au niveau d'une œuvre, sur tout le jardin (fondu spatial de 30 m) : trop
+  fort pour ce qui doit rester une ambiance. Le gain de piste est descendu
+  à 0,32, soit −30,1 LUFS effectifs, douze LU sous les œuvres. C'est la
+  règle qui en sort : une AMBIANCE se tient dix à douze LU sous la cible
+  des œuvres (−28 à −30 LUFS), pour qu'on l'oublie et qu'on l'entende
+  encore ; la cible −18 de la table reste celle des œuvres, et l'écart
+  orange d'une ambiance n'est pas une faute.
 
 Vérifié dans l'éditeur (build auteur) : le tiroir du banc de l'entrée dit
 « −17,2 LUFS · eff. −18,6 · −0,6 LU », « → −18 » écrit 1,1 au document et
