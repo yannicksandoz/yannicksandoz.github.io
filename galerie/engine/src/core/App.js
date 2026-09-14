@@ -426,7 +426,8 @@ export class App {
     // où chaque pixel se paie — voir Survol et le profil (`survolEchelle`)
     this.survol = new Survol(this.renderer, {
       echelle: this.quality.profile.survolEchelle ?? 1,
-      echantillons: this.quality.profile.survolEchantillons ?? 4
+      echantillons: this.quality.profile.survolEchantillons ?? 4,
+      occlusion: this.quality.profile.survolOcclusion ?? true
     });
 
     this._buildEnvironment();
@@ -1109,12 +1110,10 @@ export class App {
         this._motSurvol(dessine ? this.survol.cible : null, this.survol.force);
         if (dessine && this.survol.texture) {
           u.tMasque.value = this.survol.texture;
-          u.tMasqueFlou.value = this.survol.textureFloue;
+          u.uMasqueTexel.value.copy(this.survol.texel);
         } else if (!u.tMasque.value) {
           // un échantillonneur jamais lié fait hurler certains pilotes
-          const secours = this.survol.texture ?? this.scenePass?.cible?.texture ?? null;
-          u.tMasque.value = secours;
-          u.tMasqueFlou.value = this.survol.textureFloue ?? secours;
+          u.tMasque.value = this.survol.texture ?? this.scenePass?.cible?.texture ?? null;
         }
       }
       this.sortie.uniforms.uOcclusion.value = this.gtao?.enabled ? this.gtao.blendIntensity : 0;

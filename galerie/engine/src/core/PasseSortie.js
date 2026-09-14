@@ -143,8 +143,8 @@ const SORTIE = {
     uOcclusion: { value: 0 },
     // LE SURVOL (voir Survol.js) : masque de silhouette de l'œuvre visée,
     // dilaté ici en liseré. `uContour` = force du liseré (0 : rien à faire)
-    tMasque: { value: null },      // la silhouette, nette
-    tMasqueFlou: { value: null },  // la même, floutée (Survol.js)
+    tMasque: { value: null },      // la silhouette, blanc sur noir
+    uMasqueTexel: { value: new Vector2(1 / 1920, 1 / 1080) }, // 1 / taille du masque
     uContour: { value: 0 },
     uContourCouleur: { value: new Color(0xffffff) } // blanc : un trait, pas une teinte
   },
@@ -168,21 +168,38 @@ const SORTIE = {
     uniform vec2 uTexel;
     uniform sampler2D tOcclusion;
     uniform float uOcclusion;
-    uniform sampler2D tMasque, tMasqueFlou;
+    uniform sampler2D tMasque;
+    uniform vec2 uMasqueTexel;
     uniform float uContour;
     uniform vec3 uContourCouleur;
     varying vec2 vUv;
 
-    // LE LISERÉ DU SURVOL : ce que le masque FLOUTÉ déborde du masque net
-    // (Survol.js fait le flou, gaussien, à demi-résolution). Au ras de la
-    // silhouette le flou vaut un demi et retombe en douceur vers l'extérieur ;
-    // dedans, le masque net l'annule. Deux lectures, un dégradé continu —
-    // et seulement quand une œuvre est visée (la branche est uniforme, le
-    // GPU la saute vraiment). Le ×2 ramène le ras de la silhouette au plein.
+    // LE LISERÉ DU SURVOL : ce que les VOISINS ont de blanc et que le pixel
+    // n'a pas. Quatre anneaux de huit lectures dans le masque (à 1, 2, 3 et
+    // 4 texels), pondérés par la proximité : au ras de la silhouette le
+    // bord vaut un, puis trois quarts, un demi, un quart — un dégradé qui
+    // s'éteint en quatre pixels d'image, adouci par le filtrage linéaire.
+    // Dedans, le pixel est blanc et annule tout. Trente-deux lectures, mais
+    // seulement quand une œuvre est visée : la branche est uniforme, le GPU
+    // la saute vraiment. Une seule cible, aucune passe intermédiaire (voir
+    // Survol.js : c'est ce qui a mis fin au liseré fantôme sur iPhone).
     float contour(vec2 uv) {
-      float flou = texture2D(tMasqueFlou, uv).r;
       float net = texture2D(tMasque, uv).r;
-      return clamp((flou - net) * 2.0, 0.0, 1.0);
+      float voisin = 0.0;
+      for (int a = 0; a < 4; a++) {
+        float r = float(a) + 1.0;
+        float poids = 1.0 - 0.25 * float(a);
+        vec2 d = uMasqueTexel * r;
+        voisin = max(voisin, texture2D(tMasque, uv + vec2( d.x,  0.0)).r * poids);
+        voisin = max(voisin, texture2D(tMasque, uv + vec2(-d.x,  0.0)).r * poids);
+        voisin = max(voisin, texture2D(tMasque, uv + vec2( 0.0,  d.y)).r * poids);
+        voisin = max(voisin, texture2D(tMasque, uv + vec2( 0.0, -d.y)).r * poids);
+        voisin = max(voisin, texture2D(tMasque, uv + vec2( d.x,  d.y) * 0.7071).r * poids);
+        voisin = max(voisin, texture2D(tMasque, uv + vec2(-d.x,  d.y) * 0.7071).r * poids);
+        voisin = max(voisin, texture2D(tMasque, uv + vec2( d.x, -d.y) * 0.7071).r * poids);
+        voisin = max(voisin, texture2D(tMasque, uv + vec2(-d.x, -d.y) * 0.7071).r * poids);
+      }
+      return clamp(voisin - net, 0.0, 1.0);
     }
 
     #include <tonemapping_pars_fragment>

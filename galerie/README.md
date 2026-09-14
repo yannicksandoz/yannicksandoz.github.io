@@ -516,7 +516,8 @@ Deux retouches d'après retour :
   valait « la moitié des pixels CSS » à densité 1,25, donc rien de plus à
   payer. Vérifié à densité 2 : masque 1920 × 1200 pour un tampon de
   1920 × 1200, flou 960 × 600, et le bord du panneau « marées » agrandi ×3
-  se lit sans marche.
+  se lit sans marche. (Le flou a disparu depuis : voir « Le survol », la
+  couronne se calcule à la sortie, sur une seule cible.)
 
 **La première minute du son : trois fichiers, un seul téléchargé.** Le
 poids du site tenait en un fichier : l'ambiance du banc de l'entrée, un
@@ -3965,27 +3966,44 @@ apparaît et s'efface en fondu (150 ms), se tait dans l'éditeur (qui a ses
 propres surbrillances) et ignore les décors, comme le clic.
 
 Technique (`Survol.js` + `PasseSortie`) : l'œuvre visée est redessinée
-seule, en blanc plat, dans une cible à demi-résolution
-multi-échantillonnée (MSAA ×4) — un dessin, sans éclairage, mais aux
-bords doux — puis ce masque est flouté (gaussienne séparable, deux passes
-de neuf lectures, portée d'une douzaine de pixels à l'écran). La passe de
-sortie n'a plus qu'à soustraire : ce que le flou déborde du masque net,
-c'est la couronne — un dégradé continu qui s'éteint en quelques pixels.
-La première version dilatait le masque par un « max » de huit lectures :
-un liseré en escalier, au dégradé cassé — c'est ce qui a fait changer de
-méthode. Ni coque inversée ni géométrie d'arêtes : un plan, un modèle, un
-relief ou un voxel se détourent pareil. Le rayon de visée se lance au plus
-vingt fois par seconde à la souris, dix au réticule ; sans œuvre visée, la
-sortie ne lit même pas le masque.
+seule, en blanc plat, dans UNE cible à la taille exacte du tampon de
+dessin — un dessin, sans éclairage. C'est tout ce que fait `Survol`. La
+passe de sortie lit ce masque et compare chaque pixel à ses voisins :
+quatre anneaux de huit lectures (à un, deux, trois et quatre texels,
+pondérés un, trois quarts, un demi, un quart). Ce que les voisins ont de
+blanc et que le pixel n'a pas, c'est la couronne — un dégradé de quatre
+pixels d'image au ras de la silhouette, adouci par le filtrage linéaire.
+Le pas du texel (`Survol.texel`) est celui du masque, transmis à la
+sortie : la couronne tombe là où la silhouette est, au pixel.
 
-Le masque est OCCULTÉ par la pièce : avant de peindre la cible en blanc,
-la pièce courante entière se dessine dans la même cible, profondeur
-seule (un matériau de substitution sans couleur), et le blanc se teste
-contre cette profondeur. Le pied d'une stèle enterré sous le plancher des
-archives, une œuvre à moitié derrière un mur, ne se détourent plus que
-sur ce qu'on en voit — la première version ignorait la profondeur et
-soulignait le volume entier, sol traversé. Coût : un dessin de la pièce à
-demi-résolution, seulement pendant qu'une œuvre est visée.
+Il y a eu deux autres versions. La première dilatait un masque à
+demi-résolution par un « max » de huit lectures : un escalier. La
+deuxième floutait le masque (gaussienne séparable à demi-résolution) et
+soustrayait : joli sur bureau, mais sur iPhone le liseré se décalait de
+l'œuvre en image fantôme, et pixelisait — trois cibles de tailles
+différentes, un flou lu à travers le filtrage de WebKit, des échelles de
+texels à réconcilier : trop de coutures pour un trait. La version
+actuelle n'a qu'une cible et aucune passe intermédiaire. Ni coque
+inversée ni géométrie d'arêtes : un plan, un modèle, un relief ou un
+voxel se détourent pareil. Le rayon de visée se lance au plus vingt fois
+par seconde à la souris, dix au réticule ; sans œuvre visée, la sortie ne
+lit même pas le masque (la branche est uniforme, le GPU la saute).
+
+Sur bureau, le masque est OCCULTÉ par la pièce : avant de peindre la
+cible en blanc, la pièce courante entière se dessine dans la même cible,
+profondeur seule (un matériau de substitution sans couleur), et le blanc
+se teste contre cette profondeur. Le pied d'une stèle enterré sous le
+plancher des archives, une œuvre à moitié derrière un mur, ne se
+détourent que sur ce qu'on en voit. Coût : un dessin de la pièce,
+seulement pendant qu'une œuvre est visée. Sur téléphone, pas d'occlusion
+(`survolOcclusion` false) : la cible n'a alors ni profondeur ni
+multi-échantillonnage, un simple plan de couleur — exactement ce que
+WebKit résolvait de travers dans les versions précédentes.
+
+`npm run sonde:lisere` (et `MOBILE=1`) mesure tout cela image par image
+pendant un geste : la boîte du masque contre la silhouette projetée avec
+la caméra de la même image, puis, à l'arrêt, l'épaisseur et les marges de
+la couronne dans l'image finale (différence avec et sans contour).
 
 Deux garde-fous, appris à l'annexe. Un objet marqué `userData.horsSurvol`
 n'échange pas son matériau : il se CACHE le temps du masque — c'est le
@@ -4980,6 +4998,27 @@ la scène, et `render` ne recalcule pas la matrice d'une caméra qui a un
 parent (le rig des gravités) : le masque prenait la caméra de l'image
 précédente, et le liseré se décalait de l'œuvre pendant chaque geste au
 doigt. La caméra est mise à jour juste avant le masque.
+
+**Le liseré, encore fantôme et pixelisé sur iPhone.** La caméra n'était
+pas la seule couture. Le masque net se rendait à la taille de l'image,
+mais la couronne venait d'un FLOU à demi-résolution lu par la sortie
+avec un autre pas de texel, dans une cible avec profondeur — trois cibles
+de tailles différentes que WebKit ne recale pas comme Chromium. Le
+survol est refait au plus simple : une seule cible, à la taille exacte
+du tampon de dessin, sans profondeur ni multi-échantillonnage sur
+téléphone ; la couronne se calcule dans la passe de sortie, par quatre
+anneaux de voisins lus au pas de texel du masque (voir « Le survol »).
+Mesuré image par image pendant un geste, sur bureau et sur iPhone émulé
+(`sonde:lisere`) :
+
+| Profil | Masque | Écart masque / silhouette, pendant le geste | À l'arrêt | Couronne |
+|---|---|---|---|---|
+| Bureau, 1280 × 800 | 1280 × 800, MSAA ×4, occlusion | 0,7 px | 0,6 px | 3,5 px, marges 2 à 4 px |
+| iPhone émulé, densité 3 | 487 × 830 (la taille du tampon), sans MSAA ni profondeur | 1,7 px | 1,7 px | 2,7 px, marges 1 à 4 px |
+
+L'iPhone réel n'est pas reproductible ici (pas de WebKit) : c'est la
+disparition des coutures, pas une mesure sur l'appareil, qui fonde ce
+changement.
 
 | Vue, bureau, gouverneur figé | Avant | Après |
 |---|---|---|

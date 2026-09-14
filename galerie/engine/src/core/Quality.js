@@ -84,13 +84,14 @@ export class QualityManager {
           // endroit où la netteté ne coûte pas de pixels. Le bureau rend à
           // pleine densité avec quatre échantillons : il n'en a pas besoin.
           nettete: 0.5,
-          // le masque du liseré de survol : 0,4 des pixels d'image — ce que
-          // valait « la moitié des pixels CSS » à densité 1,25, inchangé
-          survolEchelle: 0.4,
-          // le masque du liseré SANS multi-échantillonnage : une cible de rendu
-          // multi-échantillonnée avec profondeur se résout de travers sur
-          // WebKit iOS (liseré décalé, agrandi) — le flou fait les bords doux
+          // le masque du liseré de survol : à la résolution de l'image (à
+          // 0,4 il se voyait en escalier sur une dalle à 3×), sans
+          // multi-échantillonnage ni pré-passe de profondeur (deux choses
+          // que WebKit iOS rendait de travers, et la pré-passe coûte un
+          // rendu de la pièce) — voir Survol.js
+          survolEchelle: 1,
           survolEchantillons: 0,
+          survolOcclusion: false,
           bloomResScale: 0.25,  // bloom calculé au quart de la résolution
           bloomStrength: 0.5,
           grain: !this.reducedMotion,
@@ -230,8 +231,9 @@ export class QualityManager {
         tier: 'desktop-low',
         pixelRatio: Math.min(window.devicePixelRatio || 1, 1.25),
         nettete: 0.5,  // même densité réduite que le téléphone : même affûtage
-        survolEchelle: 0.4,
+        survolEchelle: 1,
         survolEchantillons: 0,
+        survolOcclusion: false,
         msaa: 0,     // GPU modeste : la netteté ne vaut pas la chute d'images
         gtao: false,
         anisotropy: 4,
