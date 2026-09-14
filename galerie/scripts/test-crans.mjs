@@ -12,27 +12,28 @@ const test = (nom, fn) => { try { fn(); ok++; console.log(`  ✓ ${nom}`); } cat
 console.log('\nles crans');
 
 test('la finition cède dans l\'ordre : anticrénelage, occlusion, ombres, écrans ISF, apparitions, densité 1', () => {
-  assert.deepEqual(FINITION.map((c) => c.cle), ['msaa2', 'msaa0', 'gtao', 'ombres', 'isf', 'apparitions', 'densite1']);
+  assert.deepEqual(FINITION.map((c) => c.cle), ['msaa2', 'msaa0', 'gtao', 'ombres', 'isf', 'etendues', 'apparitions', 'densite1']);
   assert.deepEqual(SURVIE.map((c) => c.cle), ['densite', 'grain', 'bloom']);
   for (const c of [...FINITION, ...SURVIE]) assert.ok(c.dit && typeof c.si === 'function');
 });
 
 test('prochainCran : le premier cran que l\'état permet, puis le suivant, puis rien', () => {
-  const e = { msaa: 4, gtao: true, ombres: true, isf: 512, apparitions: true, pixelRatio: 2, grain: true, bloom: true };
+  const e = { msaa: 4, gtao: true, ombres: true, isf: 512, etendues: 2, apparitions: true, etendues: 2, pixelRatio: 2, grain: true, bloom: true };
   const suite = [];
   let c;
   while ((c = prochainCran(e, FINITION))) {
     suite.push(c.cle);
     if (c.cle === 'msaa2') e.msaa = 2; else if (c.cle === 'msaa0') e.msaa = 0; else if (c.cle === 'gtao') e.gtao = false;
     else if (c.cle === 'ombres') e.ombres = false; else if (c.cle === 'isf') e.isf = 256; else if (c.cle === 'apparitions') e.apparitions = false;
+    else if (c.cle === 'etendues') e.etendues = 0;
     else if (c.cle === 'densite1') e.pixelRatio = 1;
     if (suite.length > 20) throw new Error('boucle');
   }
-  assert.deepEqual(suite, ['msaa2', 'msaa0', 'gtao', 'ombres', 'isf', 'apparitions', 'densite1']);
+  assert.deepEqual(suite, ['msaa2', 'msaa0', 'gtao', 'ombres', 'isf', 'etendues', 'apparitions', 'densite1']);
   assert.equal(prochainCran(e, FINITION), null);
   // un profil déjà bas (mobile) saute ce qu'il n'a pas
-  assert.equal(prochainCran({ msaa: 2, gtao: false, ombres: false, isf: 256, apparitions: false, pixelRatio: 1 }, FINITION).cle, 'msaa0');
-  assert.equal(prochainCran({ msaa: 0, gtao: false, ombres: false, isf: 256, apparitions: false, pixelRatio: 1 }, FINITION), null);
+  assert.equal(prochainCran({ msaa: 2, gtao: false, ombres: false, isf: 256, etendues: 0, apparitions: false, etendues: 0, pixelRatio: 1 }, FINITION).cle, 'msaa0');
+  assert.equal(prochainCran({ msaa: 0, gtao: false, ombres: false, isf: 256, etendues: 0, apparitions: false, etendues: 0, pixelRatio: 1 }, FINITION), null);
 });
 
 test('la survie : densité sous le natif jusqu\'à 0,75, puis grain, puis bloom', () => {
@@ -48,8 +49,8 @@ test('la survie : densité sous le natif jusqu\'à 0,75, puis grain, puis bloom'
 
 test('etatDe lit le profil et ce qui vit dans l\'app, avec des défauts sûrs', () => {
   const e = etatDe({ msaa: 4, shadows: true, isfResolution: 512, pixelRatio: 2, grain: true }, { gtao: { enabled: true }, vistas: { live: true }, sortie: { bloomActif: true } });
-  assert.deepEqual(e, { msaa: 4, gtao: true, ombres: true, isf: 512, apparitions: true, pixelRatio: 2, grain: true, bloom: true });
-  assert.deepEqual(etatDe(null, null), { msaa: 0, gtao: false, ombres: false, isf: 512, apparitions: false, pixelRatio: 1, grain: false, bloom: false });
+  assert.deepEqual(e, { msaa: 4, gtao: true, ombres: true, isf: 512, apparitions: true, etendues: 0, pixelRatio: 2, grain: true, bloom: true });
+  assert.deepEqual(etatDe(null, null), { msaa: 0, gtao: false, ombres: false, isf: 512, apparitions: false, etendues: 0, pixelRatio: 1, grain: false, bloom: false });
 });
 
 test('le mode économe : tout en bas, et sa mémoire (?eco, ?eco=0, le stockage)', () => {

@@ -110,7 +110,11 @@ export class QualityManager {
           // rien : on garde donc la ligne de lumière, on retire la source.
           // La salle garde sa lumière clé et ses ponctuelles : rien
           // n'éteint, c'est le dégradé sur le mur qui s'en va.
-          sourcesEtendues: 0,
+          // …DEUX tout de même, depuis la mesure (sonde:lumiere, iPhone émulé) :
+          // le labo, éclairé par ses corniches, y rendait 7 % de luminance
+          // moyenne contre 15 au bureau. Deux bandeaux, les plus proches ; le
+          // gouverneur les retire au cran « etendues » si l'image ne suit pas.
+          sourcesEtendues: 2,
           // Lampes intégrées par pixel : voir budgetLampes (ombres.js).
           // Les corniches ne prennent plus d'emplacement de cône — elles
           // sont devenues des lignes analytiques (voir lignes-lumiere.js).
@@ -122,9 +126,14 @@ export class QualityManager {
           // c'est qu'elles sont vastes et sans plafond.
           lampesProches: { points: 4, cones: 3 },
           // les lignes de lumière (corniches analytiques) intégrées par
-          // pixel : huit au plus, les plus proches — la sonde d'ambiance
-          // porte les autres (lignes-lumiere.reglerBudgetLignes)
-          lignesProches: 8,
+          // pixel : DOUZE, les plus proches — la sonde d'ambiance porte les
+          // autres (lignes-lumiere.reglerBudgetLignes). À huit, le labo
+          // (quatre corniches, pliées en plusieurs segments par le voile
+          // fluide) perdait des segments entiers : mesuré sur iPhone émulé,
+          // 7,0 % de luminance moyenne contre 10,8 au bureau dans le même
+          // cadre ; à douze, 11,2. Le gouverneur redescend à huit au cran
+          // « etendues » si l'image ne suit pas.
+          lignesProches: 12,
           // aucun accent ne projette sur téléphone : les ombres y sont
           // déjà coupées (shadows: false)
           projecteursOmbre: 0,
@@ -391,6 +400,7 @@ export class QualityManager {
       case 'gtao': if (app.gtao) app.gtao.enabled = false; p.gtao = false; break;
       case 'ombres': p.shadows = false; app.setShadowsEnabled?.(false); break;
       case 'isf': p.isfResolution = 256; app.setIsfResolution?.(256); break;
+      case 'etendues': p.sourcesEtendues = 0; app.setSourcesEtendues?.(0); app.setBudgetLignes?.(8); break;
       case 'apparitions': if (app.vistas) app.vistas.live = false; break;
       case 'densite1': this._poserDensite(app, 1); break;
       case 'densite': this._poserDensite(app, densiteSuivante(p.pixelRatio)); break;

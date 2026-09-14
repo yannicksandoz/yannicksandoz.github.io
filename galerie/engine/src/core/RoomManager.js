@@ -1977,7 +1977,7 @@ function sablier(mat) {
 export function buildBascules(config) {
   return (config?.bascules ?? []).map((cfg) => {
     const mat = new THREE.MeshStandardMaterial({
-      color: 0x0c0c14, roughness: 0.35, metalness: 0.5,
+      color: 0x0c0c14, roughness: 0.55, metalness: 0.2,
       emissive: PORTAL_COLOR, emissiveIntensity: 0.45
     });
 
@@ -1993,7 +1993,7 @@ export function buildBascules(config) {
       const coque = new THREE.Mesh(
         new THREE.SphereGeometry(r * 0.92, 26, 18),
         new THREE.MeshStandardMaterial({
-          color: 0x0c0c14, roughness: 0.2, metalness: 0.4,
+          color: 0x0c0c14, roughness: 0.45, metalness: 0.15,
           emissive: PORTAL_COLOR, emissiveIntensity: 0.3,
           transparent: true, opacity: 0.16, depthWrite: false,
           side: THREE.DoubleSide
@@ -2053,8 +2053,11 @@ function buildPortalMesh(cfg, label) {
     map: surface?.map ?? null,
     bumpMap: surface?.bumpMap ?? null,
     bumpScale: surface?.bumpScale ?? 1,
-    roughness: surface?.roughness ?? 0.4,
-    metalness: surface?.metalness ?? 0.6,
+    // MAT, pas miroir : à 0,6 de métal le chambranle reflétait la sonde
+    // de reflets, qui sur téléphone ne se rephotographie que tous les
+    // 2,5 m de marche, face par face — le cadre scintillait à chaque pas
+    roughness: surface?.roughness ?? 0.6,
+    metalness: surface?.metalness ?? 0.15,
     // 0,4 : à 0,8 le chambranle brûlait sous le bloom (sonde:lumiere)
     emissive: PORTAL_COLOR, emissiveIntensity: 0.4
   });
@@ -2133,6 +2136,7 @@ function buildPortalMesh(cfg, label) {
   // lampe se paie sur chaque pixel, le seuil garde sa lueur émissive.
   if (aDesSourcesEtendues()) {
     const seuil = new THREE.SpotLight(PORTAL_COLOR, 5.5, 5, Math.PI * 0.24, 0.7, 1.4);
+    seuil.userData.sourceEtendue = true; // s'éteint avec le cran « etendues »
     seuil.position.set(0, 2.8, 0.4);
     seuil.target.position.set(0, 0, 0.7);
     group.add(seuil, seuil.target);

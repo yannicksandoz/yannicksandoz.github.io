@@ -25,6 +25,10 @@ export const FINITION = [
   { cle: 'gtao', si: (e) => e.gtao, dit: 'occlusion ambiante désactivée' },
   { cle: 'ombres', si: (e) => e.ombres, dit: 'ombres désactivées' },
   { cle: 'isf', si: (e) => e.isf > 256, dit: 'écrans ISF à demi-résolution' },
+  // les sources étendues (le lavis des corniches sur les murs) : deux sur
+  // téléphone depuis que le labo s'y mesurait deux fois plus sombre qu'au
+  // bureau ; le gouverneur les retire avant de figer les apparitions
+  { cle: 'etendues', si: (e) => e.etendues > 0, dit: 'sources étendues retirées, lignes de lumière réduites' },
   { cle: 'apparitions', si: (e) => e.apparitions, dit: 'apparitions figées' },
   { cle: 'densite1', si: (e) => e.pixelRatio > 1, dit: 'densité 1' }
 ];
@@ -48,6 +52,7 @@ export function etatDe(profile, app) {
     ombres: Boolean(profile?.shadows),
     isf: Number(profile?.isfResolution) || 512,
     apparitions: Boolean(app?.vistas?.live),
+    etendues: Number(profile?.sourcesEtendues) || 0,
     pixelRatio: Number(profile?.pixelRatio) || 1,
     grain: Boolean(profile?.grain),
     bloom: Boolean(app?.sortie?.bloomActif)

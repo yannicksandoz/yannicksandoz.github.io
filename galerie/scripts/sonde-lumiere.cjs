@@ -8,17 +8,25 @@
 // CAPTURES=dossier si on le demande.
 //
 //   npm run build && npx http-server dist -p 8123 -s &     npm run sonde:lumiere
-const { chromium } = require('playwright');
+const { chromium, devices } = require('playwright');
 const PORT = process.env.PORT || 8123;
+// MOBILE=1 : un iPhone émulé (agent, tactile, densité 3) → le profil « mobile » du moteur
+const MOBILE = process.env.MOBILE === '1';
+// PORTRAIT=1 : la fenêtre d'un téléphone (390 × 664) mais le profil de bureau — pour
+// séparer ce que la CADRAGE change de ce que le PROFIL change
+const PORTRAIT = process.env.PORTRAIT === '1';
+const VUES_ENV = process.env.VUES ? process.env.VUES.split(',') : null;
 const VUES = [
   { id: 'entree', nom: 'entrée, arrivée' },
+  { id: 'labo', nom: 'labo, arrivée' },
   { id: 'archives', nom: 'archives, arrivée' },
   { id: 'dancefloor', nom: 'dancefloor, chat approché', focus: 'shader-cat-dancefloor' },
   { id: 'shaders', nom: 'salle des shaders, chien approché', focus: 'shader-dog' }
 ];
 (async () => {
   const nav = await chromium.launch({ executablePath: process.env.CHROMIUM || undefined, args: ['--autoplay-policy=no-user-gesture-required'] });
-  const page = await nav.newPage({ viewport: { width: 1280, height: 800 }, locale: 'fr-FR' });
+  const page = await nav.newPage(MOBILE ? { ...devices['iPhone 13'], locale: 'fr-FR' }
+    : { viewport: PORTRAIT ? { width: 390, height: 664 } : { width: 1280, height: 800 }, locale: 'fr-FR' });
   await page.addInitScript(() => { for (const P of [WebGLRenderingContext.prototype, WebGL2RenderingContext.prototype]) { const g = P.getExtension; P.getExtension = function (n) { return n === 'WEBGL_debug_renderer_info' ? null : g.call(this, n); }; } });
   await page.goto(`http://localhost:${PORT}/index.html?gouverneur=0`, { waitUntil: 'commit' });
   await page.waitForFunction(() => !document.querySelector('#enter-btn')?.disabled, null, { timeout: 240000 });
@@ -26,7 +34,7 @@ const VUES = [
   await page.waitForFunction(() => window.__galerie?.rooms?.current, null, { timeout: 120000 });
   const etat = await page.evaluate(() => ({ bloom: window.__galerie.sortie?.bloomActif, seuil: window.__galerie.bloom?.threshold, force: window.__galerie.bloom?.strength, profil: window.__galerie.quality.profile.tier, gouverneur: window.__galerie.quality.gouverneur }));
   console.log(`profil ${etat.profil}, gouverneur ${etat.gouverneur === false ? 'figé' : 'actif'}, bloom ${etat.bloom ? 'actif' : 'coupé'} (seuil ${etat.seuil}, force ${etat.force})`);
-  for (const vue of VUES) {
+  for (const vue of VUES.filter((v) => !VUES_ENV || VUES_ENV.includes(v.id))) {
     await page.evaluate(async (id) => { await window.__galerie.rooms.setCurrent(id, { instant: true }); }, vue.id);
     // toutes les œuvres de la pièce visibles (ou en erreur), avant de regarder
     await page.waitForFunction((id) => { const r = window.__galerie.rooms.get(id); return r?.artworks?.every((a) => a._visualLoaded || a.mediaError || !a._visualRequested); }, vue.id, { timeout: 90000 }).catch(() => {});

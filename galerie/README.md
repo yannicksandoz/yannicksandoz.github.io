@@ -4954,6 +4954,33 @@ multi-échantillonnage sur ce masque, le flou fait les bords doux. Les
 d'Apple, `mediump` est un demi-flottant, et les distances signées d'un
 shader d'auteur (racines cubiques, arc cosinus) y perdent pied.
 
+**Puis le labo, trop sombre sur iPhone.** Le même cadre portrait sous le
+profil de bureau donne 10,8 % de luminance moyenne ; sous le profil
+mobile, 7,0. Six différences de profil ont été essayées une à une sur un
+iPhone émulé (rebond des reflets, lampes proches, ambiante, sources
+étendues, ombres, lignes) : une seule compte, le budget de LIGNES de
+lumière intégrées par pixel. À huit, le labo, dont les quatre corniches
+sont pliées en plusieurs segments par le voile fluide, perdait des
+segments entiers ; à douze, 11,2 %. Le profil mobile passe donc à douze
+lignes et à deux sources étendues, et le gouverneur reçoit un cran
+« etendues » (après les écrans ISF, avant les apparitions) qui remet
+lignes à huit et sources à zéro si l'image ne suit pas, à chaud :
+`App.setBudgetLignes`, `App.setSourcesEtendues` (les lampes déjà bâties
+s'éteignent, la sonde d'ambiance reprend les corniches).
+
+**Les portails scintillaient en marchant.** Chambranle à 0,6 de métal :
+il reflétait la sonde de reflets, qui sur téléphone ne se rephotographie
+que tous les 2,5 m de marche, une face sur deux images — le reflet
+sautait à chaque pas. Les chambranles, sabliers et coques de transfert
+passent en matière mate (métal 0,15 à 0,2, rugosité 0,45 à 0,6) : l'éclat
+vient de l'émissif, plus du miroir.
+
+**Le liseré traînait d'une image.** Le masque de survol se dessine AVANT
+la scène, et `render` ne recalcule pas la matrice d'une caméra qui a un
+parent (le rig des gravités) : le masque prenait la caméra de l'image
+précédente, et le liseré se décalait de l'œuvre pendant chaque geste au
+doigt. La caméra est mise à jour juste avant le masque.
+
 | Vue, bureau, gouverneur figé | Avant | Après |
 |---|---|---|
 | Entrée, portails : pixels clairs | 1,24 % | 1,09 % |

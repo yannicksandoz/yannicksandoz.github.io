@@ -778,6 +778,30 @@ export class App {
   }
 
   /**
+   * Le budget de SOURCES ÉTENDUES (lavis des corniches, flaques de seuil),
+   * à chaud : le gouverneur le met à zéro au cran « etendues » (crans.js).
+   * Ce qui est déjà construit s'éteint (une lampe invisible sort de la
+   * liste des lumières, les matériaux se recompilent d'eux-mêmes) ; ce qui
+   * se construira ensuite n'en aura pas ; et la sonde d'ambiance prend le
+   * relais des corniches, comme sur un profil qui n'en a jamais eu.
+   */
+  /** Le budget de LIGNES de lumière intégrées par pixel, à chaud (cran « etendues »). */
+  setBudgetLignes(n) {
+    const budget = Math.max(0, Math.min(MAX_LIGNES, Number(n) || 0));
+    this.quality.profile.lignesProches = budget;
+    reglerBudgetLignes(budget);
+  }
+
+  setSourcesEtendues(n) {
+    const budget = Math.max(0, Number(n) || 0);
+    setBudgetSourcesEtendues(budget);
+    armerAmbiance(budget === 0);
+    this.scene.traverse((o) => {
+      if (o.isLight && o.userData.sourceEtendue) o.visible = budget > 0;
+    });
+  }
+
+  /**
    * Chemin de config → URL réelle (les imports de l'éditeur sont des blobs).
    * Les réglages `medias` de reglages.json peuvent envoyer les sons, ou tout
    * le reste, vers un autre hôte (voir core/medias.js).
@@ -1065,6 +1089,12 @@ export class App {
         // l'éditeur a ses propres surbrillances (gizmo, charte) : le
         // liseré se tait dès qu'il est ouvert
         if (this.editor?.enabled) this.survol.viser(null);
+        // LA CAMÉRA DE CE TOUR, pas celle du précédent : le masque se
+        // dessine AVANT la scène, et `render` ne recalcule la matrice
+        // d'une caméra qui a un parent (le rig des gravités). Sans cela le
+        // liseré traînait d'une image sur l'œuvre pendant qu'on tournait —
+        // visible au doigt, sur téléphone, à la fin de chaque geste.
+        this.camera.updateMatrixWorld(true);
         // la pièce courante occulte : ce qu'elle cache (sous le sol,
         // derrière un mur) ne se détoure pas
         const dessine = this.survol.rendre(this.camera, dt,

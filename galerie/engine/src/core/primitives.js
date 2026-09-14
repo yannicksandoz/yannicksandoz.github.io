@@ -568,6 +568,8 @@ function buildCorniche(size, model) {
         couleur, force, longueur, Math.max(epaisseur, 0.5));
       // légèrement en avant de la fente : la lampe ne s'éclaire pas elle-même
       lampe.position.z = -0.02;
+      // le gouverneur peut l'éteindre (cran « etendues », voir crans.js)
+      lampe.userData.sourceEtendue = true;
       groupe.add(lampe);
       groupe.userData.lampeCorniche = lampe;
       // LA MARQUE, MÊME AVEC LA LAMPE. Une RectAreaLight est un rectangle
