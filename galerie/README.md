@@ -5021,10 +5021,12 @@ image, vidéo ou écran ISF, dont le plan touche ou traverse la face de son
 mur ; `test-charte` l'applique à tout le contenu. Les trois écrans de la
 salle des shaders ont été reculés (12,72 et 9,72).
 
-**Et deux précautions pour WebKit.** Le masque du liseré de survol se
-rendait dans une cible multi-échantillonnée à profondeur, que WebKit iOS
-résout de travers (liseré agrandi, décalé) : sur téléphone, plus de
-multi-échantillonnage sur ce masque, le flou fait les bords doux. Les
+**Et deux précautions pour WebKit.** (La première s'est révélée fausse
+à la mesure, voir « Mesuré sur l'iPhone » plus bas : c'est la version
+SANS multi-échantillonnage ni profondeur qui partait de travers.) Le
+masque du liseré de survol se rendait dans une cible multi-échantillonnée
+à profondeur, que l'on croyait mal résolue par WebKit iOS (liseré agrandi,
+décalé) : sur téléphone, plus de multi-échantillonnage sur ce masque. Les
 écrans ISF demandent explicitement la précision haute : sur les GPU
 d'Apple, `mediump` est un demi-flottant, et les distances signées d'un
 shader d'auteur (racines cubiques, arc cosinus) y perdent pied.
@@ -5076,6 +5078,37 @@ Mesuré image par image pendant un geste, sur bureau et sur iPhone émulé
 L'iPhone réel n'est pas reproductible ici (pas de WebKit) : c'est la
 disparition des coutures, pas une mesure sur l'appareil, qui fonde ce
 changement.
+
+**Mesuré sur l'iPhone, enfin** (`?perf=1`, gouverneur figé, le lendemain).
+Deux salles, les deux profils sur le même téléphone :
+
+| Salle, iPhone | Profil mobile (×1,25) | Profil de bureau forcé (×2) |
+|---|---|---|
+| Archives | 17,8 ms, p95 21,0 ms, 56 fps, 30 appels, 20 k triangles | 34,6 ms, p95 42,0 ms, 29 fps, 87 appels, 101 k triangles |
+| Labo | 16,7 ms, p95 17,0 ms, 60 fps, 38 appels, 44 k triangles | 36,1 ms, p95 45,0 ms, 28 fps, 120 appels, 181 k triangles |
+
+L'image de bureau est bien trop gourmande pour le téléphone : deux fois et
+demie plus de pixels, trois fois plus d'appels (les trois cartes d'ombre,
+l'occlusion, la sonde de reflets vivante). Et la mesure a dit autre chose,
+que personne n'attendait : aux archives, sous le profil mobile, **le liseré
+de la stèle partait encore en image fantôme décalée**, alors que sous le
+profil de bureau, sur le même téléphone, il collait à la stèle. Le masque
+de bureau est multi-échantillonné ×4 et occulté par la pièce ; celui du
+téléphone ne l'était plus, précisément parce qu'on soupçonnait WebKit de
+mal les résoudre. C'était l'inverse. Le masque est donc désormais le même
+partout (`survolEchantillons` 4, `survolOcclusion` vrai) — la première
+« précaution pour WebKit » ci-dessus est retirée.
+
+**Vers une seule image.** Le gouverneur ne change plus l'image selon
+l'appareil, et les deux profils diffèrent encore sur une vingtaine de
+réglages. Le candidat d'un profil unique se mesure avec `?profil=unique` :
+l'image du téléphone pour tous — sans ombres, sans occlusion ambiante,
+deux échantillons, deux sources étendues, douze lignes — plus ce qui ne
+coûte pas de pixels (anisotropie 16, poussière 450, textures 2048, écrans
+ISF en 512), la densité seule suivant l'écran (1,25 au doigt, 2 à la
+souris, affûtée sous le natif), et le même son partout (6 voix, 4 HRTF).
+S'il tient sur le téléphone comme le profil mobile, il devient le profil
+de tout le monde.
 
 | Vue, bureau, gouverneur figé | Avant | Après |
 |---|---|---|
@@ -5153,9 +5186,10 @@ lancement puis l'ajuste en continu :
   disparaît, rien ne change de forme, le son n'est jamais touché ; jamais de
   remontée (pas d'oscillation). Les anciens crans ne servent plus qu'au
   **mode économe**, au choix du visiteur. `?profil=desktop` ou
-  `?profil=mobile` force un profil, sans le rabais des GPU modestes : avec
-  `?perf=1` et `?gouverneur=0`, c'est ainsi qu'on lit sur un iPhone ce que
-  coûte l'image complète — la mesure d'où partira un profil unique ;
+  `?profil=mobile` force un profil, sans le rabais des GPU modestes, et
+  `?profil=unique` le candidat d'une seule image pour tous : avec `?perf=1`
+  et `?gouverneur=0`, c'est ainsi qu'on lit sur un iPhone ce que coûte
+  chaque image (voir « Mesuré sur l'iPhone ») ;
 - **cache d'ombres** : la carte d'ombre ne se re-rend qu'à **30 Hz**
   (`shadowMap.autoUpdate = false`, `needsUpdate` cadencé dans la boucle) —
   la galerie est presque statique, une pénombre qui suit à 33 ms reste

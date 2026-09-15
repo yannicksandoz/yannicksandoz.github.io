@@ -63,11 +63,13 @@ export class QualityManager {
     // `?profil=desktop|mobile` force le profil (voir crans.js) : pour mesurer
     // sur un téléphone ce que coûte l'image de bureau, jamais pour un visiteur
     this.force = lireProfil(typeof location !== 'undefined' ? location.search : '');
-    this.isMobile = this.force ? this.force === 'mobile'
-      : coarse || /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+    const appareilTactile = coarse || /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+    // « unique » est un profil, pas un appareil : le HUD, les gestes et
+    // les commandes suivent le vrai appareil
+    this.isMobile = this.force && this.force !== 'unique' ? this.force === 'mobile' : appareilTactile;
+    const dpr = window.devicePixelRatio || 1;
 
-    this.profile = this.isMobile
-      ? {
+    const mobile = {
           tier: 'mobile',
           // MSAA de la passe de scène (c'est ELLE qui lisse, voir App) :
           // deux échantillons sur mobile — la bande passante y est le mur.
@@ -88,14 +90,16 @@ export class QualityManager {
           // endroit où la netteté ne coûte pas de pixels. Le bureau rend à
           // pleine densité avec quatre échantillons : il n'en a pas besoin.
           nettete: 0.5,
-          // le masque du liseré de survol : à la résolution de l'image (à
-          // 0,4 il se voyait en escalier sur une dalle à 3×), sans
-          // multi-échantillonnage ni pré-passe de profondeur (deux choses
-          // que WebKit iOS rendait de travers, et la pré-passe coûte un
-          // rendu de la pièce) — voir Survol.js
+          // le masque du liseré de survol : LE MÊME qu'au bureau — à la
+          // résolution de l'image, multi-échantillonné ×4, occulté par la
+          // pièce. Mesuré sur un iPhone réel aux archives : sans MSAA ni
+          // profondeur, le liseré partait en image fantôme décalée ; avec
+          // les réglages de bureau, sur le même téléphone, il colle à la
+          // stèle. L'hypothèse « WebKit résout mal une cible MSAA à
+          // profondeur » était fausse ; c'est la version simple qui l'est.
           survolEchelle: 1,
-          survolEchantillons: 0,
-          survolOcclusion: false,
+          survolEchantillons: 4,
+          survolOcclusion: true,
           bloomResScale: 0.25,  // bloom calculé au quart de la résolution
           bloomStrength: 0.5,
           grain: !this.reducedMotion,
@@ -155,8 +159,8 @@ export class QualityManager {
           // au lieu de seize. Mesuré à l'entrée, les reflets pleins
           // coûtaient 13 % de l'image.
           reflets: { resolution: 64, cadence: 2, pas: 2.5, simple: true, rebond: 0 }
-        }
-      : {
+        };
+    const desktop = {
           tier: 'desktop',
           msaa: 4,     // arêtes franches sur un écran de bureau
           gtao: true,  // occlusion ambiante (GTAO), à demi-résolution
@@ -201,6 +205,23 @@ export class QualityManager {
           envIntensity: 0.5,
           reflets: { resolution: 128, cadence: 1 }
         };
+    // LE PROFIL UNIQUE, candidat (`?profil=unique`) : la même image pour
+    // tous, celle du téléphone — mesurée sur un iPhone à 56-60 images par
+    // seconde là où l'image de bureau tombait à 28 — plus ce qui ne coûte
+    // pas de pixels : anisotropie, poussière, textures pleines, écrans ISF
+    // en 512. Seule la DENSITÉ suit l'écran (1,25 au doigt, 2 à la souris),
+    // affûtée quand elle rend sous le natif. Le son est le même partout.
+    const unique = {
+      ...mobile,
+      tier: 'unique',
+      anisotropy: 16,
+      dustCount: 450,
+      maxTextureSize: 2048,
+      isfResolution: 512,
+      pixelRatio: Math.min(dpr, appareilTactile ? 1.25 : 2),
+      nettete: Math.min(dpr, appareilTactile ? 1.25 : 2) < dpr ? 0.5 : 0
+    };
+    this.profile = this.force === 'unique' ? unique : this.isMobile ? mobile : desktop;
     // LE MODE ÉCONOME, au choix du visiteur (menu, ou ?eco), mémorisé :
     // tout en bas tout de suite, avant même le renderer — rien n'est créé
     // pour être jeté trois secondes plus tard
@@ -236,9 +257,6 @@ export class QualityManager {
         tier: 'desktop-low',
         pixelRatio: Math.min(window.devicePixelRatio || 1, 1.25),
         nettete: 0.5,  // même densité réduite que le téléphone : même affûtage
-        survolEchelle: 1,
-        survolEchantillons: 0,
-        survolOcclusion: false,
         msaa: 0,     // GPU modeste : la netteté ne vaut pas la chute d'images
         gtao: false,
         anisotropy: 4,

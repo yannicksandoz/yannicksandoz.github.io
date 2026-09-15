@@ -102,15 +102,17 @@ export function lireGouverneur(search = '') {
 }
 
 /**
- * `?profil=desktop` ou `?profil=mobile` FORCE le profil, quel que soit
- * l'appareil, et sans le rabais des GPU modestes : c'est ainsi qu'on lit,
- * sur un iPhone et avec `?perf=1`, ce que coûte l'image complète — la
- * mesure d'où partira le profil unique. Rend 'desktop', 'mobile' ou null.
+ * `?profil=desktop`, `?profil=mobile` ou `?profil=unique` FORCE le profil,
+ * quel que soit l'appareil, et sans le rabais des GPU modestes : c'est
+ * ainsi qu'on lit, sur un iPhone et avec `?perf=1`, ce que coûte chaque
+ * image. « unique » est le candidat d'une seule image pour tous (voir
+ * Quality.js). Rend 'desktop', 'mobile', 'unique' ou null.
  */
 export function lireProfil(search = '') {
   const v = new URLSearchParams(search ?? '').get('profil');
   if (v === 'desktop' || v === 'bureau') return 'desktop';
   if (v === 'mobile' || v === 'telephone' || v === 'téléphone') return 'mobile';
+  if (v === 'unique') return 'unique';
   return null;
 }
 

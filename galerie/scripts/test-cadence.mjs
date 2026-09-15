@@ -180,5 +180,31 @@ test('sous 50 images sur un 60 Hz Retina : la densité 1,5, puis la densité 1 �
   fin();
 });
 
+groupe('le profil forcé par l\'adresse');
+
+test('?profil=unique : l\'image du téléphone pour tous, la densité selon l\'écran, l\'appareil inchangé', () => {
+  const fin = silence();
+  const avant = globalThis.location;
+  globalThis.location = { search: '?profil=unique&perf=1' };
+  globalThis.window.devicePixelRatio = 2;
+  const q = new QualityManager();
+  assert.equal(q.profile.tier, 'unique');
+  assert.equal(q.isMobile, false);            // pointeur fin : un bureau
+  assert.equal(q.profile.pixelRatio, 2);      // à la souris, pleine densité
+  assert.equal(q.profile.nettete, 0);
+  assert.equal(q.profile.shadows, false);     // l'image du téléphone
+  assert.equal(q.profile.msaa, 2);
+  assert.equal(q.profile.isfResolution, 512); // ce qui ne coûte pas de pixels
+  assert.equal(q.profile.anisotropy, 16);
+  assert.equal(q.profile.maxStems, 6);        // le même son partout
+  assert.equal(q.profile.survolEchantillons, 4);
+  globalThis.location = { search: '?profil=desktop' };
+  const d = new QualityManager();
+  assert.equal(d.profile.tier, 'desktop');
+  assert.equal(d.force, 'desktop');
+  globalThis.location = avant;
+  fin();
+});
+
 console.log(`\n${ok} ✓ / ${ko} ✗`);
 process.exit(ko ? 1 : 0);

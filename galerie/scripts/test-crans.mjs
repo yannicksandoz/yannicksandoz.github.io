@@ -73,6 +73,7 @@ test('le mode économe : tout en bas, et sa mémoire (?eco, ?eco=0, le stockage)
   assert.equal(lireProfil('?profil=desktop&perf=1'), 'desktop');
   assert.equal(lireProfil('?profil=bureau'), 'desktop');
   assert.equal(lireProfil('?profil=mobile'), 'mobile');
+  assert.equal(lireProfil('?profil=unique'), 'unique');
   assert.equal(lireProfil('?profil=autre'), null);
   assert.equal(lireEconome('?eco=1&room=x', stockage), true);
   assert.equal(lireEconome('?eco=0', stockage), false);
