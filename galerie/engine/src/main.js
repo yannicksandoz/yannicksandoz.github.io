@@ -13,10 +13,11 @@ import { t, initLang } from './core/i18n.js';
 import { mountProgression, pointDeVue } from './core/Progression.js';
 import { mountBoussole } from './ui/Boussole.js';
 import { mountToolbox } from './ui/Toolbox.js';
+import { mountHudTactile } from './ui/hud-tactile.js';
 import { mountDerive } from './core/Derive.js';
 import { MemoireOuverte } from './core/Memoire.js';
 import { mountJetons } from './core/Jetons.js';
-import { mountMemoire } from './core/Memoire.js';
+import { mountMemoire, resumeReprise } from './core/Memoire.js';
 import { mountMinimap, minimapActive } from './ui/Carte.js';
 import { creerChrono } from './core/chrono.js';
 import { monterPriseEnMain } from './ui/PriseEnMain.js';
@@ -152,6 +153,10 @@ async function boot() {
     app.reglages = reglages;
     chrono.marquer('galerie-lue');
     setStyle(reglages?.style);   // le mode architectural, AVANT toute construction   // réglages généraux (délai des passages…)
+    // La dernière visite se lit AVANT de bâtir : construire la scène pose le
+    // visiteur dans la salle d'arrivée, et la mémoire la noterait comme
+    // dernière pièce — l'accueil dirait « Entrée » à chaque fois.
+    app.ui.setReprise?.(resumeReprise(app.memoire, rooms, oeuvresDe(works)));
     buildScene(app, works, rooms);
     chrono.marquer('scene-construite');
     app.ui.setCredits(works);
@@ -196,6 +201,10 @@ async function boot() {
   app.chrono = chrono;   // la première image est marquée par la boucle de rendu
   app.start(); // la scène tourne déjà derrière l'écran d'accueil
   window.__galerie = app; // point d'entrée debug/console
+  // `?perf=1` : le cartouche de mesure, sur l'appareil lui-même (ui/Perf.js)
+  if (new URLSearchParams(location.search).get('perf') === '1') {
+    import('./ui/Perf.js').then(({ mountPerf }) => mountPerf(app));
+  }
 
   // Lien profond (?room=x&work=y) : on arrive LÀ où le lien a été partagé,
   // pas à l'entrée — la pièce est posée avant même l'écran d'accueil.
@@ -222,6 +231,7 @@ async function boot() {
     mountJetons(app);     // avant la dérive : elle lit le porte-monnaie
     mountBoussole(app);
     mountToolbox(app);
+    mountHudTactile(app);   // sur tactile : le HUD s'efface après 4 s
     mountDerive(app);
     if (minimapActive()) mountMinimap(app);
     monterPriseEnMain(app);
@@ -250,6 +260,7 @@ async function boot() {
       mountJetons(app);   // avant la dérive : elle lit le porte-monnaie
       mountBoussole(app);
       mountToolbox(app);
+      mountHudTactile(app);   // sur tactile : le HUD s'efface après 4 s
       const derive = mountDerive(app);
       if (minimapActive()) mountMinimap(app);
       // la visite guidée PORTE dès l'entrée : c'est ce qu'on a choisi

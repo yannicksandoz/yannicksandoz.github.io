@@ -1380,6 +1380,17 @@ refusé (navigation privée) : tout y est en `try`, et la visite se déroule
 alors normalement, simplement sans mémoire. La minimap s'éteint depuis les
 mêmes réglages.
 
+Elle retient tout de même le **nom** de la dernière pièce (`derniere`,
+noté à chaque changement de salle, connue ou non). L'accueil le dit, en
+une ligne sous le compte des œuvres — « Dernière visite : Bibliothèque ·
+3 œuvres rencontrées sur 19 » (`#enter-reprise`, `UI.setReprise`,
+`Memoire.resumeReprise`) — et l'on repart de l'entrée quand même : savoir
+où l'on en était n'est pas y être reposé. La ligne se calcule AVANT de
+bâtir la scène, parce que bâtir pose déjà le visiteur dans la salle
+d'arrivée et la noterait comme dernière pièce. Le compte ne compte que
+les œuvres qui existent encore dans le contenu ; une pièce retirée depuis
+rend la ligne muette ; la visite guidée n'en garde aucune (`test-memoire`).
+
 **Fiches d'œuvre.** La fiche affiche le cartel (`year` · `technique`), la
 description, un lien externe optionnel (`link`) et, pour les œuvres qui ont
 une image, une **vue détail** plein écran.
@@ -1645,7 +1656,8 @@ npm run build        # → dist/        site publiable, SANS éditeur
 npm run check        # vérifie que dist/ ne contient rien d'éditeur
 npm run build:auteur # → dist-auteur/ build local avec éditeur (jamais publié)
 npm run preview      # prévisualise un build
-npm run test         # tests unitaires (370 assertions, 5 fichiers)
+npm run test         # toute la suite au nœud (scripts/tests.mjs : chaque test-*.mjs ; « npm test -- crans » en filtre)
+npm run budget       # le budget de chaque salle : ce qu'un téléphone télécharge, décode et joue
 npm run assets       # régénère les textures/stems de démo
 npm run library      # régénère le mobilier de galerie (GLB + vignettes)
 ```
@@ -1684,6 +1696,12 @@ cd ../../.. && git add engine/src/editor && git commit -m "Editor: bump"
 **Livrer l'éditeur à un client** : ajoutez-le en collaborateur sur
 `yr0-editor` seul. Il obtient l'éditeur et ses mises à jour, rien d'autre,
 et l'accès se révoque en un clic.
+
+`npm test` lance `scripts/tests.mjs`, qui prend chaque `scripts/test-*.mjs`
+par le seul fait qu'il existe (la chaîne de cinquante `&&` d'avant oubliait
+ce qu'on n'y ajoutait pas). En CI, où le sous-module de l'éditeur n'est pas
+cloné, les suites qui l'importent sont sautées et dites sautées ; le
+déploiement (`deploy.yml`) lance désormais les tests avant le garde-fou.
 
 `npm run check` inspecte le **résultat** du build, pas la configuration —
 une erreur de configuration est précisément ce qu'on cherche à attraper. Il
@@ -3818,6 +3836,33 @@ rendue (culling par pièce) ; ses voisines directes sont préchargées mais
 muettes et invisibles ; tout le reste est déchargé (textures, sources audio,
 buffers, vidéos en pause).
 
+### Le budget de salle : « tient-elle sur un téléphone ? »
+
+La charte dit si un placement est juste ; elle ne disait pas si la salle
+PASSE. Trois jauges (`engine/src/core/budget-salle.js`, pur, éprouvé par
+`test-budget-salle`), pour le périmètre que le chargeur tient en mémoire —
+la salle et ses voisines directes par portail :
+
+| Jauge | Ce qu'elle pèse | Plafond (téléphone) |
+|---|---|---|
+| Transfert | images, vidéos, modèles, scans et sons, chacun une fois ; une piste par fragments ne compte que ses 30 s résidentes | 25 Mo |
+| Son décodé | durée × 384 000 octets par seconde (48 kHz stéréo flottant), quel que soit le fichier — c'est la durée qui compte, d'où les fragments | 120 Mo |
+| Voix au pire point | les pistes audibles depuis un même mètre carré du sol, chacune sous son rayon (`radius`, sinon 12 m) | 6, le `maxStems` mobile |
+
+Dans l'éditeur, la section **Budget** de l'onglet Pièce suit la Charte :
+une barre par jauge (verte, ambre au-delà de 75 %, rouge au-delà), le pire
+point en coordonnées, les quatre fichiers les plus lourds. Les mesures
+viennent du navigateur sans télécharger (`editor/MesuresMedias.js`) : le
+poids par une requête HEAD, la durée par un `<audio preload="metadata">`,
+une piste par fragments par son manifeste et le poids de son premier
+segment ; chaque mesure reçue repeint les jauges, et ce qui n'est pas
+mesuré est dit « en attente », jamais compté à zéro. Les mêmes règles
+tournent sur le contenu (`npm run budget`) et sur le build, dans le
+garde-fou de publication (`npm run check`) : une salle qui dépasse ne part
+pas en ligne. Aujourd'hui la plus lourde, l'entrée avec ses quatre
+voisines, pèse 3,4 Mo et 42 Mo de PCM ; le labo atteint 5 voix sur 6 à un
+point du fond.
+
 ## Composer une exposition
 
 L'éditeur est équipé pour composer VITE : des pièces qui naissent de
@@ -5117,6 +5162,36 @@ lancement puis l'ajuste en continu :
   échec de chargement d'un asset = placeholder conservé + log, jamais de
   plantage (un média distant devenu injoignable vire au placeholder rouge) ;
   fallback explicite si WebGL2 est absent.
+
+**Le HUD qui s'efface, sur tactile** (`engine/src/ui/hud-tactile.js`). Sur un
+iPhone, la rangée d'icônes, la minimap, le nom de la pièce et le compteur
+d'œuvres occupaient le tiers haut de l'écran en permanence — plus de chrome
+que de galerie. Sur `(pointer: coarse)`, ils s'estompent après quatre
+secondes sans toucher l'écran (opacité, puis `visibility: hidden` : ils
+sortent aussi de l'arbre d'accessibilité), et un tap dans le tiers haut les
+ramène pour quatre secondes. Deux règles pour que ça ne clignote pas :
+visible, tout toucher le garde ; effacé, seul un tap en haut le ramène — le
+doigt qui tourne la caméra ou pousse le manche ne le fait pas revenir,
+c'est justement le moment où l'on veut voir la scène. Un panneau ouvert (le
+compteur déplié, le menu, la carte, une fiche) le tient visible. Le bouton
+☰, le pense-bête, le manche et la course ne bougent jamais. Sans fondu si
+`prefers-reduced-motion`. La minuterie est pure (`test-hud-tactile`) ; la
+sonde en iPhone émulé vérifie le reste : effacé à 5 s, sourd à un tap au
+milieu, revenu à un tap en haut, effacé 4,6 s plus tard.
+
+**`?perf=1` : le cartouche de mesure, sur l'appareil** (`engine/src/ui/Perf.js`).
+Les sondes mesurent en Chromium émulé ; l'iPhone ne s'émule pas, et c'est
+là que tout se joue. Avec `?perf=1` dans l'adresse — jamais sans — un
+cartouche en bas à gauche dit toutes les demi-secondes : le temps d'image
+moyen et son **p95** sur deux secondes (les à-coups se lisent au p95), les
+images par seconde ; les appels de rendu et les triangles de l'image
+ENTIÈRE (on coupe la remise à zéro automatique de `renderer.info` et on la
+fait soi-même, une fois par image, sinon on ne verrait que la dernière
+passe) ; les tampons audio décodés et leur poids (`AudioEngine.bilan`) ;
+le profil et l'état des crans du gouverneur, la densité. Les mêmes valeurs
+sont dans `window.__galeriePerf`, pour les sondes. Le cartouche vit dans
+son propre morceau, chargé à la demande : le visiteur ordinaire n'en reçoit
+pas un octet.
 
 ## Micro-coûts par frame : la revue des allocations
 

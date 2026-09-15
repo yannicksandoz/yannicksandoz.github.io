@@ -85,6 +85,8 @@ export class AudioEngine {
     this._cache = new Map();
     // url → nombre d'œuvres et d'ambiances qui s'en servent (voir load)
     this._usages = new Map();
+    // url → octets du tampon décodé (voir bilan)
+    this._octets = new Map();
   }
 
   /** À appeler depuis un geste utilisateur (obligatoire sur mobile/Safari). */
@@ -381,9 +383,15 @@ export class AudioEngine {
           if (!r.ok) throw new Error(`Audio introuvable : ${url} (${r.status})`);
           return r.arrayBuffer();
         })
-        .then((buf) => this.ctx.decodeAudioData(buf));
+        .then((buf) => this.ctx.decodeAudioData(buf))
+        .then((buf) => {
+          // ce que le tampon décodé pèse en mémoire (flottants), pour le
+          // cartouche de mesure (ui/Perf.js) — voir `bilan`
+          this._octets.set(url, buf.length * buf.numberOfChannels * 4);
+          return buf;
+        });
       // un échec ne doit rester ni en cache ni au compteur
-      p.catch(() => { this._cache.delete(url); this._usages.delete(url); });
+      p.catch(() => { this._cache.delete(url); this._usages.delete(url); this._octets.delete(url); });
       this._cache.set(url, p);
     }
     return this._cache.get(url);
@@ -399,6 +407,14 @@ export class AudioEngine {
     if (reste > 0) { this._usages.set(url, reste); return; }
     this._usages.delete(url);
     this._cache.delete(url);
+    this._octets.delete(url);
+  }
+
+  /** Les tampons décodés en mémoire, et leur poids en octets. */
+  bilan() {
+    let octets = 0;
+    for (const o of this._octets.values()) octets += o;
+    return { tampons: this._octets.size, octets };
   }
 
   /**

@@ -65,6 +65,13 @@ jobs:
           npm ci
           npm run build
 
+      # Les tests au nœud, sans navigateur (scripts/tests.mjs). Ceux qui
+      # éprouvent l'éditeur sont sautés d'eux-mêmes : le sous-module n'est
+      # pas là, et c'est la règle au-dessus.
+      - name: Tests
+        working-directory: galerie
+        run: npm test
+
       # Garde-fou : on inspecte le RÉSULTAT, pas la configuration. Une erreur
       # de config est précisément ce qu'on cherche à attraper, et un chunk
       # d'éditeur publié reste téléchargeable par simple URL même sur un

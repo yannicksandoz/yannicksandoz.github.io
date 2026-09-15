@@ -14,6 +14,8 @@
 import { readdir, readFile, stat } from 'node:fs/promises';
 import { join, extname, relative } from 'node:path';
 import { auditerPoids, texteRapport } from './poids-audio.mjs';
+import { budgetsDuDossier } from './budget-salles.mjs';
+import { texteBudgets } from '../engine/src/core/budget-salle.js';
 
 const RACINE = process.argv[2] ?? 'dist';
 
@@ -247,6 +249,14 @@ const lireDocs = async (genre) => {
 const poids = auditerPoids({ fichiers: fichiersAudio, works: await lireDocs('works'), rooms: await lireDocs('rooms') });
 for (const e of poids.erreurs) erreurs.push(`poids : ${e}`);
 console.log(texteRapport(poids.rapport));
+
+// LE BUDGET DE CHAQUE SALLE (core/budget-salle.js, les mêmes jauges que
+// l'éditeur) : ce qu'un téléphone télécharge, décode et joue à la fois pour
+// la salle et ses voisines. Une salle qui dépasse ne part pas — c'est la
+// veille du vernissage qu'on découvrirait sinon que l'iPhone tousse.
+const budgets = budgetsDuDossier(RACINE);
+console.log(texteBudgets(budgets));
+for (const b of budgets) for (const e of b.ecarts) erreurs.push(`budget ${b.salle} : ${e.texte}`);
 
 console.log(`${texte.length} fichiers texte inspectés dans ${RACINE}/`);
 

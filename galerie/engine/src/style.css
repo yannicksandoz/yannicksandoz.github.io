@@ -363,6 +363,28 @@ html, body {
   #focus-overlay, #tipjar-overlay { animation: none; }
 }
 
+/* ------------------------------------------ le HUD qui s'efface (tactile) --- */
+/* Sur téléphone (ui/hud-tactile.js) : après 4 s sans toucher, la rangée
+   d'icônes, la minimap, le nom de la pièce et le compteur s'estompent ;
+   un tap dans le tiers haut les ramène. ☰, le pense-bête, le manche et la
+   course ne bougent pas. `visibility` suit l'opacité : effacés, ils
+   sortent aussi de l'arbre d'accessibilité et ne prennent aucun toucher. */
+@media (pointer: coarse) {
+  #toolbox, #minimap, #room-badge-name, #progress-badge {
+    transition: opacity 0.6s ease, visibility 0s linear 0s;
+  }
+  body.hud-efface #toolbox, body.hud-efface #minimap,
+  body.hud-efface #room-badge-name, body.hud-efface #progress-badge {
+    opacity: 0; visibility: hidden; pointer-events: none;
+    transition: opacity 0.6s ease, visibility 0s linear 0.6s;
+  }
+}
+@media (pointer: coarse) and (prefers-reduced-motion: reduce) {
+  #toolbox, #minimap, #room-badge-name, #progress-badge,
+  body.hud-efface #toolbox, body.hud-efface #minimap,
+  body.hud-efface #room-badge-name, body.hud-efface #progress-badge { transition: none; }
+}
+
 .credits-card .credits-source {
   padding-bottom: 0.6rem; margin-bottom: 0.8rem;
   border-bottom: 1px solid rgba(255, 255, 255, 0.1);
@@ -521,6 +543,22 @@ html, body {
   pointer-events: none; user-select: none;
 }
 #fps-meter.fps-low { color: #ffb36b; border-color: rgba(255, 179, 107, 0.35); }
+/* le cartouche de mesure (?perf=1, ui/Perf.js) : au-dessus du compteur
+   d'images, même habit ; en orange quand le p95 dépasse 33 ms */
+#perf-cartouche {
+  position: fixed;
+  left: calc(0.8rem + env(safe-area-inset-left, 0px));
+  bottom: calc(2.7rem + env(safe-area-inset-bottom, 0px));
+  z-index: 22; max-width: min(92vw, 30rem);
+  padding: 0.35rem 0.6rem; border-radius: 0.4rem; line-height: 1.45;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.7rem; letter-spacing: 0.03em;
+  color: var(--dim); background: rgba(8, 8, 16, 0.7);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  pointer-events: none; user-select: none;
+}
+#perf-cartouche b { color: var(--fg); font-weight: 600; }
+#perf-cartouche.perf-lent b { color: #ffb36b; }
 .vm-lang {
   display: flex; align-items: center; gap: 0.5rem;
   margin-top: 1.2rem; font-size: 0.92rem; color: var(--dim);
@@ -1027,5 +1065,9 @@ body.editing #minimap { display: none; }
 
 /* L'accueil dit ce qu'il y a à trouver : « 18 œuvres à découvrir dans 16 salles » */
 .enter-compte { margin: 0.6rem 0 1.4rem; color: #cbb98a; opacity: 0.85; font-size: 0.92rem; letter-spacing: 0.03em; }
+/* La dernière visite : une ligne plus discrète encore que le compte, juste
+   au-dessus de la barre — on sait où l'on en était, on repart de l'entrée */
+.enter-reprise { margin: -0.9rem 0 1.2rem; color: var(--dim); font-size: 0.78rem; letter-spacing: 0.05em; font-variant-numeric: tabular-nums; }
+.enter-reprise[hidden] { display: none; }
 /* La prise en main : un geste à la fois, un peu plus lisible que l'ancienne ligne */
 #hint.geste { color: #e8e6f0; font-size: 0.8rem; background: rgba(10, 10, 18, 0.72); }

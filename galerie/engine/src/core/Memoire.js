@@ -18,7 +18,11 @@
  *
  * Ce qu'elle ne retient pas : où l'on se tenait, ce qu'on regardait. On
  * revient toujours par l'entrée — retrouver ses pas est le plaisir, être
- * reposé là où l'on s'était arrêté ne l'est pas.
+ * reposé là où l'on s'était arrêté ne l'est pas. Elle retient tout de même
+ * le NOM de la dernière pièce (`derniere`) : l'accueil le dit, en une
+ * ligne discrète, avec le compte des œuvres rencontrées — « Dernière
+ * visite : Bibliothèque · 3 œuvres rencontrées sur 19 » — et l'on repart de
+ * l'entrée quand même. Savoir où l'on en était n'est pas y être reposé.
  *
  * **Rien n'est irréversible** : « Recommencer la visite » (menu de visite)
  * efface tout et rend la galerie au premier jour. Sans ce bouton, une
@@ -53,6 +57,9 @@ export class Memoire {
     this.revelees = new Set(listeDe(o.revelees));
     this.jetonsPris = new Set(listeDe(o.jetons?.pris));
     this.jetonsSolde = Number.isFinite(o.jetons?.solde) ? Math.max(0, o.jetons.solde) : 0;
+    // la dernière pièce où l'on a posé le pied, pour l'accueil (voir
+    // `resumeReprise`) — jamais pour y reposer le visiteur
+    this.derniere = typeof o.derniere === 'string' && o.derniere ? o.derniere : null;
     // vraie à la construction si la galerie nous connaissait déjà : de quoi
     // dire « bon retour » plutôt que « bienvenue », et rien de plus
     this.reprise = this.pieces.size > 0 || this.oeuvres.size > 0;
@@ -78,7 +85,15 @@ export class Memoire {
    */
   noter(champ, valeur) {
     const set = this[champ];
-    if (!(set instanceof Set) || !valeur || set.has(valeur)) return false;
+    if (!(set instanceof Set) || !valeur) return false;
+    // une pièce notée est la DERNIÈRE où l'on est allé, nouvelle ou non :
+    // revenir dans une pièce connue la remet en tête de l'accueil
+    const changeDerniere = champ === 'pieces' && this.derniere !== valeur;
+    if (changeDerniere) this.derniere = valeur;
+    if (set.has(valeur)) {
+      if (changeDerniere) this._ecrire();
+      return false;
+    }
     set.add(valeur);
     this._ecrire();
     return true;
@@ -105,6 +120,7 @@ export class Memoire {
     this.revelees.clear();
     this.jetonsPris.clear();
     this.jetonsSolde = 0;
+    this.derniere = null;
     this.reprise = false;
     try { localStorage.removeItem(CLE); } catch { /* stockage refusé */ }
     for (const fn of this._abonnes) fn(this);
@@ -118,7 +134,10 @@ export class Memoire {
       portes: [...this.portes],
       oeuvres: [...this.oeuvres],
       revelees: [...this.revelees],
-      jetons: { solde: this.jetonsSolde, pris: [...this.jetonsPris] }
+      jetons: { solde: this.jetonsSolde, pris: [...this.jetonsPris] },
+      // absent tant qu'on n'est allé nulle part : une mémoire vide reste
+      // vide, à l'octet près
+      ...(this.derniere ? { derniere: this.derniere } : {})
     };
   }
 
@@ -133,6 +152,27 @@ export class Memoire {
 export function mountMemoire(app) {
   if (!app.memoire) app.memoire = new Memoire();
   return app.memoire;
+}
+
+/**
+ * LA LIGNE DE L'ACCUEIL — ce que la galerie sait de la dernière visite,
+ * ou null s'il n'y a rien à dire (première venue, mémoire refusée, pièce
+ * disparue du contenu depuis).
+ *
+ * `rooms` : les configurations de pièces (id, title) ; `oeuvres` : les
+ * œuvres non-décor du contenu — le compte des rencontrées ne compte que
+ * celles qui existent encore, un contenu remanié ne fait pas mentir
+ * l'accueil. Pure : c'est ce que test-memoire éprouve.
+ */
+export function resumeReprise(memoire, rooms = [], oeuvres = []) {
+  const id = memoire?.derniere;
+  if (!id) return null;
+  const piece = (rooms ?? []).find((r) => r?.id === id);
+  if (!piece) return null;
+  const ids = new Set((oeuvres ?? []).map((w) => w?.id).filter(Boolean));
+  let trouvees = 0;
+  for (const w of memoire.oeuvres ?? []) if (ids.has(w)) trouvees++;
+  return { salle: piece.title ?? piece.id, trouvees, total: ids.size };
 }
 
 /* ----------------------------------------------------- visite guidée --- */
@@ -169,6 +209,7 @@ export class MemoireOuverte {
     this.revelees = new Tout();
     this.jetonsPris = new Tout();
     this.jetonsSolde = 0;
+    this.derniere = null;
     this.reprise = false;
     this.ouverte = true;
     this._abonnes = new Set();

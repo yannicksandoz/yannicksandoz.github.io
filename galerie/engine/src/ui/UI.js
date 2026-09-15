@@ -57,6 +57,7 @@ export class UI {
     // des textes composés : ils se repeignent dans la nouvelle langue
     if (this._geste !== undefined) this.peindreGeste(this._geste, this._porte);
     this._peindreCompte();
+    this._peindreReprise();
     this._refineKeyLabels();
     this._credits?.();  // les crédits contiennent des libellés traduits
   }
@@ -95,6 +96,26 @@ export class UI {
     const { oeuvres, salles } = this._compte;
     el.textContent = t('enter.compte', { oeuvres, salles });
     el.hidden = !(oeuvres > 0);
+  }
+
+  /**
+   * La dernière visite, en une ligne sous le compte : « Dernière visite :
+   * Bibliothèque · 3 œuvres rencontrées sur 19 ». `resume` vient de
+   * Memoire.resumeReprise, null quand il n'y a rien à dire — la ligne
+   * reste alors cachée, et l'accueil est celui d'une première fois.
+   */
+  setReprise(resume) {
+    this._reprise = resume ?? null;
+    this._peindreReprise();
+  }
+
+  _peindreReprise() {
+    const el = document.getElementById('enter-reprise');
+    if (!el) return;
+    const r = this._reprise;
+    el.hidden = !r;
+    if (!r) return;
+    el.textContent = t('enter.reprise', { salle: r.salle, n: r.trouvees, total: r.total });
   }
 
   /**
