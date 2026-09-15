@@ -4031,18 +4031,32 @@ l'écran qui le porte : la même que la barre d'espace « découvre ». Il
 apparaît et s'efface en fondu (150 ms), se tait dans l'éditeur (qui a ses
 propres surbrillances) et ignore les décors, comme le clic.
 
-Technique (`Survol.js` + `PasseSortie`) : le masque vit DANS L'IMAGE.
-Juste après le dessin de la scène, dans la même cible (la passe MSAA,
-`scenePass.apresScene`), le canal alpha est remis à zéro — un effacement
-sous masque de couleur, pas un quad — puis l'œuvre visée est redessinée
-en n'écrivant QUE l'alpha, à un (mélange personnalisé : couleur × 0 +
-image × 1, alpha × 1 + image × 0), avec le test de profondeur que la scène
-vient d'écrire. C'est tout ce que fait `Survol`. La passe de sortie lit
-cet alpha et compare chaque pixel à ses voisins : quatre anneaux de huit
-lectures (à un, deux, trois et quatre texels de l'image, pondérés un,
-trois quarts, un demi, un quart). Ce que les voisins ont de blanc et que
-le pixel n'a pas, c'est la couronne — un dégradé de quatre pixels d'image
-au ras de la silhouette, adouci par le filtrage linéaire.
+Technique (`Survol.js` + `PasseSortie`) : le masque vit DANS L'IMAGE, et
+se dessine DANS LA PASSE de la scène. Une SENTINELLE — un triangle plein
+écran, transparent, d'ordre de rendu infini, donc le tout dernier objet
+que three dessine — remet le canal alpha de l'image à zéro par son propre
+dessin (mélange : couleur × 0 + image × 1, alpha × 0 + image × 0) ; puis,
+dans son `onAfterRender`, elle redessine l'œuvre visée par
+`renderer.renderBufferDirect`, en n'écrivant QUE l'alpha, à un (couleur ×
+0 + image × 1, alpha × 1 + image × 0), avec le test de profondeur que la
+scène vient d'écrire. La passe de scène l'allume pour son seul dessin
+(`scenePass.avantScene` / `apresScene`) : ni la sonde de reflets, ni les
+apparitions, ni la pré-passe d'occlusion ne la voient. C'est tout ce que
+fait `Survol`. La passe de sortie lit cet alpha et compare chaque pixel à
+ses voisins : quatre anneaux de huit lectures (à un, deux, trois et quatre
+texels de l'image, pondérés un, trois quarts, un demi, un quart). Ce que
+les voisins ont de blanc et que le pixel n'a pas, c'est la couronne — un
+dégradé de quatre pixels d'image au ras de la silhouette, adouci par le
+filtrage linéaire.
+
+Pourquoi DANS la passe et non juste après : un second `renderer.render`
+sur la même cible MSAA, c'est une seconde résolution, et sur un GPU à
+tuiles (tout téléphone) le tampon multi-échantillonné doit alors être
+ÉCRIT en mémoire à la fin de la scène puis RELU au début du masque — des
+mégaoctets par image que le rendu normal ne touche jamais, le MSAA vivant
+dans la tuile et n'en sortant que résolu. Mesuré sur iPhone au labo, une
+œuvre visée : p95 de 19 à 23 ms. Dans la passe, le masque ne coûte qu'un
+triangle plein écran et un dessin de l'œuvre, dans la tuile.
 
 Il y a eu trois versions à cible séparée. La première dilatait un masque
 à demi-résolution par un « max » de huit lectures : un escalier. La
@@ -4067,9 +4081,8 @@ L'occlusion vient gratuitement du tampon de profondeur de la scène : le
 pied d'une stèle enterré sous le plancher des archives, une œuvre à
 moitié derrière un mur, ne se détourent que sur ce qu'on en voit — sur
 tous les appareils, sans pré-passe de la pièce ni cible à profondeur en
-plus. Coût : un effacement d'alpha, un dessin de l'œuvre, une résolution
-MSAA de plus, seulement pendant qu'une œuvre est visée. Le warp de
-portail laisse passer l'alpha ; la copie du composer aussi.
+plus. Le warp de portail laisse passer l'alpha ; la copie du composer
+aussi.
 
 `npm run sonde:lisere` (et `MOBILE=1`) mesure tout cela image par image
 pendant un geste : la boîte du masque (l'alpha de la cible de scène)
@@ -5185,6 +5198,22 @@ profondeur de la scène, sans redessiner la pièce ; et une cible MSAA à
 profondeur de moins par image. Émulé en iPhone : 1,7 px d'écart au labo
 pendant un geste, 1 px aux archives — le bas de la stèle, sous le
 plancher, n'entre pas dans le masque, comme il se doit.
+
+**La sonde de reflets, une photo par salle** (`reflets.js`, `pas:
+Infinity` sur l'image unique). « Les reflets des lumières des portails
+sont glitchy dans l'entrée, ça lag. » La sonde suivait le visiteur et se
+rephotographiait tous les 2,5 m de marche : six faces prises sur douze
+images, à six instants et six positions (les portails tournent, les
+lampes fondent, le visiteur avance), recousues en un cube aux coutures
+visibles, puis fondues dans le précédent — et douze images plus lourdes
+à chaque photo. Une sonde sans parallaxe n'est de toute façon qu'un
+lavis : elle se prend désormais UNE fois par salle, du CENTRE de la
+salle (sa coque, sinon son sol) à hauteur d'yeux, et se reprend du même
+point toutes les douze secondes — ce qui a chargé entre-temps y entre,
+et si rien n'a changé, le fondu entre deux photos identiques ne se voit
+pas. Les six faces d'un cube se prennent maintenant du même point sur
+tous les profils (celui de la première face). Stable, et rien à payer en
+marchant. L'image enrichie garde sa sonde vivante.
 
 **Les polylignes sans indice calculé** (`lignes-lumiere.js`). Le p95 du
 labo était passé de 17 à 20 ms sur iPhone avec les corniches courbes.

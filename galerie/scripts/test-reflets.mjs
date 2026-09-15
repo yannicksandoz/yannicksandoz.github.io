@@ -2,7 +2,7 @@
 // renommé et ses constantes, la greffe sur un matériau, les réglages.
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
-import { echantillonneurGLSL, patcherReflets, REFLETS_DEFAUT }
+import { echantillonneurGLSL, patcherReflets, REFLETS_DEFAUT, centreDeSalle }
   from '../engine/src/core/reflets.js';
 
 let ok = 0, ko = 0;
@@ -64,6 +64,27 @@ test('un matériau qui n’est pas standard est laissé tel quel', () => {
 test('les défauts : un reflet plein, un rebond discret', () => {
   assert.equal(REFLETS_DEFAUT.force, 1);
   assert.ok(REFLETS_DEFAUT.rebond > 0 && REFLETS_DEFAUT.rebond < 0.5);
+});
+
+titre('une photo par salle, du centre de la salle');
+test('le centre d’une salle : sa coque, sinon son sol, sinon tout le groupe', () => {
+  const coque = new THREE.Mesh(new THREE.BoxGeometry(10, 4, 6)); coque.position.set(5, 2, -3); coque.updateMatrixWorld(true);
+  const c = centreDeSalle({ shell: coque, floor: null, group: new THREE.Group() });
+  assert.ok(Math.abs(c.x - 5) < 1e-6 && Math.abs(c.z + 3) < 1e-6, `centre de coque : ${c.toArray()}`);
+  const sol = new THREE.Mesh(new THREE.PlaneGeometry(20, 20)); sol.rotation.x = -Math.PI / 2; sol.position.x = -4; sol.updateMatrixWorld(true);
+  const s = centreDeSalle({ shell: null, floor: sol, group: new THREE.Group() });
+  assert.ok(Math.abs(s.x + 4) < 1e-6, `centre de sol : ${s.toArray()}`);
+  assert.equal(centreDeSalle({ shell: null, floor: null, group: new THREE.Group() }), null, 'un groupe vide n’a pas de centre');
+});
+// le gestionnaire de qualité lit l'écran à sa construction : on lui en donne un
+globalThis.window ??= { devicePixelRatio: 1, matchMedia: () => ({ matches: false }) };
+globalThis.navigator ??= { userAgent: 'node', maxTouchPoints: 0 };
+const { QualityManager } = await import('../engine/src/core/Quality.js');
+test('l’image unique demande une sonde fixe par salle (pas infini)', () => {
+  const q = new QualityManager();
+  assert.equal(q.profile.reflets.pas, Infinity);
+  assert.equal(q.profile.reflets.cadence, 2);
+  assert.equal(q.profile.reflets.resolution, 64);
 });
 
 console.log(`\n${ok} ✓ / ${ko} ✗`);

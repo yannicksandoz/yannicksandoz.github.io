@@ -153,16 +153,19 @@ export class QualityManager {
           envIntensity: 0.5,
           // LA SONDE DE REFLETS (reflets.js) : un cube de 64 px, une face
           // toutes les deux images — le reflet est flou de toute façon — et
-          // PARESSEUSE : une photo à l'entrée, puis seulement tous les 2,5 m
-          // de marche. Mesuré sous profil mobile au belvédère (287
-          // maillages), la sonde continue coûtait les deux tiers de l'image :
-          // chaque face est un rendu complet de la salle, et à 64 px c'est
-          // le compte de maillages qui paie, pas les pixels.
+          // UNE PHOTO PAR SALLE, du centre de la salle (`pas: Infinity`).
+          // Mesuré sous profil mobile au belvédère (287 maillages), la
+          // sonde continue coûtait les deux tiers de l'image : chaque face
+          // est un rendu complet de la salle, et à 64 px c'est le compte de
+          // maillages qui paie, pas les pixels. Et rephotographiée tous les
+          // 2,5 m de marche, elle se recousait de six instants et fondait
+          // sans cesse : des reflets « glitchy », qui « laguent ». Fixe,
+          // elle est stable et ne coûte rien en marchant.
           // Et SIMPLE au pixel : un niveau de flou au lieu de deux mélangés,
           // pas de rebond (la sonde d'ambiance le porte) — quatre lectures
           // au lieu de seize. Mesuré à l'entrée, les reflets pleins
           // coûtaient 13 % de l'image.
-          reflets: { resolution: 64, cadence: 2, pas: 2.5, simple: true, rebond: 0 }
+          reflets: { resolution: 64, cadence: 2, pas: Infinity, simple: true, rebond: 0 }
         };
     // L'IMAGE ENRICHIE (`riche`) : ce que l'image unique a laissé pour tenir
     // sur un téléphone — au choix du visiteur, mémorisé, proposé quand la

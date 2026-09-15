@@ -38,8 +38,19 @@ const UNIFORMES = {
   uRefletsMix: { value: 1 }
 };
 export const DUREE_FONDU_REFLETS = 0.8;   // secondes
+export const RAFRAICHISSEMENT_SALLE = 12; // secondes entre deux photos d'une sonde par salle
 
 export const REFLETS_DEFAUT = { force: 1.0, rebond: 0.22 };
+
+const _boite = new THREE.Box3();
+/** Le centre au sol d'une salle : sa coque ou son sol, sinon son groupe entier. */
+export function centreDeSalle(salle) {
+  const objet = salle.shell ?? salle.floor ?? salle.group;
+  if (!objet) return null;
+  _boite.setFromObject(objet);
+  if (_boite.isEmpty()) return null;
+  return _boite.getCenter(new THREE.Vector3());
+}
 
 /**
  * LA TAILLE DU CUBE, connue du shader. L'échantillonneur CubeUV de three
@@ -206,6 +217,19 @@ export class SondeReflets {
     // salle, c'est la différence entre une sonde qui coûte les deux tiers
     // de l'image et une sonde qui ne coûte rien à l'arrêt.
     this.pas = Math.max(0, pas);
+    // UNE PHOTO PAR SALLE (`pas: Infinity`, l'image unique) : la sonde se
+    // prend une fois, au CENTRE de la salle à hauteur d'yeux, et ne bouge
+    // plus tant qu'on n'en change pas. Une sonde qui suivait le visiteur
+    // tous les 2,5 m se rephotographiait EN MARCHANT : six faces prises
+    // sur douze images, à six instants et six positions (les portails
+    // tournent, les lampes fondent), recousues en un cube aux coutures
+    // visibles, puis fondues dans le précédent — « les reflets des
+    // portails sont glitchy, ça lag ». Une sonde sans parallaxe n'est de
+    // toute façon qu'un lavis : prise d'un point fixe, elle est STABLE,
+    // et ne coûte rien en marchant.
+    this.parSalle = pas === Infinity;
+    this._position = new THREE.Vector3();   // d'où se prend le cube en cours
+    this._quand = 0;           // performance.now() de la photo courante (par salle)
     this._depart = null;       // d'où la photo courante a été prise
     this._salle = null;
     // une puissance de deux : c'est ce que le PMREM garde de toute façon
@@ -275,15 +299,32 @@ export class SondeReflets {
     if (this.pas > 0 && this._face === 0) {
       // entre deux photos : on dort tant qu'on n'a pas marché assez loin
       const salle = this.app.rooms?.current ?? null;
+      // par salle : la photo se REPREND aussi à intervalle fixe, du même
+      // point — ce qui a chargé entre-temps (une œuvre, sa lampe) y entre,
+      // et si rien n'a changé, le fondu entre deux photos identiques ne se
+      // voit pas
       const loin = !this._depart || salle !== this._salle
-        || this._depart.distanceToSquared(cam.position) >= this.pas * this.pas;
+        || this._depart.distanceToSquared(cam.position) >= this.pas * this.pas
+        || (this.parSalle && performance.now() - this._quand >= RAFRAICHISSEMENT_SALLE * 1000);
       if (!loin) return;
       this._depart = (this._depart ?? new THREE.Vector3()).copy(cam.position);
       this._salle = salle;
+      this._quand = performance.now();
     }
-    if (this._face === 0) this.photos = (this.photos ?? 0) + 1;   // compteur (sondes, tests)
-    // la sonde suit le visiteur — au niveau des yeux, là où sont les reflets
-    this.camera.position.copy(cam.position);
+    if (this._face === 0) {
+      this.photos = (this.photos ?? 0) + 1;   // compteur (sondes, tests)
+      // D'OÙ se prend le cube : fixé à la première face, pour que les six
+      // soient prises du même point (le visiteur marche pendant les douze
+      // images d'un cube). Par salle : son centre, à hauteur d'yeux ;
+      // sinon le visiteur — au niveau des yeux, là où sont les reflets.
+      this._position.copy(cam.position);
+      if (this.parSalle) {
+        const salle = this.app.rooms?.current;
+        const centre = salle ? centreDeSalle(salle) : null;
+        if (centre) this._position.set(centre.x, cam.position.y, centre.z);
+      }
+    }
+    this.camera.position.copy(this._position);
     // pendant la photo, la salle ne se reflète pas dans elle-même (une
     // boucle de rebonds), et ce qui refuse une caméra étrangère se cache
     const forceAvant = UNIFORMES.uRefletsForce.value;

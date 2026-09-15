@@ -121,8 +121,10 @@ class PasseSceneMSAA extends Pass {
     // Faut-il vraiment recopier la cible dans la chaîne ? Voir `render`.
     // Prudent par défaut : l'App le remet à jour à chaque image.
     this.copieNecessaire = true;
-    // ce qui se dessine DANS la cible juste après la scène, profondeur
-    // encore vive : le masque du survol, dans l'alpha (voir Survol.js)
+    // autour du dessin de la scène : la sentinelle du survol s'allume pour
+    // cette passe seule (voir Survol.js) — ni la sonde de reflets, ni les
+    // apparitions, ni la pré-passe d'occlusion ne la voient
+    this.avantScene = null;
     this.apresScene = null;
   }
 
@@ -132,8 +134,9 @@ class PasseSceneMSAA extends Pass {
 
   render(renderer, writeBuffer) {
     renderer.setRenderTarget(this.cible);
+    this.avantScene?.();
     renderer.render(this.scene, this.camera);
-    this.apresScene?.(renderer, this.camera);
+    this.apresScene?.();
     // La résolution MSAA a lieu à la FIN de `renderer.render`, sur la cible
     // courante : `cible.texture` est prête dès cette ligne.
     //
@@ -430,7 +433,9 @@ export class App {
     // scène, juste après la scène, dans le même appel (voir Survol.js) ;
     // la sortie en tire la couronne
     this.survol = new Survol();
-    this.scenePass.apresScene = (renderer, camera) => this.survol.dessiner(renderer, camera);
+    this.scene.add(this.survol.sentinelle);
+    this.scenePass.avantScene = () => { this.survol.sentinelle.visible = this.survol.actif; };
+    this.scenePass.apresScene = () => { this.survol.sentinelle.visible = false; };
 
     this._buildEnvironment();
     this._setupPicking();
