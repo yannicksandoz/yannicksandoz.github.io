@@ -550,6 +550,42 @@ export function patcherRepetition(material, force = 0.45) {
   return material;
 }
 
+/**
+ * UNE NORMALE QUI RESTE UN VECTEUR — la garde contre le flash blanc.
+ *
+ * Le relief d'un sol ou d'un mur (`bumpMap`) perturbe la normale à partir
+ * des DÉRIVÉES D'ÉCRAN de la position (`perturbNormalArb`, méthode de
+ * Mikkelsen). Vu en rasant, loin, au bord de l'image, ces deux dérivées
+ * deviennent presque parallèles : le déterminant tombe sous ce qu'un
+ * flottant représente, et `normalize` d'un vecteur nul rend l'infini. Un
+ * seul pixel, une image sur mille — mais la lumière hémisphérique en fait
+ * une couleur infinie, et le bloom l'étale sur TOUTE l'image : c'était le
+ * flash blanc d'une image qu'on voyait en marchant, surtout à l'entrée.
+ *
+ * On ne réécrit pas le chunk de three : une fois toutes les perturbations
+ * passées (le bump de three, le relief du grain, la couche vernie), juste
+ * avant `emissivemap_fragment`, on vérifie que la normale a encore une
+ * longueur d'environ un — sinon, on reprend celle de la géométrie, sans
+ * relief pour ce pixel-là. `!(a && b)` plutôt que `a || b` : un NaN échoue
+ * à toute comparaison, et c'est justement lui qu'on attrape.
+ */
+export const GARDE_NORMALE = /* glsl */`
+        { float nn = dot(normal, normal); if (!(nn > 0.5 && nn < 2.0)) normal = nonPerturbedNormal; }`;
+
+export function patcherNormaleSure(material) {
+  if (!material || material.userData?.normaleSure) return material;
+  if (!material.isMeshStandardMaterial && !material.isMeshPhysicalMaterial) return material;
+  material.userData.normaleSure = true;
+  const precedent = material.onBeforeCompile;
+  material.onBeforeCompile = (shader, renderer) => {
+    precedent?.call(material, shader, renderer);
+    shader.fragmentShader = shader.fragmentShader
+      .replace('#include <emissivemap_fragment>', `${GARDE_NORMALE}\n#include <emissivemap_fragment>`);
+  };
+  material.needsUpdate = true;
+  return material;
+}
+
 export function patcherGrain(material, style = 'poli',
   { echelle = 1.4, force = 0.65, relief = 0.5 } = {}) {
   // hors navigateur (les suites au nœud construisent de vrais maillages

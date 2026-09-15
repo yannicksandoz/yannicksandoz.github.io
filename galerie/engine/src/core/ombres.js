@@ -352,6 +352,48 @@ export function ombreDeContact(rx, rz, y = 0.02) {
 const _posLampe = new THREE.Vector3();
 
 /**
+ * LE FONDU DES LAMPES. Le budget décidait, trois fois par seconde, quelles
+ * lampes le shader porte — et basculait `visible` d'un coup : mesuré en
+ * marchant (sonde des saccades), la clarté de l'image sautait de 86 % aux
+ * archives et de 122 % au belvédère d'une image à l'autre. Une lampe
+ * n'apparaît ni ne disparaît plus : elle MONTE ou DESCEND en `DUREE_FONDU`
+ * secondes, par un facteur que l'œuvre applique à son intensité
+ * (Artwork.appliquerFonduLampe) — l'œuvre reste maîtresse de son
+ * intensité nominale, le fondu n'est qu'un multiplicateur. Une lampe qui
+ * descend reste visible tant qu'elle n'est pas à zéro : elle coûte encore
+ * un peu au shader le temps du fondu, et c'est le prix de la douceur.
+ */
+export const DUREE_FONDU = 0.6;
+
+/** Un pas de fondu : `f` va vers 1 ou 0 en DUREE_FONDU secondes (pur, testé). */
+export function pasDeFondu(f, veut, dt, duree = DUREE_FONDU) {
+  const pas = duree > 0 ? dt / duree : 1;
+  return veut ? Math.min(1, f + pas) : Math.max(0, f - pas);
+}
+
+/**
+ * À appeler chaque image : avance les fondus des lampes que le budget a
+ * demandées ou rendues. Rend true si une lampe vient de s'éteindre tout à
+ * fait (`visible` = false) — le nombre de lampes du shader change alors.
+ */
+export function fondreLampes(room, dt) {
+  if (!room?.group) return false;
+  let eteinte = false;
+  room.group.traverse((l) => {
+    if (!(l.isPointLight || l.isSpotLight)) return;
+    const u = l.userData;
+    if (u.voulue === undefined) return;
+    const f = pasDeFondu(u.fondu ?? (l.visible ? 1 : 0), u.voulue, dt);
+    if (f === u.fondu) return;
+    u.fondu = f;
+    if (u.artwork?.appliquerFonduLampe) u.artwork.appliquerFonduLampe(f);
+    else l.intensity = (u.intensiteNominale ??= l.intensity) * f;
+    if (f <= 0 && l.visible) { l.visible = false; eteinte = true; }
+  });
+  return eteinte;
+}
+
+/**
  * LE BUDGET DE LAMPES PROCHES — canal 4, la moitié qui manquait.
  *
  * Le rendu forward de three évalue CHAQUE lampe visible sur CHAQUE pixel
@@ -396,22 +438,34 @@ export function budgetLampes(room, camPos,
   const appliquer = (liste, n) => {
     if (liste.length <= n) {
       for (const l of liste) {
-        if (!l.visible) bascule = true;
-        l.visible = true;
+        if (!(l.userData.voulue ?? l.visible)) bascule = true;
+        l.userData.voulue = true;
+        if (!l.visible) { l.userData.fondu = 0; l.visible = true; }
       }
       return;
     }
     for (const l of liste) {
       l.getWorldPosition(_posLampe);
       let d2 = _posLampe.distanceToSquared(camPos);
-      if (l.visible) d2 *= 0.85;   // le collant : les tenues tiennent
+      if (l.userData.voulue ?? l.visible) d2 *= 0.85;   // le collant : les tenues tiennent
       l.userData.d2Budget = d2;
     }
     liste.sort((a, b) => a.userData.d2Budget - b.userData.d2Budget);
     liste.forEach((l, i) => {
       const veut = i < n;
-      if (l.visible !== veut) bascule = true;
-      l.visible = veut;
+      // on ne bascule plus `visible` : on DEMANDE, et fondreLampes fait
+      // monter ou descendre la lampe image par image. Une lampe demandée
+      // s'allume à zéro pour monter ; une lampe rendue reste visible le
+      // temps de descendre.
+      const avant = l.userData.voulue ?? l.visible;
+      if (avant !== veut) bascule = true;
+      l.userData.voulue = veut;
+      if (veut && !l.visible) {
+        l.userData.fondu = 0;
+        if (l.userData.artwork?.appliquerFonduLampe) l.userData.artwork.appliquerFonduLampe(0);
+        else { l.userData.intensiteNominale ??= l.intensity; l.intensity = 0; }
+        l.visible = true;
+      }
     });
   };
   appliquer(P, points);

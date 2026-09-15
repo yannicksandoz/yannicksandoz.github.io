@@ -146,7 +146,8 @@ const SORTIE = {
     tMasque: { value: null },      // la silhouette, blanc sur noir
     uMasqueTexel: { value: new Vector2(1 / 1920, 1 / 1080) }, // 1 / taille du masque
     uContour: { value: 0 },
-    uContourCouleur: { value: new Color(0xffffff) } // blanc : un trait, pas une teinte
+    uContourCouleur: { value: new Color(0xffffff) }, // blanc : un trait, pas une teinte
+    uMasqueDebug: { value: 0 }     // ?survol=masque : la silhouette en magenta, pour diagnostiquer
   },
   vertexShader: /* glsl */ `
     precision highp float;
@@ -172,6 +173,7 @@ const SORTIE = {
     uniform vec2 uMasqueTexel;
     uniform float uContour;
     uniform vec3 uContourCouleur;
+    uniform float uMasqueDebug;
     varying vec2 vUv;
 
     // LE LISERÉ DU SURVOL : ce que les VOISINS ont de blanc et que le pixel
@@ -298,6 +300,7 @@ const SORTIE = {
       // pas une lumière — il se pose après la courbe de tons
       if (uContour > 0.0) {
         sortie.rgb = mix(sortie.rgb, uContourCouleur, contour(vUv) * uContour);
+        if (uMasqueDebug > 0.0) sortie.rgb = mix(sortie.rgb, vec3(1.0, 0.0, 1.0), texture2D(tMasque, vUv).r * 0.45);
       }
 
       // LE TRAMAGE : la galerie est sombre et violette, la brume y fait des

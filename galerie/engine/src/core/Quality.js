@@ -112,7 +112,10 @@ export class QualityManager {
           survolOcclusion: true,
           bloomResScale: 0.25,  // bloom calculé au quart de la résolution
           bloomStrength: 0.5,
-          grain: !this.reducedMotion,
+          // LE GRAIN, seulement à pleine densité : sur un téléphone qui rend
+          // à 1,25 pour une dalle à 3×, le grain agrandi puis affûté par la
+          // sortie faisait une image « moche » — du bruit, pas un grain
+          grain: !this.reducedMotion && !(densite < dpr),
           // LE MÊME SON PARTOUT : six voix (une par œuvre, voir
           // Spatialisation), quatre en HRTF — la convolution est chère PAR
           // SOURCE, au-delà les voies retombent sur equalpower

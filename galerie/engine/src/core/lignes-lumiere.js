@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { DECLARATION_AMBIANCE, uniformesAmbiance } from './ambiance-salle.js';
 import { patcherReflets } from './reflets.js';
+import { patcherNormaleSure } from './textures.js';
 
 /**
  * LES LIGNES DE LUMIÈRE — une corniche qui éclaire pour le prix d'un point.
@@ -308,7 +309,18 @@ function ponderer(segments, camera) {
  * ferait préférer une corniche lointaine dont un bout passe près, et l'on
  * verrait la sélection sauter en marchant.
  */
-export function majLignes(camera) {
+/**
+ * LE FONDU DES LIGNES. Le budget garde les `budget` segments les plus
+ * proches ; en marchant, la sélection change et une corniche entrait ou
+ * sortait du shader d'un coup. Chaque ligne porte un poids `_w` (0..1)
+ * qui monte vers 1 quand elle est retenue et descend vers 0 sinon, en
+ * DUREE_FONDU_LIGNES secondes ; une ligne qui descend reste transportée
+ * tant qu'elle pèse, dans la limite de MAX_LIGNES emplacements. Sa couleur
+ * est multipliée par ce poids.
+ */
+export const DUREE_FONDU_LIGNES = 0.6;
+
+export function majLignes(camera, dt = 0) {
   if (!camera || (!lignes.length && !polylignes.length)) {
     UNIFORMES.uLigneNombre.value = 0;
     UNIFORMES.uPolyNombre.value = 0;
@@ -345,20 +357,32 @@ export function majLignes(camera) {
     vivantes.push(l);
   }
   if (!vivantes.length) { UNIFORMES.uLigneNombre.value = 0; return polys; }
-  const retenues = vivantes.length <= budget
-    ? vivantes
-    : vivantes.sort((x, y) => x._d - y._d).slice(0, budget);
+  vivantes.sort((x, y) => x._d - y._d);
+  // les `budget` plus proches sont voulues ; les autres descendent
+  const pas = dt > 0 ? dt / DUREE_FONDU_LIGNES : 1;
+  for (let i = 0; i < vivantes.length; i++) {
+    const l = vivantes[i];
+    const veut = i < budget;
+    if (l._w === undefined) l._w = veut ? 1 : 0;   // une salle où l'on entre s'allume telle quelle
+    l._w = veut ? Math.min(1, l._w + pas) : Math.max(0, l._w - pas);
+  }
+  // on transporte ce qui pèse : les voulues d'abord (elles montent ou sont
+  // pleines), puis celles qui descendent, jusqu'à MAX_LIGNES
+  const transportees = vivantes.filter((l) => l._w > 0).slice(0, MAX_LIGNES);
 
-  for (let i = 0; i < retenues.length; i++) {
-    const l = retenues[i];
+  for (let i = 0; i < transportees.length; i++) {
+    const l = transportees[i];
     UNIFORMES.uLigneA.value[i].copy(_a.copy(l._a).applyMatrix4(camera.matrixWorldInverse));
     UNIFORMES.uLigneB.value[i].copy(_b.copy(l._b).applyMatrix4(camera.matrixWorldInverse));
-    UNIFORMES.uLigneCouleur.value[i].copy(l.couleur);
+    UNIFORMES.uLigneCouleur.value[i].copy(l.couleur).multiplyScalar(l._w);
     UNIFORMES.uLigneFace.value[i].copy(l._f).transformDirection(camera.matrixWorldInverse);
   }
-  UNIFORMES.uLigneNombre.value = retenues.length;
-  return retenues.length + polys;
+  UNIFORMES.uLigneNombre.value = transportees.length;
+  return transportees.length + polys;
 }
+
+/** Les poids courants des lignes (pour les tests) : [{ w, d }] dans l'ordre de déclaration. */
+export function poidsDesLignes() { return lignes.map((l) => ({ w: l._w ?? null, d: l._d })); }
 
 /** Une salle vivante et visible porte l'objet ; sinon on l'oublie (true = à retirer). */
 function orpheline(objet) {
@@ -573,11 +597,13 @@ export function patcherArbreLignes(racine) {
   racine.traverse((o) => {
     const m = o.material;
     if (!m) return;
-    // les LIGNES (profil mobile) et les REFLETS de la salle (voir
-    // reflets.js) se greffent au même endroit : tout matériau standard,
-    // à sa naissance, reçoit ce que la salle lui renvoie
-    if (Array.isArray(m)) m.forEach((x) => { patcherLignes(x); patcherReflets(x); });
-    else { patcherLignes(m); patcherReflets(m); }
+    // les LIGNES (profil mobile), les REFLETS de la salle (voir
+    // reflets.js) et la GARDE de la normale (textures.js) se greffent au
+    // même endroit : tout matériau standard, à sa naissance, reçoit ce que
+    // la salle lui renvoie — et la promesse de ne jamais rendre l'infini
+    const greffer = (x) => { patcherLignes(x); patcherReflets(x); patcherNormaleSure(x); };
+    if (Array.isArray(m)) m.forEach(greffer);
+    else greffer(m);
   });
 }
 

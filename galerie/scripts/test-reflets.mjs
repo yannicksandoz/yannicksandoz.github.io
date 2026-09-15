@@ -50,8 +50,9 @@ test('un matériau standard reçoit la greffe une seule fois, en gardant son onB
   m.onBeforeCompile(shader, null);
   assert.equal(appels, 1, 'l’ancien onBeforeCompile n’a pas été appelé');
   assert.ok(shader.uniforms.uReflets && shader.uniforms.uRefletsForce && shader.uniforms.uRefletsRebond);
-  assert.match(shader.fragmentShader, /radiance \+= refletsCubeUV\(uReflets, refletsR, material\.roughness\)/);
-  assert.match(shader.fragmentShader, /iblIrradiance \+= PI \* refletsCubeUV\(uReflets, refletsN, 1\.0\)/);
+  assert.match(shader.fragmentShader, /refletsCubeUV\(uReflets, refletsR, material\.roughness\)[\s\S]*uRefletsMix[\s\S]*radiance \+= refletsC \* uRefletsForce/);
+  assert.match(shader.fragmentShader, /refletsCubeUV\(uReflets, refletsN, 1\.0\)[\s\S]*iblIrradiance \+= PI \* refletsI \* uRefletsRebond/);
+  assert.ok(shader.uniforms.uRefletsAvant && shader.uniforms.uRefletsMix, 'le fondu entre deux photos est branché');
   assert.match(shader.fragmentShader, /vec4 refletsCubeUV\(/, 'l’échantillonneur est injecté');
 });
 test('un matériau qui n’est pas standard est laissé tel quel', () => {

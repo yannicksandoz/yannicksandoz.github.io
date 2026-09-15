@@ -10,7 +10,7 @@ import {
 import { Survol } from './Survol.js';
 import { VistaManager } from './Vista.js';
 import { FOG_DENSITY, suivreOmbre } from './RoomManager.js';
-import { budgetLampes, coqueClose } from './ombres.js';
+import { budgetLampes, fondreLampes, coqueClose } from './ombres.js';
 import { AudioEngine } from './AudioEngine.js';
 import { Spatialisation } from './Spatialisation.js';
 import { QualityManager } from './Quality.js';
@@ -1079,15 +1079,19 @@ export class App {
           if (change) this.ombresSales = true;
         }
       }
+      // …et chaque image, les lampes demandées montent, les rendues
+      // descendent (ombres.fondreLampes) : plus de palier en marchant
+      if (this.rooms?.current && fondreLampes(this.rooms.current, dt)) this.ombresSales = true;
 
       // LES LIGNES DE LUMIÈRE, transportées en espace vue (lignes-lumiere.js).
       // À CHAQUE image, contrairement au budget de lampes ci-dessus : ce
       // sont des UNIFORMES de shader, pas une attribution de lampes — les
       // laisser d'une frame en retard ferait glisser le lavage sur les murs
       // pendant qu'on tourne la tête. Le coût est de quelques matrices.
-      majLignes(this.camera);
-      // la sonde ne change pas, le repère si : on tourne son ordre 1
-      orienterAmbiance(this.camera);
+      majLignes(this.camera, dt);
+      // la sonde ne change pas, le repère si : on tourne son ordre 1 — et
+      // elle glisse vers sa cible (ambiance-salle.js)
+      orienterAmbiance(this.camera, dt);
       // une face de la sonde de reflets, avant que la scène ne se rende
       this.reflets?.update();
 
@@ -1119,6 +1123,11 @@ export class App {
         if (dessine && this.survol.texture) {
           u.tMasque.value = this.survol.texture;
           u.uMasqueTexel.value.copy(this.survol.texel);
+          // `?survol=masque` : la silhouette elle-même, en magenta, par-dessus
+          // l'image — pour voir sur un appareil qu'on ne peut pas émuler si
+          // c'est le MASQUE qui se décale de l'œuvre, ou seulement sa couronne
+          u.uMasqueDebug.value = this._survolDebug ??= (typeof location !== 'undefined'
+            && new URLSearchParams(location.search).get('survol') === 'masque') ? 1 : 0;
         } else if (!u.tMasque.value) {
           // un échantillonneur jamais lié fait hurler certains pilotes
           u.tMasque.value = this.survol.texture ?? this.scenePass?.cible?.texture ?? null;

@@ -29,8 +29,15 @@ import * as THREE from 'three';
 const UNIFORMES = {
   uReflets: { value: null },        // le cube pré-filtré (CubeUV, comme envMap)
   uRefletsForce: { value: 0 },      // part de radiance (reflet)
-  uRefletsRebond: { value: 0 }      // part d'irradiance (rebond coloré)
+  uRefletsRebond: { value: 0 },     // part d'irradiance (rebond coloré)
+  // LE FONDU ENTRE DEUX PHOTOS. La sonde paresseuse se rephotographie tous
+  // les 2,5 m de marche : le reflet changeait d'un coup, un pas sur trois.
+  // La photo précédente reste lue le temps de `DUREE_FONDU_REFLETS`, et
+  // `uRefletsMix` va de 0 (l'ancienne) à 1 (la nouvelle).
+  uRefletsAvant: { value: null },
+  uRefletsMix: { value: 1 }
 };
+export const DUREE_FONDU_REFLETS = 0.8;   // secondes
 
 export const REFLETS_DEFAUT = { force: 1.0, rebond: 0.22 };
 
@@ -98,9 +105,13 @@ export function patcherReflets(material) {
     shader.uniforms.uReflets = UNIFORMES.uReflets;
     shader.uniforms.uRefletsForce = UNIFORMES.uRefletsForce;
     shader.uniforms.uRefletsRebond = UNIFORMES.uRefletsRebond;
+    shader.uniforms.uRefletsAvant = UNIFORMES.uRefletsAvant;
+    shader.uniforms.uRefletsMix = UNIFORMES.uRefletsMix;
     shader.fragmentShader = shader.fragmentShader
       .replace('#include <common>', `#include <common>
 uniform sampler2D uReflets;
+uniform sampler2D uRefletsAvant;
+uniform float uRefletsMix;
 uniform float uRefletsForce;
 uniform float uRefletsRebond;
 ${echantillonneurGLSL(TAILLE_SONDE)}`)
@@ -110,10 +121,18 @@ ${echantillonneurGLSL(TAILLE_SONDE)}`)
   if (uRefletsForce > 0.0) {
     vec3 refletsR = reflect(-geometryViewDir, geometryNormal);
     refletsR = inverseTransformDirection(refletsR, viewMatrix);
-    radiance += ${SIMPLE ? 'refletsSimple' : 'refletsCubeUV'}(uReflets, refletsR, material.roughness).rgb * uRefletsForce;
+    vec3 refletsC = ${SIMPLE ? 'refletsSimple' : 'refletsCubeUV'}(uReflets, refletsR, material.roughness).rgb;
+    // le fondu entre l'ancienne photo et la nouvelle (branche uniforme :
+    // hors fondu, une seule lecture, comme avant)
+    if (uRefletsMix < 1.0) {
+      refletsC = mix(${SIMPLE ? 'refletsSimple' : 'refletsCubeUV'}(uRefletsAvant, refletsR, material.roughness).rgb, refletsC, uRefletsMix);
+    }
+    radiance += refletsC * uRefletsForce;
     if (uRefletsRebond > 0.0) {
       vec3 refletsN = inverseTransformDirection(geometryNormal, viewMatrix);
-      iblIrradiance += PI * refletsCubeUV(uReflets, refletsN, 1.0).rgb * uRefletsRebond;
+      vec3 refletsI = refletsCubeUV(uReflets, refletsN, 1.0).rgb;
+      if (uRefletsMix < 1.0) refletsI = mix(refletsCubeUV(uRefletsAvant, refletsN, 1.0).rgb, refletsI, uRefletsMix);
+      iblIrradiance += PI * refletsI * uRefletsRebond;
     }
   }`);
   };
@@ -205,6 +224,8 @@ export class SondeReflets {
     this._face = 0;
     this._tick = 0;
     this._filtre = null;      // la cible PMREM courante
+    this._avant = null;       // la précédente, le temps du fondu
+    this._fonduDepuis = 0;    // performance.now() de la dernière photo
     this._caches = [];
     this.actif = true;
     // avant la première photo, rien : la force reste à zéro tant qu'aucun
@@ -235,6 +256,17 @@ export class SondeReflets {
       UNIFORMES.uRefletsForce.value = 0;
       UNIFORMES.uRefletsRebond.value = 0;
       return;
+    }
+    // le fondu entre deux photos avance à chaque image, cadence ou pas
+    if (this._avant) {
+      const t = (performance.now() - this._fonduDepuis) / (DUREE_FONDU_REFLETS * 1000);
+      if (t >= 1) {
+        this._avant.dispose(); this._avant = null;
+        UNIFORMES.uRefletsAvant.value = this._filtre?.texture ?? null;
+        UNIFORMES.uRefletsMix.value = 1;
+      } else {
+        UNIFORMES.uRefletsMix.value = t;
+      }
     }
     if (++this._tick % this.cadence) return;
     const r = this.app.renderer;
@@ -285,7 +317,18 @@ export class SondeReflets {
       if (this._face === 0) {
         r.setRenderTarget(cibleAvant);
         const filtre = this.pmrem.fromCubemap(this.cube.texture);
-        this._filtre?.dispose();
+        // la photo précédente reste lue le temps du fondu (pas à la
+        // première : rien à fondre, et un échantillonneur non lié hurle)
+        if (this._filtre) {
+          this._avant?.dispose();
+          this._avant = this._filtre;
+          UNIFORMES.uRefletsAvant.value = this._avant.texture;
+          UNIFORMES.uRefletsMix.value = 0;
+          this._fonduDepuis = performance.now();
+        } else {
+          UNIFORMES.uRefletsAvant.value = filtre.texture;
+          UNIFORMES.uRefletsMix.value = 1;
+        }
         this._filtre = filtre;
         UNIFORMES.uReflets.value = filtre.texture;
       }
@@ -305,6 +348,7 @@ export class SondeReflets {
   }
 
   dispose() {
+    this._avant?.dispose();
     this._filtre?.dispose();
     this.cube.dispose();
     this.cubeBrut.dispose();

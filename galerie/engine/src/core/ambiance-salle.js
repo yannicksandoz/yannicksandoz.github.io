@@ -80,6 +80,22 @@ const UNIFORMES = {
  */
 const MONDE = { c0: new THREE.Color(0, 0, 0), c: [null, null, null] };
 for (let i = 0; i < 3; i++) MONDE.c[i] = new THREE.Vector3();
+/**
+ * LA CIBLE. `majAmbiance` ne pose plus la sonde d'un coup : elle écrit ici,
+ * et `orienterAmbiance` fait glisser MONDE vers la cible image par image,
+ * avec une constante de temps `TAU_AMBIANCE`. Quand une lampe franchit la
+ * frontière du budget, la sonde changeait d'un coup — c'était une part du
+ * saut de clarté mesuré en marchant. Elle ne fait plus que respirer.
+ */
+const CIBLE = { c0: new THREE.Color(0, 0, 0), c: [null, null, null], posee: false };
+for (let i = 0; i < 3; i++) CIBLE.c[i] = new THREE.Vector3();
+export const TAU_AMBIANCE = 0.35;   // secondes : 95 % du chemin en une seconde
+
+/** La part du chemin parcourue en `dt` vers une cible, pour une constante `tau` (pur, testé). */
+export function partDuChemin(dt, tau = TAU_AMBIANCE) {
+  if (!(tau > 0) || !(dt > 0)) return 1;
+  return 1 - Math.exp(-dt / tau);
+}
 const _rot = new THREE.Vector3();
 /**
  * La part rotation de la vue, en 3×3. On NE PASSE PAS par
@@ -111,14 +127,29 @@ export function oublierAmbiance() {
   for (const u of Object.values(UNIFORMES)) u.value.setRGB(0, 0, 0);
   MONDE.c0.setRGB(0, 0, 0);
   for (const v of MONDE.c) v.set(0, 0, 0);
+  CIBLE.c0.setRGB(0, 0, 0);
+  for (const v of CIBLE.c) v.set(0, 0, 0);
+  CIBLE.posee = false;
+}
+
+/** Ce que la sonde vaut à l'instant (pour les tests et les sondes). */
+export function ambianceCourante() {
+  return { c0: MONDE.c0.clone(), c: MONDE.c.map((v) => v.clone()), cible: CIBLE.c0.clone() };
 }
 
 /**
  * Transporte l'ordre 1 en espace vue. À appeler une fois par image, comme
  * `majLignes` — la sonde ne change pas, le repère si.
  */
-export function orienterAmbiance(camera) {
+export function orienterAmbiance(camera, dt = 0) {
   if (!camera) return;
+  // vers la cible, en douceur — sauf la toute première fois, où la salle
+  // n'a pas à s'allumer en fondu depuis le noir
+  if (CIBLE.posee) {
+    const k = partDuChemin(dt);
+    MONDE.c0.lerp(CIBLE.c0, k);
+    for (let i = 0; i < 3; i++) MONDE.c[i].lerp(CIBLE.c[i], k);
+  }
   UNIFORMES.uAmbianceC0.value.copy(MONDE.c0);
   _vue3.setFromMatrix4(camera.matrixWorldInverse);
   const vues = [];
@@ -173,8 +204,8 @@ function estDansUneBrancheVisible(lampe, racine) {
  * lumière d'une salle close, il serait absurde de les omettre.
  */
 export function majAmbiance(salle, lignes = []) {
-  oublierAmbiance();
-  if (!salle?.group) return null;
+  // on ne repart plus de zéro : la cible se récrit, MONDE la rejoint
+  if (!salle?.group) { oublierAmbiance(); return null; }
 
   /* LES LAMPES DE LA SALLE — Y COMPRIS CELLES QUE LE BUDGET A ÉTEINTES.
    *
@@ -260,17 +291,26 @@ export function majAmbiance(salle, lignes = []) {
   // chaque source porte DÉJÀ son poids (rebond ou éclairement entier) :
   // il ne reste ici que la moyenne sur les échantillons
   const k = 1 / echantillons;
-  MONDE.c0.setRGB(c0[0] * k, c0[1] * k, c0[2] * k);
+  // la CIBLE : MONDE la rejoint image par image (orienterAmbiance). La
+  // première pose est immédiate — une salle où l'on entre n'a pas à
+  // s'allumer en fondu depuis le noir.
+  const premiere = !CIBLE.posee;
+  CIBLE.c0.setRGB(c0[0] * k, c0[1] * k, c0[2] * k);
   // l'ordre 1 vaut TROIS fois la moyenne pondérée : c'est la normalisation
   // de la base linéaire sur la sphère. Un vecteur par canal de couleur.
   for (let ch = 0; ch < 3; ch++) {
-    MONDE.c[ch].set(cx[ch] * k * 3, cy[ch] * k * 3, cz[ch] * k * 3);
+    CIBLE.c[ch].set(cx[ch] * k * 3, cy[ch] * k * 3, cz[ch] * k * 3);
+  }
+  CIBLE.posee = true;
+  if (premiere) {
+    MONDE.c0.copy(CIBLE.c0);
+    for (let ch = 0; ch < 3; ch++) MONDE.c[ch].copy(CIBLE.c[ch]);
   }
   return {
     echantillons, lampes: lampes.length, lignes: lignes.length,
-    c0: [+MONDE.c0.r.toFixed(4), +MONDE.c0.g.toFixed(4), +MONDE.c0.b.toFixed(4)],
+    c0: [+CIBLE.c0.r.toFixed(4), +CIBLE.c0.g.toFixed(4), +CIBLE.c0.b.toFixed(4)],
     // la direction dominante du rebond, pour la lire dans une sonde
-    dominante: MONDE.c[1].clone().normalize().toArray().map((n) => +n.toFixed(2))
+    dominante: CIBLE.c[1].clone().normalize().toArray().map((n) => +n.toFixed(2))
   };
 }
 

@@ -5108,6 +5108,67 @@ mal les résoudre. C'était l'inverse. Le masque est donc désormais le même
 partout (`survolEchantillons` 4, `survolOcclusion` vrai) — la première
 « précaution pour WebKit » ci-dessus est retirée.
 
+**Plus rien ne saute en marchant : les fondus de la lumière.** Sur
+téléphone, l'éclairage sautait par paliers au pas — « stroboscopique ».
+Mesuré en marchant (sonde des saccades, clarté moyenne de l'image d'une
+image à l'autre) : 86 % de saut aux archives, 122 % au belvédère, 33 sauts
+sur 89 images. Quatre mécanismes basculaient d'un coup, tous liés à la
+position du visiteur : le budget de LAMPES proches (`ombres.budgetLampes`,
+trois cônes et quatre points sur l'image unique, dans un labo qui en
+déclare cinquante-six) allumait et éteignait `visible` ; la SONDE
+D'AMBIANCE se recalculait à chaque bascule et se posait telle quelle ; le
+budget de LIGNES retenait les douze segments les plus proches et en
+changeait ; la SONDE DE REFLETS se rephotographiait tous les 2,5 m et
+remplaçait le reflet. Chacun a désormais son fondu :
+- une lampe DEMANDÉE par le budget monte de zéro en 0,6 s, une lampe
+  rendue descend avant de s'éteindre (`ombres.fondreLampes`, chaque image) —
+  par un facteur que l'œuvre multiplie à son intensité nominale
+  (`Artwork.appliquerFonduLampe`), pour rester maîtresse de ses animations ;
+- la sonde d'ambiance écrit une CIBLE et glisse vers elle (constante de
+  temps 0,35 s, 95 % du chemin en une seconde ; immédiate la première
+  fois, une salle n'a pas à s'allumer depuis le noir) ;
+- chaque ligne porte un poids qui monte quand elle est retenue, descend
+  sinon, et se transporte tant qu'elle pèse (`DUREE_FONDU_LIGNES`) ;
+- la sonde de reflets garde la photo précédente et la fond dans la
+  nouvelle en 0,8 s (`uRefletsAvant`, `uRefletsMix` — branche uniforme,
+  une seule lecture hors fondu).
+Les apparitions en régime lent se repeignent à 40 cm et deux fois par
+seconde au lieu d'un mètre et une fois. Et le GRAIN ne se pose plus sur
+une image rendue sous sa densité native : sur une dalle à 3× rendue à
+1,25, le grain agrandi puis affûté par la sortie faisait du bruit, pas un
+grain — c'est ce qui rendait l'image « moche » sur téléphone. Tout cela
+est éprouvé au nœud (`test-fondus`).
+
+**Le flash blanc d'une image** (`textures.patcherNormaleSure`). Restait,
+après les fondus, un éclair blanc sur toute l'image, une image sur
+plusieurs centaines en marchant — « surtout à l'entrée ». La sonde qui
+relit la cible de scène en demi-flottants l'a pris sur le fait : deux
+pixels à la valeur maximale, au bord droit de l'image, sur le SOL à quinze
+mètres, vu en rasant. C'est le relief du sol (`bumpMap`, méthode de
+Mikkelsen dans three) : ses deux dérivées d'écran de la position deviennent
+parallèles en rasant, le déterminant passe sous ce qu'un flottant
+représente, et `normalize` d'un vecteur nul rend l'infini. Les lampes et
+l'image d'environnement digèrent une normale infinie (leur `saturate` et
+leurs lectures de texture retombent sur du fini) ; la LUMIÈRE HÉMISPHÉRIQUE,
+elle, la mélange en couleur infinie — d'où le fait que seul son retrait
+faisait disparaître le flash — et le bloom l'étale sur toute l'image. La
+bissection l'a établi ainsi : sans relief, plus de flash ; avec relief et la
+garde, plus de flash. La garde se greffe sur tout matériau standard, après
+toutes les perturbations de normale (bump, grain, vernis) : une normale
+dont la longueur n'est plus voisine de un retombe sur celle de la
+géométrie, pour ce pixel-là. Écrite `!(a && b)` et non `a || b`, parce
+qu'un NaN échoue à toute comparaison. Mesuré ensuite sur quarante images
+de marche au labo et à l'entrée : plus aucun pixel au-dessus de 10 dans la
+cible de scène, pire saut de clarté 1 à 4 % (`test-normale-sure`).
+
+**`?survol=masque`, pour voir le liseré de l'intérieur.** Le liseré se
+détachait encore de l'œuvre sur iPhone en marchant, alors qu'en émulation
+le masque colle à la silhouette à 2 px près. Avec ce paramètre, la
+silhouette du masque elle-même se peint en magenta par-dessus l'image :
+si elle se décale de l'œuvre, c'est le masque (donc la caméra ou la cible
+au moment du dessin) ; si elle colle et que seule la couronne dérive,
+c'est la passe de sortie. Une capture sur l'appareil tranche.
+
 **Les corniches pliées éclairent enfin en courbe** (`lignes-lumiere.js`,
 polylignes). Au labo, chaque corniche de 42 m est pliée sur le voile et
 plonge avec le couronnement de près de 2 m ; le shader la remplaçait par

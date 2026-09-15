@@ -391,7 +391,30 @@ export class Artwork {
       this.light.target = new THREE.Object3D();
       this.group.add(this.light, this.light.target);
     }
+    // le budget de lampes (ombres.fondreLampes) fond la lampe par l'œuvre :
+    // elle seule sait ce que vaut son intensité nominale à cet instant
+    this.light.userData.artwork = this;
     this._poserLumiere();
+  }
+
+  /**
+   * L'INTENSITÉ DE LA LAMPE, en un seul endroit. Ce que l'œuvre veut
+   * (`valeur`) se multiplie par le fondu du budget (`userData.fondu`, 0..1)
+   * : une lampe que le budget rend descend en douceur au lieu de s'éteindre
+   * d'un coup, et l'œuvre peut continuer à animer son intensité pendant ce
+   * temps (réactivité audio) sans écraser le fondu.
+   */
+  _poserIntensiteLampe(valeur) {
+    if (!this.light) return;
+    this._intensiteVoulue = valeur;
+    this.light.intensity = valeur * (this.light.userData.fondu ?? 1);
+  }
+
+  /** Le budget de lampes pose le fondu ; l'intensité voulue reste la sienne. */
+  appliquerFonduLampe(f) {
+    if (!this.light) return;
+    this.light.userData.fondu = f;
+    this.light.intensity = (this._intensiteVoulue ?? this.lightBaseIntensity) * f;
   }
 
   /** L'œuvre est-elle éclairée par un cône ? */
@@ -433,7 +456,9 @@ export class Artwork {
       // ne tombe pas en 1/d². L'auteur garde la main — poser
       // `lightDecay` ou monter `lightIntensity` fait ce qu'on croit.
       if (this.estLuminaire) {
-        this.light.intensity = this.lightBaseIntensity * GAIN_LUMINAIRE;
+        this._poserIntensiteLampe(this.lightBaseIntensity * GAIN_LUMINAIRE);
+      } else {
+        this._poserIntensiteLampe(this.lightBaseIntensity);
       }
       return;
     }
@@ -464,8 +489,8 @@ export class Artwork {
     // clarté à la première tentative. `lightIntensity` doit rester ce que
     // l'auteur croit qu'il est : la lumière REÇUE par l'œuvre, pas la
     // puissance d'une lampe dont il ignore où elle se pose.
-    this.light.intensity = this.lightBaseIntensity
-      * ((jet / RECUL_REFERENCE) ** this.light.decay) * GAIN_ACCENT;
+    this._poserIntensiteLampe(this.lightBaseIntensity
+      * ((jet / RECUL_REFERENCE) ** this.light.decay) * GAIN_ACCENT);
     this.light.target.updateMatrixWorld();
   }
 
@@ -516,7 +541,7 @@ export class Artwork {
     this.light.color.set(this.config.lightColor ?? '#7a6cff');
     // pour un cône, c'est `_poserLumiere` qui pose l'intensité — elle y
     // compense le recul ; l'écraser ici la ferait retomber à plat
-    this.light.intensity = this.lightBaseIntensity;
+    this._poserIntensiteLampe(this.lightBaseIntensity);
     this._poserLumiere();
   }
 
@@ -1574,8 +1599,21 @@ export class Artwork {
     if (this._beacon) {
       const prog = this.app.progression;
       this._beacon.visible = Boolean(prog) && !prog.estDecouverte(this);
-      if (this._beacon.visible && !this.app.quality.reducedMotion) {
-        this._beacon.position.y = 2.3 + Math.sin(ctx.time * 1.6) * 0.15;
+      if (this._beacon.visible) {
+        if (!this.app.quality.reducedMotion) {
+          this._beacon.position.y = 2.3 + Math.sin(ctx.time * 1.6) * 0.15;
+        }
+        // LE FLASH. La balise flotte à 2,3 m, à hauteur d'yeux ; en marchant
+        // vers une œuvre posée au sol, la caméra la TRAVERSAIT : un sprite
+        // additif à bout portant remplit tout l'écran d'une lueur blanche —
+        // une image, puis plus rien. Mesuré en marchant dans le labo : la
+        // clarté de l'image passait de 22 à 89 % pour une image. Elle
+        // s'éteint donc à l'approche : pleine à deux mètres, rien sous
+        // soixante-dix centimètres. On est arrivé, elle n'a plus rien à dire.
+        this._beacon.getWorldPosition(_posBalise);
+        const d = _posBalise.distanceTo(ctx.cameraPos);
+        const proche = Math.min(1, Math.max(0, (d - 0.7) / 1.3));
+        this._beacon.material.opacity = 0.5 * proche * proche;
       }
     }
 
@@ -1664,7 +1702,7 @@ export class Artwork {
       }
     }
     if (this.light) {
-      this.light.intensity = this.lightBaseIntensity * (1 + level * lightBoost);
+      this._poserIntensiteLampe(this.lightBaseIntensity * (1 + level * lightBoost));
     }
   }
 
@@ -1700,6 +1738,7 @@ export class Artwork {
  * point doux qui s'éteint vers les bords — la texture ne pèse rien et le
  * même objet GPU sert partout.
  */
+const _posBalise = new THREE.Vector3();
 let _beaconTex = null;
 function beaconTexture() {
   if (_beaconTex) return _beaconTex;

@@ -99,10 +99,14 @@ function geometrieDeBaie(room, cfg, baie, bw, bh) {
 // dans sa masse.
 const INSET = 0.26;
 
-// Régime lent : une image par seconde au plus, et seulement si le visiteur
-// s'est déplacé d'un bon mètre — en deçà, la précédente vaut encore.
-const SLOW_PERIOD = 1;
-const SLOW_MOVE2 = 1;      // m²
+// Régime lent : deux images par seconde au plus, et seulement si le
+// visiteur s'est déplacé de quarante centimètres — en deçà, la précédente
+// vaut encore. C'était un mètre et une seconde : depuis que l'image est la
+// même pour tous (Quality.js), le régime lent est celui de tout le monde,
+// et une baie qui saute d'un mètre de parallaxe à chaque pas se voyait
+// comme une saccade. Deux fois plus de rendus en marchant, aucun à l'arrêt.
+const SLOW_PERIOD = 0.5;
+const SLOW_MOVE2 = 0.16;   // m² (40 cm)
 const SLOW_MIN = 0.15;     // s — étale la peinture initiale de plusieurs baies
 // L'ARRÊT : en régime lent, une baie ne se repeint qu'après un mètre de
 // marche. Quand le visiteur s'arrête DEVANT une apparition, il garde donc
