@@ -8,9 +8,9 @@
  *
  * Certains tests éprouvent l'ÉDITEUR (le sous-module privé). En CI, le
  * dépôt est cloné sans lui — c'est voulu, voir deploy.yml — et ces tests
- * n'ont rien à importer : ils sont SAUTÉS, et dits sautés. Un test qui
- * importe l'éditeur se reconnaît à son texte (« editor/ »), pas à une liste
- * à entretenir.
+ * n'ont rien à lire : ils sont SAUTÉS, et dits sautés. Un test qui touche
+ * à l'éditeur se reconnaît à son texte (« editor/ » dans un chemin, ou
+ * 'editor' comme segment d'un join), pas à une liste à entretenir.
  *
  *   npm test                 toute la suite
  *   npm test -- crans poids  seulement ceux dont le nom contient un mot
@@ -33,7 +33,8 @@ let passes = 0; let sautes = 0; const echecs = [];
 const t0 = Date.now();
 for (const f of tests) {
   const source = readFileSync(join(ICI, f), 'utf8');
-  if (!editeurPresent && /['"][^'"]*editor\//.test(source)) {
+  // « editor/ » dans un chemin, ou 'editor' comme segment d'un join()
+  if (!editeurPresent && /editor[/'"]/.test(source)) {
     sautes++;
     console.log(`\n— ${f} : sauté (éditeur absent de ce clone)`);
     continue;

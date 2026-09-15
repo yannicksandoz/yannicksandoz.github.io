@@ -24,6 +24,8 @@ globalThis.window = {
   devicePixelRatio: 2,
   matchMedia: () => ({ matches: false })
 };
+// …et un navigateur : Node 20 (la CI) n'a pas de `navigator` global, Node 22 si
+globalThis.navigator ??= { userAgent: 'node', maxTouchPoints: 0 };
 const { QualityManager, estimerHz, cibleImages } = await import('../engine/src/core/Quality.js');
 
 let ok = 0;
