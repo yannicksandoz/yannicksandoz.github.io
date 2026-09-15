@@ -91,6 +91,30 @@ import { patcherReflets } from './reflets.js';
 export const MAX_LIGNES = 16;
 
 /**
+ * LES POLYLIGNES — une corniche pliée, suivie là où on la regarde.
+ *
+ * Mesuré au labo : une corniche de 42 m sur un mur à ciel ouvert plonge
+ * avec le couronnement de près de 2 m ; en trois cordes, l'écart au trait
+ * restait de 1,77 m. Le lavage sur le mur dessinait alors un néon DROIT
+ * sous un trait qui ondule, avec une zone sombre partout où le trait
+ * descend sous sa corde. Suivre le trait à 30 cm près demande seize
+ * segments par corniche — soixante-quatre par pixel pour le labo, hors de
+ * prix en boucle plate.
+ *
+ * Or un pixel n'est éclairé, en 1/r², que par la part du trait qui lui est
+ * PROCHE. On garde donc la polyligne entière (dix-sept points) et, par
+ * pixel, on n'intègre exactement que la FENÊTRE de segments autour du
+ * point le plus proche — repéré par la projection du pixel sur l'axe du
+ * trait, un produit scalaire — et les deux restes du trait comme deux
+ * cordes, dont l'erreur ne pèse plus rien à cette distance. Cinq
+ * évaluations par corniche, quelle que soit sa finesse ; le trait est
+ * exact là où le mur le montre, droit là où il ne se voit pas.
+ */
+export const MAX_POLYLIGNES = 4;
+export const MAX_POINTS_POLYLIGNE = 17;   // seize segments : 30 cm d'écart au trait du labo
+export const FENETRE = 1;                 // segments de part et d'autre du plus proche
+
+/**
  * Les lignes ne servent QUE là où les sources étendues ne sont pas
  * payables. L'App le décide une fois, au démarrage, en même temps que le
  * budget de `RectAreaLight` (voir Quality). Le module ne va pas le
@@ -119,6 +143,8 @@ export function budgetLignes() { return budget; }
 
 /** Toutes les lignes déclarées pour la salle courante. */
 const lignes = [];
+/** …et les polylignes (corniches pliées), voir MAX_POLYLIGNES. */
+const polylignes = [];
 
 /**
  * Les uniformes sont PARTAGÉS par tous les matériaux corrigés : un seul
@@ -132,7 +158,13 @@ const UNIFORMES = {
   // la NORMALE de la fente, en espace vue : une corniche n'éclaire que
   // devant elle, comme la source rectangulaire qu'elle remplace
   uLigneFace: { value: Array.from({ length: MAX_LIGNES }, () => new THREE.Vector3(0, 0, 1)) },
-  uLigneNombre: { value: 0 }
+  uLigneNombre: { value: 0 },
+  // les polylignes, à plat : la k-ième occupe les points [k·MAX_POINTS, k·MAX_POINTS + n)
+  uPolyPts: { value: Array.from({ length: MAX_POLYLIGNES * MAX_POINTS_POLYLIGNE }, () => new THREE.Vector3()) },
+  uPolyN: { value: new Int32Array(MAX_POLYLIGNES) },
+  uPolyCouleur: { value: Array.from({ length: MAX_POLYLIGNES }, () => new THREE.Color()) },
+  uPolyFace: { value: Array.from({ length: MAX_POLYLIGNES }, () => new THREE.Vector3(0, 0, 1)) },
+  uPolyNombre: { value: 0 }
 };
 
 const _a = new THREE.Vector3();
@@ -143,7 +175,9 @@ const _cam = new THREE.Vector3();
 /** Oublie toutes les lignes — à l'entrée dans une salle. */
 export function reinitialiserLignes() {
   lignes.length = 0;
+  polylignes.length = 0;
   UNIFORMES.uLigneNombre.value = 0;
+  UNIFORMES.uPolyNombre.value = 0;
 }
 
 /**
@@ -172,15 +206,43 @@ export function ajouterLigne({ objet, a, b, couleur, intensite = 1, face = [0, 0
 export function nombreDeLignes() { return lignes.length; }
 
 /**
+ * Déclare une POLYLIGNE de lumière : le trait d'une corniche pliée, par
+ * ses points (dans l'espace local d'`objet`), de deux à MAX_POINTS. Au-delà
+ * on rééchantillonne à MAX_POINTS points, à égale distance d'indice.
+ */
+export function ajouterPolyligne({ objet, points, couleur, intensite = 1, face = [0, 0, 1] }) {
+  if (!objet || !Array.isArray(points) || points.length < 2) return null;
+  let pts = points;
+  if (pts.length > MAX_POINTS_POLYLIGNE) {
+    pts = Array.from({ length: MAX_POINTS_POLYLIGNE },
+      (_, i) => points[Math.round(i * (points.length - 1) / (MAX_POINTS_POLYLIGNE - 1))]);
+  }
+  const poly = {
+    objet,
+    points: pts.map((q) => new THREE.Vector3().fromArray(q)),
+    face: new THREE.Vector3().fromArray(face).normalize(),
+    couleur: new THREE.Color(couleur ?? 0xffffff).multiplyScalar(intensite),
+    _pts: pts.map(() => new THREE.Vector3()), _f: new THREE.Vector3(), _d: 0
+  };
+  polylignes.push(poly);
+  return poly;
+}
+
+export function nombreDePolylignes() { return polylignes.length; }
+
+/**
  * Les segments d'une salle, en MONDE, pour la sonde d'ambiance — elle
  * travaille hors caméra et ne peut pas lire les uniformes d'espace vue.
  */
 export function segmentsMonde(salle, camera = null) {
   const sortie = [];
+  const dansLaSalle = (objet) => {
+    let n = objet;
+    while (n) { if (n === salle?.group) return true; n = n.parent; }
+    return false;
+  };
   for (const l of lignes) {
-    let n = l.objet, dedans = false;
-    while (n) { if (n === salle?.group) { dedans = true; break; } n = n.parent; }
-    if (!dedans) continue;
+    if (!dansLaSalle(l.objet)) continue;
     l.objet.updateWorldMatrix(true, false);
     sortie.push({
       a: l.a.clone().applyMatrix4(l.objet.matrixWorld),
@@ -188,6 +250,20 @@ export function segmentsMonde(salle, camera = null) {
       face: l.face.clone().transformDirection(l.objet.matrixWorld),
       couleur: l.couleur
     });
+  }
+  // une polyligne : ses segments, un par un — la sonde intègre au CPU, le
+  // nombre ne lui coûte rien ; le shader, lui, la porte toujours (`portee`)
+  for (const q of polylignes) {
+    if (!dansLaSalle(q.objet)) continue;
+    q.objet.updateWorldMatrix(true, false);
+    const face = q.face.clone().transformDirection(q.objet.matrixWorld);
+    for (let i = 0; i + 1 < q.points.length; i++) {
+      sortie.push({
+        a: q.points[i].clone().applyMatrix4(q.objet.matrixWorld),
+        b: q.points[i + 1].clone().applyMatrix4(q.objet.matrixWorld),
+        face, couleur: q.couleur, portee: true
+      });
+    }
   }
   return camera ? ponderer(sortie, camera) : sortie;
 }
@@ -216,8 +292,12 @@ function ponderer(segments, camera) {
     _mid.copy(s.a).add(s.b).multiplyScalar(0.5);
     s._d = _mid.distanceToSquared(_cam);
   }
-  const ordre = segments.slice().sort((x, y) => x._d - y._d);
+  // les segments d'une polyligne sont portés par le shader (fenêtre et
+  // cordes) : la sonde n'ajoute que leur rebond, comme pour les lignes
+  // retenues — seules les lignes simples concourent au budget
+  const ordre = segments.filter((s) => !s.portee).sort((x, y) => x._d - y._d);
   ordre.forEach((s, i) => { s.poids = i < budget ? null : 1; });
+  for (const s of segments) if (s.portee) s.poids = null;
   return segments;
 }
 
@@ -229,11 +309,14 @@ function ponderer(segments, camera) {
  * verrait la sélection sauter en marchant.
  */
 export function majLignes(camera) {
-  if (!lignes.length || !camera) {
+  if (!camera || (!lignes.length && !polylignes.length)) {
     UNIFORMES.uLigneNombre.value = 0;
+    UNIFORMES.uPolyNombre.value = 0;
     return 0;
   }
   camera.getWorldPosition(_cam);
+  const polys = majPolylignes(camera);
+  if (!lignes.length) { UNIFORMES.uLigneNombre.value = 0; return polys; }
   const vivantes = [];
   for (let i = lignes.length - 1; i >= 0; i--) {
     const l = lignes[i];
@@ -261,7 +344,7 @@ export function majLignes(camera) {
     l._d = _mid.distanceToSquared(_cam);
     vivantes.push(l);
   }
-  if (!vivantes.length) { UNIFORMES.uLigneNombre.value = 0; return 0; }
+  if (!vivantes.length) { UNIFORMES.uLigneNombre.value = 0; return polys; }
   const retenues = vivantes.length <= budget
     ? vivantes
     : vivantes.sort((x, y) => x._d - y._d).slice(0, budget);
@@ -274,7 +357,72 @@ export function majLignes(camera) {
     UNIFORMES.uLigneFace.value[i].copy(l._f).transformDirection(camera.matrixWorldInverse);
   }
   UNIFORMES.uLigneNombre.value = retenues.length;
+  return retenues.length + polys;
+}
+
+/** Une salle vivante et visible porte l'objet ; sinon on l'oublie (true = à retirer). */
+function orpheline(objet) {
+  let n = objet, attache = true, vu = true;
+  while (n) {
+    if (!n.visible) { vu = false; break; }
+    if (!n.parent) attache = n.type === 'Scene' || Boolean(n.isScene);
+    n = n.parent;
+  }
+  return { attache, vu };
+}
+
+/** Transporte les polylignes en espace vue ; les MAX_POLYLIGNES plus proches. */
+function majPolylignes(camera) {
+  if (!polylignes.length) { UNIFORMES.uPolyNombre.value = 0; return 0; }
+  const vivantes = [];
+  for (let i = polylignes.length - 1; i >= 0; i--) {
+    const q = polylignes[i];
+    const { attache, vu } = orpheline(q.objet);
+    if (!attache) { polylignes.splice(i, 1); continue; }
+    if (!vu) continue;
+    q.objet.updateWorldMatrix(true, false);
+    for (let k = 0; k < q.points.length; k++) q._pts[k].copy(q.points[k]).applyMatrix4(q.objet.matrixWorld);
+    q._f.copy(q.face).transformDirection(q.objet.matrixWorld);
+    _mid.copy(q._pts[0]).add(q._pts[q.points.length - 1]).multiplyScalar(0.5);
+    q._d = _mid.distanceToSquared(_cam);
+    vivantes.push(q);
+  }
+  const retenues = vivantes.length <= MAX_POLYLIGNES
+    ? vivantes : vivantes.sort((x, y) => x._d - y._d).slice(0, MAX_POLYLIGNES);
+  for (let k = 0; k < retenues.length; k++) {
+    const q = retenues[k];
+    const base = k * MAX_POINTS_POLYLIGNE;
+    for (let i = 0; i < q.points.length; i++) {
+      UNIFORMES.uPolyPts.value[base + i].copy(_a.copy(q._pts[i]).applyMatrix4(camera.matrixWorldInverse));
+    }
+    UNIFORMES.uPolyN.value[k] = q.points.length;
+    UNIFORMES.uPolyCouleur.value[k].copy(q.couleur);
+    UNIFORMES.uPolyFace.value[k].copy(q._f).transformDirection(camera.matrixWorldInverse);
+  }
+  UNIFORMES.uPolyNombre.value = retenues.length;
   return retenues.length;
+}
+
+/**
+ * LA FENÊTRE d'une polyligne, en JavaScript — la même règle qu'en GLSL,
+ * pour les tests : les segments intégrés exactement autour du point le
+ * plus proche (par l'axe), et les deux cordes qui portent le reste.
+ * Rend { j, exacts: [[i, i+1]…], cordes: [[i0, i1]…] } en indices de points.
+ */
+export function fenetrePolyligne(P, pts, fenetre = FENETRE) {
+  const n = pts.length;
+  if (n < 2) return { j: 0, exacts: [], cordes: [] };
+  const P0 = pts[0], Pn = pts[n - 1];
+  const axe = [Pn[0] - P0[0], Pn[1] - P0[1], Pn[2] - P0[2]];
+  const aa = Math.max(axe[0] ** 2 + axe[1] ** 2 + axe[2] ** 2, 1e-6);
+  const t = Math.max(0, Math.min(1, ((P[0] - P0[0]) * axe[0] + (P[1] - P0[1]) * axe[1] + (P[2] - P0[2]) * axe[2]) / aa));
+  const j = Math.max(0, Math.min(n - 2, Math.floor(t * (n - 1))));
+  const j0 = Math.max(j - fenetre, 0), j1 = Math.min(j + fenetre, n - 2);
+  const exacts = []; for (let i = j0; i <= j1; i++) exacts.push([i, i + 1]);
+  const cordes = [];
+  if (j0 > 0) cordes.push([0, j0]);
+  if (j1 + 1 < n - 1) cordes.push([j1 + 1, n - 1]);
+  return { j, exacts, cordes };
 }
 
 const DECLARATION = /* glsl */`
@@ -283,6 +431,11 @@ uniform vec3 uLigneB[${MAX_LIGNES}];
 uniform vec3 uLigneCouleur[${MAX_LIGNES}];
 uniform vec3 uLigneFace[${MAX_LIGNES}];
 uniform int uLigneNombre;
+uniform vec3 uPolyPts[${MAX_POLYLIGNES * MAX_POINTS_POLYLIGNE}];
+uniform int uPolyN[${MAX_POLYLIGNES}];
+uniform vec3 uPolyCouleur[${MAX_POLYLIGNES}];
+uniform vec3 uPolyFace[${MAX_POLYLIGNES}];
+uniform int uPolyNombre;
 
 // L'éclairement d'un segment uniforme, forme close (voir l'en-tête).
 vec3 irradianceLigne(vec3 P, vec3 N, vec3 A, vec3 B, vec3 F, vec3 couleur) {
@@ -327,13 +480,44 @@ vec3 irradianceLigne(vec3 P, vec3 N, vec3 A, vec3 B, vec3 F, vec3 couleur) {
   return couleur * (max(dot(N, V), 0.0) * cosE);
 }
 
+// LA POLYLIGNE (voir MAX_POLYLIGNES) : la fenêtre exacte autour du point
+// le plus proche, deux cordes pour le reste. Le point le plus proche se
+// repère par la projection du pixel sur l'AXE du trait (ses deux bouts) :
+// un produit scalaire, et l'indice tombe.
+vec3 polylignesIrradiance(vec3 P, vec3 N) {
+  vec3 total = vec3(0.0);
+  for (int k = 0; k < ${MAX_POLYLIGNES}; k++) {
+    if (k >= uPolyNombre) break;
+    int n = uPolyN[k];
+    if (n < 2) continue;
+    int base = k * ${MAX_POINTS_POLYLIGNE};
+    vec3 P0 = uPolyPts[base];
+    vec3 Pn = uPolyPts[base + n - 1];
+    vec3 axe = Pn - P0;
+    float t = clamp(dot(P - P0, axe) / max(dot(axe, axe), 1e-6), 0.0, 1.0);
+    int j = clamp(int(floor(t * float(n - 1))), 0, n - 2);
+    int j0 = max(j - ${FENETRE}, 0);
+    int j1 = min(j + ${FENETRE}, n - 2);
+    vec3 F = uPolyFace[k];
+    vec3 C = uPolyCouleur[k];
+    for (int s = 0; s <= ${2 * FENETRE}; s++) {
+      int i = j0 + s;
+      if (i > j1) break;
+      total += irradianceLigne(P, N, uPolyPts[base + i], uPolyPts[base + i + 1], F, C);
+    }
+    if (j0 > 0) total += irradianceLigne(P, N, P0, uPolyPts[base + j0], F, C);
+    if (j1 + 1 < n - 1) total += irradianceLigne(P, N, uPolyPts[base + j1 + 1], Pn, F, C);
+  }
+  return total;
+}
+
 vec3 lignesIrradiance(vec3 P, vec3 N) {
   vec3 total = vec3(0.0);
   for (int i = 0; i < ${MAX_LIGNES}; i++) {
     if (i >= uLigneNombre) break;
     total += irradianceLigne(P, N, uLigneA[i], uLigneB[i], uLigneFace[i], uLigneCouleur[i]);
   }
-  return total;
+  return total + polylignesIrradiance(P, N);
 }
 `;
 
@@ -363,6 +547,7 @@ export function patcherLignes(material) {
     shader.uniforms.uLigneCouleur = UNIFORMES.uLigneCouleur;
     shader.uniforms.uLigneFace = UNIFORMES.uLigneFace;
     shader.uniforms.uLigneNombre = UNIFORMES.uLigneNombre;
+    for (const nom of ['uPolyPts', 'uPolyN', 'uPolyCouleur', 'uPolyFace', 'uPolyNombre']) shader.uniforms[nom] = UNIFORMES[nom];
     for (const [nom, u] of Object.entries(uniformesAmbiance())) shader.uniforms[nom] = u;
     shader.fragmentShader = shader.fragmentShader
       .replace('#include <common>',

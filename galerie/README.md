@@ -5108,6 +5108,31 @@ mal les résoudre. C'était l'inverse. Le masque est donc désormais le même
 partout (`survolEchantillons` 4, `survolOcclusion` vrai) — la première
 « précaution pour WebKit » ci-dessus est retirée.
 
+**Les corniches pliées éclairent enfin en courbe** (`lignes-lumiere.js`,
+polylignes). Au labo, chaque corniche de 42 m est pliée sur le voile et
+plonge avec le couronnement de près de 2 m ; le shader la remplaçait par
+trois cordes au plus, et l'écart au trait restait de 1,77 m : le lavage
+sur le mur faisait un néon DROIT sous un trait qui ondule, avec une zone
+sombre partout où le trait descendait sous sa corde. Suivre le trait à
+30 cm près demande seize segments par corniche — soixante-quatre par pixel
+pour le labo, hors de prix en boucle plate. Or un pixel n'est éclairé, en
+1/r², que par la part du trait qui lui est PROCHE : on garde la polyligne
+entière (dix-sept points, quatre corniches au plus) et, par pixel, on
+n'intègre exactement que la fenêtre de segments autour du point le plus
+proche — repéré par la projection du pixel sur l'axe du trait, un produit
+scalaire — et les deux restes du trait comme deux cordes. Cinq évaluations
+par corniche au lieu de trois : le trait est exact là où le mur le montre,
+droit là où il ne se voit pas. Éprouvé au nœud contre la somme exacte des
+seize segments, sous une corniche qui ondule comme celle du labo : la
+fenêtre s'en écarte de 1,2 %, les trois cordes de 57 %. Les
+corniches droites restent des lignes ; la sonde d'ambiance reçoit les
+segments un par un.
+
+| Labo, arrivée, image unique | Avant | Après |
+|---|---|---|
+| Luminance moyenne | 15,6 % | 20,3 % |
+| Écart de la lumière au trait | 1,77 m (trois cordes) | 30 cm (seize segments, cinq évalués) |
+
 **Une seule image, et l'enrichie au choix.** Le gouverneur ne change plus
 l'image selon l'appareil, et les deux profils ont disparu. L'image est
 UNIQUE (`Quality.js`, profil `unique`) : celle du téléphone pour tous —

@@ -13,7 +13,7 @@ import { LecteurFragments, chargerManifeste } from './fragments.js';
 import { liensDuModele, resoudreLienSuivi } from './liens.js';
 import { importerChunk } from './chunks.js';
 import { estFluide } from './style.js';
-import { ajouterLigne, patcherArbreLignes } from './lignes-lumiere.js';
+import { ajouterLigne, ajouterPolyligne, patcherArbreLignes, MAX_POINTS_POLYLIGNE } from './lignes-lumiere.js';
 
 /**
  * CE QUI FAIT QU'UNE LIGNE ÉCLAIRE AUTANT QUE LA SOURCE ÉTENDUE QU'ELLE
@@ -1214,23 +1214,37 @@ export class Artwork {
       }
       return pire;
     };
+    // …jusqu'à seize morceaux (MAX_POINTS_POLYLIGNE − 1) : mesuré au labo, une
+    // corniche de 42 m plongeant de 2 m demande quinze segments pour 30 cm
+    // d'écart, et trois cordes en laissaient 1,77 m — un néon droit sous un
+    // trait qui ondule. Plusieurs morceaux font une POLYLIGNE, que le shader
+    // suit par fenêtre (voir lignes-lumiere.js) ; un seul reste une ligne.
+    const pireDe = (m) => {
+      let p = 0;
+      for (let k = 0; k < m; k++) {
+        const c0 = Math.round(colonnes * k / m), c1 = Math.round(colonnes * (k + 1) / m);
+        if (c1 > c0) p = Math.max(p, fleche(c0, c1));
+      }
+      return p;
+    };
     let MORCEAUX = 1;
-    while (MORCEAUX < 3 && fleche(0, colonnes) / MORCEAUX > 0.15) MORCEAUX++;
+    while (MORCEAUX < MAX_POINTS_POLYLIGNE - 1 && pireDe(MORCEAUX) > 0.15) MORCEAUX++;
     MORCEAUX = Math.min(MORCEAUX, Math.max(1, colonnes));
     // LA PUISSANCE PAR UNITÉ DE LONGUEUR. `force` est l'intensité que la
     // source étendue recevait ; on la répartit sur la longueur, et le
     // facteur de calibrage rejoint la clarté mesurée au bureau (voir le
     // README : profil mobile contre profil bureau, même cadrage).
     const parMetre = (marque.force ?? 12) * Math.max(marque.epaisseur, HAUTEUR_FENTE);
-    for (let m = 0; m < MORCEAUX; m++) {
-      const c0 = Math.round(colonnes * m / MORCEAUX);
-      const c1 = Math.round(colonnes * (m + 1) / MORCEAUX);
-      if (c1 <= c0) continue;
+    if (MORCEAUX <= 1) {
       ajouterLigne({
-        objet: bandeau, a: point(c0), b: point(c1),
+        objet: bandeau, a: point(0), b: point(colonnes),
         couleur: marque.couleur, intensite: parMetre
       });
+      return;
     }
+    const points = [];
+    for (let m = 0; m <= MORCEAUX; m++) points.push(point(Math.round(colonnes * m / MORCEAUX)));
+    ajouterPolyligne({ objet: bandeau, points, couleur: marque.couleur, intensite: parMetre });
   }
 
   /**

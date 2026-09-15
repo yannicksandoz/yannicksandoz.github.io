@@ -14,7 +14,8 @@
  */
 import assert from 'node:assert/strict';
 import { irradianceLigne, MAX_LIGNES, reinitialiserLignes, ajouterLigne,
-  nombreDeLignes, patcherLignes, activerLignes, lignesActives }
+  nombreDeLignes, patcherLignes, activerLignes, lignesActives,
+  ajouterPolyligne, nombreDePolylignes, fenetrePolyligne, MAX_POINTS_POLYLIGNE, MAX_POLYLIGNES, FENETRE }
   from '../engine/src/core/lignes-lumiere.js';
 
 let ok = 0, ko = 0;
@@ -148,6 +149,74 @@ test('le budget de segments reste tenable pour un téléphone', () => {
   // sort à uLigneNombre, donc les salles à huit corniches ou moins ne
   // paient rien. Si quelqu'un le monte encore, qu'il refasse la mesure.
   assert.ok(MAX_LIGNES <= 16, `${MAX_LIGNES} segments : mesurez avant`);
+});
+
+titre('la polyligne : le trait plié suivi par fenêtre');
+test('une corniche pliée se déclare par ses points ; au-delà de dix-sept, on rééchantillonne', () => {
+  reinitialiserLignes();
+  const faux = { updateWorldMatrix() {}, matrixWorld: null };
+  assert.equal(ajouterPolyligne({ objet: faux, points: [[0, 0, 0]] }), null);
+  const q = ajouterPolyligne({ objet: faux, points: [[0, 0, 0], [1, 0, 0], [2, 0, 0]], couleur: '#fff' });
+  assert.equal(q.points.length, 3);
+  assert.equal(nombreDePolylignes(), 1);
+  const long = Array.from({ length: 73 }, (_, i) => [i, 0, 0]);
+  const r = ajouterPolyligne({ objet: faux, points: long, couleur: '#fff' });
+  assert.equal(r.points.length, MAX_POINTS_POLYLIGNE);
+  assert.equal(r.points[0].x, 0);
+  assert.equal(r.points[MAX_POINTS_POLYLIGNE - 1].x, 72);
+  reinitialiserLignes();
+  assert.equal(nombreDePolylignes(), 0);
+});
+
+test('la fenêtre : les segments autour du point le plus proche, deux cordes pour le reste', () => {
+  const pts = Array.from({ length: 17 }, (_, i) => [i * 2.5, 7 + Math.sin(i * 0.9), 0]);
+  // un pixel sous le milieu du trait
+  const f = fenetrePolyligne([20, 3, 1], pts);
+  assert.ok(f.j === 7 || f.j === 8, `j ${f.j}`);   // l'axe penche un peu : le milieu, à un segment près
+  const attendus = []; for (let i = f.j - FENETRE; i <= f.j + FENETRE; i++) attendus.push([i, i + 1]);
+  assert.deepEqual(f.exacts, attendus);
+  assert.deepEqual(f.cordes, [[0, f.j - FENETRE], [f.j + FENETRE + 1, 16]]);
+  // au bout : la fenêtre se serre contre l'extrémité, une seule corde
+  const g = fenetrePolyligne([-3, 3, 1], pts);
+  assert.equal(g.j, 0);
+  assert.equal(g.cordes.length, 1);
+  assert.equal(g.cordes[0][0], FENETRE + 1);
+  const h = fenetrePolyligne([100, 3, 1], pts);
+  assert.equal(h.j, 15);
+  assert.deepEqual(h.cordes, [[0, 15 - FENETRE]]);
+});
+
+test('sous une corniche qui ondule, fenêtre + cordes rendent l\'éclairement du trait entier à 5 % près, là où trois cordes se trompaient d\'un tiers', () => {
+  // le labo, à l'échelle : un trait de 42 m qui plonge de 2 m avec deux ventres
+  const n = 17;
+  // le trait court à 50 cm devant un mur (plan z = 0, qui regarde +z)
+  const pts = Array.from({ length: n }, (_, i) => { const x = -21 + 42 * i / (n - 1); return [x, 7.6 - 1.0 * (1 + Math.sin(x / 42 * Math.PI * 2 + 0.8)), 0.5]; });
+  const N = [0, 0, 1];
+  let pireFenetre = 0, pireTrois = 0;
+  for (let x = -19; x <= 19; x += 2) {
+    for (const y of [4, 5.5]) {
+      const P = [x, y, 0];
+      let exact = 0;
+      for (let i = 0; i + 1 < n; i++) exact += irradianceLigne(P, N, pts[i], pts[i + 1]);
+      const f = fenetrePolyligne(P, pts);
+      let fen = 0;
+      for (const [i, k] of f.exacts) fen += irradianceLigne(P, N, pts[i], pts[k]);
+      for (const [i, k] of f.cordes) fen += irradianceLigne(P, N, pts[i], pts[k]);
+      let trois = 0;
+      for (let m = 0; m < 3; m++) { const i = Math.round((n - 1) * m / 3), k = Math.round((n - 1) * (m + 1) / 3); trois += irradianceLigne(P, N, pts[i], pts[k]); }
+      pireFenetre = Math.max(pireFenetre, Math.abs(fen - exact) / exact);
+      pireTrois = Math.max(pireTrois, Math.abs(trois - exact) / exact);
+    }
+  }
+  assert.ok(pireFenetre < 0.05, `fenêtre : ${(pireFenetre * 100).toFixed(1)} %`);
+  assert.ok(pireTrois > 0.2, `trois cordes : ${(pireTrois * 100).toFixed(1)} %`);
+  console.log(`      écart au trait entier : fenêtre ${(pireFenetre * 100).toFixed(1)} %, trois cordes ${(pireTrois * 100).toFixed(1)} %`);
+});
+
+test('quatre polylignes de dix-sept points : un budget d\'uniformes que tout GPU WebGL2 accepte', () => {
+  // 68 vec3 de points, plus couleurs et faces : sous les 224 vec4 minimaux
+  // de la spécification, même avec les seize lignes et le matériau
+  assert.ok(MAX_POLYLIGNES * MAX_POINTS_POLYLIGNE + 2 * MAX_POLYLIGNES + 4 * MAX_LIGNES <= 160);
 });
 
 titre('le relais corniche pliée → ligne, épinglé au source');
