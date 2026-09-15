@@ -1139,7 +1139,9 @@ panneau se refait entier à chaque rendu, le cache vit exactement aussi
 longtemps que ses éléments — : 0,15 ms (pics 2,5), le peintre passe de
 0,39 à 0,26 ms. Les deux sondes des liens passent inchangées.
 
-**Basse performance : des crans jusqu'en bas, et un mode économe.** Le
+**Basse performance : des crans jusqu'en bas, et un mode économe.** (Depuis,
+le gouverneur ne descend plus que la densité — voir « Qualité adaptative » ;
+les crans ci-dessous restent ceux du mode économe.) Le
 gouverneur de qualité descendait par étages — la densité, puis la finition
 (anticrénelage, occlusion ambiante), puis, sous 27 images, la survie — et
 s'arrêtait là où les crans manquaient : une machine à 30–45 images
@@ -1983,10 +1985,19 @@ l'emporte sur la distance, le fondu se réduit alors à `baseGain`), et
 l'éditeur n'en pose plus qu'un.
 
 **La spatialisation binaurale est la règle, pas un module**
-(`engine/src/core/Spatialisation.js`). Chaque piste ponctuelle traverse une
+(`engine/src/core/Spatialisation.js`). Chaque œuvre ponctuelle traverse une
 VOIE : un `PannerNode` HRTF à **direction pure** (`rolloffFactor` 0 — il ne
 fait qu'orienter) suivi d'un gain de **distance** séparé (modèle « inverse »,
-élevé à la puissance `poidsDistance`). Deux contributions, deux nœuds :
+élevé à la puissance `poidsDistance`). **Une voie par œuvre, pas par
+piste** : les pistes d'une œuvre sont au même endroit, à la même distance,
+dans le même air — leur donner chacune un panner, c'était payer trois
+convolutions HRTF pour une seule source, et compter trois voix au budget là
+où l'oreille n'en entend qu'une. Les pistes qui partagent leurs réglages
+spatiaux (le cas courant : aucun, ou le même objet `spatial`) se branchent
+sur la même entrée ; le panner place la somme. Une piste qui déclare ses
+propres réglages garde une voie à elle, une nappe (`"spatial": false`) n'en
+a pas. Le triptyque des marées coûte une voix, plus trois
+(`test-spatialisation`, `Artwork.nbVoix`). Deux contributions, deux nœuds :
 l'histoire du projet a déjà montré ce que donnent deux courbes de distance
 dans le même chemin. L'écoutant, lui, suit la caméra à chaque frame —
 position ET orientation, via les AudioParams modernes (`positionX…upZ`,
@@ -2016,7 +2027,8 @@ surchargeable dans `reglages.json`) : la convolution HRTF coûte cher par
 source. Les voies les plus proches l'obtiennent ; les autres retombent sur
 `equalpower` (gauche/droite correct, devant/derrière perdu), et la bascule
 se fait sous un court voile de gain — changer `panningModel` en pleine onde
-claque. Cohérent avec le budget de stems : mêmes distances, même cadence.
+claque. Cohérent avec le budget de voix : mêmes distances, même cadence, et
+les deux comptent des VOIES, pas des pistes.
 
 **La pièce qu'on entend — Verbity** (`engine/src/core/Reverb.js`, d'après
 *Verbity* de Chris Johnson, MIT). La spatialisation dit OÙ est une source ;
@@ -3847,7 +3859,7 @@ la salle et ses voisines directes par portail :
 |---|---|---|
 | Transfert | images, vidéos, modèles, scans et sons, chacun une fois ; une piste par fragments ne compte que ses 30 s résidentes | 25 Mo |
 | Son décodé | durée × 384 000 octets par seconde (48 kHz stéréo flottant), quel que soit le fichier — c'est la durée qui compte, d'où les fragments | 120 Mo |
-| Voix au pire point | les pistes audibles depuis un même mètre carré du sol, chacune sous son rayon (`radius`, sinon 12 m) | 6, le `maxStems` mobile |
+| Voix au pire point | les œuvres audibles depuis un même mètre carré du sol, une voix chacune, sous le plus grand rayon de leurs pistes (`radius`, sinon 12 m) | 6, le `maxStems` mobile |
 
 Dans l'éditeur, la section **Budget** de l'onglet Pièce suit la Charte :
 une barre par jauge (verte, ambre au-delà de 75 %, rouge au-delà), le pire
@@ -3860,8 +3872,8 @@ mesuré est dit « en attente », jamais compté à zéro. Les mêmes règles
 tournent sur le contenu (`npm run budget`) et sur le build, dans le
 garde-fou de publication (`npm run check`) : une salle qui dépasse ne part
 pas en ligne. Aujourd'hui la plus lourde, l'entrée avec ses quatre
-voisines, pèse 3,4 Mo et 42 Mo de PCM ; le labo atteint 5 voix sur 6 à un
-point du fond.
+voisines, pèse 3,4 Mo et 42 Mo de PCM ; le labo atteint 3 voix sur 6 au fond
+(il en comptait 5 quand chaque piste des marées valait une voix).
 
 ## Composer une exposition
 
@@ -5079,12 +5091,13 @@ lancement puis l'ajuste en continu :
 - **détection** : mobile vs desktop (pointer coarse + UA), lecture du GPU
   (`WEBGL_debug_renderer_info`) pour rétrograder les GPU faibles ;
 - **plafonds** : `pixelRatio` ≤ 2 (desktop) / 1,5 (mobile), bloom au quart de
-  résolution et textures ≤ 1024 px sur mobile, **6 stems audio simultanés
-  max sur mobile** (24 sur desktop) avec *voice stealing* par distance : les
-  œuvres les plus proches gardent leurs pistes, les plus lointaines sont
-  suspendues — et parmi les pistes qui jouent, seules les `maxHRTF` plus
-  proches gardent la convolution HRTF, les autres passent en `equalpower`
-  (voir « Sonorisation ») ;
+  résolution et textures ≤ 1024 px sur mobile, **6 voix audio simultanées
+  max sur mobile** (24 sur desktop, `maxStems`) avec *voice stealing* par
+  distance — une voix par œuvre, quel que soit son nombre de pistes (voir
+  « Sonorisation ») : les œuvres les plus proches jouent, les plus
+  lointaines sont suspendues — et parmi les voies qui jouent, seules les
+  `maxHRTF` plus proches gardent la convolution HRTF, les autres passent en
+  `equalpower` ;
 - **anticrénelage** : le rendu passe par un `EffectComposer` (AO, bloom,
   grain), donc **hors écran** — et l'`antialias` du renderer, qui ne vaut que
   pour le canevas, n'agit sur rien. Le MSAA vit dans une **passe de scène
@@ -5131,11 +5144,18 @@ lancement puis l'ajuste en continu :
 - **aberration chromatique** : une pointe (nulle au centre, en carré de
   l'excentricité) dans la passe de sortie — un bord d'objectif, pas un
   filtre ;
-- **gouverneur FPS** : deux étages. Sous **50 fps** pendant 3 s, la finition
-  se replie cran par cran (MSAA ×4→×2→0, puis GTAO) — sur un écran ProMotion,
-  35 fps se sentent lourds bien avant le seuil de survie. Sous **27 fps**,
-  le reste y passe (pixelRatio → grain → apparitions → ombres → bloom), sans
-  jamais remonter (pas d'oscillation) ;
+- **gouverneur FPS : un filet sur la densité seule.** Il a longtemps changé
+  l'image selon l'appareil (anticrénelage, occlusion, ombres, écrans,
+  apparitions, grain, bloom cédaient l'un après l'autre) : deux visiteurs ne
+  voyaient plus la même galerie. Désormais il ne touche qu'à la **densité**
+  (`core/crans.js`) : sous la cadence visée pendant 6 s, la native tombe à
+  1,5 affûtée ; sous **50 fps**, à 1 ; sous **27 fps**, à 0,75. Rien ne
+  disparaît, rien ne change de forme, le son n'est jamais touché ; jamais de
+  remontée (pas d'oscillation). Les anciens crans ne servent plus qu'au
+  **mode économe**, au choix du visiteur. `?profil=desktop` ou
+  `?profil=mobile` force un profil, sans le rabais des GPU modestes : avec
+  `?perf=1` et `?gouverneur=0`, c'est ainsi qu'on lit sur un iPhone ce que
+  coûte l'image complète — la mesure d'où partira un profil unique ;
 - **cache d'ombres** : la carte d'ombre ne se re-rend qu'à **30 Hz**
   (`shadowMap.autoUpdate = false`, `needsUpdate` cadencé dans la boucle) —
   la galerie est presque statique, une pénombre qui suit à 33 ms reste

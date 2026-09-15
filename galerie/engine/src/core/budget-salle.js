@@ -22,10 +22,12 @@
  *      384 000 octets par seconde quel que soit le fichier ; au plus
  *      120 Mo. Un fichier compressé n'y change rien : ce qui compte est la
  *      durée, et c'est pour cela que les longues pistes se fragmentent.
- *   3. STEMS : les pistes audibles au PIRE point de la salle — un
- *      quadrillage au mètre du sol, chaque piste audible sous son rayon —
- *      au plus 6 (maxStems du profil mobile). Au-delà, le budget de voix
- *      coupe les plus lointaines : la salle n'est plus ce qu'on a composé.
+ *   3. VOIX : les œuvres audibles au PIRE point de la salle — un
+ *      quadrillage au mètre du sol, une œuvre audible sous le plus grand
+ *      rayon de ses pistes, UNE voix par œuvre (ses pistes partagent leur
+ *      voie, voir Spatialisation) — au plus 6 (maxStems du profil mobile).
+ *      Au-delà, le budget de voix coupe les plus lointaines : la salle
+ *      n'est plus ce qu'on a composé.
  *
  * `mesures` dit ce qu'on sait des fichiers : `octets.get(chemin)` et
  * `durees.get(chemin)` (secondes). Ce qu'on ne sait pas est dit INCONNU
@@ -96,10 +98,12 @@ export function fichiersDe(salle, works) {
 }
 
 /**
- * Le PIRE POINT du sol : le nombre maximal de pistes audibles depuis un
+ * Le PIRE POINT du sol : le nombre maximal d'ŒUVRES audibles depuis un
  * même mètre carré, et où. Les œuvres de la salle seule (le budget de
- * voix du moteur ne joue que la pièce courante). Une piste est audible
- * sous son rayon (`radius`, sinon RAYON_DEFAUT), en distance horizontale.
+ * voix du moteur ne joue que la pièce courante). Une œuvre est audible
+ * sous le plus grand rayon de ses pistes (`radius`, sinon RAYON_DEFAUT),
+ * en distance horizontale ; elle coûte UNE voix, quel que soit son nombre
+ * de pistes.
  */
 export function pirePoint(salle, works, { pas = PAS_GRILLE } = {}) {
   const parId = new Map((works ?? []).map((w) => [w?.id, w]));
@@ -108,7 +112,9 @@ export function pirePoint(salle, works, { pas = PAS_GRILLE } = {}) {
     const w = typeof ref === 'string' ? parId.get(ref) : ref;
     if (!w?.stems?.length) continue;
     const [x = 0, , z = 0] = w.position ?? [0, 0, 0];
-    for (const s of w.stems) sources.push({ x, z, r: Number(s?.radius) > 0 ? Number(s.radius) : RAYON_DEFAUT });
+    let r = 0;
+    for (const s of w.stems) r = Math.max(r, Number(s?.radius) > 0 ? Number(s.radius) : RAYON_DEFAUT);
+    sources.push({ x, z, r });
   }
   if (!sources.length) return { pire: 0, point: null };
   const { w, d } = dimensions(salle);
@@ -178,7 +184,7 @@ export function budgetSalle(salle, { rooms = [], works = [], mesures = {}, budge
     ecarts.push({ regle: 'pcm', texte: `${enMo(pcm)} Mo de son décodé en mémoire, plus que les ${budget.pcmMo} Mo d'un téléphone — fragmenter les longues pistes` });
   }
   if (pire > budget.stems) {
-    ecarts.push({ regle: 'stems', texte: `${pire} pistes audibles à la fois en (${point.join(', ')}), plus que les ${budget.stems} voix d'un téléphone — le moteur en coupera` });
+    ecarts.push({ regle: 'stems', texte: `${pire} œuvres audibles à la fois en (${point.join(', ')}), plus que les ${budget.stems} voix d'un téléphone — le moteur en coupera` });
   }
   return {
     salle: salle?.id, voisines,

@@ -63,11 +63,12 @@ test('le PCM : la durée fois 384 000 octets, une piste par fragments plafonnée
   assert.equal(b.pcm.pistes, 4);
 });
 
-test('le pire point : les pistes audibles depuis un même mètre carré, salle seule', () => {
-  // nappe (r 10) et voix (r 4) au tableau, nappe (r 30) à la lune : sous le tableau, trois
+test('le pire point : les œuvres audibles depuis un même mètre carré, une voix chacune', () => {
+  // le tableau (deux pistes, r 10 et 4) et la lune (r 30) : sous le tableau, DEUX voix, pas trois
   const p = pirePoint(ROOMS[0], WORKS);
-  assert.equal(p.pire, 3);
-  assert.ok(Math.hypot(p.point[0] - 0, p.point[1] + 5) < 4, `point ${p.point}`);
+  assert.equal(p.pire, 2);
+  // le point est sous le tableau (à moins de 10 m, son rayon) : la lune couvre toute la salle
+  assert.ok(Math.hypot(p.point[0] - 0, p.point[1] + 5) < 10, `point ${p.point}`);
   assert.deepEqual(pirePoint(ROOMS[2], WORKS), { pire: 0, point: null });
   // b : cascade (r 20, en -8,6) et gros (r 12 par défaut, en 0,0) se recouvrent
   assert.equal(pirePoint(ROOMS[1], WORKS).pire, 2);
@@ -85,9 +86,10 @@ test('ce qu\'on ne sait pas est dit inconnu, jamais compté à zéro en silence'
 test('les écarts : chaque plafond dépassé, dans les mots de l\'auteur', () => {
   const serre = { transfertMo: 5, pcmMo: 50, stems: 2 };
   const b = budgetSalle(ROOMS[0], { rooms: ROOMS, works: WORKS, mesures, budget: serre });
-  assert.deepEqual(b.ecarts.map((e) => e.regle), ['transfert', 'pcm', 'stems']);
+  assert.deepEqual(b.ecarts.map((e) => e.regle), ['transfert', 'pcm']);
   assert.match(b.ecarts[0].texte, /9\.[34] Mo .* 5 Mo/);   // 9,35 : l'arrondi flottant tombe d'un côté ou de l'autre
-  assert.match(b.ecarts[2].texte, /3 pistes audibles .* 2 voix/);
+  const c = budgetSalle(ROOMS[0], { rooms: ROOMS, works: WORKS, mesures, budget: { ...serre, stems: 1 } });
+  assert.match(c.ecarts.at(-1).texte, /2 œuvres audibles .* 1 voix/);
   assert.deepEqual(budgetSalle(ROOMS[2], { rooms: ROOMS, works: WORKS, mesures }).ecarts, []);
 });
 

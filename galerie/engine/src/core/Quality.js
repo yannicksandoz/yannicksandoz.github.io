@@ -54,13 +54,17 @@ export function cibleImages(hz) {
   return Math.max(50, Math.round(0.85 * (Number(hz) || 60)));
 }
 
-import { FINITION, SURVIE, prochainCran, etatDe, densiteSuivante, ECONOME, lireEconome, ecrireEconome, lireGouverneur } from './crans.js';
+import { FINITION, SURVIE, ECONOME_CRANS, prochainCran, etatDe, densiteSuivante, ECONOME, lireEconome, ecrireEconome, lireGouverneur, lireProfil } from './crans.js';
 
 export class QualityManager {
   constructor() {
     this.reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     const coarse = window.matchMedia('(pointer: coarse)').matches;
-    this.isMobile = coarse || /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+    // `?profil=desktop|mobile` force le profil (voir crans.js) : pour mesurer
+    // sur un téléphone ce que coûte l'image de bureau, jamais pour un visiteur
+    this.force = lireProfil(typeof location !== 'undefined' ? location.search : '');
+    this.isMobile = this.force ? this.force === 'mobile'
+      : coarse || /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
 
     this.profile = this.isMobile
       ? {
@@ -226,7 +230,8 @@ export class QualityManager {
     this.gpu = gpu;
 
     const weak = /SwiftShader|llvmpipe|Mali-[GT]?[0-7]\d\b|Adreno \(TM\) [1-5]|PowerVR/i.test(gpu);
-    if (weak && this.profile.tier === 'desktop') {
+    // un profil forcé par l'adresse se mesure tel quel, GPU modeste ou non
+    if (weak && this.profile.tier === 'desktop' && !this.force) {
       Object.assign(this.profile, {
         tier: 'desktop-low',
         pixelRatio: Math.min(window.devicePixelRatio || 1, 1.25),
@@ -251,21 +256,17 @@ export class QualityManager {
 
   /**
    * Gouverneur : appelé chaque frame par l'App. Moyenne glissante des FPS,
-   * décision toutes les 3 s, TROIS étages :
+   * décision toutes les 3 s. UN FILET SUR LA DENSITÉ SEULE (voir crans.js) :
+   * il ne touche jamais à ce qui se voit — lumière, ombres, écrans,
+   * apparitions, grain, bloom — ni au son. Trois paliers de densité :
    *   — sous la CADENCE VISÉE de l'écran (85 % de son taux, voir
    *     `cibleImages` : 102 sur un 120 Hz, 51 sur un 60 Hz) pendant deux
-   *     décisions (6 s), la DENSITÉ descend de la native à 1,5, affûtée par
-   *     la sortie — une seule fois, et seulement s'il y a des pixels à
-   *     rendre (densité > 1,5). C'est le cran qui ne touche ni la lumière
-   *     ni l'anticrénelage, et le seul de cette taille (−39 % d'image) ;
-   *   — sous 50 fps, la FINITION (anticrénelage, puis occlusion ambiante).
-   *     Un écran fluide (ProMotion, 120 Hz) rend 35 fps pénibles bien avant
-   *     le seuil de survie — attendre 27 fps, c'est laisser le visiteur
-   *     dans la mélasse en trouvant que « ça va » ;
-   *   — sous 27 fps, la survie : densité encore, grain, apparitions,
-   *     ombres, bloom.
-   * Jamais l'inverse (pas d'oscillation) — sauf la finition, qui remonte
-   * après douze secondes stables (voir `_remonter`).
+   *     décisions (6 s), la densité descend de la native à 1,5, affûtée
+   *     par la sortie — seulement s'il y a des pixels à rendre ;
+   *   — sous 50 fps, la densité 1 ;
+   *   — sous 27 fps, la densité sous le natif, jusqu'à 0,75.
+   * Jamais l'inverse : une densité reprise qui refait chuter oscillerait,
+   * et une image un peu douce vaut mieux qu'une image qui respire.
    *
    * Le taux de l'écran se lit dans l'intervalle MINIMAL entre deux images
    * (voir `estimerHz`) ; on garde le plus haut jamais vu, un écran ne
@@ -281,70 +282,21 @@ export class QualityManager {
     this._hz = Math.max(this._hz ?? 60, estimerHz(this._periode));
     this._periode = Infinity;
     const cible = cibleImages(this._hz);
-    if (this._fps >= cible) {
-      this._sousCible = 0;
-      if (!this.econome) this._remonter(app);
-      return;
-    }
-    // sous la cadence visée : la densité d'abord, avec six secondes de
-    // patience — une salle qui charge fait chuter l'image un instant. Sous
-    // 50, plus de patience : c'est le seuil où la finition cédait déjà à la
-    // première décision, et la densité passe avant elle
+    if (this._fps >= cible) { this._sousCible = 0; return; }
+    // sous la cadence visée : six secondes de patience — une salle qui
+    // charge fait chuter l'image un instant. Sous 50, plus de patience.
     this._sousCible = (this._sousCible ?? 0) + 1;
     if ((this._sousCible >= 2 || this._fps < 50) && this._densite(app)) {
       this._fps = cible; // laisse la mesure se re-stabiliser
       return;
     }
-    // entre 50 et la cible : rien à sacrifier de plus, mais la finition
-    // cédée plus tôt garde sa porte de sortie (72 stables, voir _remonter)
-    if (this._fps >= 50) {
-      if (!this.econome) this._remonter(app);
-      return;
-    }
+    if (this._fps >= 50) return;
     if (this._finition(app)) {
       this._fps = 55; // laisse la mesure se re-stabiliser avant le cran suivant
       return;
     }
     if (this._fps >= 27) return;
     this._downgrade(app);
-  }
-
-  /**
-   * LA REMONTÉE — le gouverneur cesse d'être une trappe.
-   *
-   * Il ne descendait que : une salle lourde (le belvédère d'avant sa cure)
-   * coupait l'anticrénelage puis l'occlusion ambiante, et TOUT LE RESTE DE
-   * LA VISITE restait dégradé — au jardin, à 120 fps, plus d'occlusion de
-   * contact, et les objets semblaient flotter. Désormais, après 12 s
-   * STABLES au-dessus de 72 fps, la FINITION remonte d'un cran (GTAO,
-   * puis MSAA), jamais plus haut que le profil d'origine. L'hystérésis est
-   * large — on remonte à 72, on descend à 50 — et un cran repris qui
-   * refait chuter redescendra par le chemin normal : pas d'oscillation,
-   * seulement une porte de sortie. Les crans de SURVIE (densité, grain,
-   * ombres…) ne remontent pas : y avoir touché dit une machine qui n'a
-   * pas les moyens de la finition.
-   */
-  _remonter(app) {
-    if (this._fps < 72) { this._stable = 0; return; }
-    this._stable = (this._stable ?? 0) + 3;
-    if (this._stable < 12) return;
-    this._stable = 0;
-    const p = this.profile;
-    const origine = this._origine ??= { msaa: p.msaa || (this.isMobile ? 2 : 4),
-      gtao: !this.isMobile && p.tier === 'desktop' };
-    if (origine.gtao && app.gtao && !app.gtao.enabled) {
-      app.gtao.enabled = true;
-      p.gtao = true;
-      console.info('[galerie] FPS rétablis → occlusion ambiante réactivée');
-      this._fps = 60; // laisse la mesure encaisser le cran repris
-      return;
-    }
-    if (p.msaa < origine.msaa) {
-      p.msaa = origine.msaa;
-      app.setMsaa?.(p.msaa);
-      console.info(`[galerie] FPS rétablis → anticrénelage ×${p.msaa}`);
-      this._fps = 60;
-    }
   }
 
   /**
@@ -369,13 +321,11 @@ export class QualityManager {
   }
 
   /**
-   * Étage 1 — la finition, cran par cran (voir crans.js : anticrénelage,
-   * occlusion, ombres, écrans ISF, apparitions, densité 1). Rend true si un
-   * cran a été pris.
+   * Étage 1 — la finition (voir crans.js : la densité ramenée à 1). Rend
+   * true si un cran a été pris.
    */
   _finition(app) {
     const p = this.profile;
-    this._origine ??= { msaa: p.msaa, gtao: !!p.gtao };
     const cran = prochainCran(etatDe(p, app), FINITION);
     if (!cran) return false;
     this._appliquer(cran.cle, app);
@@ -383,7 +333,7 @@ export class QualityManager {
     return true;
   }
 
-  /** Étage 2 — la survie (densité sous le natif, grain, bloom). */
+  /** Étage 2 — la survie (voir crans.js : la densité sous le natif, jusqu'à 0,75). */
   _downgrade(app) {
     const cran = prochainCran(etatDe(this.profile, app), SURVIE);
     if (cran) {
@@ -393,7 +343,8 @@ export class QualityManager {
     this._fps = 45; // laisse le temps à la mesure de se re-stabiliser
   }
 
-  /** Applique un cran au profil et à l'app — le seul endroit qui touche au renderer. */
+  /** Applique un cran au profil et à l'app — le seul endroit qui touche au renderer.
+   *  Les crans d'image (msaa, gtao, ombres…) ne servent plus qu'au mode économe. */
   _appliquer(cle, app) {
     const p = this.profile;
     switch (cle) {
@@ -429,10 +380,8 @@ export class QualityManager {
     this.econome = true;
     ecrireEconome(true, typeof localStorage !== 'undefined' ? localStorage : null);
     const p = this.profile;
-    for (const liste of [FINITION, SURVIE]) {
-      let cran;
-      while ((cran = prochainCran(etatDe(p, app), liste))) this._appliquer(cran.cle, app);
-    }
+    let cran;
+    while ((cran = prochainCran(etatDe(p, app), ECONOME_CRANS))) this._appliquer(cran.cle, app);
     p.tier = p.tier.endsWith('-econome') ? p.tier : `${p.tier}-econome`;
     console.info('[galerie] mode économe : image à densité 1 affûtée, sans anticrénelage, occlusion, ombres ni bloom');
   }

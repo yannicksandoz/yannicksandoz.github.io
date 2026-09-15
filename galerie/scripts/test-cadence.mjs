@@ -166,16 +166,17 @@ test('un écran à densité 1 n\'a rien à donner : sous la cible, la densité r
   fin();
 });
 
-test('sous 50 images sur un 60 Hz Retina : la densité d\'abord, PUIS la finition (×2, puis 0)', () => {
-  // la densité affûtée coûte moins à l'œil que l'anticrénelage perdu, et
-  // rapporte deux fois plus : elle passe en premier, quel que soit l'écran
+test('sous 50 images sur un 60 Hz Retina : la densité 1,5, puis la densité 1 — jamais l\'anticrénelage', () => {
+  // le gouverneur n'est plus qu'un filet sur la densité (crans.js) : l'image
+  // reste la même partout, en un peu plus doux là où la machine manque
   const fin = silence();
   const q = new QualityManager();
   const app = appFactice();
   q._fps = 40;
   tourner(q, app, { fps: 40, hz: 60, secondes: 20 });
   assert.deepEqual(app.journal.slice(0, 4),
-    [['renderer', 1.5], ['composer', 1.5], ['msaa', 2], ['msaa', 0]]);
+    [['renderer', 1.5], ['composer', 1.5], ['renderer', 1], ['composer', 1]]);
+  assert.ok(!app.journal.some(([quoi]) => quoi === 'msaa'), 'l\'anticrénelage ne bouge pas');
   fin();
 });
 

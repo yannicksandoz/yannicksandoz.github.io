@@ -903,9 +903,11 @@ export class App {
   }
 
   /**
-   * Budget global de stems simultanés (« voice stealing » par distance) :
+   * Budget global de VOIX simultanées (« voice stealing » par distance) :
    * les œuvres les plus proches gardent leurs pistes, les plus lointaines
-   * sont suspendues quand le plafond du profil est atteint.
+   * sont suspendues quand le plafond du profil est atteint. Une œuvre
+   * coûte ses voies (une par œuvre dans le cas courant, voir
+   * Spatialisation), pas ses pistes : `Artwork.nbVoix`.
    */
   _updateStemBudget() {
     const budget = this.quality.profile.maxStems;
@@ -919,9 +921,10 @@ export class App {
     const keep = new Set();
     let used = 0;
     for (const { a } of candidates) {
-      if (used + a.stems.length <= budget) {
+      const cout = a.nbVoix;
+      if (used + cout <= budget) {
         keep.add(a);
-        used += a.stems.length;
+        used += cout;
       }
     }
     for (const a of this.artworks) {

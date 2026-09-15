@@ -5,36 +5,42 @@
  * dit DANS QUEL ORDRE il cède, sans toucher au renderer : de l'état courant
  * (un objet plat) il tire le prochain cran à prendre. Pur, testé au nœud.
  *
- * FINITION (entre 27 et la cadence visée) : ce qui se voit le moins pour ce
- * que ça coûte — l'anticrénelage, l'occlusion ambiante, puis les OMBRES,
- * les ÉCRANS ISF à demi-résolution, les APPARITIONS figées, la densité
- * ramenée à 1. Avant, cet étage s'arrêtait à l'occlusion : une machine à
- * 30–45 images restait là, ni fluide ni dégradée, faute de crans.
+ * UN FILET, PAS UN RÉGLEUR. Le gouverneur a longtemps changé l'IMAGE selon
+ * l'appareil — anticrénelage, occlusion, ombres, écrans ISF, apparitions,
+ * grain, bloom cédaient l'un après l'autre — et deux visiteurs ne voyaient
+ * plus la même galerie. Il ne touche plus qu'à la DENSITÉ : si les images
+ * tombent durablement, l'image se rend avec moins de pixels et l'affûtage
+ * de la sortie en rattrape une part ; rien ne disparaît, rien ne change
+ * de forme, et le son n'est jamais touché. La galerie est la même partout,
+ * en un peu plus doux là où la machine manque.
  *
- * SURVIE (sous 27) : la densité SOUS le natif (jusqu'à 0,75, affûtée par la
- * sortie — le plus gros levier d'un GPU qui manque de fill-rate), le grain,
- * le bloom.
+ * FINITION (entre 27 images et la cadence visée) : la densité ramenée à 1.
+ * SURVIE (sous 27) : la densité SOUS le natif, jusqu'à 0,75.
  *
- * MODE ÉCONOME : tout de suite tout en bas, au choix du visiteur (menu →
- * Réglages, ou `?eco`), mémorisé ; le gouverneur ne remonte jamais.
+ * MODE ÉCONOME : le seul cas où l'image change vraiment — au choix du
+ * visiteur (menu → Réglages, ou `?eco`), mémorisé, tout de suite tout en
+ * bas par la liste ECONOME_CRANS, qui a gardé les anciens crans.
  */
 
 export const FINITION = [
+  { cle: 'densite1', si: (e) => e.pixelRatio > 1, dit: 'densité 1' }
+];
+
+export const SURVIE = [
+  { cle: 'densite', si: (e) => e.pixelRatio > 0.75, dit: 'densité sous le natif' }
+];
+
+/** Ce que le MODE ÉCONOME retire, dans l'ordre — au choix du visiteur seulement. */
+export const ECONOME_CRANS = [
   { cle: 'msaa2', si: (e) => e.msaa > 2, dit: 'anticrénelage ×2' },
   { cle: 'msaa0', si: (e) => e.msaa > 0, dit: 'anticrénelage désactivé' },
   { cle: 'gtao', si: (e) => e.gtao, dit: 'occlusion ambiante désactivée' },
   { cle: 'ombres', si: (e) => e.ombres, dit: 'ombres désactivées' },
   { cle: 'isf', si: (e) => e.isf > 256, dit: 'écrans ISF à demi-résolution' },
-  // les sources étendues (le lavis des corniches sur les murs) : deux sur
-  // téléphone depuis que le labo s'y mesurait deux fois plus sombre qu'au
-  // bureau ; le gouverneur les retire avant de figer les apparitions
   { cle: 'etendues', si: (e) => e.etendues > 0, dit: 'sources étendues retirées, lignes de lumière réduites' },
   { cle: 'apparitions', si: (e) => e.apparitions, dit: 'apparitions figées' },
-  { cle: 'densite1', si: (e) => e.pixelRatio > 1, dit: 'densité 1' }
-];
-
-export const SURVIE = [
-  { cle: 'densite', si: (e) => e.pixelRatio > 0.75, dit: 'densité sous le natif' },
+  ...FINITION,
+  ...SURVIE,
   { cle: 'grain', si: (e) => e.grain, dit: 'grain désactivé' },
   { cle: 'bloom', si: (e) => e.bloom, dit: 'bloom désactivé' }
 ];
@@ -83,7 +89,7 @@ export function lireEconome(search = '', stockage = null) {
 }
 
 /**
- * `?gouverneur=0` FIGE le gouverneur : aucun cran ne descend ni ne remonte.
+ * `?gouverneur=0` FIGE le gouverneur : aucun cran ne descend.
  * Pour les sondes qui mesurent l'image (rendu logiciel à trois images par
  * seconde : sans cela, tout est coupé avant la première capture) — jamais
  * pour un visiteur.
@@ -93,6 +99,19 @@ export function lireGouverneur(search = '') {
   if (!params.has('gouverneur')) return true;
   const v = params.get('gouverneur');
   return !(v === '0' || v === 'false' || v === 'non');
+}
+
+/**
+ * `?profil=desktop` ou `?profil=mobile` FORCE le profil, quel que soit
+ * l'appareil, et sans le rabais des GPU modestes : c'est ainsi qu'on lit,
+ * sur un iPhone et avec `?perf=1`, ce que coûte l'image complète — la
+ * mesure d'où partira le profil unique. Rend 'desktop', 'mobile' ou null.
+ */
+export function lireProfil(search = '') {
+  const v = new URLSearchParams(search ?? '').get('profil');
+  if (v === 'desktop' || v === 'bureau') return 'desktop';
+  if (v === 'mobile' || v === 'telephone' || v === 'téléphone') return 'mobile';
+  return null;
 }
 
 export function ecrireEconome(actif, stockage = null) {

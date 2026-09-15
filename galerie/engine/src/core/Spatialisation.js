@@ -3,7 +3,7 @@ import { coupureAir, compensationReverb, proximiteReverb, normaliserAir, PLANCHE
   from './air-reglages.js';
 
 /**
- * Spatialisation binaurale — une VOIE par piste, au cœur du moteur.
+ * Spatialisation binaurale — une VOIE par œuvre, au cœur du moteur.
  *
  * Longtemps, la spatialisation a été un module optionnel (`HRTFPanner`) :
  * une seule œuvre le déclarait, et pour toutes les autres « approcher »
@@ -47,6 +47,17 @@ import { coupureAir, compensationReverb, proximiteReverb, normaliserAir, PLANCHE
  * sur `equalpower` (bon marché, gauche/droite correct, devant/derrière
  * perdu). La bascule de modèle se fait sous un court voile de gain — changer
  * `panningModel` en pleine onde claque, le voile l'étouffe.
+ *
+ * UNE VOIE PAR ŒUVRE, PAS PAR PISTE. Les pistes d'une œuvre sont au même
+ * endroit, à la même distance, dans le même air : leur donner chacune un
+ * panner, c'est payer trois convolutions HRTF pour une seule source, et
+ * compter trois voix au budget là où l'oreille n'en entend qu'une. Les
+ * pistes qui partagent leurs réglages spatiaux (le cas courant : aucun
+ * réglage, ou le même objet `spatial`) partagent donc UNE voie : chaque
+ * gain de piste se branche sur la même entrée, le panner place la somme.
+ * Une piste qui déclare ses propres réglages garde une voie à elle. Le
+ * budget de voix (App) et le budget HRTF comptent des VOIES : le triptyque
+ * des marées en coûte une, plus trois.
  *
  * MONO / STÉRÉO : un PannerNode replie son entrée en mono avant de la
  * placer — c'est sa définition. Une nappe stéréo y perdrait toute sa
@@ -139,6 +150,18 @@ export class Spatialisation {
     if (spa === false) return null;
     const ctx = this.app.audio.ctx;
 
+    // LA VOIE PARTAGÉE : même œuvre, mêmes réglages spatiaux, même bus —
+    // la piste rejoint la voie qui existe déjà (voir l'en-tête)
+    const cle = `${spa === SPATIAL_DEFAUT ? '' : JSON.stringify(spa)}`;
+    const partagees = artwork._voiesPartagees ??= new Map();
+    const deja = partagees.get(cle);
+    if (deja && deja.bus === bus) {
+      gainStem.connect(deja.entree);
+      deja.usages++;
+      deja.stems.push(stemCfg);
+      return deja;
+    }
+
     const entree = ctx.createGain();      // sert aussi de voile de bascule
     const panner = ctx.createPanner();
     // Direction PURE : le modèle de distance est neutralisé (rolloff 0
@@ -174,7 +197,8 @@ export class Spatialisation {
     distGain.connect(bus);
 
     const voie = {
-      artwork, stemCfg, entree, panner, wet, dry, air, distGain,
+      artwork, stemCfg, entree, panner, wet, dry, air, distGain, bus,
+      cle, usages: 1, stems: [stemCfg],   // les pistes qui passent par elle
       modele: panner.panningModel,
       _bascule: false,       // un voile est en cours : on ne rebascule pas
       // Infinity, pas NaN : toute comparaison avec NaN rend false, et la
@@ -187,12 +211,16 @@ export class Spatialisation {
       azimut: 0, distance: 0 // exposés à la table d'écoute de l'éditeur
     };
     this.voies.add(voie);
+    partagees.set(cle, voie);
     return voie;
   }
 
+  /** Une piste rend sa voie ; la voie ne se défait qu'avec sa dernière piste. */
   libererVoie(voie) {
     if (!voie || !this.voies.has(voie)) return;
+    if (--voie.usages > 0) return;
     this.voies.delete(voie);
+    voie.artwork._voiesPartagees?.delete(voie.cle);
     if (voie.modele === 'HRTF') this._hrtfActives--;
     for (const n of [voie.entree, voie.panner, voie.wet, voie.dry, voie.air,
       voie.distGain]) {
@@ -411,7 +439,8 @@ export class Spatialisation {
   etat() {
     return [...this.voies].map((v) => ({
       oeuvre: v.artwork.config.id,
-      fichier: v.stemCfg.file,
+      fichier: v.stems.map((s) => s.file).join(' + '),
+      pistes: v.stems.length,
       active: this._active(v),
       modele: v.modele,
       distance: v.distance,

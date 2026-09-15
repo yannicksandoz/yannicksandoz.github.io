@@ -1463,7 +1463,18 @@ export class Artwork {
     if (this.audioReady) this._unloadAudio();
   }
 
-  /** Rayon au-delà duquel l'œuvre est inaudible (pour le budget de stems). */
+  /**
+   * Ce que l'œuvre coûte au budget de voix : ses VOIES spatiales distinctes
+   * (les pistes d'une œuvre en partagent une, voir Spatialisation) plus ses
+   * nappes branchées en direct, chacune une source.
+   */
+  get nbVoix() {
+    const voies = new Set();
+    for (const s of this.stems) voies.add(s.voie ?? s);
+    return voies.size;
+  }
+
+  /** Rayon au-delà duquel l'œuvre est inaudible (pour le budget de voix). */
   get maxAudibleRadius() {
     let r = 0;
     for (const s of this.config.stems ?? []) {
