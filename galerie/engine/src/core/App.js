@@ -993,10 +993,23 @@ export class App {
       const t = this.clock.elapsedTime;
       this.camera.getWorldPosition(camPos);
       const ctx = { app: this, camera: this.camera, cameraPos: camPos, time: t };
+      // LES PHASES DE L'IMAGE, chronométrées quand le cartouche `?perf=1`
+      // les demande (`this.phases`, ui/Perf.js) : le JavaScript de chaque
+      // étape, pour savoir si c'est le processeur ou le GPU qui retient
+      // l'image sur un appareil qu'on ne peut pas profiler autrement
+      const phases = this.phases;
+      let tPhase = phases ? performance.now() : 0;
+      const marquer = (nom) => {
+        if (!phases) return;
+        const tt = performance.now();
+        phases[nom] = (phases[nom] ?? 0) + (tt - tPhase);
+        tPhase = tt;
+      };
 
       for (const fn of this._updatables) fn(dt, ctx);
       this.signaux.update(dt);
       for (const a of this.artworks) a.update(dt, ctx);
+      marquer('maj');
 
       this._stemBudgetAcc += dt;
       if (this._stemBudgetAcc > 0.5) {
@@ -1012,6 +1025,7 @@ export class App {
       this.audio.appliquerCouleurs(this.reglages?.audio?.couleurs);
       this.audio.appliquerBande(this.reglages?.audio?.bande);
       this.audio.appliquerConsole(this.reglages?.audio?.console);
+      marquer('audio');
       // l'environnement suit reglages.json, comme l'audio — un simple
       // compare de chaîne par frame, le vrai travail n'a lieu qu'au
       // changement (voir environnements.js)
@@ -1099,10 +1113,13 @@ export class App {
       // la sonde ne change pas, le repère si : on tourne son ordre 1 — et
       // elle glisse vers sa cible (ambiance-salle.js)
       orienterAmbiance(this.camera, dt);
+      marquer('lumiere');
       // une face de la sonde de reflets, avant que la scène ne se rende
       this.reflets?.update();
+      marquer('reflets');
 
       this.vistas?.update(dt); // la pièce apparue se rend avant la vraie
+      marquer('vistas');
       // le masque de l'œuvre survolée, puis sa force à la sortie : à zéro
       // (presque toujours), la passe ne lit pas le masque
       if (this.survol) {
@@ -1128,7 +1145,9 @@ export class App {
       }
       this.sortie.uniforms.uOcclusion.value = this.gtao?.enabled ? this.gtao.blendIntensity : 0;
       this._reglerCopieScene();
+      marquer('survol');
       this.composer.render();
+      marquer('rendu');
       // « première image » : la première boucle complète, shaders compilés
       // (le chrono du démarrage, main.js) — une marque posée ne bouge plus
       this.chrono?.marquer('premiere-image');

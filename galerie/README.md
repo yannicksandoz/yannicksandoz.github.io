@@ -5215,6 +5215,22 @@ pas. Les six faces d'un cube se prennent maintenant du même point sur
 tous les profils (celui de la première face). Stable, et rien à payer en
 marchant. L'image enrichie garde sa sonde vivante.
 
+**Le cartouche dit désormais LES PHASES** (`?perf=1`, `App.phases`,
+`ui/Perf.js`). Après la sentinelle dans la passe et la sonde fixe, le
+labo restait à 17,9 ms de moyenne sur l'iPhone, p95 22 : les leviers
+« par pixel » (indices constants des polylignes, sortie anticipée derrière
+la face) n'ont rien déplacé non plus. Un iPhone ne se profile pas depuis
+ici, et la rastérisation logicielle du conteneur met plusieurs secondes
+par image : elle ne dit rien d'un GPU de téléphone. Le cartouche
+chronomètre donc le JavaScript de chaque étape de la boucle — mise à jour
+(abonnés, signaux, œuvres), audio, lumière (ombres, budget de lampes,
+fondus, lignes, ambiance), reflets, apparitions, survol, soumission du
+rendu — en moyenne sur deux secondes, avec le total et son p95. Si le
+JavaScript remplit l'image, c'est le processeur qui retient et il faut
+chercher dans la boucle ; s'il n'en prend qu'un tiers, c'est le GPU et il
+faut chercher dans les shaders. Une capture tranche, avant de toucher à
+quoi que ce soit (`test-perf` éprouve la ligne).
+
 **Les polylignes sans indice calculé** (`lignes-lumiere.js`). Le p95 du
 labo était passé de 17 à 20 ms sur iPhone avec les corniches courbes.
 Dans le shader, `uPolyPts[base + j0]` avec un j0 qui dépend du pixel est

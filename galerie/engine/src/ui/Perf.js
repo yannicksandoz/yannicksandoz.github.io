@@ -12,7 +12,12 @@
  *     les passes, pas la dernière : on coupe la remise à zéro automatique
  *     de `renderer.info` et on la fait soi-même, une fois par image ;
  *   • les tampons audio décodés et leur poids en mémoire (AudioEngine) ;
- *   • l'état des crans du gouverneur (Quality / crans.js) et la densité.
+ *   • l'état des crans du gouverneur (Quality / crans.js) et la densité ;
+ *   • LES PHASES : le JavaScript de chaque étape de la boucle (mise à jour,
+ *     audio, lumière, reflets, apparitions, survol, soumission du rendu),
+ *     en moyenne, et le total avec son p95. Un iPhone ne se profile pas
+ *     depuis ici : si le JavaScript remplit l'image, c'est le processeur
+ *     qui retient ; s'il n'en prend qu'un tiers, c'est le GPU.
  * Les mêmes valeurs vont dans `window.__galeriePerf`, pour les sondes.
  *
  * La STATISTIQUE est pure (`Statistiques`) : test-perf l'éprouve.
@@ -77,6 +82,16 @@ export function texteCrans(etat) {
   return mots.join(' · ');
 }
 
+/** Les phases en une ligne : le total et son p95, puis chaque étape. */
+export const PHASES = ['maj', 'audio', 'lumiere', 'reflets', 'vistas', 'survol', 'rendu'];
+const NOMS = { maj: 'maj', audio: 'audio', lumiere: 'lumière', reflets: 'reflets', vistas: 'apparitions', survol: 'survol', rendu: 'rendu' };
+export function textePhases(moyennes, total, p95) {
+  if (!moyennes) return '';
+  const f = (v) => (Math.round(v * 10) / 10).toFixed(1);
+  const parts = PHASES.filter((k) => Number.isFinite(moyennes[k])).map((k) => `${NOMS[k]} ${f(moyennes[k])}`);
+  return `js ${f(total)} ms · p95 ${f(p95)} · ${parts.join(' · ')}`;
+}
+
 /** `?perf=1` dans l'adresse ? */
 export function perfDemande(search = '') {
   try { return new URLSearchParams(search).get('perf') === '1'; } catch { return false; }
@@ -94,10 +109,22 @@ export function mountPerf(app) {
   if (info) info.autoReset = false;   // on compte l'image ENTIÈRE, toutes passes
 
   const stats = new Statistiques();
+  // les phases de l'image précédente (App les chronomètre tant que
+  // `app.phases` existe) : une fenêtre par étape, une pour le total
+  const statsPhases = Object.fromEntries(PHASES.map((k) => [k, new Statistiques()]));
+  const statsJs = new Statistiques();
+  app.phases = {};
   let horloge = 0; let depuis = 0; let appels = 0; let triangles = 0;
   const tick = (dt) => {
     horloge += dt;
     stats.ajouter(horloge, dt);
+    let js = 0;
+    for (const k of PHASES) {
+      const v = app.phases[k];
+      if (Number.isFinite(v)) { statsPhases[k].ajouter(horloge, v / 1000); js += v; }
+      app.phases[k] = 0;
+    }
+    if (js > 0) statsJs.ajouter(horloge, js / 1000);
     if (info) {
       // ce que l'image PRÉCÉDENTE a coûté (la boucle appelle ceci avant le rendu)
       appels = info.render.calls; triangles = info.render.triangles;
@@ -114,16 +141,20 @@ export function mountPerf(app) {
     const audio = app.audio?.bilan?.() ?? { tampons: 0, octets: 0 };
     const etat = app.quality ? etatDe(app.quality.profile, app) : null;
     const salle = app.rooms?.current?.config?.id ?? '—';
+    const phases = Object.fromEntries(PHASES.map((k) => [k, statsPhases[k].moyenne() * 1000]));
+    const js = statsJs.moyenne() * 1000; const jsP95 = statsJs.p95() * 1000;
     const mesure = {
       ms: Math.round(ms * 10) / 10, p95: Math.round(p95 * 10) / 10, fps: Math.round(fps),
       appels, triangles, tampons: audio.tampons, pcmMo: Math.round(audio.octets / 1048576 * 10) / 10,
-      profil: app.quality?.profile?.tier ?? '', crans: etat, salle
+      profil: app.quality?.profile?.tier ?? '', crans: etat, salle,
+      js: Math.round(js * 10) / 10, jsP95: Math.round(jsP95 * 10) / 10, phases
     };
     window.__galeriePerf = mesure;
     el.innerHTML = `<b>${mesure.ms.toFixed(1)} ms</b> · p95 ${mesure.p95.toFixed(1)} ms · ${mesure.fps} fps
       <br>${compact(appels)} appels · ${compact(triangles)} tri · ${salle}
       <br>audio ${audio.tampons} tampon${audio.tampons > 1 ? 's' : ''} · ${mesure.pcmMo} Mo PCM
-      <br>${mesure.profil} · ${texteCrans(etat)}`;
+      <br>${mesure.profil} · ${texteCrans(etat)}
+      <br>${textePhases(phases, js, jsP95)}`;
     el.classList.toggle('perf-lent', p95 > 33);
   };
   const off = app.onUpdate(tick);
@@ -133,6 +164,7 @@ export function mountPerf(app) {
     el, stats,
     dispose() {
       off?.();
+      app.phases = null;
       if (info) info.autoReset = autoResetAvant;
       el.remove();
       delete window.__galeriePerf;

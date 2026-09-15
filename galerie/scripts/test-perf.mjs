@@ -4,7 +4,7 @@
  * Lancer avec : npm test
  */
 import assert from 'node:assert/strict';
-import { Statistiques, compact, texteCrans, perfDemande } from '../engine/src/ui/Perf.js';
+import { Statistiques, compact, texteCrans, perfDemande, textePhases, PHASES } from '../engine/src/ui/Perf.js';
 
 let ok = 0; let ko = 0;
 const test = (nom, fn) => { try { fn(); ok++; console.log(`  ✓ ${nom}`); } catch (e) { ko++; console.log(`  ✗ ${nom}\n      ${e.message}`); } };
@@ -55,6 +55,14 @@ test('les crans en mots : ce qui est coupé se voit', () => {
   const u = texteCrans({ msaa: 4, gtao: true, ombres: true, isf: 512, etendues: 2, apparitions: false, pixelRatio: 2, grain: false, bloom: false });
   assert.equal(u, 'msaa 4 · gtao · ombres · isf 512 · étendues 2 · apparitions·off · grain·off · bloom·off · ×2');
   assert.equal(texteCrans(null), '');
+});
+
+test('les phases en une ligne : le total, son p95, puis chaque étape dans l\'ordre de la boucle', () => {
+  assert.deepEqual(PHASES, ['maj', 'audio', 'lumiere', 'reflets', 'vistas', 'survol', 'rendu']);
+  const ligne = textePhases({ maj: 1.24, audio: 0.4, lumiere: 0.31, reflets: 0.05, vistas: 0, survol: 0.2, rendu: 3.52 }, 5.72, 9.04);
+  assert.equal(ligne, 'js 5.7 ms · p95 9.0 · maj 1.2 · audio 0.4 · lumière 0.3 · reflets 0.1 · apparitions 0.0 · survol 0.2 · rendu 3.5');
+  assert.equal(textePhases(null), '');
+  assert.equal(textePhases({ rendu: 2 }, 2, 2), 'js 2.0 ms · p95 2.0 · rendu 2.0', 'une phase absente ne s\'écrit pas');
 });
 
 test('le cartouche ne se demande que par ?perf=1', () => {
