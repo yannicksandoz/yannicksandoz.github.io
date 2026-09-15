@@ -122,6 +122,11 @@ export class FocusCamera extends Module {
     if (this.t >= 1) {
       if (this.state === 'in') {
         this.state = 'focused';
+        // S'approcher d'une œuvre en la cliquant, c'est la RENCONTRER : la
+        // découverte se compte à l'arrivée, sans attendre les trois secondes
+        // à portée que demande la marche (Progression.update). Le « ??? »
+        // du survol devient le titre au moment même où l'on est devant.
+        this.app.progression?.marquer?.(this.artwork);
       } else {
         this.state = 'idle';
         // seul le focus encore enregistré rend le verrou : si un autre

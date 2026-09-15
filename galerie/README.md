@@ -480,6 +480,12 @@ Trois retouches vont avec :
   ou « ??? — approchez pour découvrir » en visite libre tant qu'elle n'est
   pas découverte : le catalogue ne ment pas plus ici que dans sa liste. Le
   mot suit le liseré, même fondu, même cible (`App._motSurvol`).
+  Le mot se recompose quand l'ÉTAT de la cible change, pas seulement la
+  cible : une œuvre inconnue qu'on découvre en la visant gardait « ??? »
+  tant qu'on ne détournait pas les yeux. Et s'approcher d'une œuvre en la
+  cliquant, c'est la rencontrer : la découverte se compte à l'arrivée du
+  cadrage (`FocusCamera`), sans attendre les trois secondes à portée que
+  demande la marche.
 - **Les jetons se visent et se ramassent d'un clic.** Un ◈ visé s'allume
   d'un liseré DORÉ (la couleur du liseré est désormais celle de la cible,
   `Survol.couleur`) avec son mot au-dessus, « Jeton : atteindre une œuvre

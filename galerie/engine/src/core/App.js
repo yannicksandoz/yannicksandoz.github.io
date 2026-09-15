@@ -624,14 +624,19 @@ export class App {
       if (el.style.opacity !== '0') el.style.opacity = '0';
       return;
     }
-    if (this._survolMotCible !== cible) {
+    // Le mot se recompose quand la CIBLE change, et quand son ÉTAT change :
+    // une œuvre inconnue qu'on découvre en la visant (l'approche, le clic)
+    // gardait « ??? » tant qu'on ne détournait pas les yeux — le mot était
+    // mis en cache par cible seule, et la découverte ne le réveillait pas.
+    const prog = this.progression;
+    const connue = cible.jeton || !prog || prog.estDecouverte(cible) || prog.estRevelee?.(cible);
+    if (this._survolMotCible !== cible || this._survolMotConnue !== connue) {
       this._survolMotCible = cible;
+      this._survolMotConnue = connue;
       let texte;
       if (cible.jeton) {
         texte = t('jeton.mot');
       } else {
-        const prog = this.progression;
-        const connue = !prog || prog.estDecouverte(cible) || prog.estRevelee?.(cible);
         texte = connue ? (cible.config?.title ?? cible.config?.id ?? '') : t('survol.inconnue');
       }
       el.textContent = texte;
