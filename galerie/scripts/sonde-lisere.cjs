@@ -24,8 +24,8 @@ const CIBLE = process.env.CIBLE || 'marees';
   await page.evaluate(async (id) => { await window.__galerie.rooms.setCurrent(id, { instant: true }); }, ROOM);
   await page.waitForFunction((id) => { const r = window.__galerie.rooms.get(id); return r?.artworks?.every((a) => a._visualLoaded || a.mediaError || !a._visualRequested); }, ROOM, { timeout: 90000 }).catch(() => {});
   await page.waitForTimeout(1500);
-  const etat = await page.evaluate(() => { const s = window.__galerie.survol; return { profil: window.__galerie.quality.profile.tier, echelle: s.echelle, echantillons: s.echantillons, occlusion: s.occlusion, densite: window.devicePixelRatio }; });
-  console.log(`profil ${etat.profil}, densité ${etat.densite}, masque échelle ${etat.echelle}, MSAA ${etat.echantillons}, occlusion ${etat.occlusion}`);
+  const etat = await page.evaluate(() => { const app = window.__galerie; const rt = app.scenePass.cible; return { profil: app.quality.profile.tier, densite: window.devicePixelRatio, msaa: rt.samples, w: rt.width, h: rt.height }; });
+  console.log(`profil ${etat.profil}, densité ${etat.densite}, masque = alpha de la cible de scène ${etat.w}×${etat.h}, MSAA ${etat.msaa}`);
 
   // la mesure, installée dans la page : vise l'œuvre, puis à chaque image
   // rendue compare masque et projection
@@ -61,13 +61,16 @@ const CIBLE = process.env.CIBLE || 'marees';
       });
       return { x0: Math.max(0, x0), x1: Math.min(t.x, x1), y0: Math.max(0, y0), y1: Math.min(t.y, y1), W: t.x, H: t.y, brut: { x0, x1, y0, y1 } };
     };
+    // le masque est l'ALPHA de la cible de scène (demi-flottants) — Survol.js
+    const demiFloat = (u) => { const s = (u & 0x8000) ? -1 : 1, e = (u >> 10) & 0x1f, f = u & 0x3ff; if (e === 0) return s * Math.pow(2, -14) * (f / 1024); if (e === 31) return f ? NaN : s * Infinity; return s * Math.pow(2, e - 15) * (1 + f / 1024); };
     const boiteMasque = () => {
-      const rt = app.survol._rt; if (!rt) return null;
-      const w = rt.width, h = rt.height; const buf = new Uint8Array(w * h * 4);
+      const rt = app.scenePass.cible; if (!rt) return null;
+      // le composer donne des tailles fractionnaires (390 × 1,25) : WebGL les tronque
+      const w = Math.floor(rt.width), h = Math.floor(rt.height); const buf = new Uint16Array(w * h * 4);
       app.renderer.readRenderTargetPixels(rt, 0, 0, w, h, buf);
       let x0 = 1e9, x1 = -1e9, y0 = 1e9, y1 = -1e9, n = 0;
       for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
-        if (buf[(y * w + x) * 4] > 128) { n++; const ye = h - 1 - y; x0 = Math.min(x0, x); x1 = Math.max(x1, x); y0 = Math.min(y0, ye); y1 = Math.max(y1, ye); }
+        if (demiFloat(buf[(y * w + x) * 4 + 3]) > 0.5) { n++; const ye = h - 1 - y; x0 = Math.min(x0, x); x1 = Math.max(x1, x); y0 = Math.min(y0, ye); y1 = Math.max(y1, ye); }
       }
       return n ? { x0, x1: x1 + 1, y0, y1: y1 + 1, n, w, h } : { n: 0, w, h };
     };
@@ -114,7 +117,10 @@ const CIBLE = process.env.CIBLE || 'marees';
   if (process.env.DETAIL) { for (const m of mesures.slice(-3)) console.log(JSON.stringify(m)); console.log(JSON.stringify(couronne)); }
   await nav.close();
   const utiles = mesures.filter((m) => m.ecart && m.force >= 0.99);
-  const maxEcart = (l) => l.reduce((n, m) => Math.max(n, ...Object.values(m.ecart).map(Math.abs)), 0);
+  // un masque PLUS PETIT en bas que la projection n'est pas un fantôme : c'est
+  // l'occlusion (le pied d'une stèle sous le plancher des archives) — seuls
+  // comptent les côtés, le haut, et un bas qui DÉPASSE
+  const maxEcart = (l) => l.reduce((n, m) => Math.max(n, Math.abs(m.ecart.g), Math.abs(m.ecart.d), Math.abs(m.ecart.h), Math.max(0, m.ecart.b)), 0);
   const nb = utiles.length; const fin = utiles.slice(-3);
   const boitesBougent = utiles.length > 2 ? Math.abs(utiles[0].p.x0 - utiles[utiles.length - 1].p.x0) : 0;
   console.log(`${nb} images mesurées, masque ${utiles[0]?.m.w}×${utiles[0]?.m.h} pour une image ${utiles[0]?.p.W}×${utiles[0]?.p.H}`);
@@ -122,6 +128,6 @@ const CIBLE = process.env.CIBLE || 'marees';
   console.log(`écart masque / projection : max ${maxEcart(utiles).toFixed(1)} px pendant le geste, ${maxEcart(fin).toFixed(1)} px à l'arrêt`);
   if (couronne.marges) console.log(`couronne : épaisseur moyenne ${couronne.epaisseur.toFixed(1)} px, marges gauche ${couronne.marges.g} droite ${couronne.marges.d} haut ${couronne.marges.h} bas ${couronne.marges.b} px (${couronne.n} pixels touchés)`);
   else console.log(`couronne : aucun pixel changé (force ${couronne.force})`);
-  const fantome = maxEcart(utiles) > 3 || (couronne.marges && Math.max(...Object.values(couronne.marges).map(Math.abs)) > 8);
+  const fantome = maxEcart(utiles) > 3 || (couronne.marges && Math.max(Math.abs(couronne.marges.g), Math.abs(couronne.marges.d), Math.abs(couronne.marges.h), couronne.marges.b) > 8);
   console.log(fantome ? '✗ le liseré ne colle pas à l\'œuvre' : '✓ le liseré colle à l\'œuvre');
 })().catch((e) => { console.error('✗', e); process.exit(1); });

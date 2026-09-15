@@ -199,7 +199,6 @@ test('par défaut, l\'image UNIQUE pour tous : la densité seule suit l\'écran'
   assert.equal(q.profile.isfResolution, 512); // ce qui ne coûte pas de pixels
   assert.equal(q.profile.anisotropy, 16);
   assert.equal(q.profile.maxStems, 6);        // le même son partout
-  assert.equal(q.profile.survolEchantillons, 4);
   // un téléphone : la même image, à densité 1,25 affûtée
   globalThis.window.devicePixelRatio = 3;
   globalThis.window.matchMedia = (m) => ({ matches: m === '(pointer: coarse)' });

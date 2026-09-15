@@ -469,6 +469,13 @@ vec3 irradianceLigne(vec3 P, vec3 N, vec3 A, vec3 B, vec3 F, vec3 couleur) {
   float nb = dot(N, b);
   // tout le segment derrière la surface : rien, et l'on sort tôt
   if (na <= 0.0 && nb <= 0.0) return vec3(0.0);
+  // …et LA SURFACE DERRIÈRE LA FENTE : la porte du cosinus d'émission (plus
+  // bas) annule tout pixel situé derrière le plan de la face aux deux
+  // bouts — le mur qui porte la corniche, le plafond au-dessus. Le test
+  // est linéaire le long du segment : les deux bouts derrière, le point
+  // proche l'est aussi. Deux produits scalaires, avant trois racines
+  // carrées, pour la moitié des pixels d'une pièce.
+  if (dot(F, a) >= 0.0 && dot(F, b) >= 0.0) return vec3(0.0);
   // sinon on le coupe sur le plan de l'horizon n·x = 0
   if (na < 0.0) a = mix(a, b, na / (na - nb));
   else if (nb < 0.0) b = mix(b, a, nb / (nb - na));
@@ -508,29 +515,47 @@ vec3 irradianceLigne(vec3 P, vec3 N, vec3 A, vec3 B, vec3 F, vec3 couleur) {
 // le plus proche, deux cordes pour le reste. Le point le plus proche se
 // repère par la projection du pixel sur l'AXE du trait (ses deux bouts) :
 // un produit scalaire, et l'indice tombe.
+//
+// AUCUN INDICE CALCULÉ dans les tableaux d'uniformes. \`uPolyPts[base + j0]\`
+// avec un j0 qui dépend du pixel, c'est une lecture INDEXÉE DYNAMIQUEMENT :
+// sur les GPU de téléphone, le tableau quitte alors les registres pour la
+// mémoire des constantes, et chaque lecture se paie — mesuré sur iPhone,
+// la polyligne coûtait deux à trois millisecondes par image. Ici les deux
+// boucles ont des bornes CONSTANTES (le compilateur les déroule, les
+// indices deviennent des constantes) et la fenêtre se choisit par des
+// comparaisons : les segments hors fenêtre coûtent un test, les bouts des
+// cordes se cueillent au passage.
 vec3 polylignesIrradiance(vec3 P, vec3 N) {
   vec3 total = vec3(0.0);
   for (int k = 0; k < ${MAX_POLYLIGNES}; k++) {
     if (k >= uPolyNombre) break;
     int n = uPolyN[k];
     if (n < 2) continue;
-    int base = k * ${MAX_POINTS_POLYLIGNE};
-    vec3 P0 = uPolyPts[base];
-    vec3 Pn = uPolyPts[base + n - 1];
+    vec3 P0 = uPolyPts[k * ${MAX_POINTS_POLYLIGNE}];
+    vec3 Pn = P0;
+    vec3 F = uPolyFace[k];
+    vec3 C = uPolyCouleur[k];
+    // le dernier point, à indice constant
+    for (int i = 1; i < ${MAX_POINTS_POLYLIGNE}; i++) {
+      if (i == n - 1) Pn = uPolyPts[k * ${MAX_POINTS_POLYLIGNE} + i];
+    }
     vec3 axe = Pn - P0;
     float t = clamp(dot(P - P0, axe) / max(dot(axe, axe), 1e-6), 0.0, 1.0);
     int j = clamp(int(floor(t * float(n - 1))), 0, n - 2);
     int j0 = max(j - ${FENETRE}, 0);
     int j1 = min(j + ${FENETRE}, n - 2);
-    vec3 F = uPolyFace[k];
-    vec3 C = uPolyCouleur[k];
-    for (int s = 0; s <= ${2 * FENETRE}; s++) {
-      int i = j0 + s;
-      if (i > j1) break;
-      total += irradianceLigne(P, N, uPolyPts[base + i], uPolyPts[base + i + 1], F, C);
+    vec3 cordeA = P0;    // bout de la corde de tête : le point j0
+    vec3 cordeB = Pn;    // bout de la corde de queue : le point j1 + 1
+    for (int i = 0; i < ${MAX_POINTS_POLYLIGNE - 1}; i++) {
+      if (i > n - 2) break;
+      vec3 A = uPolyPts[k * ${MAX_POINTS_POLYLIGNE} + i];
+      vec3 B = uPolyPts[k * ${MAX_POINTS_POLYLIGNE} + i + 1];
+      if (i == j0) cordeA = A;
+      if (i == j1) cordeB = B;
+      if (i >= j0 && i <= j1) total += irradianceLigne(P, N, A, B, F, C);
     }
-    if (j0 > 0) total += irradianceLigne(P, N, P0, uPolyPts[base + j0], F, C);
-    if (j1 + 1 < n - 1) total += irradianceLigne(P, N, uPolyPts[base + j1 + 1], Pn, F, C);
+    if (j0 > 0) total += irradianceLigne(P, N, P0, cordeA, F, C);
+    if (j1 + 1 < n - 1) total += irradianceLigne(P, N, cordeB, Pn, F, C);
   }
   return total;
 }

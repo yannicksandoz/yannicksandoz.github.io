@@ -141,10 +141,9 @@ const SORTIE = {
     // PasseGTAO dans App.js
     tOcclusion: { value: null },
     uOcclusion: { value: 0 },
-    // LE SURVOL (voir Survol.js) : masque de silhouette de l'œuvre visée,
-    // dilaté ici en liseré. `uContour` = force du liseré (0 : rien à faire)
-    tMasque: { value: null },      // la silhouette, blanc sur noir
-    uMasqueTexel: { value: new Vector2(1 / 1920, 1 / 1080) }, // 1 / taille du masque
+    // LE SURVOL (voir Survol.js) : la silhouette de l'œuvre visée est
+    // l'ALPHA de la scène (`tDiffuse`), dilaté ici en liseré. `uContour` =
+    // force du liseré (0 : rien à faire)
     uContour: { value: 0 },
     uContourCouleur: { value: new Color(0xffffff) }, // blanc : un trait, pas une teinte
     uMasqueDebug: { value: 0 }     // ?survol=masque : la silhouette en magenta, pour diagnostiquer
@@ -169,37 +168,37 @@ const SORTIE = {
     uniform vec2 uTexel;
     uniform sampler2D tOcclusion;
     uniform float uOcclusion;
-    uniform sampler2D tMasque;
-    uniform vec2 uMasqueTexel;
     uniform float uContour;
     uniform vec3 uContourCouleur;
     uniform float uMasqueDebug;
     varying vec2 vUv;
 
     // LE LISERÉ DU SURVOL : ce que les VOISINS ont de blanc et que le pixel
-    // n'a pas. Quatre anneaux de huit lectures dans le masque (à 1, 2, 3 et
-    // 4 texels), pondérés par la proximité : au ras de la silhouette le
-    // bord vaut un, puis trois quarts, un demi, un quart — un dégradé qui
-    // s'éteint en quatre pixels d'image, adouci par le filtrage linéaire.
-    // Dedans, le pixel est blanc et annule tout. Trente-deux lectures, mais
-    // seulement quand une œuvre est visée : la branche est uniforme, le GPU
-    // la saute vraiment. Une seule cible, aucune passe intermédiaire (voir
-    // Survol.js : c'est ce qui a mis fin au liseré fantôme sur iPhone).
+    // n'a pas. Le masque est l'ALPHA de la scène elle-même (Survol.js :
+    // écrit juste après la scène, dans sa cible, par la même caméra — il
+    // ne peut pas se décaler de l'image). Quatre anneaux de huit lectures
+    // (à 1, 2, 3 et 4 texels), pondérés par la proximité : au ras de la
+    // silhouette le bord vaut un, puis trois quarts, un demi, un quart — un
+    // dégradé qui s'éteint en quatre pixels d'image, adouci par le filtrage
+    // linéaire. Dedans, le pixel est blanc et annule tout. Trente-deux
+    // lectures, mais seulement quand une œuvre est visée : la branche est
+    // uniforme, le GPU la saute vraiment.
+    float masque(vec2 uv) { return texture2D(tDiffuse, uv).a; }
     float contour(vec2 uv) {
-      float net = texture2D(tMasque, uv).r;
+      float net = masque(uv);
       float voisin = 0.0;
       for (int a = 0; a < 4; a++) {
         float r = float(a) + 1.0;
         float poids = 1.0 - 0.25 * float(a);
-        vec2 d = uMasqueTexel * r;
-        voisin = max(voisin, texture2D(tMasque, uv + vec2( d.x,  0.0)).r * poids);
-        voisin = max(voisin, texture2D(tMasque, uv + vec2(-d.x,  0.0)).r * poids);
-        voisin = max(voisin, texture2D(tMasque, uv + vec2( 0.0,  d.y)).r * poids);
-        voisin = max(voisin, texture2D(tMasque, uv + vec2( 0.0, -d.y)).r * poids);
-        voisin = max(voisin, texture2D(tMasque, uv + vec2( d.x,  d.y) * 0.7071).r * poids);
-        voisin = max(voisin, texture2D(tMasque, uv + vec2(-d.x,  d.y) * 0.7071).r * poids);
-        voisin = max(voisin, texture2D(tMasque, uv + vec2( d.x, -d.y) * 0.7071).r * poids);
-        voisin = max(voisin, texture2D(tMasque, uv + vec2(-d.x, -d.y) * 0.7071).r * poids);
+        vec2 d = uTexel * r;
+        voisin = max(voisin, masque(uv + vec2( d.x,  0.0)) * poids);
+        voisin = max(voisin, masque(uv + vec2(-d.x,  0.0)) * poids);
+        voisin = max(voisin, masque(uv + vec2( 0.0,  d.y)) * poids);
+        voisin = max(voisin, masque(uv + vec2( 0.0, -d.y)) * poids);
+        voisin = max(voisin, masque(uv + vec2( d.x,  d.y) * 0.7071) * poids);
+        voisin = max(voisin, masque(uv + vec2(-d.x,  d.y) * 0.7071) * poids);
+        voisin = max(voisin, masque(uv + vec2( d.x, -d.y) * 0.7071) * poids);
+        voisin = max(voisin, masque(uv + vec2(-d.x, -d.y) * 0.7071) * poids);
       }
       return clamp(voisin - net, 0.0, 1.0);
     }
@@ -300,7 +299,7 @@ const SORTIE = {
       // pas une lumière — il se pose après la courbe de tons
       if (uContour > 0.0) {
         sortie.rgb = mix(sortie.rgb, uContourCouleur, contour(vUv) * uContour);
-        if (uMasqueDebug > 0.0) sortie.rgb = mix(sortie.rgb, vec3(1.0, 0.0, 1.0), texture2D(tMasque, vUv).r * 0.45);
+        if (uMasqueDebug > 0.0) sortie.rgb = mix(sortie.rgb, vec3(1.0, 0.0, 1.0), masque(vUv) * 0.45);
       }
 
       // LE TRAMAGE : la galerie est sombre et violette, la brume y fait des

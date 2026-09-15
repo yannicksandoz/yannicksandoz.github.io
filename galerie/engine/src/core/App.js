@@ -79,7 +79,8 @@ const WarpShader = {
       // fermeture au noir : totale au pic, quel que soit le rayon
       float dark = smoothstep(0.0, 1.0, uWarp * (0.45 + r * 1.6));
       col *= 1.0 - min(1.0, dark + uWarp * uWarp);
-      gl_FragColor = vec4(col, 1.0);
+      // l'alpha porte le masque du survol (Survol.js) : il traverse
+      gl_FragColor = vec4(col, texture2D(tDiffuse, warped).a);
     }`
 };
 
@@ -120,6 +121,9 @@ class PasseSceneMSAA extends Pass {
     // Faut-il vraiment recopier la cible dans la chaîne ? Voir `render`.
     // Prudent par défaut : l'App le remet à jour à chaque image.
     this.copieNecessaire = true;
+    // ce qui se dessine DANS la cible juste après la scène, profondeur
+    // encore vive : le masque du survol, dans l'alpha (voir Survol.js)
+    this.apresScene = null;
   }
 
   setSize(w, h) {
@@ -129,6 +133,7 @@ class PasseSceneMSAA extends Pass {
   render(renderer, writeBuffer) {
     renderer.setRenderTarget(this.cible);
     renderer.render(this.scene, this.camera);
+    this.apresScene?.(renderer, this.camera);
     // La résolution MSAA a lieu à la FIN de `renderer.render`, sur la cible
     // courante : `cible.texture` est prête dès cette ligne.
     //
@@ -421,14 +426,11 @@ export class App {
     // à chaque image (le gouverneur la coupe et la rend à chaud)
     if (this.gtao) this.sortie.uniforms.tOcclusion.value = this.gtao.pdRenderTarget.texture;
     this.composer.addPass(this.sortie);
-    // le liseré de survol : masque rendu avant la frame, dilaté à la sortie
-    // le masque net au pixel sur bureau (liseré net), réduit sur téléphone
-    // où chaque pixel se paie — voir Survol et le profil (`survolEchelle`)
-    this.survol = new Survol(this.renderer, {
-      echelle: this.quality.profile.survolEchelle ?? 1,
-      echantillons: this.quality.profile.survolEchantillons ?? 4,
-      occlusion: this.quality.profile.survolOcclusion ?? true
-    });
+    // le liseré de survol : le masque s'écrit dans l'ALPHA de la cible de
+    // scène, juste après la scène, dans le même appel (voir Survol.js) ;
+    // la sortie en tire la couronne
+    this.survol = new Survol();
+    this.scenePass.apresScene = (renderer, camera) => this.survol.dessiner(renderer, camera);
 
     this._buildEnvironment();
     this._setupPicking();
@@ -1102,17 +1104,10 @@ export class App {
         // l'éditeur a ses propres surbrillances (gizmo, charte) : le
         // liseré se tait dès qu'il est ouvert
         if (this.editor?.enabled) this.survol.viser(null);
-        // LA CAMÉRA DE CE TOUR, pas celle du précédent : le masque se
-        // dessine AVANT la scène, et `render` ne recalcule la matrice
-        // d'une caméra qui a un parent (le rig des gravités). Sans cela le
-        // liseré traînait d'une image sur l'œuvre pendant qu'on tournait —
-        // visible au doigt, sur téléphone, à la fin de chaque geste.
-        this.camera.updateMatrixWorld(true);
-        // la pièce courante occulte : ce qu'elle cache (sous le sol,
-        // derrière un mur) ne se détoure pas
-        const dessine = this.survol.rendre(this.camera, dt,
-          { reducedMotion: this.quality.reducedMotion,
-            occulteurs: this.rooms?.current?.group ?? null });
+        // le fondu avance ici ; le masque lui-même se dessine dans la
+        // passe de scène, juste après elle (`scenePass.apresScene`) — même
+        // caméra, même image, même cible : il ne peut pas se décaler
+        const dessine = this.survol.avancer(dt, { reducedMotion: this.quality.reducedMotion });
         const u = this.sortie.uniforms;
         // léger : un trait blanc à moitié fondu dans l'image, pas un néon —
         // et DORÉ sur un jeton, la couleur de ce qui se gagne
@@ -1120,18 +1115,11 @@ export class App {
         u.uContourCouleur.value.copy(this.survol.couleur);
         // le mot au-dessus de ce qu'on vise suit le liseré (même fondu)
         this._motSurvol(dessine ? this.survol.cible : null, this.survol.force);
-        if (dessine && this.survol.texture) {
-          u.tMasque.value = this.survol.texture;
-          u.uMasqueTexel.value.copy(this.survol.texel);
-          // `?survol=masque` : la silhouette elle-même, en magenta, par-dessus
-          // l'image — pour voir sur un appareil qu'on ne peut pas émuler si
-          // c'est le MASQUE qui se décale de l'œuvre, ou seulement sa couronne
-          u.uMasqueDebug.value = this._survolDebug ??= (typeof location !== 'undefined'
-            && new URLSearchParams(location.search).get('survol') === 'masque') ? 1 : 0;
-        } else if (!u.tMasque.value) {
-          // un échantillonneur jamais lié fait hurler certains pilotes
-          u.tMasque.value = this.survol.texture ?? this.scenePass?.cible?.texture ?? null;
-        }
+        // `?survol=masque` : la silhouette elle-même, en magenta, par-dessus
+        // l'image — pour voir sur un appareil qu'on ne peut pas émuler si
+        // c'est le MASQUE qui se décale de l'œuvre, ou seulement sa couronne
+        u.uMasqueDebug.value = this._survolDebug ??= (typeof location !== 'undefined'
+          && new URLSearchParams(location.search).get('survol') === 'masque') ? 1 : 0;
       }
       this.sortie.uniforms.uOcclusion.value = this.gtao?.enabled ? this.gtao.blendIntensity : 0;
       this._reglerCopieScene();

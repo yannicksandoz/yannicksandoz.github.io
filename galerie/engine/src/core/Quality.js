@@ -100,16 +100,6 @@ export class QualityManager {
           // endroit où la netteté ne coûte pas de pixels. À pleine densité,
           // rien à affûter.
           nettete: densite < dpr ? 0.5 : 0,
-          // le masque du liseré de survol : LE MÊME qu'au bureau — à la
-          // résolution de l'image, multi-échantillonné ×4, occulté par la
-          // pièce. Mesuré sur un iPhone réel aux archives : sans MSAA ni
-          // profondeur, le liseré partait en image fantôme décalée ; avec
-          // les réglages de bureau, sur le même téléphone, il colle à la
-          // stèle. L'hypothèse « WebKit résout mal une cible MSAA à
-          // profondeur » était fausse ; c'est la version simple qui l'est.
-          survolEchelle: 1,
-          survolEchantillons: 4,
-          survolOcclusion: true,
           bloomResScale: 0.25,  // bloom calculé au quart de la résolution
           bloomStrength: 0.5,
           // LE GRAIN, seulement à pleine densité : sur un téléphone qui rend

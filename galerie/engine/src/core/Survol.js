@@ -7,29 +7,33 @@
  * la barre d'espace « découvre » (App.triggerAction) : le liseré dit alors
  * ce qu'un geste va toucher.
  *
- * Technique : l'œuvre visée est redessinée SEULE, en blanc plat, dans UNE
- * cible à la résolution de l'image (un dessin, aucun éclairage). C'est
- * tout ce que fait ce module. La passe de sortie lit ce masque et compare
- * chaque pixel à ses voisins (quatre anneaux de huit lectures, pondérés
- * par la distance, voir PasseSortie.contour) : ce que les voisins ont de
- * blanc et que le pixel n'a pas, c'est la couronne — un dégradé de quatre
- * pixels, au ras de la silhouette.
+ * Technique : le masque vit DANS L'IMAGE. Juste après le dessin de la
+ * scène, dans la même cible (PasseSceneMSAA), le canal alpha est remis à
+ * zéro, puis l'œuvre visée est redessinée en n'écrivant QUE l'alpha, à un,
+ * avec le test de profondeur de la scène. C'est tout ce que fait ce
+ * module. La passe de sortie lit cet alpha et compare chaque pixel à ses
+ * voisins (quatre anneaux de huit lectures, pondérés par la distance, voir
+ * PasseSortie.contour) : ce que les voisins ont de blanc et que le pixel
+ * n'a pas, c'est la couronne — un dégradé de quatre pixels, au ras de la
+ * silhouette.
  *
- * Il y a eu deux autres versions. La première dilatait le masque par un
- * « max » à huit lectures d'un masque à demi-résolution : un escalier. La
- * deuxième floutait le masque en deux passes séparables à demi-résolution
- * et soustrayait : joli sur bureau, mais sur iPhone le liseré se décalait
- * de l'œuvre en une image fantôme, et pixelisait. Trois cibles de tailles
- * différentes, un flou lu à travers un filtrage linéaire de WebKit et des
- * échelles de texels à réconcilier : trop de coutures pour un trait.
- * Celle-ci n'a qu'une cible, à la taille EXACTE du tampon de dessin, lue
- * par la sortie avec son propre pas de texel (`texel`) : le liseré est
- * là où la silhouette est, au pixel près, quel que soit l'écran.
+ * Pourquoi dans l'image et non dans une cible à part : il y a eu trois
+ * versions à cible séparée. Un « max » à demi-résolution (un escalier) ;
+ * un flou séparable soustrait (joli sur bureau, fantôme sur iPhone) ; puis
+ * une cible à la taille exacte du tampon, multi-échantillonnée, occultée
+ * par une pré-passe de toute la pièce. Cette dernière collait au pixel en
+ * émulation — et se décalait encore de l'œuvre sur un iPhone réel en
+ * marchant, la silhouette même (vue par `?survol=masque`), pas seulement
+ * sa couronne. Deux cibles, c'est deux résolutions MSAA, deux fenêtres de
+ * rendu, deux instants : autant de coutures que WebKit ne recoud pas comme
+ * Chromium. Un masque écrit dans la cible de scène, par le même appel de
+ * caméra, la même fenêtre et la même résolution, ne PEUT pas se décaler :
+ * il n'existe pas ailleurs que dans l'image.
  *
- * L'occlusion (une pré-passe de profondeur de la pièce, pour ne pas
- * détourer le pied d'une stèle sous le sol) est un CHOIX du profil : sur
- * bureau oui ; sur téléphone non — une cible à profondeur, multi-
- * échantillonnée ou pas, est justement ce que WebKit résolvait de travers.
+ * Et c'est moins cher : l'occlusion (le pied d'une stèle sous le sol, une
+ * œuvre à moitié derrière un mur) vient gratuitement du tampon de
+ * profondeur que la scène vient d'écrire — plus de pré-passe de la pièce
+ * entière, plus de cible MSAA à profondeur en plus de celle de la scène.
  *
  * Le liseré APPARAÎT en fondu (150 ms) et s'efface de même : une œuvre
  * frôlée en passant ne clignote pas.
@@ -37,40 +41,25 @@
 import * as THREE from 'three';
 
 const FONDU = 0.15;          // secondes, montée et descente
-const ECHELLE = 1;           // le masque se rend à la résolution de l'image
-const ECHANTILLONS = 4;      // MSAA du masque : des bords doux dès le dessin
 
 export class Survol {
-  /**
-   * `echelle` : la résolution du masque, en fraction du tampon de dessin
-   * (densité comprise). `echantillons` : le MSAA du masque, 0 pour aucun.
-   * `occlusion` : tester la profondeur de la pièce (pré-passe) ou non.
-   * Voir Quality : bureau 1 / 4 / oui, téléphone 1 / 0 / non.
-   */
-  constructor(renderer, { echelle = ECHELLE, echantillons = ECHANTILLONS, occlusion = true } = {}) {
-    this.renderer = renderer;
-    this.echelle = Math.max(0.25, Math.min(1, Number(echelle) || ECHELLE));
-    this.echantillons = Math.max(0, Math.min(8, Number(echantillons) ?? ECHANTILLONS));
-    this.occlusion = occlusion !== false;
+  constructor() {
     this.cible = null;        // l'Artwork visée, ou null
     this.force = 0;           // 0..1, le fondu
-    // 1 / taille du masque : le pas d'un texel, lu par la sortie pour
-    // chercher les voisins à la bonne distance (voir PasseSortie.contour)
-    this.texel = new THREE.Vector2(1 / 1920, 1 / 1080);
-    // Le blanc plat de la cible. Avec occlusion, il est TESTÉ en
-    // profondeur contre la pièce : ce qui est caché (le pied d'une stèle
-    // sous le sol, une œuvre derrière un mur) ne se détoure pas. La
-    // profondeur vient d'une pré-passe de la pièce courante dans la même
-    // cible (voir `rendre`).
+    this._derniere = null;    // l'œuvre dessinée tant que le fondu descend
+    // LE PINCEAU À ALPHA : la couleur ne change pas (source × 0 + cible
+    // × 1), l'alpha devient un (source × 1 + cible × 0). Testé contre la
+    // profondeur que la scène vient d'écrire — « inférieur ou égal », donc
+    // l'œuvre repasse exactement sur elle-même — sans l'écrire.
     this._masque = new THREE.MeshBasicMaterial({
-      color: 0xffffff, depthTest: this.occlusion, depthWrite: false, fog: false,
-      side: THREE.DoubleSide
+      color: 0xffffff, opacity: 1, fog: false, side: THREE.DoubleSide,
+      depthTest: true, depthWrite: false,
+      blending: THREE.CustomBlending,
+      blendEquation: THREE.AddEquation,
+      blendSrc: THREE.ZeroFactor, blendDst: THREE.OneFactor,
+      blendEquationAlpha: THREE.AddEquation,
+      blendSrcAlpha: THREE.OneFactor, blendDstAlpha: THREE.ZeroFactor
     });
-    // la pré-passe : la pièce entière, profondeur seule, aucune couleur
-    this._profondeur = new THREE.MeshBasicMaterial({ colorWrite: false, fog: false, side: THREE.DoubleSide });
-    this._sceneOcc = new THREE.Scene();
-    this._sceneOcc.overrideMaterial = this._profondeur;
-    this._rt = null;          // le masque : la seule cible
     this._echanges = [];       // [objet, matériau] rendus le temps du dessin
     this._caches = [];         // objets `horsSurvol` cachés le temps du dessin
     this._couleur = new THREE.Color();
@@ -81,58 +70,48 @@ export class Survol {
     this._or = new THREE.Color(0xffd97a);
   }
 
-  /** Le masque : la silhouette, blanc sur noir. */
-  get texture() { return this._rt?.texture ?? null; }
-
   /** Vise une œuvre (ou rien) : le fondu fait le reste. */
   viser(artwork) {
     this.cible = artwork ?? null;
     if (this.cible) this.couleur.copy(this.cible.jeton ? this._or : this._blanc);
   }
 
-  _cibleAJour() {
-    // la taille en PIXELS d'image (densité comprise) : c'est là que se juge
-    // la finesse du masque — un masque à demi-résolution CSS sur un écran à
-    // densité 2 n'était qu'au quart des pixels réels
-    const t = this.renderer.getDrawingBufferSize(new THREE.Vector2());
-    const w = Math.max(2, Math.round(t.x * this.echelle));
-    const h = Math.max(2, Math.round(t.y * this.echelle));
-    if (this._rt && this._rt.width === w && this._rt.height === h) return;
-    this._rt?.dispose();
-    // la profondeur n'existe que si l'on occulte : sans elle, la cible est
-    // un simple plan de couleur — ce que tous les pilotes résolvent bien
-    this._rt = new THREE.WebGLRenderTarget(w, h, {
-      depthBuffer: this.occlusion, stencilBuffer: false,
-      samples: this.echantillons,
-      minFilter: THREE.LinearFilter, magFilter: THREE.LinearFilter
-    });
-    this.texel.set(1 / w, 1 / h);
+  /** L'œuvre qu'un dessin représenterait à cette image, ou null. */
+  _dessinable() {
+    const c = this.cible;
+    return c && c.mesh && !c.mediaError && !c.sansSurvol ? c : null;
   }
 
   /**
-   * À appeler AVANT le rendu de la frame. Rend false si rien n'est à
-   * dessiner (la sortie coupe alors le contour) — c'est le cas presque
-   * tout le temps, et cela ne coûte alors qu'un test.
+   * À appeler à chaque image, AVANT le rendu : avance le fondu. Rend true
+   * s'il y a un liseré à montrer (la sortie coupe le contour sinon — c'est
+   * le cas presque tout le temps, et cela ne coûte alors qu'un test).
    */
-  rendre(camera, dt, { reducedMotion = false, occulteurs = null } = {}) {
-    const veut = this.cible && this.cible.mesh && !this.cible.mediaError
-      && !this.cible.sansSurvol ? 1 : 0;
-    if (reducedMotion) this.force = veut;
+  avancer(dt, { reducedMotion = false } = {}) {
+    const veut = this._dessinable();
+    if (veut) this._derniere = veut;
+    if (reducedMotion) this.force = veut ? 1 : 0;
     else {
       const pas = dt / FONDU;
       this.force = veut ? Math.min(1, this.force + pas) : Math.max(0, this.force - pas);
     }
-    if (this.force <= 0) return false;
-    // la cible s'efface : on garde le dernier masque le temps du fondu
-    if (!veut) return true;
+    if (this.force <= 0) this._derniere = null;
+    return this.force > 0 && !!this._derniere;
+  }
 
-    this._cibleAJour();
-    const racine = this.cible.mesh;
-    // l'œuvre là où elle est À CETTE IMAGE : une œuvre qui bouge (un
-    // module qui l'anime, un cadrage qui la rapproche) a peut-être changé
-    // de place depuis le dernier rendu, et son masque doit la suivre
+  /**
+   * À appeler juste APRÈS le dessin de la scène, la cible de scène encore
+   * liée : écrit le masque dans son alpha. Rend true si quelque chose a été
+   * dessiné.
+   */
+  dessiner(renderer, camera) {
+    const oeuvre = this._derniere;
+    if (this.force <= 0 || !oeuvre?.mesh) return false;
+    const racine = oeuvre.mesh;
+    // l'œuvre là où elle est À CETTE IMAGE — la scène vient de la dessiner
+    // au même endroit, le test « inférieur ou égal » retombe dessus
     racine.updateMatrixWorld(true);
-    // Le blanc plat remplace chaque matériau le temps d'un dessin. Ce qui
+    // Le pinceau remplace chaque matériau le temps d'un dessin. Ce qui
     // porte `horsSurvol` (un nuage de splats, dont le shader lit SES
     // uniforms depuis son propre matériau) ne s'échange pas : il se CACHE
     // pendant le dessin — le pavé de préhension du scan fait alors
@@ -148,56 +127,42 @@ export class Survol {
       }
     });
     if (!this._echanges.length) { this._restaurer(); return false; }
-    const r = this.renderer;
-    const cibleAvant = r.getRenderTarget();
+    const r = renderer;
     const clearAvant = r.autoClear;
-    const couleurAvant = r.getClearColor(this._couleur);
+    const couleurAvant = r.getClearColor(this._couleur).clone();
     const alphaAvant = r.getClearAlpha();
+    const gl = r.getContext();
+    const masqueCouleur = r.state.buffers.color;
     // Le dessin est CEINTURÉ : une erreur au milieu (un objet qui ne
-    // supporte pas l'échange) laissait la cible de rendu sur le masque, et
-    // tout ce qui suivait se dessinait hors écran — l'image entière noire,
-    // dans toutes les pièces. Quoi qu'il arrive, l'écran est rendu et les
-    // matériaux reviennent ; l'œuvre fautive renonce à son liseré.
+    // supporte pas l'échange) laissait autrefois la cible de rendu sur le
+    // masque, et tout ce qui suivait se dessinait hors écran. Quoi qu'il
+    // arrive, l'état revient et les matériaux aussi ; l'œuvre fautive
+    // renonce à son liseré.
     try {
-      r.setRenderTarget(this._rt);
       r.autoClear = false;
-      r.setClearColor(0x000000, 1);
-      r.clear(true, this.occlusion, false);
-      // LA PRÉ-PASSE (avec occlusion seulement) : la pièce courante,
-      // profondeur seule (matériau de substitution, aucune couleur), dans
-      // la même cible. La cible se dessine ensuite en testant cette
-      // profondeur : le pied d'une stèle sous le sol, une œuvre derrière
-      // un mur, n'entrent pas dans le masque. Ce qui porte `horsSurvol`
-      // (les splats) se cache aussi ici : leur shader ne survivrait pas à
-      // la substitution.
-      if (this.occlusion && occulteurs) {
-        occulteurs.traverse((o) => {
-          if (o.userData.horsSurvol && o.visible && !this._caches.includes(o)) {
-            this._caches.push(o); o.visible = false;
-          }
-        });
-        // l'objet reste l'enfant de sa vraie scène : on ne l'emprunte que
-        // pour ce dessin, sans toucher à sa parenté (updateMatrixWorld
-        // recalcule depuis une racine identité, comme la scène réelle)
-        this._sceneOcc.children.length = 0;
-        this._sceneOcc.children.push(occulteurs);
-        try { r.render(this._sceneOcc, camera); }
-        finally { this._sceneOcc.children.length = 0; }
-        // la cible fait partie de la pièce : la pré-passe a écrit sa vraie
-        // profondeur (le matériau de substitution prime sur l'échange), et
-        // le test « inférieur ou égal » laisse passer son blanc juste après
-      }
+      // 1. l'alpha de toute l'image à zéro — un effacement, pas un quad :
+      // le masque de couleur ne laisse passer que l'alpha, et `clear`
+      // n'écrit que ce canal. (three cache son masque de couleur : on le
+      // bascule ensuite à la main pour que son cache reste vrai.)
+      gl.colorMask(false, false, false, true);
+      r.setClearColor(0x000000, 0);
+      r.clear(true, false, false);
+      masqueCouleur.setMask(false);
+      masqueCouleur.setMask(true);
+      // 2. l'œuvre, alpha seul, contre la profondeur de la scène
       r.render(racine, camera);
     } catch (e) {
-      console.warn(`[galerie] Survol : l'œuvre ${this.cible.config?.id ?? '?'} `
+      console.warn(`[galerie] Survol : l'œuvre ${oeuvre.config?.id ?? '?'} `
         + `ne se détoure pas — ${e?.message ?? e}`);
-      this.cible.sansSurvol = true;
+      oeuvre.sansSurvol = true;
       this.force = 0;
+      this._derniere = null;
       return false;
     } finally {
+      masqueCouleur.setMask(false);
+      masqueCouleur.setMask(true);
       r.autoClear = clearAvant;
       r.setClearColor(couleurAvant, alphaAvant);
-      r.setRenderTarget(cibleAvant);
       this._restaurer();
     }
     return true;
@@ -211,8 +176,6 @@ export class Survol {
   }
 
   dispose() {
-    this._rt?.dispose();
     this._masque.dispose();
-    this._profondeur.dispose();
   }
 }

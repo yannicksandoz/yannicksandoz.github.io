@@ -4031,45 +4031,52 @@ l'écran qui le porte : la même que la barre d'espace « découvre ». Il
 apparaît et s'efface en fondu (150 ms), se tait dans l'éditeur (qui a ses
 propres surbrillances) et ignore les décors, comme le clic.
 
-Technique (`Survol.js` + `PasseSortie`) : l'œuvre visée est redessinée
-seule, en blanc plat, dans UNE cible à la taille exacte du tampon de
-dessin — un dessin, sans éclairage. C'est tout ce que fait `Survol`. La
-passe de sortie lit ce masque et compare chaque pixel à ses voisins :
-quatre anneaux de huit lectures (à un, deux, trois et quatre texels,
-pondérés un, trois quarts, un demi, un quart). Ce que les voisins ont de
-blanc et que le pixel n'a pas, c'est la couronne — un dégradé de quatre
-pixels d'image au ras de la silhouette, adouci par le filtrage linéaire.
-Le pas du texel (`Survol.texel`) est celui du masque, transmis à la
-sortie : la couronne tombe là où la silhouette est, au pixel.
+Technique (`Survol.js` + `PasseSortie`) : le masque vit DANS L'IMAGE.
+Juste après le dessin de la scène, dans la même cible (la passe MSAA,
+`scenePass.apresScene`), le canal alpha est remis à zéro — un effacement
+sous masque de couleur, pas un quad — puis l'œuvre visée est redessinée
+en n'écrivant QUE l'alpha, à un (mélange personnalisé : couleur × 0 +
+image × 1, alpha × 1 + image × 0), avec le test de profondeur que la scène
+vient d'écrire. C'est tout ce que fait `Survol`. La passe de sortie lit
+cet alpha et compare chaque pixel à ses voisins : quatre anneaux de huit
+lectures (à un, deux, trois et quatre texels de l'image, pondérés un,
+trois quarts, un demi, un quart). Ce que les voisins ont de blanc et que
+le pixel n'a pas, c'est la couronne — un dégradé de quatre pixels d'image
+au ras de la silhouette, adouci par le filtrage linéaire.
 
-Il y a eu deux autres versions. La première dilatait un masque à
-demi-résolution par un « max » de huit lectures : un escalier. La
+Il y a eu trois versions à cible séparée. La première dilatait un masque
+à demi-résolution par un « max » de huit lectures : un escalier. La
 deuxième floutait le masque (gaussienne séparable à demi-résolution) et
 soustrayait : joli sur bureau, mais sur iPhone le liseré se décalait de
-l'œuvre en image fantôme, et pixelisait — trois cibles de tailles
-différentes, un flou lu à travers le filtrage de WebKit, des échelles de
-texels à réconcilier : trop de coutures pour un trait. La version
-actuelle n'a qu'une cible et aucune passe intermédiaire. Ni coque
-inversée ni géométrie d'arêtes : un plan, un modèle, un relief ou un
-voxel se détourent pareil. Le rayon de visée se lance au plus vingt fois
-par seconde à la souris, dix au réticule ; sans œuvre visée, la sortie ne
-lit même pas le masque (la branche est uniforme, le GPU la saute).
+l'œuvre en image fantôme, et pixelisait. La troisième n'avait qu'une
+cible, à la taille exacte du tampon de dessin, multi-échantillonnée,
+occultée par une pré-passe de toute la pièce : elle collait au pixel en
+émulation — et sur un iPhone réel, en marchant, la silhouette elle-même
+(vue par `?survol=masque`) se décalait encore de l'œuvre, en avant dans
+le sens de la marche. Deux cibles, c'est deux résolutions MSAA, deux
+fenêtres de rendu, deux instants : autant de coutures que WebKit ne
+recoud pas comme Chromium. Un masque écrit dans la cible de scène, par le
+même appel de caméra, la même fenêtre et la même résolution, ne PEUT pas
+se décaler : il n'existe pas ailleurs que dans l'image. Ni coque inversée
+ni géométrie d'arêtes : un plan, un modèle, un relief ou un voxel se
+détourent pareil. Le rayon de visée se lance au plus vingt fois par
+seconde à la souris, dix au réticule ; sans œuvre visée, la sortie ne
+lit même pas l'alpha (la branche est uniforme, le GPU la saute).
 
-Sur bureau, le masque est OCCULTÉ par la pièce : avant de peindre la
-cible en blanc, la pièce courante entière se dessine dans la même cible,
-profondeur seule (un matériau de substitution sans couleur), et le blanc
-se teste contre cette profondeur. Le pied d'une stèle enterré sous le
-plancher des archives, une œuvre à moitié derrière un mur, ne se
-détourent que sur ce qu'on en voit. Coût : un dessin de la pièce,
-seulement pendant qu'une œuvre est visée. Sur téléphone, pas d'occlusion
-(`survolOcclusion` false) : la cible n'a alors ni profondeur ni
-multi-échantillonnage, un simple plan de couleur — exactement ce que
-WebKit résolvait de travers dans les versions précédentes.
+L'occlusion vient gratuitement du tampon de profondeur de la scène : le
+pied d'une stèle enterré sous le plancher des archives, une œuvre à
+moitié derrière un mur, ne se détourent que sur ce qu'on en voit — sur
+tous les appareils, sans pré-passe de la pièce ni cible à profondeur en
+plus. Coût : un effacement d'alpha, un dessin de l'œuvre, une résolution
+MSAA de plus, seulement pendant qu'une œuvre est visée. Le warp de
+portail laisse passer l'alpha ; la copie du composer aussi.
 
 `npm run sonde:lisere` (et `MOBILE=1`) mesure tout cela image par image
-pendant un geste : la boîte du masque contre la silhouette projetée avec
-la caméra de la même image, puis, à l'arrêt, l'épaisseur et les marges de
-la couronne dans l'image finale (différence avec et sans contour).
+pendant un geste : la boîte du masque (l'alpha de la cible de scène)
+contre la silhouette projetée avec la caméra de la même image, puis, à
+l'arrêt, l'épaisseur et les marges de la couronne dans l'image finale
+(différence avec et sans contour). Un masque plus court en bas que la
+projection n'y compte pas pour un fantôme : c'est le plancher qui occulte.
 
 Deux garde-fous, appris à l'annexe. Un objet marqué `userData.horsSurvol`
 n'échange pas son matériau : il se CACHE le temps du masque — c'est le
@@ -5167,7 +5174,32 @@ le masque colle à la silhouette à 2 px près. Avec ce paramètre, la
 silhouette du masque elle-même se peint en magenta par-dessus l'image :
 si elle se décale de l'œuvre, c'est le masque (donc la caméra ou la cible
 au moment du dessin) ; si elle colle et que seule la couronne dérive,
-c'est la passe de sortie. Une capture sur l'appareil tranche.
+c'est la passe de sortie. La capture a tranché : c'était le masque.
+
+**Le masque du survol vit dans l'image.** Puisqu'une cible à part, même
+à la taille exacte, même par la même caméra, se décale sur WebKit là où
+Chromium la recale, le masque n'a plus de cible : il s'écrit dans l'ALPHA
+de la cible de scène, juste après la scène, dans le même appel (voir « Le
+survol »). Deux gains en prime : l'occlusion vient du tampon de
+profondeur de la scène, sans redessiner la pièce ; et une cible MSAA à
+profondeur de moins par image. Émulé en iPhone : 1,7 px d'écart au labo
+pendant un geste, 1 px aux archives — le bas de la stèle, sous le
+plancher, n'entre pas dans le masque, comme il se doit.
+
+**Les polylignes sans indice calculé** (`lignes-lumiere.js`). Le p95 du
+labo était passé de 17 à 20 ms sur iPhone avec les corniches courbes.
+Dans le shader, `uPolyPts[base + j0]` avec un j0 qui dépend du pixel est
+une lecture INDEXÉE DYNAMIQUEMENT d'un tableau d'uniformes : sur un GPU
+de téléphone, le tableau quitte les registres pour la mémoire des
+constantes et chaque lecture se paie. Les deux boucles ont désormais des
+bornes constantes (déroulées, les indices deviennent des constantes) et
+la fenêtre se choisit par comparaison d'indices ; les bouts des cordes se
+cueillent au passage. Et l'intégrale d'un segment, droit ou plié, sort
+avant ses trois racines carrées quand le pixel est DERRIÈRE la face de
+la fente aux deux bouts (le mur qui porte la corniche, le plafond) : la
+porte du cosinus d'émission l'annulait de toute façon, et le test est
+linéaire le long du segment. Mesuré à l'image : entrée, labo, archives
+et salle des shaders identiques au dixième de pour cent.
 
 **Les corniches pliées éclairent enfin en courbe** (`lignes-lumiere.js`,
 polylignes). Au labo, chaque corniche de 42 m est pliée sur le voile et
