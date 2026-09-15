@@ -14,6 +14,7 @@ import { mountProgression, pointDeVue } from './core/Progression.js';
 import { mountBoussole } from './ui/Boussole.js';
 import { mountToolbox } from './ui/Toolbox.js';
 import { mountHudTactile } from './ui/hud-tactile.js';
+import { proposerImageRiche } from './ui/ImageRiche.js';
 import { mountDerive } from './core/Derive.js';
 import { MemoireOuverte } from './core/Memoire.js';
 import { mountJetons } from './core/Jetons.js';
@@ -218,7 +219,10 @@ async function boot() {
     // directement devant l'œuvre. Seul l'audio attend le premier geste
     // (clic, touche, doigt) : c'est la règle des navigateurs, pas la nôtre.
     app.ui.skipEnter();
-    app.modeVisite = 'libre';   // venu par un lien : la visite d'avant, avec sa mémoire
+    // venu par un lien : la visite d'avant, avec sa mémoire — ou la visite
+    // guidée si le lien le dit (une bascule d'image recharge ainsi la page)
+    app.modeVisite = new URLSearchParams(location.search).get('mode') === 'guidee' ? 'guidee' : 'libre';
+    if (app.modeVisite === 'guidee') app.memoire = new MemoireOuverte();
     const geste = () => {
       window.removeEventListener('pointerdown', geste);
       window.removeEventListener('keydown', geste);
@@ -235,6 +239,7 @@ async function boot() {
     mountDerive(app);
     if (minimapActive()) mountMinimap(app);
     monterPriseEnMain(app);
+    proposerImageRiche(app);   // si la machine se montre à l'aise
   } else {
     const { audioTour, mode } = await app.ui.waitForEnter();
     app.audio.unlock(); // depuis le geste utilisateur : requis par les navigateurs
@@ -261,6 +266,7 @@ async function boot() {
       mountBoussole(app);
       mountToolbox(app);
       mountHudTactile(app);   // sur tactile : le HUD s'efface après 4 s
+      proposerImageRiche(app);   // si la machine se montre à l'aise
       const derive = mountDerive(app);
       if (minimapActive()) mountMinimap(app);
       // la visite guidée PORTE dès l'entrée : c'est ce qu'on a choisi

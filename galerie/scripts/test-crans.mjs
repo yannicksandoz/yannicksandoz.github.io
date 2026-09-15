@@ -70,9 +70,10 @@ test('le mode économe : tout en bas, et sa mémoire (?eco, ?eco=0, le stockage)
   assert.equal(lireGouverneur('?gouverneur=1'), true);
   // le profil forcé, pour mesurer l'image de bureau sur un téléphone
   assert.equal(lireProfil(''), null);
-  assert.equal(lireProfil('?profil=desktop&perf=1'), 'desktop');
-  assert.equal(lireProfil('?profil=bureau'), 'desktop');
-  assert.equal(lireProfil('?profil=mobile'), 'mobile');
+  assert.equal(lireProfil('?profil=desktop&perf=1'), 'riche');   // l'ancien nom : un alias
+  assert.equal(lireProfil('?profil=bureau'), 'riche');
+  assert.equal(lireProfil('?profil=riche'), 'riche');
+  assert.equal(lireProfil('?profil=mobile'), 'unique');
   assert.equal(lireProfil('?profil=unique'), 'unique');
   assert.equal(lireProfil('?profil=autre'), null);
   assert.equal(lireEconome('?eco=1&room=x', stockage), true);

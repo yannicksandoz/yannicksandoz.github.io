@@ -22,6 +22,7 @@ import { t, lang, setLang, onLangChange } from '../core/i18n.js';
 import { fpsMeterEnabled, setFpsMeter } from './FpsMeter.js';
 import { minimapActive, setMinimap, mountCartePleine } from './Carte.js';
 import { recommencerLaVisite } from '../core/Memoire.js';
+import { basculerImageRiche } from './ImageRiche.js';
 
 export class VisitMenu {
   constructor(app) {
@@ -145,6 +146,13 @@ export class VisitMenu {
             <p class="vm-note" id="vm-eco-note">${t('menu.settings.eco.note')}</p>
           </li>
           <li>
+            <label class="vm-check" title="${t('menu.settings.riche.note')}">
+              <input type="checkbox" id="vm-riche" ${this.app.quality?.riche ? 'checked' : ''}>
+              ${t('menu.settings.riche')}
+            </label>
+            <p class="vm-note" id="vm-riche-note">${t('menu.settings.riche.note')}</p>
+          </li>
+          <li>
             <label class="vm-check">
               <input type="checkbox" id="vm-fps" ${fpsMeterEnabled() ? 'checked' : ''}>
               ${t('menu.settings.fps')}
@@ -196,6 +204,14 @@ export class VisitMenu {
         this.app.quality?.desactiverEconome?.();
         if (note) note.textContent = t('menu.settings.eco.reload');
       }
+    });
+    // L'image enrichie : mémorisée, puis la page se recharge dans la même
+    // salle — le renderer se crée pour un profil, il ne se remonte pas à chaud
+    el.querySelector('#vm-riche').addEventListener('change', (e) => {
+      const note = el.querySelector('#vm-riche-note');
+      if (note) note.textContent = t('menu.settings.riche.reload');
+      const actif = e.currentTarget.checked;
+      setTimeout(() => basculerImageRiche(this.app, actif), 350);
     });
     el.querySelector('#vm-minimap').addEventListener('change', (e) => {
       setMinimap(this.app, e.currentTarget.checked);

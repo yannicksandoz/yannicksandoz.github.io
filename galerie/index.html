@@ -2,9 +2,11 @@
 <html lang="fr">
 <head>
   <meta charset="UTF-8" />
-  <!-- Le zoom RESTE possible (accessibilité) : les gestes de la scène 3D
-       sont déjà capturés par le canvas (touch-action), le pincement sur
-       l'interface, lui, appartient à l'utilisateur. -->
+  <!-- Le PINCEMENT reste possible (accessibilité) : les gestes de la scène
+       3D sont déjà capturés par le canvas (touch-action), le pincement sur
+       l'interface, lui, appartient à l'utilisateur. Le DOUBLE TAP, non :
+       il zoomait la page entière depuis un bouton du HUD, et la scène ne
+       laissait plus dézoomer — `touch-action: manipulation` (style.css). -->
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <meta name="theme-color" content="#05050a" />
   <title>Galerie — espace sonore</title>

@@ -1,14 +1,17 @@
 /**
- * Détection des capacités de l'appareil et profil de qualité adaptatif.
+ * UNE SEULE IMAGE, et ce qui l'entoure.
  *
- * Trois niveaux de décision :
- *  1. avant création du renderer : mobile vs desktop (échantillons, densité) ;
- *  2. après création : lecture du GPU (WEBGL_debug_renderer_info) pour
- *     rétrograder les GPU faibles ;
- *  3. en continu : gouverneur de framerate — si les FPS chutent durablement,
- *     la qualité descend d'un cran (MSAA → occlusion ambiante → pixelRatio →
- *     grain → apparitions → ombres → bloom), jamais l'inverse
- *     (pas d'oscillation).
+ * Longtemps, la galerie a choisi un profil selon l'appareil — bureau ou
+ * téléphone — puis un gouverneur en retirait des morceaux quand les images
+ * tombaient : deux visiteurs ne voyaient pas la même galerie. Désormais :
+ *  1. l'image est UNIQUE (`unique`) : celle qui tient sur un téléphone,
+ *     mesurée sur un iPhone. Seule la DENSITÉ suit l'écran ;
+ *  2. l'image ENRICHIE (`riche`) — ombres, occlusion, quatre échantillons,
+ *     sources étendues, reflets vivants — est un CHOIX du visiteur, mémorisé,
+ *     proposé à l'arrivée quand la machine se montre à l'aise (ui/ImageRiche) ;
+ *  3. le gouverneur n'est plus qu'un filet sur la densité (crans.js) ;
+ *  4. le mode ÉCONOME reste, au choix du visiteur, pour une machine qui peine.
+ * Le son est le même partout.
  */
 /* -------------------------------------------------------- la cadence --- */
 
@@ -54,23 +57,30 @@ export function cibleImages(hz) {
   return Math.max(50, Math.round(0.85 * (Number(hz) || 60)));
 }
 
-import { FINITION, SURVIE, ECONOME_CRANS, prochainCran, etatDe, densiteSuivante, ECONOME, lireEconome, ecrireEconome, lireGouverneur, lireProfil } from './crans.js';
+import { FINITION, SURVIE, ECONOME_CRANS, prochainCran, etatDe, densiteSuivante, ECONOME, lireEconome, ecrireEconome, lireGouverneur, lireProfil, lireRiche } from './crans.js';
 
 export class QualityManager {
   constructor() {
     this.reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     const coarse = window.matchMedia('(pointer: coarse)').matches;
-    // `?profil=desktop|mobile` force le profil (voir crans.js) : pour mesurer
-    // sur un téléphone ce que coûte l'image de bureau, jamais pour un visiteur
-    this.force = lireProfil(typeof location !== 'undefined' ? location.search : '');
-    const appareilTactile = coarse || /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
-    // « unique » est un profil, pas un appareil : le HUD, les gestes et
-    // les commandes suivent le vrai appareil
-    this.isMobile = this.force && this.force !== 'unique' ? this.force === 'mobile' : appareilTactile;
+    const search = typeof location !== 'undefined' ? location.search : '';
+    const stockage = typeof localStorage !== 'undefined' ? localStorage : null;
+    // `?profil=unique|riche` force le profil pour cette page (mesures) ; le
+    // profil est une IMAGE, pas un appareil : le HUD, les gestes et les
+    // commandes suivent le vrai appareil
+    this.force = lireProfil(search);
+    this.isMobile = coarse || /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
     const dpr = window.devicePixelRatio || 1;
+    // la densité est la seule chose qui suive l'écran : 1,25 au doigt (une
+    // dalle à 3× n'a pas le GPU de ses pixels), 2 à la souris, affûtée par
+    // la sortie quand elle rend sous le natif
+    const densite = Math.min(dpr, this.isMobile ? 1.25 : 2);
 
-    const mobile = {
-          tier: 'mobile',
+    // L'IMAGE UNIQUE — la même pour tous, celle qui tient sur un téléphone :
+    // mesurée sur un iPhone à 56-60 images par seconde là où l'ancienne
+    // image de bureau tombait à 28. Le gouverneur n'y touche pas (crans.js).
+    const unique = {
+          tier: 'unique',
           // MSAA de la passe de scène (c'est ELLE qui lisse, voir App) :
           // deux échantillons sur mobile — la bande passante y est le mur.
           // LA PERFORMANCE D'ABORD sur téléphone (mesuré sous profil mobile,
@@ -82,14 +92,14 @@ export class QualityManager {
           // coupe de lui-même sous 50 images par seconde.
           msaa: 2,
           gtao: false,          // l'occlusion ambiante coûte un G-buffer
-          anisotropy: 4,
-          pixelRatio: Math.min(window.devicePixelRatio || 1, 1.25),
+          anisotropy: 16,       // sols nets aux angles rasants : ne coûte pas de pixels
+          pixelRatio: densite,
           // L'AFFÛTAGE (PasseSortie.affuter) : à densité 1,25 sur une dalle
           // à 3×, l'image est molle. Quatre lectures dans la tuile déjà
           // chargée, dans la passe de sortie déjà payée — c'est le seul
-          // endroit où la netteté ne coûte pas de pixels. Le bureau rend à
-          // pleine densité avec quatre échantillons : il n'en a pas besoin.
-          nettete: 0.5,
+          // endroit où la netteté ne coûte pas de pixels. À pleine densité,
+          // rien à affûter.
+          nettete: densite < dpr ? 0.5 : 0,
           // le masque du liseré de survol : LE MÊME qu'au bureau — à la
           // résolution de l'image, multi-échantillonné ×4, occulté par la
           // pièce. Mesuré sur un iPhone réel aux archives : sans MSAA ni
@@ -103,13 +113,14 @@ export class QualityManager {
           bloomResScale: 0.25,  // bloom calculé au quart de la résolution
           bloomStrength: 0.5,
           grain: !this.reducedMotion,
+          // LE MÊME SON PARTOUT : six voix (une par œuvre, voir
+          // Spatialisation), quatre en HRTF — la convolution est chère PAR
+          // SOURCE, au-delà les voies retombent sur equalpower
           maxStems: 6,
-          // convolution HRTF : chère PAR SOURCE — au-delà, les voies
-          // retombent sur equalpower (voir Spatialisation)
           maxHRTF: 4,
-          dustCount: 180,
-          maxTextureSize: 1024,
-          isfResolution: 256,   // les écrans ISF : un quart des pixels d'un 512
+          dustCount: 450,       // la poussière ne coûte rien
+          maxTextureSize: 2048,
+          isfResolution: 512,   // les écrans ISF pleins : à mesurer sur téléphone (sonde)
           shadows: false,
           shadowMapSize: 1024,
           // SOURCES ÉTENDUES (corniches) : aucune sur mobile. Mesuré au
@@ -160,11 +171,14 @@ export class QualityManager {
           // coûtaient 13 % de l'image.
           reflets: { resolution: 64, cadence: 2, pas: 2.5, simple: true, rebond: 0 }
         };
-    const desktop = {
-          tier: 'desktop',
+    // L'IMAGE ENRICHIE (`riche`) : ce que l'image unique a laissé pour tenir
+    // sur un téléphone — au choix du visiteur, mémorisé, proposé quand la
+    // machine se montre à l'aise (ui/ImageRiche.js). Même son, même densité.
+    const riche = {
+          ...unique,
+          tier: 'riche',
           msaa: 4,     // arêtes franches sur un écran de bureau
           gtao: true,  // occlusion ambiante (GTAO), à demi-résolution
-          anisotropy: 16,  // sols nets aux angles rasants (parquet, sable)
           // LA DENSITÉ : native au départ, ADAPTATIVE ensuite. Sur un
           // portable Retina (densité 2, 120 Hz), l'image tenait à 60-80
           // images par seconde : le compte d'appels est dérisoire (85 par
@@ -178,16 +192,8 @@ export class QualityManager {
           // qui descend à 1,5 — affûté par la sortie, comme sur téléphone —
           // quand l'écran est rapide et que l'image ne suit pas (voir
           // `_densite`). Un écran à densité 1 ne voit jamais rien changer.
-          pixelRatio: Math.min(window.devicePixelRatio || 1, 2),
-          nettete: 0,
           bloomResScale: 0.5,
           bloomStrength: 0.55,
-          grain: !this.reducedMotion,
-          maxStems: 24,
-          maxHRTF: 16,
-          dustCount: 450,
-          maxTextureSize: 2048,
-          isfResolution: 512,
           shadows: true,
           // 4096 : la fenêtre d'ombre couvre désormais la coque entière
           // (jusqu'à 64 m à l'entrée) — à 2048, l'ombre d'un pied de banc
@@ -203,32 +209,22 @@ export class QualityManager {
           // redessinées à la cadence à la demande — voir ombres.budgetLampes.
           projecteursOmbre: 3,
           envIntensity: 0.5,
-          reflets: { resolution: 128, cadence: 1 }
+          reflets: { resolution: 128, cadence: 1 },
+          // les corniches, huit ; et les lignes de lumière au budget de
+          // bureau (voir lignes-lumiere.js) — le reste est celui de l'image unique
+          sourcesEtendues: 8,
+          lampesProches: { points: 6, cones: 6 },
+          lignesProches: undefined
         };
-    // LE PROFIL UNIQUE, candidat (`?profil=unique`) : la même image pour
-    // tous, celle du téléphone — mesurée sur un iPhone à 56-60 images par
-    // seconde là où l'image de bureau tombait à 28 — plus ce qui ne coûte
-    // pas de pixels : anisotropie, poussière, textures pleines, écrans ISF
-    // en 512. Seule la DENSITÉ suit l'écran (1,25 au doigt, 2 à la souris),
-    // affûtée quand elle rend sous le natif. Le son est le même partout.
-    const unique = {
-      ...mobile,
-      tier: 'unique',
-      anisotropy: 16,
-      dustCount: 450,
-      maxTextureSize: 2048,
-      isfResolution: 512,
-      pixelRatio: Math.min(dpr, appareilTactile ? 1.25 : 2),
-      nettete: Math.min(dpr, appareilTactile ? 1.25 : 2) < dpr ? 0.5 : 0
-    };
-    this.profile = this.force === 'unique' ? unique : this.isMobile ? mobile : desktop;
+    // l'image enrichie : demandée par l'adresse, sinon par la mémoire
+    this.riche = this.force ? this.force === 'riche' : lireRiche(search, stockage);
+    this.profile = this.riche ? riche : unique;
     // LE MODE ÉCONOME, au choix du visiteur (menu, ou ?eco), mémorisé :
     // tout en bas tout de suite, avant même le renderer — rien n'est créé
     // pour être jeté trois secondes plus tard
-    this.econome = lireEconome(typeof location !== 'undefined' ? location.search : '',
-      typeof localStorage !== 'undefined' ? localStorage : null);
+    this.econome = !this.force && lireEconome(search, stockage);
     // figé par `?gouverneur=0` (sondes de mesure d'image) — voir crans.js
-    this.gouverneur = lireGouverneur(typeof location !== 'undefined' ? location.search : '');
+    this.gouverneur = lireGouverneur(search);
     if (this.econome) {
       Object.assign(this.profile, ECONOME, { tier: `${this.profile.tier}-econome`,
         pixelRatio: Math.min(window.devicePixelRatio || 1, 1) });
@@ -238,38 +234,33 @@ export class QualityManager {
 
     this._fps = 60;
     this._acc = 0;
+    this._aise = 0;   // secondes de suite au-dessus de la cadence visée (voir aLaMarge)
   }
 
-  /** Affinage une fois le renderer créé : GPU manifestement faible → cran mobile. */
+  /**
+   * Une fois le renderer créé : le nom du GPU, pour le cartouche et pour la
+   * proposition de l'image enrichie (un GPU manifestement faible ne se la
+   * voit pas proposer). L'image, elle, ne change pas : elle est unique.
+   */
   refineWithRenderer(renderer) {
     let gpu = '';
     try {
       const gl = renderer.getContext();
       const ext = gl.getExtension('WEBGL_debug_renderer_info');
       if (ext) gpu = String(gl.getParameter(ext.UNMASKED_RENDERER_WEBGL) || '');
-    } catch { /* info GPU indisponible : on garde le profil courant */ }
+    } catch { /* info GPU indisponible */ }
     this.gpu = gpu;
+    this.gpuFaible = /SwiftShader|llvmpipe|Mali-[GT]?[0-7]\d\b|Adreno \(TM\) [1-5]|PowerVR/i.test(gpu);
+  }
 
-    const weak = /SwiftShader|llvmpipe|Mali-[GT]?[0-7]\d\b|Adreno \(TM\) [1-5]|PowerVR/i.test(gpu);
-    // un profil forcé par l'adresse se mesure tel quel, GPU modeste ou non
-    if (weak && this.profile.tier === 'desktop' && !this.force) {
-      Object.assign(this.profile, {
-        tier: 'desktop-low',
-        pixelRatio: Math.min(window.devicePixelRatio || 1, 1.25),
-        nettete: 0.5,  // même densité réduite que le téléphone : même affûtage
-        msaa: 0,     // GPU modeste : la netteté ne vaut pas la chute d'images
-        gtao: false,
-        anisotropy: 4,
-        bloomResScale: 0.25,
-        maxStems: 8,
-        maxHRTF: 6,
-        dustCount: 200,
-        shadows: false,
-        shadowMapSize: 1024,
-        isfResolution: 256
-      });
-      console.info('[galerie] GPU modeste détecté, profil réduit :', gpu);
-    }
+  /**
+   * La machine est-elle À L'AISE : au-dessus de la cadence visée de son
+   * écran depuis `secondes` secondes de suite ? C'est ce qui vaut à un
+   * visiteur la proposition de l'image enrichie — une mesure sur l'image
+   * qu'il regarde, pas une supposition sur son matériel.
+   */
+  aLaMarge(secondes = 6) {
+    return this._aise >= secondes;
   }
 
   /**
@@ -300,7 +291,8 @@ export class QualityManager {
     this._hz = Math.max(this._hz ?? 60, estimerHz(this._periode));
     this._periode = Infinity;
     const cible = cibleImages(this._hz);
-    if (this._fps >= cible) { this._sousCible = 0; return; }
+    if (this._fps >= cible) { this._sousCible = 0; this._aise += 3; return; }
+    this._aise = 0;
     // sous la cadence visée : six secondes de patience — une salle qui
     // charge fait chuter l'image un instant. Sous 50, plus de patience.
     this._sousCible = (this._sousCible ?? 0) + 1;

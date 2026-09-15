@@ -20,6 +20,13 @@ html, body {
   user-select: none;
   touch-action: none;
 }
+/* AUCUN ZOOM DE PAGE AU DOUBLE TAP. `touch-action` ne s'hérite pas : sur
+   iPhone, un double tap sur un bouton du HUD ou sur le pense-bête zoomait la
+   page entière, et la scène, qui retient tous les gestes, ne laissait plus
+   dézoomer. `manipulation` sur tout ce qui n'est pas la scène garde le tap et
+   le défilement (les menus, la liste), retire le double-tap-zoom. */
+* { touch-action: manipulation; }
+html, body, #app, #app canvas { touch-action: none; }
 
 #app, #app canvas { position: fixed; inset: 0; display: block; }
 
@@ -112,6 +119,24 @@ html, body {
   background: #ffb050; color: #1a1206; border: 0; font-weight: 600; font-size: 0.78rem;
 }
 #version-perimee[hidden] { display: none; }
+/* La proposition de l'image enrichie (ui/ImageRiche.js) : même bandeau,
+   en violet — une offre, pas une alerte ; deux boutons, le second discret */
+#proposition-riche {
+  position: fixed; top: calc(0.8rem + env(safe-area-inset-top)); left: 50%; transform: translateX(-50%);
+  z-index: 30; max-width: min(92vw, 36rem); display: flex; gap: 0.6rem; align-items: center; flex-wrap: wrap;
+  padding: 0.55rem 0.9rem; border-radius: 0.8rem;
+  background: rgba(22, 18, 40, 0.9); color: #e8e6f0; border: 1px solid rgba(159, 140, 255, 0.45);
+  font-size: 0.78rem; line-height: 1.35; box-shadow: 0 6px 24px rgba(0, 0, 0, 0.4);
+  animation: rise-center-top 0.5s ease;
+}
+@keyframes rise-center-top { from { opacity: 0; transform: translate(-50%, -0.6rem); } }
+#proposition-riche span { flex: 1 1 14rem; }
+#proposition-riche button {
+  flex: none; padding: 0.35rem 0.8rem; border-radius: 0.6rem; cursor: pointer;
+  background: var(--accent); color: #14102a; border: 0; font-weight: 600; font-size: 0.78rem;
+}
+#proposition-riche button.secondaire { background: transparent; color: var(--dim); border: 1px solid rgba(255, 255, 255, 0.15); }
+@media (prefers-reduced-motion: reduce) { #proposition-riche { animation: none; } }
 
 /* --------------------------------------------- transition entre pièces --- */
 #room-fade {

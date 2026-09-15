@@ -146,7 +146,9 @@ export class VistaManager {
     // vivant (chaque frame paire) seulement là où le GPU suit ; le
     // gouverneur peut couper — on retombe alors sur le rendu lent, pas
     // sur le noir
-    this.live = app.quality.profile.tier === 'desktop';
+    // vivant sur l'image ENRICHIE seulement : l'image unique peint la baie
+    // à l'entrée et la rafraîchit au pas (voir Quality.js)
+    this.live = app.quality.profile.tier === 'riche';
     this._camera = new THREE.PerspectiveCamera(60, 1, 0.05, 220);
     this._fog = new THREE.Color();
     this._bg = new THREE.Color();

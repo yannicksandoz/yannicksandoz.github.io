@@ -1158,6 +1158,9 @@ peine n'avait aucun moyen de le dire.
   sortie (le levier d'un GPU qui manque de fill-rate), puis le grain, le
   bloom. Le profil porte désormais `isfResolution` (512 bureau, 256
   téléphone et GPU modeste), que `Artwork` respecte comme plafond.
+- **L'image enrichie**, menu → Réglages → « Image enrichie (machine
+  puissante) », ou `?riche` : l'inverse du mode économe — voir « Une seule
+  image, et l'enrichie au choix ». Les deux ne se cumulent pas.
 - **Le mode économe**, menu → Réglages → « Mode économe (machine lente) »,
   ou `?eco` dans l'adresse (`?eco=0` pour l'ôter) : tous les crans d'un
   coup, à chaud, et mémorisé — au prochain chargement le profil part d'en
@@ -5099,16 +5102,38 @@ mal les résoudre. C'était l'inverse. Le masque est donc désormais le même
 partout (`survolEchantillons` 4, `survolOcclusion` vrai) — la première
 « précaution pour WebKit » ci-dessus est retirée.
 
-**Vers une seule image.** Le gouverneur ne change plus l'image selon
-l'appareil, et les deux profils diffèrent encore sur une vingtaine de
-réglages. Le candidat d'un profil unique se mesure avec `?profil=unique` :
-l'image du téléphone pour tous — sans ombres, sans occlusion ambiante,
-deux échantillons, deux sources étendues, douze lignes — plus ce qui ne
-coûte pas de pixels (anisotropie 16, poussière 450, textures 2048, écrans
-ISF en 512), la densité seule suivant l'écran (1,25 au doigt, 2 à la
-souris, affûtée sous le natif), et le même son partout (6 voix, 4 HRTF).
-S'il tient sur le téléphone comme le profil mobile, il devient le profil
-de tout le monde.
+**Une seule image, et l'enrichie au choix.** Le gouverneur ne change plus
+l'image selon l'appareil, et les deux profils ont disparu. L'image est
+UNIQUE (`Quality.js`, profil `unique`) : celle du téléphone pour tous —
+sans ombres, sans occlusion ambiante, deux échantillons, deux sources
+étendues, douze lignes — plus ce qui ne coûte pas de pixels (anisotropie
+16, poussière 450, textures 2048, écrans ISF en 512), la densité seule
+suivant l'écran (1,25 au doigt, 2 à la souris, affûtée sous le natif), et
+le même son partout (6 voix, une par œuvre, 4 en HRTF). Ce que cette image
+a laissé — ombres, occlusion, quatre échantillons, huit sources étendues,
+reflets vivants, apparitions vivantes — est l'**image enrichie** (profil
+`riche`) : un CHOIX du visiteur, menu → Réglages → « Image enrichie »,
+mémorisé sur l'appareil (`galerie-riche`, ou `?riche` dans l'adresse), et
+PROPOSÉ à l'arrivée, en bandeau, quand la machine se montre à l'aise
+(`ui/ImageRiche.js`). « À l'aise » est une mesure, pas une supposition sur
+le matériel : six secondes de suite au-dessus de la cadence visée de
+l'écran, sur l'image unique que le visiteur regarde déjà
+(`Quality.aLaMarge`). Un téléphone, un GPU manifestement faible, un mode
+économe, une image déjà enrichie ou un « plus tard » déjà dit : pas de
+bandeau. Basculer recharge la page dans la même salle et le même mode de
+visite — le renderer, les cartes d'ombre et la sonde de reflets se créent
+pour un profil, ils ne se remontent pas à chaud. `?profil=unique` et
+`?profil=riche` (alias `mobile`, `desktop`) forcent l'image pour une page,
+pour mesurer.
+
+**Le double tap zoomait la page.** Sur iPhone, un double tap sur un bouton
+du HUD ou sur le pense-bête déclenchait le zoom de page du navigateur, et
+la scène, qui retient tous les gestes, ne laissait plus dézoomer.
+`touch-action` ne s'hérite pas : `none` sur le corps ne protégeait pas les
+boutons. Désormais `manipulation` sur tout ce qui n'est pas la scène (le
+tap et le défilement restent, le double-tap-zoom s'en va), `none` sur la
+scène. Le pincement sur l'interface reste possible : c'est de
+l'accessibilité.
 
 | Vue, bureau, gouverneur figé | Avant | Après |
 |---|---|---|
@@ -5118,8 +5143,12 @@ de tout le monde.
 
 ## Qualité adaptative & mobile
 
-Le `QualityManager` (`engine/src/core/Quality.js`) choisit un profil au
-lancement puis l'ajuste en continu :
+Le `QualityManager` (`engine/src/core/Quality.js`) porte désormais UNE
+image pour tous (profil `unique`), l'image enrichie au choix du visiteur
+(`riche`), le mode économe, et un gouverneur réduit à la densité — voir
+« Une seule image, et l'enrichie au choix » plus haut. Ce qui suit décrit
+les mécanismes, dont plusieurs (détection, plafonds par appareil) datent
+des deux profils :
 
 - **détection** : mobile vs desktop (pointer coarse + UA), lecture du GPU
   (`WEBGL_debug_renderer_info`) pour rétrograder les GPU faibles ;

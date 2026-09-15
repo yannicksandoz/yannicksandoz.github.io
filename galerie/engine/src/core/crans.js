@@ -102,18 +102,44 @@ export function lireGouverneur(search = '') {
 }
 
 /**
- * `?profil=desktop`, `?profil=mobile` ou `?profil=unique` FORCE le profil,
- * quel que soit l'appareil, et sans le rabais des GPU modestes : c'est
- * ainsi qu'on lit, sur un iPhone et avec `?perf=1`, ce que coûte chaque
- * image. « unique » est le candidat d'une seule image pour tous (voir
- * Quality.js). Rend 'desktop', 'mobile', 'unique' ou null.
+ * `?profil=unique` ou `?profil=riche` FORCE le profil pour cette page,
+ * quelle que soit la mémoire : c'est ainsi qu'on lit, sur un iPhone et
+ * avec `?perf=1`, ce que coûte chaque image. `desktop` et `bureau` sont
+ * des alias de `riche` ; `mobile` et `telephone`, d'`unique`. Rend
+ * 'unique', 'riche' ou null.
  */
 export function lireProfil(search = '') {
   const v = new URLSearchParams(search ?? '').get('profil');
-  if (v === 'desktop' || v === 'bureau') return 'desktop';
-  if (v === 'mobile' || v === 'telephone' || v === 'téléphone') return 'mobile';
-  if (v === 'unique') return 'unique';
+  if (v === 'riche' || v === 'desktop' || v === 'bureau') return 'riche';
+  if (v === 'unique' || v === 'mobile' || v === 'telephone' || v === 'téléphone') return 'unique';
   return null;
+}
+
+/**
+ * L'IMAGE ENRICHIE (`riche`) : les ombres, l'occlusion ambiante, quatre
+ * échantillons, huit sources étendues, la sonde de reflets vivante — ce
+ * que l'image unique a laissé pour tenir sur un téléphone. Au choix du
+ * visiteur (menu → Réglages, ou `?riche` ; `?riche=0` pour l'ôter),
+ * mémorisé, et PROPOSÉ à l'arrivée quand la machine se montre à l'aise
+ * (ui/ImageRiche.js). Exclusif du mode économe.
+ */
+export const CLE_RICHE = 'galerie-riche';
+
+export function lireRiche(search = '', stockage = null) {
+  const params = new URLSearchParams(search ?? '');
+  if (params.has('riche')) {
+    const v = params.get('riche');
+    return !(v === '0' || v === 'false' || v === 'non');
+  }
+  try { return stockage?.getItem?.(CLE_RICHE) === '1'; } catch { return false; }
+}
+
+export function ecrireRiche(actif, stockage = null) {
+  try {
+    if (actif) stockage?.setItem?.(CLE_RICHE, '1');
+    else stockage?.removeItem?.(CLE_RICHE);
+    return true;
+  } catch { return false; }
 }
 
 export function ecrireEconome(actif, stockage = null) {

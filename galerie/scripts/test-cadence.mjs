@@ -114,7 +114,7 @@ const silence = () => { const c = console.info; console.info = () => {}; return 
 test('70 images sur un écran à 120 Hz : la densité descend à 1,5 affûtée après six secondes', () => {
   const fin = silence();
   const q = new QualityManager();
-  assert.equal(q.profile.tier, 'desktop');
+  assert.equal(q.profile.tier, 'unique');
   assert.equal(q.profile.pixelRatio, 2);
   const app = appFactice();
   q._fps = 70;   // la moyenne glissante part de 60 ; on la pose
@@ -182,27 +182,79 @@ test('sous 50 images sur un 60 Hz Retina : la densité 1,5, puis la densité 1 �
 
 groupe('le profil forcé par l\'adresse');
 
-test('?profil=unique : l\'image du téléphone pour tous, la densité selon l\'écran, l\'appareil inchangé', () => {
+test('par défaut, l\'image UNIQUE pour tous : la densité seule suit l\'écran', () => {
   const fin = silence();
   const avant = globalThis.location;
-  globalThis.location = { search: '?profil=unique&perf=1' };
+  globalThis.location = { search: '' };
   globalThis.window.devicePixelRatio = 2;
   const q = new QualityManager();
   assert.equal(q.profile.tier, 'unique');
+  assert.equal(q.riche, false);
   assert.equal(q.isMobile, false);            // pointeur fin : un bureau
   assert.equal(q.profile.pixelRatio, 2);      // à la souris, pleine densité
   assert.equal(q.profile.nettete, 0);
   assert.equal(q.profile.shadows, false);     // l'image du téléphone
+  assert.equal(q.profile.gtao, false);
   assert.equal(q.profile.msaa, 2);
   assert.equal(q.profile.isfResolution, 512); // ce qui ne coûte pas de pixels
   assert.equal(q.profile.anisotropy, 16);
   assert.equal(q.profile.maxStems, 6);        // le même son partout
   assert.equal(q.profile.survolEchantillons, 4);
+  // un téléphone : la même image, à densité 1,25 affûtée
+  globalThis.window.devicePixelRatio = 3;
+  globalThis.window.matchMedia = (m) => ({ matches: m === '(pointer: coarse)' });
+  const tel = new QualityManager();
+  assert.equal(tel.profile.tier, 'unique');
+  assert.equal(tel.isMobile, true);
+  assert.equal(tel.profile.pixelRatio, 1.25);
+  assert.equal(tel.profile.nettete, 0.5);
+  assert.equal(tel.profile.shadows, false);
+  globalThis.window.matchMedia = () => ({ matches: false });
+  globalThis.window.devicePixelRatio = 2;
+  globalThis.location = avant;
+  fin();
+});
+
+test('l\'image ENRICHIE : par la mémoire ou par l\'adresse, même son, même densité', () => {
+  const fin = silence();
+  const avant = globalThis.location; const stockageAvant = globalThis.localStorage;
+  const memoire = new Map();
+  globalThis.localStorage = { getItem: (k) => memoire.get(k) ?? null, setItem: (k, v) => memoire.set(k, v), removeItem: (k) => memoire.delete(k) };
+  globalThis.location = { search: '' };
+  memoire.set('galerie-riche', '1');
+  const r = new QualityManager();
+  assert.equal(r.profile.tier, 'riche');
+  assert.equal(r.riche, true);
+  assert.equal(r.profile.shadows, true);
+  assert.equal(r.profile.gtao, true);
+  assert.equal(r.profile.msaa, 4);
+  assert.equal(r.profile.sourcesEtendues, 8);
+  assert.equal(r.profile.maxStems, 6);
+  assert.equal(r.profile.pixelRatio, 2);
+  // l'adresse impose, quelle que soit la mémoire
+  globalThis.location = { search: '?profil=unique' };
+  assert.equal(new QualityManager().profile.tier, 'unique');
+  memoire.clear();
   globalThis.location = { search: '?profil=desktop' };
   const d = new QualityManager();
-  assert.equal(d.profile.tier, 'desktop');
-  assert.equal(d.force, 'desktop');
-  globalThis.location = avant;
+  assert.equal(d.profile.tier, 'riche');
+  assert.equal(d.force, 'riche');
+  globalThis.location = { search: '?riche' };
+  assert.equal(new QualityManager().profile.tier, 'riche');
+  globalThis.localStorage = stockageAvant; globalThis.location = avant;
+  fin();
+});
+
+test('à l\'aise : six secondes de suite au-dessus de la cadence visée, et rien de moins', () => {
+  const fin = silence();
+  const q = new QualityManager();
+  const app = appFactice();
+  assert.equal(q.aLaMarge(), false);
+  q._fps = 60;
+  tourner(q, app, { fps: 60, hz: 60, secondes: 7 });
+  assert.equal(q.aLaMarge(6), true);
+  tourner(q, app, { fps: 30, hz: 60, secondes: 4 });
+  assert.equal(q.aLaMarge(6), false);      // une chute remet le compteur à zéro
   fin();
 });
 
