@@ -1009,7 +1009,17 @@ export class App {
         tPhase = tt;
       };
 
-      for (const fn of this._updatables) fn(dt, ctx);
+      // UN ABONNÉ QUI LÈVE UNE ERREUR NE GÈLE PAS LA GALERIE : l'exception
+      // sortait de la boucle d'animation, l'image ne se rendait plus, et
+      // tout restait figé jusqu'au rechargement. On le dit, on le retire,
+      // et l'image continue.
+      for (const fn of this._updatables.slice()) {
+        try { fn(dt, ctx); } catch (e) {
+          console.error('[galerie] abonné retiré de la boucle :', e);
+          const i = this._updatables.indexOf(fn);
+          if (i >= 0) this._updatables.splice(i, 1);
+        }
+      }
       this.signaux.update(dt);
       for (const a of this.artworks) a.update(dt, ctx);
       marquer('maj');

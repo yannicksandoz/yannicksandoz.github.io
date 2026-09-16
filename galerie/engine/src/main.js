@@ -203,8 +203,10 @@ async function boot() {
   app.start(); // la scène tourne déjà derrière l'écran d'accueil
   window.__galerie = app; // point d'entrée debug/console
   // `?perf=1` : le cartouche de mesure, sur l'appareil lui-même (ui/Perf.js)
-  if (new URLSearchParams(location.search).get('perf') === '1') {
-    import('./ui/Perf.js').then(({ mountPerf }) => mountPerf(app));
+  {
+    const q = new URLSearchParams(location.search);
+    // `?banc=1` : le banc d'essai, qui a besoin du cartouche (ui/Perf.js)
+    if (q.get('perf') === '1' || q.get('banc') === '1') import('./ui/Perf.js').then(({ mountPerf }) => mountPerf(app));
   }
 
   // Lien profond (?room=x&work=y) : on arrive LÀ où le lien a été partagé,

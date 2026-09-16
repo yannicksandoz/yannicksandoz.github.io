@@ -92,9 +92,104 @@ export function textePhases(moyennes, total, p95) {
   return `js ${f(total)} ms · p95 ${f(p95)} · ${parts.join(' · ')}`;
 }
 
-/** `?perf=1` dans l'adresse ? */
+/** `?perf=1` dans l'adresse ? (`?banc=1` l'implique : le banc a besoin du cartouche) */
 export function perfDemande(search = '') {
-  try { return new URLSearchParams(search).get('perf') === '1'; } catch { return false; }
+  try { const q = new URLSearchParams(search); return q.get('perf') === '1' || q.get('banc') === '1'; } catch { return false; }
+}
+
+/** `?banc=1` : le banc d'essai, qui enchaîne les variantes tout seul. */
+export function bancDemande(search = '') {
+  try { return new URLSearchParams(search).get('banc') === '1'; } catch { return false; }
+}
+
+/**
+ * LE BANC D'ESSAI — `?banc=1` : sur l'appareil lui-même, chaque variante
+ * de l'image se mesure à son tour, sans rien demander à personne.
+ *
+ * Un iPhone ne se profile pas depuis le poste de travail, et demander au
+ * visiteur dix captures avec dix adresses n'est pas une mesure. Ici, le
+ * banc coupe UNE chose à la fois — la densité, l'affûtage, le bloom, les
+ * lignes de lumière, les lampes, l'anticrénelage, le liseré, la poussière
+ * — la laisse s'installer (les programmes se recompilent, les fondus
+ * passent), mesure trois secondes d'images, la remet, et passe à la
+ * suivante. Le tableau se remplit dans le cartouche ; à la fin, une seule
+ * capture dit ce que chaque chose coûte VRAIMENT sur cet appareil, dans
+ * cette salle, à cet endroit. C'est ce tableau qui décide des réglages,
+ * pas une intuition sur ce qu'un GPU de téléphone devrait aimer.
+ *
+ * Chaque variante : { id, nom, poser(app) → remettre() }.
+ */
+export const ATTENTE_BANC = 1.5;   // secondes : le temps que la variante s'installe
+export const MESURE_BANC = 3;      // secondes de mesure par variante
+export const VARIANTES_BANC = [
+  { id: 'temoin', nom: 'témoin', poser: () => () => {} },
+  { id: 'densite1', nom: 'densité ×1', poser: (app) => {
+    const avant = app.quality.profile.pixelRatio; const nettete = app.sortie.nettete;
+    app.quality._poserDensite(app, 1);
+    return () => { app.quality._poserDensite(app, avant); app.sortie.nettete = nettete; app.quality.profile.nettete = nettete; };
+  } },
+  { id: 'nettete', nom: 'sans affûtage', poser: (app) => { const v = app.sortie.nettete; app.sortie.nettete = 0; return () => { app.sortie.nettete = v; }; } },
+  { id: 'bloom', nom: 'sans bloom', poser: (app) => { const v = app.sortie.bloomActif; app.sortie.bloomActif = false; return () => { app.sortie.bloomActif = v; }; } },
+  { id: 'lignes', nom: 'sans lignes', poser: (app) => { const v = app.quality.profile.lignesProches; app.setBudgetLignes(0); return () => { app.setBudgetLignes(v); }; } },
+  { id: 'lampes', nom: 'sans lampes', poser: (app) => {
+    const p = app.quality.profile; const v = p.lampesProches;
+    p.lampesProches = { points: 0, cones: 0 };
+    return () => { p.lampesProches = v; };
+  } },
+  { id: 'msaa', nom: 'sans msaa', poser: (app) => { const v = app.scenePass?.cible?.samples ?? 0; app.setMsaa(0); return () => { app.setMsaa(v); }; } },
+  { id: 'survol', nom: 'sans liseré', poser: (app) => { const f = app._viserSurvol; app._viserSurvol = () => {}; app.survol?.viser(null); return () => { app._viserSurvol = f; }; } },
+  { id: 'poussiere', nom: 'sans poussière', poser: (app) => { const d = app.dust; if (!d) return () => {}; const v = d.visible; d.visible = false; return () => { d.visible = v; }; } }
+];
+
+/** Le tableau du banc, une ligne par variante mesurée : moyenne et p95 en ms. */
+export function texteBanc(resultats, encours = null) {
+  const lignes = [];
+  const temoin = resultats.find((r) => r.id === 'temoin');
+  for (const r of resultats) {
+    const gain = temoin && r.id !== 'temoin' ? ` (${r.ms <= temoin.ms ? '−' : '+'}${Math.abs(temoin.ms - r.ms).toFixed(1)})` : '';
+    lignes.push(`${r.nom} ${r.ms.toFixed(1)} · p95 ${r.p95.toFixed(1)}${gain}`);
+  }
+  if (encours) lignes.push(`… ${encours}`);
+  return lignes.join('<br>');
+}
+
+/**
+ * Lance le banc : une variante après l'autre, les résultats dans
+ * `poignee.banc` et `window.__galerieBanc`, le tableau dans le cartouche.
+ */
+export function lancerBanc(app, poignee, { variantes = VARIANTES_BANC, attente = ATTENTE_BANC, mesure = MESURE_BANC,
+  horloge = (typeof performance !== 'undefined' ? () => performance.now() : null) } = {}) {
+  const resultats = [];
+  poignee.banc = resultats;
+  let i = 0; let remettre = null; let phase = 'attente'; let depuis = 0;
+  let stats = null;
+  const suivante = () => {
+    if (i >= variantes.length) { poignee.encours = 'banc terminé'; poignee.peindre(); off(); return; }
+    const v = variantes[i];
+    try { remettre = v.poser(app); } catch (e) { console.warn('[galerie] banc :', v.id, e?.message ?? e); remettre = () => {}; }
+    phase = 'attente'; depuis = 0; stats = new Statistiques({ fenetre: mesure + 1 });
+    poignee.encours = `${v.nom} (${i + 1}/${variantes.length})`;
+  };
+  let precedent = 0;
+  const off = app.onUpdate((dtBoucle) => {
+    if (!stats) return;
+    // le temps réel, comme le cartouche (voir `tick`) — au nœud, sans
+    // horloge fine, le dt de la boucle suffit
+    const maintenant = horloge ? horloge() : 0;
+    const dt = precedent && maintenant ? (maintenant - precedent) / 1000 : dtBoucle;
+    precedent = maintenant;
+    depuis += dt;
+    if (phase === 'attente') { if (depuis >= attente) { phase = 'mesure'; depuis = 0; } return; }
+    stats.ajouter(depuis, dt);
+    if (depuis < mesure) return;
+    const v = variantes[i];
+    resultats.push({ id: v.id, nom: v.nom, ms: stats.moyenne() * 1000, p95: stats.p95() * 1000 });
+    if (typeof window !== 'undefined') window.__galerieBanc = resultats;
+    try { remettre?.(); } catch (e) { console.warn('[galerie] banc : remise', v.id, e?.message ?? e); }
+    i++; suivante(); poignee.peindre();
+  });
+  suivante();
+  return { get resultats() { return resultats; }, arreter: off };
 }
 
 export function mountPerf(app) {
@@ -115,7 +210,15 @@ export function mountPerf(app) {
   const statsJs = new Statistiques();
   app.phases = {};
   let horloge = 0; let depuis = 0; let appels = 0; let triangles = 0;
-  const tick = (dt) => {
+  // LE TEMPS RÉEL entre deux images, pas le `dt` de la boucle : celui-ci
+  // est borné à 100 ms (une image qui a duré une seconde ne fait pas
+  // sauter les animations d'une seconde), et une mesure bornée ment sur
+  // les à-coups — c'est justement eux qu'on veut voir au p95
+  let precedent = 0;
+  const tick = (dtBoucle) => {
+    const maintenant = performance.now();
+    const dt = precedent ? (maintenant - precedent) / 1000 : dtBoucle;
+    precedent = maintenant;
     horloge += dt;
     stats.ajouter(horloge, dt);
     let js = 0;
@@ -154,14 +257,13 @@ export function mountPerf(app) {
       <br>${compact(appels)} appels · ${compact(triangles)} tri · ${salle}
       <br>audio ${audio.tampons} tampon${audio.tampons > 1 ? 's' : ''} · ${mesure.pcmMo} Mo PCM
       <br>${mesure.profil} · ${texteCrans(etat)}
-      <br>${textePhases(phases, js, jsP95)}`;
+      <br>${textePhases(phases, js, jsP95)}${poignee.banc ? '<br>' + texteBanc(poignee.banc, poignee.encours) : ''}`;
     el.classList.toggle('perf-lent', p95 > 33);
   };
-  const off = app.onUpdate(tick);
-  peindre();
-
+  // la poignée AVANT le premier `peindre` : il la lit (le banc)
+  let off = null;
   const poignee = {
-    el, stats,
+    el, stats, peindre, encours: null, banc: null,
     dispose() {
       off?.();
       app.phases = null;
@@ -172,5 +274,8 @@ export function mountPerf(app) {
     }
   };
   app._perf = poignee;
+  off = app.onUpdate(tick);
+  peindre();
+  if (bancDemande(typeof location !== 'undefined' ? location.search : '')) lancerBanc(app, poignee);
   return poignee;
 }

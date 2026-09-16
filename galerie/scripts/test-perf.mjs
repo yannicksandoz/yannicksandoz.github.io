@@ -4,7 +4,7 @@
  * Lancer avec : npm test
  */
 import assert from 'node:assert/strict';
-import { Statistiques, compact, texteCrans, perfDemande, textePhases, PHASES } from '../engine/src/ui/Perf.js';
+import { Statistiques, compact, texteCrans, perfDemande, textePhases, PHASES, bancDemande, texteBanc, VARIANTES_BANC, lancerBanc } from '../engine/src/ui/Perf.js';
 
 let ok = 0; let ko = 0;
 const test = (nom, fn) => { try { fn(); ok++; console.log(`  ✓ ${nom}`); } catch (e) { ko++; console.log(`  ✗ ${nom}\n      ${e.message}`); } };
@@ -63,6 +63,39 @@ test('les phases en une ligne : le total, son p95, puis chaque étape dans l\'or
   assert.equal(ligne, 'js 5.7 ms · p95 9.0 · maj 1.2 · audio 0.4 · lumière 0.3 · reflets 0.1 · apparitions 0.0 · survol 0.2 · rendu 3.5');
   assert.equal(textePhases(null), '');
   assert.equal(textePhases({ rendu: 2 }, 2, 2), 'js 2.0 ms · p95 2.0 · rendu 2.0', 'une phase absente ne s\'écrit pas');
+});
+
+test('le banc : ?banc=1 l\'implique et le demande, neuf variantes, un tableau avec l\'écart au témoin', () => {
+  assert.equal(bancDemande('?banc=1'), true);
+  assert.equal(bancDemande('?perf=1'), false);
+  assert.equal(perfDemande('?banc=1'), true, 'le banc a besoin du cartouche');
+  assert.deepEqual(VARIANTES_BANC.map((v) => v.id), ['temoin', 'densite1', 'nettete', 'bloom', 'lignes', 'lampes', 'msaa', 'survol', 'poussiere']);
+  const t = texteBanc([{ id: 'temoin', nom: 'témoin', ms: 18.3, p95: 27 }, { id: 'bloom', nom: 'sans bloom', ms: 15.1, p95: 20.4 }, { id: 'msaa', nom: 'sans msaa', ms: 18.9, p95: 26 }], 'sans lignes (5/9)');
+  assert.equal(t, 'témoin 18.3 · p95 27.0<br>sans bloom 15.1 · p95 20.4 (−3.2)<br>sans msaa 18.9 · p95 26.0 (+0.6)<br>… sans lignes (5/9)');
+});
+
+test('le banc enchaîne : pose, attend, mesure, remet, et passe à la suivante', () => {
+  const abonnes = []; const journal = [];
+  const app = { onUpdate: (fn) => { abonnes.push(fn); return () => abonnes.splice(abonnes.indexOf(fn), 1); } };
+  const poignee = { peindre: () => {}, encours: null, banc: null };
+  const variantes = [
+    { id: 'temoin', nom: 'témoin', poser: () => { journal.push('pose témoin'); return () => journal.push('remet témoin'); } },
+    { id: 'x', nom: 'x', poser: () => { journal.push('pose x'); return () => journal.push('remet x'); } }
+  ];
+  const banc = lancerBanc(app, poignee, { variantes, attente: 0.1, mesure: 0.2, horloge: null });   // sans horloge : le dt de la boucle
+  const image = (dt) => { for (const fn of abonnes.slice()) fn(dt); };
+  for (let i = 0; i < 4; i++) image(0.05);        // l'attente, puis les premières mesures
+  assert.deepEqual(journal, ['pose témoin']);
+  for (let i = 0; i < 4; i++) image(0.05);        // la mesure se termine : remise, variante suivante
+  assert.deepEqual(journal, ['pose témoin', 'remet témoin', 'pose x']);
+  assert.equal(banc.resultats.length, 1);
+  assert.ok(Math.abs(banc.resultats[0].ms - 50) < 1e-6, `moyenne ${banc.resultats[0].ms}`);
+  for (let i = 0; i < 8; i++) image(0.05);
+  assert.deepEqual(journal, ['pose témoin', 'remet témoin', 'pose x', 'remet x']);
+  assert.equal(banc.resultats.length, 2);
+  assert.equal(poignee.encours, 'banc terminé');
+  assert.equal(abonnes.length, 0, 'le banc se désabonne à la fin');
+  delete globalThis.window?.__galerieBanc;
 });
 
 test('le cartouche ne se demande que par ?perf=1', () => {

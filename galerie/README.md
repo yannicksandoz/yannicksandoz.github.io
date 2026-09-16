@@ -5227,6 +5227,23 @@ reste à zéro sans sonde). Le studio pré-filtré et la sonde d'ambiance
 portent ce qui se reflète. L'image enrichie garde la sonde vivante à
 128 px, une face par image.
 
+**Le banc d'essai, `?banc=1`** (`ui/Perf.js`, `lancerBanc`). « C'est
+quand même trop lourd, ça lag partout, il faut évaluer les solutions. »
+Évaluer, c'est mesurer sur l'appareil, et demander dix captures avec dix
+adresses n'est pas une mesure. Le banc coupe UNE chose à la fois —
+densité ×1, affûtage, bloom, lignes de lumière, lampes proches,
+anticrénelage, liseré, poussière — la laisse s'installer une seconde et
+demie (les programmes se recompilent, les fondus passent), mesure trois
+secondes d'images au temps réel (pas le `dt` borné de la boucle, qui
+ment sur les à-coups), la remet, et passe à la suivante. Le tableau se
+remplit dans le cartouche, avec l'écart au témoin ; à la fin, une seule
+capture dit ce que chaque chose coûte VRAIMENT sur cet appareil, dans
+cette salle, à cet endroit. Éprouvé au nœud (pose, attente, mesure,
+remise, désabonnement) et en émulation (neuf variantes, état remis). Au
+passage, un abonné de la boucle qui lève une erreur est retiré et dit,
+au lieu de geler l'image : c'est ce qu'a fait la première version du
+banc, et une galerie figée n'est pas un diagnostic.
+
 **Le cartouche dit désormais LES PHASES** (`?perf=1`, `App.phases`,
 `ui/Perf.js`). Après la sentinelle dans la passe et la sonde fixe, le
 labo restait à 17,9 ms de moyenne sur l'iPhone, p95 22 : les leviers
