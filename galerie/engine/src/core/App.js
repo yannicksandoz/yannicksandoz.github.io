@@ -11,6 +11,7 @@ import { Survol } from './Survol.js';
 import { VistaManager } from './Vista.js';
 import { FOG_DENSITY, suivreOmbre } from './RoomManager.js';
 import { budgetLampes, fondreLampes, coqueClose } from './ombres.js';
+import { attendreProgrammes } from './chauffe.js';
 import { AudioEngine } from './AudioEngine.js';
 import { Spatialisation } from './Spatialisation.js';
 import { QualityManager } from './Quality.js';
@@ -915,10 +916,53 @@ export class App {
     // suivante, pas au prochain filet de 500 ms
     this.ombresSales = true;
     // …et ses programmes se compilent MAINTENANT, avec les lumières de la
-    // scène — pas au premier dessin, quand le visiteur tourne la tête vers
-    // lui (voir RoomManager._chaufferProgrammes)
-    if (artwork?.mesh && this.renderer?.compile && this.scene && this.camera) {
-      try { this.renderer.compile(artwork.mesh, this.camera, this.scene); } catch { /* le premier dessin compilera */ }
+    // scène, dans la cible de la scène — pas au premier dessin, quand le
+    // visiteur tourne la tête vers lui (voir RoomManager._chaufferProgrammes).
+    // Le maillage reste CACHÉ tant que le pilote compile (en parallèle,
+    // `compileAsync`) : le dessiner avant, c'est attendre la liaison du
+    // programme au milieu d'une image — le lag qui suivait chaque entrée
+    // dans une salle, quand les œuvres chargeaient leurs visuels. Au plus
+    // trois secondes, puis il se montre quoi qu'il en soit.
+    const mesh = artwork?.mesh;
+    // Une LUMIÈRE dans le visuel (la source étendue d'une corniche) change
+    // le compte de lumières de la scène, donc la clé de TOUS les programmes
+    // — dans la salle courante, elle attend ses programmes avant d'éclairer
+    // (RoomManager.chaufferLumieres) ; ailleurs, sa salle est invisible et
+    // elle ne compte pas encore.
+    // Pendant l'ENTRÉE dans la salle (dans le noir), c'est la chauffe de
+    // l'entrée qui compile tout, lumières comprises, une fois les œuvres
+    // chargées ; et dans une salle qui n'est pas la courante, rien ne se
+    // dessine — son groupe est invisible, ses programmes attendront son
+    // entrée, avec le compte de lumières qu'elle aura alors.
+    const courante = artwork?.room ? artwork.room.isCurrent : true;
+    if (!mesh || !courante || this.rooms?.enEntree) {
+      for (const fn of this._visualListeners ?? []) fn(artwork);
+      return;
+    }
+    if (this.rooms?.chaufferLumieres) {
+      const lumieres = [];
+      mesh.traverse((o) => { if (o.isLight && o.visible) lumieres.push(o); });
+      // éteintes tout de suite (chaufferLumieres) : le maillage se compile
+      // ci-dessous pour le compte d'AVANT, celui que la scène dessine
+      // encore, et ses lumières s'allumeront avec leurs programmes
+      if (lumieres.length) this.rooms.chaufferLumieres(lumieres);
+    }
+    if (this.renderer?.compile && this.scene && this.camera) {
+      const cibleAvant = this.renderer.getRenderTarget();
+      this.renderer.setRenderTarget(this.scenePass?.cible ?? null);
+      let materiaux = null;
+      try { materiaux = this.renderer.compile(mesh, this.camera, this.scene); } catch { /* le premier dessin compilera */ }
+      this.renderer.setRenderTarget(cibleAvant);
+      if (materiaux?.size) {
+        const visible = mesh.visible;
+        mesh.visible = false;
+        mesh.userData.attendProgrammes = true;
+        attendreProgrammes(this.renderer, materiaux, { delai: 3000 }).then(() => {
+          if (!mesh.userData.attendProgrammes) return;
+          mesh.userData.attendProgrammes = false;
+          if (mesh.visible === false) mesh.visible = visible;
+        });
+      }
     }
     for (const fn of this._visualListeners ?? []) fn(artwork);
   }
@@ -1170,7 +1214,12 @@ export class App {
       this.sortie.uniforms.uOcclusion.value = this.gtao?.enabled ? this.gtao.blendIntensity : 0;
       this._reglerCopieScene();
       marquer('survol');
-      this.composer.render();
+      // PAS D'IMAGE PENDANT L'ENTRÉE dans une salle : derrière le noir de
+      // la transition, ses œuvres se chargent et ses programmes se
+      // compilent (RoomManager.setCurrent). Une image rendue là compilerait
+      // au dessin ce que la chauffe est en train de compiler en parallèle
+      // — et l'attendrait, au milieu de l'image.
+      if (!this.rooms?.enEntree) this.composer.render();
       marquer('rendu');
       // « première image » : la première boucle complète, shaders compilés
       // (le chrono du démarrage, main.js) — une marque posée ne bouge plus

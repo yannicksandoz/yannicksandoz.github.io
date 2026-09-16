@@ -12,6 +12,7 @@ import { estFluide, materiauFluide, dessinerCouronne, courberParoi, loiParoi,
   loiCouronne } from './style.js';
 import { aDesSourcesEtendues } from './primitives.js';
 import { patcherArbreLignes, segmentsMonde } from './lignes-lumiere.js';
+import { compilerRacines, attendreProgrammes, invitesMasque } from './chauffe.js';
 import { majAmbiance, oublierAmbiance, ambianceArmee } from './ambiance-salle.js';
 import { delaiDe, fermer, estFerme, tick as tickCooldown } from './Cooldown.js';
 import { lancerBoucle } from './son-bornes.js';
@@ -23,6 +24,11 @@ import { creerCartel, majCartel, disposerCartel, tournerVersCamera }
 import { texteEtiquette, encreEtiquette } from './cartels-reglages.js';
 
 const PORTAL_COLOR = 0x9f8cff;
+// à l'entrée dans une salle, dans le noir : le temps accordé aux visuels
+// de la salle pour arriver, puis aux programmes pour se lier (voir
+// _chargerOeuvres et _compilerSalle) — la salle s'ouvre de toute façon
+const ATTENTE_OEUVRES = 1500;
+const ATTENTE_PROGRAMMES = 2000;
 /** Densité de brouillard par défaut — celle d'une salle d'exposition. */
 export const FOG_DENSITY = 0.026;
 const REARM_DIST2 = 7; // (m²) zone à quitter pour réarmer un portail d'arrivée
@@ -705,9 +711,17 @@ export class RoomManager {
     // qu'une fois sa zone quittée — sinon, arrivée près du portail de retour
     // = renvoi immédiat d'où l'on vient.
     this._disarmPortalsNearCamera();
-    // les programmes de shader de la salle, compilés MAINTENANT, derrière
-    // le noir de la transition — pas au premier pas (voir _chaufferProgrammes)
-    this._chaufferProgrammes(room);
+    // les œuvres de la salle d'abord (leurs lumières comptent), puis les
+    // programmes de shader, compilés MAINTENANT, derrière le noir de la
+    // transition — pas au premier pas (voir _chaufferProgrammes). On ATTEND
+    // qu'ils soient prêts (au plus deux secondes) avant de rouvrir l'image :
+    // la compilation est parallèle dans le pilote, l'attente ne fige rien,
+    // et la salle s'ouvre sur des programmes qui existent.
+    this._entree = true;   // les lumières qui arrivent maintenant attendent la chauffe
+    try {
+      await this._chargerOeuvres(room);
+      await this._chaufferProgrammes(room);
+    } finally { this._entree = false; }
 
     if (!instant) {
       await wait(120);
@@ -740,7 +754,7 @@ export class RoomManager {
    * champ ou non, puis une seconde fois avec une lampe de plus par sorte
    * — la variante que chaque fondu traversera.
    */
-  _chaufferProgrammes(room) {
+  async _chaufferProgrammes(room) {
     const app = this.app;
     const r = app?.renderer;
     if (!r?.compile || !app.scene || !app.camera || !room?.group) return;
@@ -755,26 +769,119 @@ export class RoomManager {
       });
       app.ombresSales = true;
     }
+    await this._compilerSalle(room);
+    if (t0) {
+      const ms = performance.now() - t0;
+      if (ms > 5) console.info(`[galerie] programmes chauffés pour ${room.config?.id ?? '?'} : ${r.info?.programs?.length ?? '?'} programmes, ${ms.toFixed(0)} ms`);
+    }
+  }
+
+  /**
+   * LES ŒUVRES DE LA SALLE, CHARGÉES AVANT LA CHAUFFE.
+   *
+   * Une corniche apporte sa source étendue (RectAreaLight) en se chargeant,
+   * et three met le compte de CHAQUE sorte de lumière dans la clé de CHAQUE
+   * programme, éclairé ou non — ciel, plaque d'apparition, lutin compris.
+   * Une corniche qui arrivait après la chauffe, c'était toute la salle qui
+   * recompilait au dessin suivant : sol, coque, ciel, apparitions — mesuré,
+   * la quasi-totalité du temps des images lourdes qui suivaient chaque
+   * entrée, en attente de la liaison des programmes (`getProgramInfoLog`).
+   * Le chargement n'attendait que l'approche (Artwork.update, cinquante
+   * mètres), donc la première image après le noir.
+   *
+   * Ici, dans le noir : tous les visuels de la salle et des pièces qu'elle
+   * montre en apparition sont demandés, et l'on attend ceux qui sont prêts
+   * en moins d'une seconde et demie. Les primitives (corniches, lignes,
+   * monolithes) le sont dans l'instant ; une image ou un modèle distant
+   * suit son cours et se cache jusqu'à ses programmes (notifyVisualLoaded).
+   */
+  async _chargerOeuvres(room) {
+    if (!room?.artworks) return;
+    const salles = [room, ...(room.config?.vistas ?? []).map((v) => this.get(v.room)).filter(Boolean)];
+    const attentes = [];
+    for (const s of salles) {
+      for (const a of s.artworks ?? []) {
+        const p = a.demanderVisuel?.();
+        if (p) attentes.push(p);
+      }
+    }
+    if (!attentes.length) return;
+    await Promise.race([Promise.allSettled(attentes), wait(ATTENTE_OEUVRES)]);
+  }
+
+  /**
+   * UNE LUMIÈRE ARRIVÉE APRÈS LA CHAUFFE (un visuel lent, chargé après
+   * l'ouverture de la salle, qui porte sa corniche) : ses programmes se
+   * compilent AVANT qu'elle éclaire. Elle s'éteint le temps de la liaison,
+   * et s'allume quand le compte de lumières qu'elle fait a ses programmes.
+   * Plusieurs arrivées dans la même image se règlent d'un seul coup.
+   */
+  /** Entre le noir et l'ouverture d'une salle : œuvres et programmes en route. */
+  get enEntree() { return !!this._entree; }
+
+  chaufferLumieres(lumieres) {
+    // pendant l'entrée dans la salle, c'est la chauffe de l'entrée qui les
+    // compte : elle vient après le chargement des œuvres (setCurrent)
+    if (!lumieres?.length || !this.current || this._entree) return;
+    (this._lumieresEnAttente ??= new Set());
+    for (const l of lumieres) { this._lumieresEnAttente.add(l); l.visible = false; }
+    if (this._chauffeLumieres) return;
+    this._chauffeLumieres = (async () => {
+      await wait(0);
+      const en = [...this._lumieresEnAttente];
+      this._lumieresEnAttente.clear();
+      this._chauffeLumieres = null;
+      const room = this.current;
+      for (const l of en) l.visible = true;
+      try { await this._compilerSalle(room, { lumieresAjoutees: en }); } finally { for (const l of en) l.visible = true; }
+    })();
+  }
+
+  /**
+   * Compile les programmes de la salle courante ET de ce qui l'entoure dans
+   * la scène (ciel, sentinelle du survol, plaques d'apparition) — tout ce
+   * que la scène dessine, dans sa cible — puis attend leur liaison.
+   *
+   * LA SALLE ET LES RACINES, pas `compile(scene)` : three parcourt TOUT
+   * l'arbre qu'on lui donne, visible ou non — la scène entière, ce sont les
+   * matériaux des dix-sept salles (cent quarante programmes à l'entrée,
+   * mesuré) pour un compte de lumières qui n'est que celui-ci. Les groupes
+   * des autres salles sont invisibles (`_applyPolicy`) : leurs lumières ne
+   * comptent pas, leurs matériaux n'ont pas à se compiler.
+   *
+   * …ET DANS LA CIBLE DE LA SCÈNE : un programme dépend de là où il dessine
+   * (espace de couleur linéaire, sans courbe de tons dans une cible ; sRGB
+   * et courbe de tons à l'écran). Compilé pour l'écran, il se recompilait au
+   * premier dessin dans la cible — mesuré : treize programmes de plus sur
+   * dix mètres, à compte de lumières constant.
+   */
+  async _compilerSalle(room, { lumieresAjoutees = [] } = {}) {
+    const app = this.app;
+    const r = app?.renderer;
+    if (!r?.compile || !app.scene || !app.camera || !room?.group) return;
     app.camera.updateMatrixWorld(true);
-    // LA SALLE SEULE, avec les lumières de la scène : `compile(scene)`
-    // compilerait les matériaux des dix-sept salles (cent quarante
-    // programmes à l'entrée, mesuré) pour un compte de lumières qui n'est
-    // que celui-ci
-    // …ET DANS LA CIBLE DE LA SCÈNE : un programme dépend de là où il
-    // dessine (espace de couleur linéaire, sans courbe de tons dans une
-    // cible ; sRGB et courbe de tons à l'écran). Compilé pour l'écran, il
-    // se recompilait au premier dessin dans la cible — mesuré : treize
-    // programmes de plus sur dix mètres, à compte de lumières constant.
+    // la salle et tout ce qui n'est pas une salle à la racine de la scène
+    // (ciel, lumière de fond, sentinelle du survol, plaques d'apparition) —
+    // sortis de la scène le temps de l'appel, voir chauffe.js
+    const groupes = new Set([...this.rooms.values()].map((s) => s.group));
+    const racines = [room.group, ...app.scene.children.filter((o) => !groupes.has(o))];
+    // …et LE PINCEAU À ALPHA du survol sur chaque œuvre de la salle : il se
+    // dessine dans la passe au premier regard posé sur une œuvre, avec le
+    // programme de SA géométrie — né au dessin sinon, au milieu de l'image
+    // où le visiteur vise. Des maillages provisoires, même géométrie, même
+    // matrice (le sens des faces en dépend), invités dans le paquet.
+    const invites = invitesMasque((room.artworks ?? []).map((a) => a.mesh), app.survol?.materiauMasque);
     const cibleAvant = r.getRenderTarget();
     r.setRenderTarget(app.scenePass?.cible ?? null);
     const compiler = () => {
-      try { r.compile(room.group, app.camera, app.scene); } catch (e) { console.warn('[galerie] chauffe des programmes :', e?.message ?? e); }
+      try { compilerRacines(r, app.scene, racines, app.camera, { invites }); } catch (e) { console.warn('[galerie] chauffe des programmes :', e?.message ?? e); }
     };
-    compiler();
-    // les variantes d'un fondu : une lampe rendue et une demandée visibles
-    // ensemble — un point de plus, un cône de plus, ou les deux
+    // les variantes d'un fondu d'abord : une lampe rendue et une demandée
+    // visibles ensemble — un point de plus, un cône de plus, ou les deux ;
+    // la variante de base EN DERNIER, pour que ce soit elle que chaque
+    // matériau tienne pour courante, et elle qu'on attende
     const eteintes = [];
-    room.group.traverse((o) => { if ((o.isPointLight || o.isSpotLight) && !o.visible) eteintes.push(o); });
+    room.group.traverse((o) => { if ((o.isPointLight || o.isSpotLight) && !o.visible && !lumieresAjoutees.includes(o)) eteintes.push(o); });
     const point = eteintes.find((o) => o.isPointLight);
     const cone = eteintes.find((o) => o.isSpotLight);
     for (const extra of [[point], [cone], [point, cone]].map((l) => l.filter(Boolean))) {
@@ -783,13 +890,18 @@ export class RoomManager {
       compiler();
       for (const l of extra) l.visible = false;
     }
-    r.setRenderTarget(cibleAvant);
+    let materiaux = null;
+    try { materiaux = compilerRacines(r, app.scene, racines, app.camera, { invites }); } catch (e) { console.warn('[galerie] chauffe des programmes :', e?.message ?? e); }
     // …et les apparitions de la salle, chacune pour sa pièce cible
     app.vistas?.chauffer?.(room);
-    if (t0) {
-      const ms = performance.now() - t0;
-      if (ms > 5) console.info(`[galerie] programmes chauffés pour ${room.config?.id ?? '?'} : ${r.info?.programs?.length ?? '?'} programmes, ${ms.toFixed(0)} ms`);
-    }
+    r.setRenderTarget(cibleAvant);
+    // L'ATTENTE : le pilote lie en parallèle (KHR_parallel_shader_compile),
+    // on sonde l'état des programmes sans bloquer (chauffe.js), au plus
+    // deux secondes. Pendant l'attente, une lumière ajoutée reste éteinte :
+    // la scène se dessine avec les programmes qu'elle a, ceux du compte
+    // d'avant.
+    for (const l of lumieresAjoutees) l.visible = false;
+    await attendreProgrammes(r, materiaux, { delai: ATTENTE_PROGRAMMES });
   }
 
   /** Anime l'uniform du warp entre deux valeurs (easing cubique). */

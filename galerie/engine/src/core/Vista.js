@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { FOG_DENSITY, silhouetteOuverture, planMur, ancrageBaie }
   from './RoomManager.js';
 import { estFluide, materiauFluide } from './style.js';
+import { compilerRacines } from './chauffe.js';
 
 /**
  * Le CARREAU d'une apparition — à la silhouette de sa baie.
@@ -195,7 +196,9 @@ export class VistaManager {
       target.group.visible = true;
       try {
         renderer.setRenderTarget(vista.rt);
-        renderer.compile(target.group, this._camera, scene);
+        // la pièce cible sortie de la scène le temps de l'appel : ses
+        // lampes comptées une fois, comme au repeint (voir chauffe.js)
+        compilerRacines(renderer, scene, [target.group], this._camera);
         n++;
       } catch (e) { console.warn('[galerie] chauffe d\'une apparition :', e?.message ?? e); }
       target.group.visible = false;

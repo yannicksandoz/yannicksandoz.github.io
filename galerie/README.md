@@ -5248,6 +5248,53 @@ montrant une image sur douze en double — c'est cela qu'on lit comme un
 lag. Le filet doit se tendre AVANT que l'œil ne voie les à-coups. À
 vérifier au banc, sur le même appareil, au même endroit.
 
+**« Quand j'entre dans n'importe quelle pièce, c'est suivi par des lags,
+aussi sur Mac. »** (`core/chauffe.js`, `RoomManager._chargerOeuvres`,
+`_compilerSalle`, `App.notifyVisualLoaded`). Une sonde a enveloppé chaque
+appel WebGL des six secondes qui suivent une entrée : le temps perdu
+était à 95 % dans `getProgramInfoLog` PENDANT le rendu — three qui attend
+la liaison d'un programme au premier dessin — pour le sol, la coque, le
+ciel, les plaques d'apparition, la sentinelle du survol : tout ce que la
+chauffe de l'entrée venait pourtant de compiler. La clé de cache l'a
+dit : compilé pour sept cônes, dessiné avec deux. `renderer.compile(
+sousArbre, caméra, scène)` compte les lumières de la scène ET celles du
+sous-arbre — il est écrit pour un objet qu'on n'a pas encore ajouté ; pour
+une salle déjà dans la scène, ses lampes comptaient DOUBLE, et la chauffe
+compilait des variantes que rien ne dessine jamais. Trois choses, donc.
+La chauffe SORT de la scène ce qu'elle compile, le temps de l'appel — la
+salle et tout ce qui n'est pas une salle à la racine (ciel, lumière de
+fond, sentinelle, plaques d'apparition), réunis dans un paquet remis à sa
+place, dans son ordre — et three voit chaque lampe une fois ; les
+apparitions font de même pour leur pièce cible. Les ŒUVRES DE LA SALLE se
+chargent AVANT la chauffe, dans le noir (une seconde et demie au plus ;
+les corniches, primitives, sont là dans l'instant) : une corniche apporte
+sa source étendue, et un compte de lumières de plus, c'est toute la salle
+qui recompile — le chargement n'attendait que l'approche, donc la première
+image après le noir ; dans la salle courante, plus rien ne se charge à
+distance ni ne se libère. Et PAS D'IMAGE PENDANT L'ENTRÉE : la boucle ne
+rend rien tant que la salle charge et compile, sinon l'image rendue
+derrière le noir compilait au dessin ce que la chauffe compilait en
+parallèle. L'attente de la liaison est maison (`attendreProgrammes`, la
+sonde `isReady` de three sans son piège : un matériau libéré pendant
+l'attente y faisait lever « reading 'isReady' of undefined » et la
+promesse ne revenait jamais), et ce qu'elle n'a pas vu se lier à son
+délai — ou sans l'extension de liaison parallèle — se lie EN BLOQUANT
+là, dans le noir (`lierProgrammes` : la vérification de premier usage
+de three, `getUniforms`, sur chaque variante de chaque matériau) plutôt
+qu'à la première image. Le pinceau à alpha du survol, lui, se dessine au
+premier regard posé sur une œuvre, avec le programme de SA géométrie :
+des maillages provisoires (même géométrie, même matrice, instanciés ou
+non) sont invités dans le paquet pour qu'il naisse dans le noir aussi
+(`invitesMasque`). Un visuel lent qui arrive après l'ouverture se
+compile caché et se montre lié ; s'il porte une lumière, elle attend ses
+programmes avant d'éclairer (`chaufferLumieres`). Mesuré en émulation,
+cinq entrées de suite : zéro programme né au dessin dans les six
+secondes qui suivent, contre douze à vingt-trois avant, et plus une
+liaison attendue pendant un rendu — toutes sont passées du rendu à la
+chauffe. Éprouvé au nœud (le paquet, le compte de lumières, la remise en
+place même si l'appel lève, les invités, l'attente, son délai et la
+liaison forcée).
+
 **Le reflet qui changeait de côté sur l'anneau des portails.** Après la
 coque matée, « ça oscille toujours quand on tourne le regard, entre
 reflet à gauche et reflet à droite du portail ». Une sonde a tourné

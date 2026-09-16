@@ -244,6 +244,7 @@ export class Artwork {
 
     this._visualRequested = false;
     this._visualLoaded = false;
+    this._chargement = null;   // la promesse du visuel demandé (demanderVisuel)
     this._audioRequested = false;
     this._distance = Infinity;
 
@@ -600,6 +601,21 @@ export class Artwork {
     this._placeholder = this.hitMesh;
   }
 
+  /**
+   * Demande le visuel MAINTENANT — à l'approche (update) ou à l'entrée dans
+   * la salle, avant la chauffe des programmes (RoomManager). Rend la
+   * promesse du chargement en cours, ou null s'il n'y a rien à charger
+   * (visite sans WebGL). Une seconde demande rend la même promesse.
+   */
+  demanderVisuel() {
+    if (this.app.headless) return null;
+    if (!this._visualRequested) {
+      this._visualRequested = true;
+      this._chargement = this._loadVisual();
+    }
+    return this._chargement ?? null;
+  }
+
   async _loadVisual() {
     const cfg = this.config;
     // Une œuvre d'une salle VOISINE se charge d'avance, mais elle ne fait
@@ -770,6 +786,7 @@ export class Artwork {
     this._isfEcran = null;
     this._visualLoaded = false;
     this._visualRequested = false;
+    this._chargement = null;
     this._buildPlaceholder();
   }
 
@@ -1561,15 +1578,17 @@ export class Artwork {
       tournerVersCamera(this._cartel, this.app.camera);
     }
 
-    // chargement paresseux à l'approche, libération au-delà
-    const loadDist = this.config.loadDistance ?? 50;
+    // chargement paresseux à l'approche, libération au-delà — sauf dans la
+    // salle COURANTE, où tout se charge et rien ne se libère : la salle est
+    // l'unité de la visite, et ses visuels sont demandés dès l'entrée, avant
+    // la chauffe des programmes (RoomManager._chargerOeuvres). Une corniche
+    // qui arriverait plus tard apporterait sa lumière, et une lumière de
+    // plus recompile toute la salle (voir App.notifyVisualLoaded).
+    const loadDist = roomState === 'current' ? Infinity : (this.config.loadDistance ?? 50);
     const unloadDist = loadDist * 1.6;
     // Sans WebGL (visite audio en repli), aucun visuel n'est jamais chargé :
     // ni textures, ni modèles — seul l'audio compte, et il suit son cours.
-    if (!this._visualRequested && !this.app.headless && this._distance < loadDist) {
-      this._visualRequested = true;
-      this._loadVisual();
-    }
+    if (this._distance < loadDist) this.demanderVisuel();
     if (!this._audioRequested && this.app.audio.unlocked && this._distance < loadDist) {
       this._audioRequested = true;
       this._loadAudio();

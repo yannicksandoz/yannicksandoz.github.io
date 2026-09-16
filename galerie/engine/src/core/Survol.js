@@ -112,6 +112,9 @@ export class Survol {
     this._or = new THREE.Color(0xffd97a);
   }
 
+  /** Le pinceau à alpha, pour le compiler d'avance (RoomManager._compilerSalle). */
+  get materiauMasque() { return this._masque; }
+
   /** Vise une œuvre (ou rien) : le fondu fait le reste. */
   viser(artwork) {
     this.cible = artwork ?? null;
