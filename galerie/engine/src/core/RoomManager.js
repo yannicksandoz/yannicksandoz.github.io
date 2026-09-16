@@ -2165,8 +2165,9 @@ function buildPortalMesh(cfg, label) {
       return g;
     })();
     const matFluide = materiauFluide();
-    matFluide.emissive = new THREE.Color(PORTAL_COLOR);
-    matFluide.emissiveIntensity = 0.12;
+    // la coque s'éclaire elle-même (style.materiauFluide) : la teinte du
+    // portail s'y mêle, elle ne la remplace pas
+    matFluide.emissive.lerp(new THREE.Color(PORTAL_COLOR), 0.2);
     const cadre = new THREE.Mesh(anneau, matFluide);
     group.add(cadre);
   } else {

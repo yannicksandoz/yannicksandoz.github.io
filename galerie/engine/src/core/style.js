@@ -46,17 +46,26 @@ export function estFluide() { return _style === 'fluide'; }
  * Rugosité basse mais pas nulle : les coques Hadid sont satinées, elles
  * étirent les reflets des lampes sans devenir des miroirs.
  */
-// LA RUGOSITÉ À 0,72, PAS 0,38. Satinée, la coque blanche des huisseries
-// et des anneaux de portail accrochait les lampes en reflets SPÉCULAIRES :
-// un reflet spéculaire dépend du point de vue, il glisse sur la forme
-// quand on marche, et il s'allume ou s'éteint avec chaque lampe que le
-// budget fait fondre — « des reflets blancs bizarres, découpés à la forme,
-// qui flashent autour des fenêtres et des portails ». Mate, la coque garde
-// sa blancheur (la couleur et la lumière des corniches, diffuses) et perd
-// le miroir. Même remède que pour les chambranles et les sabliers.
-export function materiauFluide({ teinte = '#e9e7f0', rugosite = 0.72 } = {}) {
+// UNE COQUE QUI S'ÉCLAIRE ELLE-MÊME. La coque blanche des huisseries et
+// des anneaux de portail « oscillait » d'un côté à l'autre quand on
+// tournait le regard. Ce n'était ni un reflet spéculaire (matée à 0,72,
+// pareil), ni l'environnement, ni les lampes, ni les lignes — c'était sa
+// GÉOMÉTRIE : un anneau extrudé a une face avant et des tranches. La face
+// avant regarde la salle, la corniche du même mur est DERRIÈRE son plan et
+// ne l'éclaire pas ; les tranches regardent de côté, et la corniche les
+// arrose. Mesuré à l'image : 83 % de clarté sur la tranche, 40 sur la
+// face. Vu de gauche on voit la tranche gauche, vu de droite la droite —
+// une bande blanche qui change de côté à chaque tour de tête, lue comme
+// un scintillement. La coque s'éclaire donc ELLE-MÊME pour l'essentiel
+// (émissif 0,62 de sa teinte, couleur à 0,35) : toutes ses faces ont la
+// même blancheur, ce qui reste de lumière reçue ne fait que la nuancer.
+// Sous le seuil du bloom (0,8) : un cadre blanc, pas un néon.
+export function materiauFluide({ teinte = '#e9e7f0', rugosite = 0.72, lueur = 0.62 } = {}) {
+  const couleur = new THREE.Color(teinte);
   return new THREE.MeshStandardMaterial({
-    color: new THREE.Color(teinte),
+    color: couleur.clone().multiplyScalar(1 - lueur),
+    emissive: couleur,
+    emissiveIntensity: lueur,
     roughness: rugosite,
     metalness: 0.04
   });

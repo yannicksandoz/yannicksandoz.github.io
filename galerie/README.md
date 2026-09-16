@@ -5248,6 +5248,25 @@ montrant une image sur douze en double — c'est cela qu'on lit comme un
 lag. Le filet doit se tendre AVANT que l'œil ne voie les à-coups. À
 vérifier au banc, sur le même appareil, au même endroit.
 
+**Le reflet qui changeait de côté sur l'anneau des portails.** Après la
+coque matée, « ça oscille toujours quand on tourne le regard, entre
+reflet à gauche et reflet à droite du portail ». Une sonde a tourné
+autour d'un anneau en coupant une chose à la fois : rugosité à 1,
+environnement à zéro, lampes éteintes, lignes coupées, matériau de
+Lambert sans aucun spéculaire — la bande restait. Ce n'était pas un
+reflet : c'était la GÉOMÉTRIE de l'anneau. Un anneau extrudé a une face
+avant et des tranches ; la face avant regarde la salle, et la corniche du
+même mur, derrière son plan, ne l'éclaire pas ; les tranches regardent de
+côté, et la corniche les arrose. Mesuré à l'image : 83 % de clarté sur la
+tranche, 40 sur la face. Vu de gauche on voit la tranche gauche, vu de
+droite la droite — une bande blanche qui change de côté à chaque tour de
+tête, lue comme un scintillement. La coque fluide s'éclaire désormais
+ELLE-MÊME pour l'essentiel (`materiauFluide` : émissif 0,62 de sa
+teinte, couleur à 0,35, sous le seuil du bloom) : toutes ses faces ont
+la même blancheur, la lumière reçue ne fait que la nuancer, et l'anneau
+des portails y mêle sa teinte au lieu de la remplacer. Vérifié en
+capture, de gauche comme de droite : un cadre blanc uniforme.
+
 **« Ça accroche encore un peu à l'entrée, au belvédère, aux archives »,
 et les flashs des cadres.** Deux sondes en marchant. La première a
 chronométré chaque repeint d'apparition : un rendu complet de la pièce
