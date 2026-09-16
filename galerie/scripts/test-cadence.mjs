@@ -153,13 +153,31 @@ test('58 images sur un écran à 60 Hz : au-dessus de la cible (57), rien ne bou
   assert.equal(app.journal.length, 0);
 });
 
-test('55 images sur un écran à 60 Hz : sous la cible, la densité descend — une image sur douze en double, c\'est un lag', () => {
+test('55 images sur un écran à 60 Hz : sous la cible, la densité descend palier par palier — une image sur douze en double, c\'est un lag', () => {
   const fin = silence();
   const q = new QualityManager();
   const app = appFactice();
   q._fps = 55;
+  tourner(q, app, { fps: 55, hz: 60, secondes: 8 });
+  assert.equal(q.profile.pixelRatio, 1.5, 'le premier palier, après six secondes');
+  tourner(q, app, { fps: 55, hz: 60, secondes: 12 });
+  assert.equal(q.profile.pixelRatio, 1, 'toujours sous la cible : le second, et pas plus bas');
+  fin();
+});
+
+test('un téléphone à 1,25 et 55 images : sous la cible, la densité descend à 1 — sans attendre les 50', () => {
+  const fin = silence();
+  window.devicePixelRatio = 3;
+  window.matchMedia = (m) => ({ matches: m === '(pointer: coarse)' });
+  const q = new QualityManager();
+  window.devicePixelRatio = 2;
+  window.matchMedia = () => ({ matches: false });
+  assert.equal(q.profile.pixelRatio, 1.25);
+  const app = appFactice();
+  q._fps = 55;
   tourner(q, app, { fps: 55, hz: 60, secondes: 20 });
-  assert.equal(q.profile.pixelRatio, 1.5);
+  assert.equal(q.profile.pixelRatio, 1);
+  assert.equal(q.profile.nettete, 0.5);
   fin();
 });
 

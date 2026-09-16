@@ -117,13 +117,23 @@ export function bancDemande(search = '') {
  * cette salle, à cet endroit. C'est ce tableau qui décide des réglages,
  * pas une intuition sur ce qu'un GPU de téléphone devrait aimer.
  *
- * Chaque variante : { id, nom, poser(app) → remettre() }.
+ * Chaque variante : { id, nom, poser(app) → remettre(), attente? }.
+ *
+ * EN ALTERNANCE AVEC LE TÉMOIN. Une première version mesurait le témoin
+ * une fois, en tête ; sur un iPhone, quarante secondes de GPU à fond le
+ * réchauffent et tout ce qui vient après le témoin paraît plus lent — le
+ * banc affichait « +0,5 » à toutes les variantes, y compris « sans
+ * lampes », mesurée −2,7 le matin. Ici chaque variante est précédée de SON
+ * témoin, mesuré dans les mêmes secondes, et c'est à lui qu'elle se
+ * compare : la dérive de la machine s'annule entre deux mesures voisines.
+ * Le changement de densité recrée toutes les cibles de rendu : il a droit
+ * à une attente plus longue avant qu'on ne le mesure.
  */
 export const ATTENTE_BANC = 1.5;   // secondes : le temps que la variante s'installe
 export const MESURE_BANC = 3;      // secondes de mesure par variante
 export const VARIANTES_BANC = [
   { id: 'temoin', nom: 'témoin', poser: () => () => {} },
-  { id: 'densite1', nom: 'densité ×1', poser: (app) => {
+  { id: 'densite1', nom: 'densité ×1', attente: 4, poser: (app) => {
     const avant = app.quality.profile.pixelRatio; const nettete = app.sortie.nettete;
     app.quality._poserDensite(app, 1);
     return () => { app.quality._poserDensite(app, avant); app.sortie.nettete = nettete; app.quality.profile.nettete = nettete; };
@@ -141,13 +151,15 @@ export const VARIANTES_BANC = [
   { id: 'poussiere', nom: 'sans poussière', poser: (app) => { const d = app.dust; if (!d) return () => {}; const v = d.visible; d.visible = false; return () => { d.visible = v; }; } }
 ];
 
-/** Le tableau du banc, une ligne par variante mesurée : moyenne et p95 en ms. */
+/**
+ * Le tableau du banc, une ligne par variante mesurée : moyenne et p95 en
+ * ms, et l'écart à SON témoin (mesuré juste avant elle).
+ */
 export function texteBanc(resultats, encours = null) {
   const lignes = [];
-  const temoin = resultats.find((r) => r.id === 'temoin');
   for (const r of resultats) {
-    const gain = temoin && r.id !== 'temoin' ? ` (${r.ms <= temoin.ms ? '−' : '+'}${Math.abs(temoin.ms - r.ms).toFixed(1)})` : '';
-    lignes.push(`${r.nom} ${r.ms.toFixed(1)} · p95 ${r.p95.toFixed(1)}${gain}`);
+    const ecart = Number.isFinite(r.temoinMs) ? ` (${r.ms <= r.temoinMs ? '−' : '+'}${Math.abs(r.temoinMs - r.ms).toFixed(1)} vs ${r.temoinMs.toFixed(1)})` : '';
+    lignes.push(`${r.nom} ${r.ms.toFixed(1)} · p95 ${r.p95.toFixed(1)}${ecart}`);
   }
   if (encours) lignes.push(`… ${encours}`);
   return lignes.join('<br>');
@@ -161,14 +173,21 @@ export function lancerBanc(app, poignee, { variantes = VARIANTES_BANC, attente =
   horloge = (typeof performance !== 'undefined' ? () => performance.now() : null) } = {}) {
   const resultats = [];
   poignee.banc = resultats;
+  // la liste réelle : chaque variante précédée de son témoin (le premier
+  // témoin de la liste tient lieu de témoin à la première variante)
+  const etapes = [];
+  for (const v of variantes) {
+    if (v.id !== 'temoin' && etapes[etapes.length - 1]?.id !== 'temoin') etapes.push({ id: 'temoin', nom: 'témoin', poser: () => () => {}, muet: true });
+    etapes.push(v);
+  }
   let i = 0; let remettre = null; let phase = 'attente'; let depuis = 0;
-  let stats = null;
+  let stats = null; let dernierTemoin = null;
   const suivante = () => {
-    if (i >= variantes.length) { poignee.encours = 'banc terminé'; poignee.peindre(); off(); return; }
-    const v = variantes[i];
+    if (i >= etapes.length) { poignee.encours = 'banc terminé'; poignee.peindre(); off(); return; }
+    const v = etapes[i];
     try { remettre = v.poser(app); } catch (e) { console.warn('[galerie] banc :', v.id, e?.message ?? e); remettre = () => {}; }
     phase = 'attente'; depuis = 0; stats = new Statistiques({ fenetre: mesure + 1 });
-    poignee.encours = `${v.nom} (${i + 1}/${variantes.length})`;
+    poignee.encours = `${v.nom} (${i + 1}/${etapes.length})`;
   };
   let precedent = 0;
   const off = app.onUpdate((dtBoucle) => {
@@ -179,11 +198,18 @@ export function lancerBanc(app, poignee, { variantes = VARIANTES_BANC, attente =
     const dt = precedent && maintenant ? (maintenant - precedent) / 1000 : dtBoucle;
     precedent = maintenant;
     depuis += dt;
-    if (phase === 'attente') { if (depuis >= attente) { phase = 'mesure'; depuis = 0; } return; }
+    const v = etapes[i];
+    if (phase === 'attente') { if (depuis >= (v.attente ?? attente)) { phase = 'mesure'; depuis = 0; } return; }
     stats.ajouter(depuis, dt);
     if (depuis < mesure) return;
-    const v = variantes[i];
-    resultats.push({ id: v.id, nom: v.nom, ms: stats.moyenne() * 1000, p95: stats.p95() * 1000 });
+    const mesureFaite = { ms: stats.moyenne() * 1000, p95: stats.p95() * 1000 };
+    if (v.id === 'temoin') {
+      dernierTemoin = mesureFaite;
+      // le premier témoin s'affiche ; les suivants ne servent qu'à leur variante
+      if (!v.muet) resultats.push({ id: v.id, nom: v.nom, ...mesureFaite });
+    } else {
+      resultats.push({ id: v.id, nom: v.nom, ...mesureFaite, temoinMs: dernierTemoin?.ms, temoinP95: dernierTemoin?.p95 });
+    }
     if (typeof window !== 'undefined') window.__galerieBanc = resultats;
     try { remettre?.(); } catch (e) { console.warn('[galerie] banc : remise', v.id, e?.message ?? e); }
     i++; suivante(); poignee.peindre();

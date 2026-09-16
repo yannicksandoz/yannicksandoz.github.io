@@ -70,17 +70,18 @@ test('le banc : ?banc=1 l\'implique et le demande, neuf variantes, un tableau av
   assert.equal(bancDemande('?perf=1'), false);
   assert.equal(perfDemande('?banc=1'), true, 'le banc a besoin du cartouche');
   assert.deepEqual(VARIANTES_BANC.map((v) => v.id), ['temoin', 'densite1', 'nettete', 'bloom', 'lignes', 'lampes', 'msaa', 'survol', 'poussiere']);
-  const t = texteBanc([{ id: 'temoin', nom: 'témoin', ms: 18.3, p95: 27 }, { id: 'bloom', nom: 'sans bloom', ms: 15.1, p95: 20.4 }, { id: 'msaa', nom: 'sans msaa', ms: 18.9, p95: 26 }], 'sans lignes (5/9)');
-  assert.equal(t, 'témoin 18.3 · p95 27.0<br>sans bloom 15.1 · p95 20.4 (−3.2)<br>sans msaa 18.9 · p95 26.0 (+0.6)<br>… sans lignes (5/9)');
+  const t = texteBanc([{ id: 'temoin', nom: 'témoin', ms: 18.3, p95: 27 }, { id: 'bloom', nom: 'sans bloom', ms: 15.1, p95: 20.4, temoinMs: 18.3 }, { id: 'msaa', nom: 'sans msaa', ms: 18.9, p95: 26, temoinMs: 18.3 }], 'sans lignes (5/9)');
+  assert.equal(t, 'témoin 18.3 · p95 27.0<br>sans bloom 15.1 · p95 20.4 (−3.2 vs 18.3)<br>sans msaa 18.9 · p95 26.0 (+0.6 vs 18.3)<br>… sans lignes (5/9)');
 });
 
-test('le banc enchaîne : pose, attend, mesure, remet, et passe à la suivante', () => {
+test('le banc enchaîne : pose, attend, mesure, remet, et passe à la suivante — chaque variante après son témoin', () => {
   const abonnes = []; const journal = [];
   const app = { onUpdate: (fn) => { abonnes.push(fn); return () => abonnes.splice(abonnes.indexOf(fn), 1); } };
   const poignee = { peindre: () => {}, encours: null, banc: null };
   const variantes = [
     { id: 'temoin', nom: 'témoin', poser: () => { journal.push('pose témoin'); return () => journal.push('remet témoin'); } },
-    { id: 'x', nom: 'x', poser: () => { journal.push('pose x'); return () => journal.push('remet x'); } }
+    { id: 'x', nom: 'x', poser: () => { journal.push('pose x'); return () => journal.push('remet x'); } },
+    { id: 'y', nom: 'y', attente: 0.3, poser: () => { journal.push('pose y'); return () => journal.push('remet y'); } }
   ];
   const banc = lancerBanc(app, poignee, { variantes, attente: 0.1, mesure: 0.2, horloge: null });   // sans horloge : le dt de la boucle
   const image = (dt) => { for (const fn of abonnes.slice()) fn(dt); };
@@ -90,9 +91,16 @@ test('le banc enchaîne : pose, attend, mesure, remet, et passe à la suivante',
   assert.deepEqual(journal, ['pose témoin', 'remet témoin', 'pose x']);
   assert.equal(banc.resultats.length, 1);
   assert.ok(Math.abs(banc.resultats[0].ms - 50) < 1e-6, `moyenne ${banc.resultats[0].ms}`);
-  for (let i = 0; i < 8; i++) image(0.05);
+  for (let i = 0; i < 8; i++) image(0.05);        // x mesurée, puis un témoin muet se pose avant y
   assert.deepEqual(journal, ['pose témoin', 'remet témoin', 'pose x', 'remet x']);
   assert.equal(banc.resultats.length, 2);
+  assert.ok(Math.abs(banc.resultats[1].temoinMs - 50) < 1e-6, 'x se compare au témoin mesuré juste avant');
+  for (let i = 0; i < 8; i++) image(0.05);        // le témoin muet ; y attend 0,3 s au lieu de 0,1
+  assert.deepEqual(journal, ['pose témoin', 'remet témoin', 'pose x', 'remet x', 'pose y']);
+  assert.equal(banc.resultats.length, 2, 'un témoin muet ne s\'affiche pas');
+  for (let i = 0; i < 12; i++) image(0.05);
+  assert.deepEqual(journal, ['pose témoin', 'remet témoin', 'pose x', 'remet x', 'pose y', 'remet y']);
+  assert.equal(banc.resultats.length, 3);
   assert.equal(poignee.encours, 'banc terminé');
   assert.equal(abonnes.length, 0, 'le banc se désabonne à la fin');
   delete globalThis.window?.__galerieBanc;

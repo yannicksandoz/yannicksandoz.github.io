@@ -5248,6 +5248,23 @@ montrant une image sur douze en double — c'est cela qu'on lit comme un
 lag. Le filet doit se tendre AVANT que l'œil ne voie les à-coups. À
 vérifier au banc, sur le même appareil, au même endroit.
 
+**Le second banc, et ce qu'il a appris au banc lui-même.** Après les
+coupes, témoin 17,1 ms au lieu de 19,4 — mais toutes les variantes
+sortaient PLUS LENTES que le témoin (+0,4 à +0,9, y compris « sans
+lampes », mesurée −2,7 le matin), et « densité ×1 » à 35,8. Deux leçons.
+Un téléphone qui rend à fond pendant quarante secondes chauffe : le
+témoin, mesuré en tête, était le plus frais, et tout ce qui suivait
+payait la dérive. Le banc mesure désormais chaque variante EN ALTERNANCE
+avec son propre témoin, pris dans les secondes qui précèdent, et c'est à
+lui qu'elle se compare (`texteBanc` : « −3,2 vs 18,3 ») ; le changement
+de densité, qui recrée toutes les cibles de rendu, a droit à quatre
+secondes d'installation au lieu d'une et demie. Et le cartouche disait
+encore ×1,25 à 55 images : le premier palier du gouverneur n'existait
+qu'au-dessus de 1,5, un téléphone à 1,25 restait sous la cible sans que
+rien ne bouge jusqu'à passer sous 50. Le palier descend maintenant d'un
+cran par décision, du natif à 1,5 puis à 1, jamais plus bas par ce
+chemin (`Quality._densite`, `test-cadence`).
+
 **Le banc d'essai, `?banc=1`** (`ui/Perf.js`, `lancerBanc`). « C'est
 quand même trop lourd, ça lag partout, il faut évaluer les solutions. »
 Évaluer, c'est mesurer sur l'appareil, et demander dix captures avec dix

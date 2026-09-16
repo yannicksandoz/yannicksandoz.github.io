@@ -335,13 +335,16 @@ export class QualityManager {
    */
   _densite(app) {
     const p = this.profile;
-    if (!(p.pixelRatio > 1.5) || !app?.renderer) return false;
-    p.pixelRatio = 1.5;
-    p.nettete = 0.5;
-    app.renderer.setPixelRatio(1.5);
-    app.composer?.setPixelRatio(1.5);
-    if (app.sortie) app.sortie.nettete = 0.5;
-    console.info(`[galerie] ${this._fps.toFixed(0)} images sur un écran à ${this._hz} Hz → densité 1,5 affûtée`);
+    if (!app?.renderer) return false;
+    // UN PALIER PAR DÉCISION : du natif à 1,5, puis de 1,5 (ou de 1,25, la
+    // densité d'un téléphone) à 1. Longtemps le premier palier n'existait
+    // qu'au-dessus de 1,5 : un téléphone à 1,25 et 55 images restait
+    // « sous la cible » sans que rien ne bouge, jusqu'à passer sous 50.
+    // Le banc (`?banc=1`) a mesuré ce que vaut ce palier sur iPhone : 2,6 ms.
+    const cible = p.pixelRatio > 1.5 ? 1.5 : (p.pixelRatio > 1 ? 1 : null);
+    if (cible === null) return false;
+    this._poserDensite(app, cible);
+    console.info(`[galerie] ${this._fps.toFixed(0)} images sur un écran à ${this._hz} Hz → densité ${String(cible).replace('.', ',')} affûtée`);
     return true;
   }
 
