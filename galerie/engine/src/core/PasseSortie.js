@@ -145,6 +145,8 @@ const SORTIE = {
     // l'ALPHA de la scène (`tDiffuse`), dilaté ici en liseré. `uContour` =
     // force du liseré (0 : rien à faire)
     uContour: { value: 0 },
+    uContourAnneaux: { value: 4 }, // anneaux de voisins lus (4 : 32 lectures ; 2 : 16)
+    uContourPas: { value: 1 },     // texels entre deux anneaux (2 : même couronne, moitié moins de lectures)
     uContourCouleur: { value: new Color(0xffffff) }, // blanc : un trait, pas une teinte
     uMasqueDebug: { value: 0 }     // ?survol=masque : la silhouette en magenta, pour diagnostiquer
   },
@@ -169,6 +171,8 @@ const SORTIE = {
     uniform sampler2D tOcclusion;
     uniform float uOcclusion;
     uniform float uContour;
+    uniform float uContourAnneaux;
+    uniform float uContourPas;
     uniform vec3 uContourCouleur;
     uniform float uMasqueDebug;
     varying vec2 vUv;
@@ -188,8 +192,9 @@ const SORTIE = {
       float net = masque(uv);
       float voisin = 0.0;
       for (int a = 0; a < 4; a++) {
-        float r = float(a) + 1.0;
-        float poids = 1.0 - 0.25 * float(a);
+        if (float(a) >= uContourAnneaux) break;   // branche uniforme
+        float r = (float(a) + 1.0) * uContourPas;
+        float poids = 1.0 - float(a) / uContourAnneaux;
         vec2 d = uTexel * r;
         voisin = max(voisin, masque(uv + vec2( d.x,  0.0)) * poids);
         voisin = max(voisin, masque(uv + vec2(-d.x,  0.0)) * poids);

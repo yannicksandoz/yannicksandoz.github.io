@@ -419,7 +419,12 @@ export class App {
       0.8    // seuil : les hautes lumières seulement
     );
     this.bloom.echelle = this.quality.profile.bloomResScale;
+    // les niveaux de la pyramide : cinq chez three, trois sur l'image
+    // unique — chaque niveau est deux passes de plus (voir Quality)
+    this.bloom.nMips = Math.max(1, Math.min(5, this.quality.profile.bloomMips ?? 5));
     this.sortie = new PasseSortie(this.bloom, this.scenePass);
+    this.sortie.uniforms.uContourAnneaux.value = this.quality.profile.contourAnneaux ?? 4;
+    this.sortie.uniforms.uContourPas.value = this.quality.profile.contourPas ?? 1;
     this.sortie.grainActif = this.quality.profile.grain;
     // l'affûtage : téléphone (et GPU modeste) seulement — voir Quality
     this.sortie.nettete = this.quality.profile.nettete ?? 0;

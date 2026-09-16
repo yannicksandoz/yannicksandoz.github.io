@@ -48,13 +48,16 @@ export function estimerHz(periodeMin) {
 }
 
 /**
- * La cadence VISÉE pour un écran donné : 85 % de son taux, jamais moins de
- * 50. À 60 Hz c'est 51 — le seuil de finition d'avant, à une image près ;
- * à 120 Hz c'est 102 : en dessous, un écran ProMotion montre chaque
- * saccade, et c'est là que la densité a quelque chose à donner.
+ * La cadence VISÉE pour un écran donné : 95 % de son taux, jamais moins de
+ * 50. À 60 Hz c'est 57 ; à 120 Hz, 114. C'était 85 % (51 à 60 Hz) : un
+ * téléphone à 55 images par seconde restait « au-dessus de la cible » et
+ * gardait sa densité ×1,25, tout en montrant une image sur douze en
+ * double — c'est ce qu'on lit comme un lag. Mesuré au banc (`?banc=1`)
+ * sur un iPhone au belvédère : la densité ×1 rend 2,6 ms sur 19,4. Le
+ * filet doit se tendre AVANT que l'œil ne voie les à-coups, pas après.
  */
 export function cibleImages(hz) {
-  return Math.max(50, Math.round(0.85 * (Number(hz) || 60)));
+  return Math.max(50, Math.round(0.95 * (Number(hz) || 60)));
 }
 
 import { FINITION, SURVIE, ECONOME_CRANS, prochainCran, etatDe, densiteSuivante, ECONOME, lireEconome, ecrireEconome, lireGouverneur, lireProfil, lireRiche } from './crans.js';
@@ -102,6 +105,22 @@ export class QualityManager {
           nettete: densite < dpr ? 0.5 : 0,
           bloomResScale: 0.25,  // bloom calculé au quart de la résolution
           bloomStrength: 0.5,
+          // LE BANC D'ESSAI (`?banc=1`, ui/Perf.js) sur un iPhone au
+          // belvédère, 19,4 ms de témoin : rien ne domine, tout pèse un peu
+          // — densité ×1 −2,6, lampes −2,7, msaa −1,5, liseré −1,4, lignes
+          // −1,2, bloom −1,1, poussière −1,1, affûtage −0,8. Une image à
+          // 60 images par seconde sur ce téléphone se gagne donc par
+          // PLUSIEURS petites coupes, chacune choisie là où l'œil perd le
+          // moins : trois niveaux de bloom au lieu de cinq (la pyramide
+          // est une suite de passes, et sur un GPU à tuiles c'est la passe
+          // qui coûte, pas ses pixels), deux anneaux de liseré à pas double
+          // (même couronne de quatre pixels, seize lectures au lieu de
+          // trente-deux), moins de lampes proches, moins de poussière,
+          // moins de lignes. L'anticrénelage reste : sans lui, la dalle 3×
+          // montre chaque marche.
+          bloomMips: 3,
+          contourAnneaux: 2,
+          contourPas: 2,
           // LE GRAIN, seulement à pleine densité : sur un téléphone qui rend
           // à 1,25 pour une dalle à 3×, le grain agrandi puis affûté par la
           // sortie faisait une image « moche » — du bruit, pas un grain
@@ -111,7 +130,7 @@ export class QualityManager {
           // SOURCE, au-delà les voies retombent sur equalpower
           maxStems: 6,
           maxHRTF: 4,
-          dustCount: 450,       // la poussière ne coûte rien
+          dustCount: 250,       // mesuré au banc : 450 coûtaient 1,1 ms sur iPhone
           maxTextureSize: 2048,
           isfResolution: 512,   // les écrans ISF pleins : à mesurer sur téléphone (sonde)
           shadows: false,
@@ -137,7 +156,7 @@ export class QualityManager {
           // pour deux lampes de plus intégrées sur chaque pixel. Ce qui
           // manque encore dans ces deux salles n'est pas un accent de plus,
           // c'est qu'elles sont vastes et sans plafond.
-          lampesProches: { points: 4, cones: 3 },
+          lampesProches: { points: 3, cones: 2 },   // 4 et 3 coûtaient 2,7 ms au banc
           // les lignes de lumière (corniches analytiques) intégrées par
           // pixel : DOUZE, les plus proches — la sonde d'ambiance porte les
           // autres (lignes-lumiere.reglerBudgetLignes). À huit, le labo
@@ -146,7 +165,7 @@ export class QualityManager {
           // 7,0 % de luminance moyenne contre 10,8 au bureau dans le même
           // cadre ; à douze, 11,2. Le gouverneur redescend à huit au cran
           // « etendues » si l'image ne suit pas.
-          lignesProches: 12,
+          lignesProches: 10,
           // aucun accent ne projette sur téléphone : les ombres y sont
           // déjà coupées (shadows: false)
           projecteursOmbre: 0,
@@ -187,6 +206,9 @@ export class QualityManager {
           // `_densite`). Un écran à densité 1 ne voit jamais rien changer.
           bloomResScale: 0.5,
           bloomStrength: 0.55,
+          bloomMips: 5,
+          contourAnneaux: 4,
+          contourPas: 1,
           shadows: true,
           // 4096 : la fenêtre d'ombre couvre désormais la coque entière
           // (jusqu'à 64 m à l'entrée) — à 2048, l'ombre d'un pied de banc

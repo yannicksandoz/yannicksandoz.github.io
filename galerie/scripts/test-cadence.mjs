@@ -10,8 +10,8 @@
  *
  *   1. LA LECTURE DU TAUX. Les intervalles sont des multiples de la période
  *      de l'écran : le minimum la révèle, à condition qu'une image tienne.
- *   2. LA CIBLE. 51 sur un 60 Hz (le seuil d'avant, à une image près),
- *      102 sur un 120 Hz.
+ *   2. LA CIBLE. 95 % du taux : 57 sur un 60 Hz, 114 sur un 120 Hz — un
+ *      téléphone à 55 images montre une image sur douze en double.
  *   3. LE CRAN. Il ne se prend qu'avec des pixels à rendre (densité > 1,5),
  *      après six secondes, une seule fois — et il ne remonte pas.
  *
@@ -62,15 +62,15 @@ test('sans mesure, ou hors de tout taux connu, on répond 60 (le comportement d\
 
 groupe('la cadence visée : 85 % de l\'écran, jamais moins de 50');
 
-test('60 Hz → 51, 120 Hz → 102, 144 Hz → 122', () => {
-  assert.equal(cibleImages(60), 51);
-  assert.equal(cibleImages(120), 102);
-  assert.equal(cibleImages(144), 122);
+test('60 Hz → 57, 120 Hz → 114, 144 Hz → 137', () => {
+  assert.equal(cibleImages(60), 57);
+  assert.equal(cibleImages(120), 114);
+  assert.equal(cibleImages(144), 137);
 });
 
 test('un taux absurde retombe sur 60 Hz', () => {
-  assert.equal(cibleImages(undefined), 51);
-  assert.equal(cibleImages(0), 51);
+  assert.equal(cibleImages(undefined), 57);
+  assert.equal(cibleImages(0), 57);
 });
 
 /* ------------------------------------------------------------- 3. le cran --- */
@@ -144,13 +144,23 @@ test('…et ne remonte jamais, même une minute à la cible', () => {
   fin();
 });
 
-test('55 images sur un écran à 60 Hz : au-dessus de la cible, rien ne bouge', () => {
+test('58 images sur un écran à 60 Hz : au-dessus de la cible (57), rien ne bouge', () => {
+  const q = new QualityManager();
+  const app = appFactice();
+  q._fps = 58;
+  tourner(q, app, { fps: 58, hz: 60, secondes: 20 });
+  assert.equal(q.profile.pixelRatio, 2);
+  assert.equal(app.journal.length, 0);
+});
+
+test('55 images sur un écran à 60 Hz : sous la cible, la densité descend — une image sur douze en double, c\'est un lag', () => {
+  const fin = silence();
   const q = new QualityManager();
   const app = appFactice();
   q._fps = 55;
   tourner(q, app, { fps: 55, hz: 60, secondes: 20 });
-  assert.equal(q.profile.pixelRatio, 2);
-  assert.equal(app.journal.length, 0);
+  assert.equal(q.profile.pixelRatio, 1.5);
+  fin();
 });
 
 test('un écran à densité 1 n\'a rien à donner : sous la cible, la densité reste', () => {
