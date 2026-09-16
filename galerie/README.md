@@ -5232,21 +5232,41 @@ unique). Sur un iPhone au belvédère, témoin 19,4 ms : rien ne domine,
 tout pèse un peu — densité ×1 −2,6, lampes −2,7, msaa −1,5, liseré −1,4,
 lignes −1,2, bloom −1,1, poussière −1,1, affûtage −0,8. Une image à 60
 par seconde sur ce téléphone se gagne donc par plusieurs petites coupes,
-chacune prise là où l'œil perd le moins : trois niveaux de bloom au lieu
-de cinq (`bloomMips` — la pyramide est une suite de passes, et sur un GPU
-à tuiles c'est la passe qui coûte, pas ses pixels : quatre passes de
-moins), deux anneaux de liseré à pas double au lieu de quatre
+chacune prise là où l'œil perd le moins : deux anneaux de liseré à pas double au lieu de quatre
 (`contourAnneaux`, `contourPas` : même couronne de quatre pixels, seize
 lectures au lieu de trente-deux — mesurée à 3 px d'épaisseur en
 émulation), trois points et deux cônes de lampes proches au lieu de
 quatre et trois, 250 grains de poussière au lieu de 450, dix lignes au
 lieu de douze. L'anticrénelage reste : sans lui, la dalle 3× montre
-chaque marche. Et LA CIBLE DU GOUVERNEUR passe de 85 % à 95 % du taux de
+chaque marche. Les niveaux du bloom, d'abord ramenés de cinq à trois
+(`bloomMips`, quatre petites passes de moins), sont revenus à cinq :
+mesuré à l'image, les deux niveaux larges portent le halo de toute la
+salle — aux archives, 28,9 % de clarté moyenne contre 24,9 sans eux. Et LA CIBLE DU GOUVERNEUR passe de 85 % à 95 % du taux de
 l'écran (57 à 60 Hz, 114 à 120 Hz, `cibleImages`) : un téléphone à 55
 images restait « au-dessus de la cible » et gardait sa densité ×1,25 en
 montrant une image sur douze en double — c'est cela qu'on lit comme un
 lag. Le filet doit se tendre AVANT que l'œil ne voie les à-coups. À
 vérifier au banc, sur le même appareil, au même endroit.
+
+**« Ça accroche encore un peu à l'entrée, au belvédère, aux archives »,
+et les flashs des cadres.** Deux sondes en marchant. La première a
+chronométré chaque repeint d'apparition : un rendu complet de la pièce
+d'en face, jusqu'à 280 objets et 111 000 triangles pour une lucarne de
+192 pixels, toutes les demi-secondes ou tous les quarante centimètres —
+et à chaque repeint, l'image de la baie SAUTAIT d'un point de vue à
+l'autre, ce qui se lisait comme un flash dans la fenêtre. Chaque baie
+garde désormais ses DEUX dernières peintures (deux cibles) et glisse de
+l'une à l'autre en 0,4 s (`FONDU_VISTA`, greffe sur le carreau) ; le
+régime lent repeint deux fois moins souvent, une fois par seconde ou
+tous les quatre-vingts centimètres, sans que rien ne saute. La seconde
+sonde cherchait des sauts de clarté par cellule d'écran : rien de plus
+que la poussière qui passe — mais le reflet des cadres, lui, ne saute
+pas, il GLISSE. La coque blanche des huisseries et des anneaux de portail
+(`materiauFluide`) était satinée (rugosité 0,38) : un reflet spéculaire
+dépend du point de vue, il court sur la forme quand on marche et
+s'allume avec chaque lampe que le budget fait fondre. Elle est mate
+désormais (0,72), blanche par sa couleur et la lumière diffuse des
+corniches, sans miroir — le remède déjà pris pour les chambranles.
 
 **Le manche qui ne lâchait plus, et le premier pas qui accrochait.**
 Deux retours de la même visite avec `?perf=1`. « J'avance sans pouvoir

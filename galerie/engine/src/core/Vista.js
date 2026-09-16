@@ -99,14 +99,20 @@ function geometrieDeBaie(room, cfg, baie, bw, bh) {
 // dans sa masse.
 const INSET = 0.26;
 
-// Régime lent : deux images par seconde au plus, et seulement si le
-// visiteur s'est déplacé de quarante centimètres — en deçà, la précédente
-// vaut encore. C'était un mètre et une seconde : depuis que l'image est la
-// même pour tous (Quality.js), le régime lent est celui de tout le monde,
-// et une baie qui saute d'un mètre de parallaxe à chaque pas se voyait
-// comme une saccade. Deux fois plus de rendus en marchant, aucun à l'arrêt.
-const SLOW_PERIOD = 0.5;
-const SLOW_MOVE2 = 0.16;   // m² (40 cm)
+// Régime lent : une image par seconde au plus, et seulement si le
+// visiteur s'est déplacé de quatre-vingts centimètres — en deçà, la
+// précédente vaut encore. Chaque repeint est un rendu complet de la pièce
+// d'en face (jusqu'à 280 objets pour le belvédère) : en marchant, c'est
+// lui qui faisait accrocher l'image, et l'image de la baie qui SAUTAIT
+// d'un point de vue à l'autre se lisait comme un flash dans la fenêtre.
+// Le saut est désormais un FONDU (voir `FONDU_VISTA`) : la baie garde ses
+// deux dernières peintures et glisse de l'une à l'autre — on peut donc
+// repeindre deux fois moins souvent sans rien voir sauter.
+const SLOW_PERIOD = 1;
+const SLOW_MOVE2 = 0.64;   // m² (80 cm)
+// LE FONDU D'UNE BAIE : secondes pour passer de la peinture précédente à
+// la nouvelle. Deux cibles par baie, la sortie du carreau les mélange.
+export const FONDU_VISTA = 0.4;
 const SLOW_MIN = 0.15;     // s — étale la peinture initiale de plusieurs baies
 // L'ARRÊT : en régime lent, une baie ne se repeint qu'après un mètre de
 // marche. Quand le visiteur s'arrête DEVANT une apparition, il garde donc
@@ -207,6 +213,7 @@ export class VistaManager {
         o.material?.dispose?.();
       });
       v.rt?.dispose();
+      v.rtAvant?.dispose();
     }
     room.vistas = [];
   }
@@ -258,7 +265,7 @@ export class VistaManager {
       rotY: ROT[wall]
     };
 
-    let material, rt = null;
+    let material, rt = null, rtAvant = null;
     if (this.app.renderer) {
       // Résolution volontairement modeste : l'apparition est une lucarne
       // vers ailleurs, pas un miroir 4K — et chaque texel se paie à chaque
@@ -268,14 +275,33 @@ export class VistaManager {
       const px = this.live
         ? Math.min(96, 512 / Math.max(bw, bh))
         : Math.min(48, 256 / Math.max(bw, bh));
-      rt = new THREE.WebGLRenderTarget(
-        Math.max(2, Math.round(bw * px)), Math.max(2, Math.round(bh * px)),
-        { samples: 0 }
-      );
+      const taille = [Math.max(2, Math.round(bw * px)), Math.max(2, Math.round(bh * px))];
+      rt = new THREE.WebGLRenderTarget(taille[0], taille[1], { samples: 0 });
       rt.texture.colorSpace = this.app.renderer.outputColorSpace;
+      // la peinture PRÉCÉDENTE, gardée le temps du fondu (FONDU_VISTA)
+      rtAvant = new THREE.WebGLRenderTarget(taille[0], taille[1], { samples: 0 });
+      rtAvant.texture.colorSpace = this.app.renderer.outputColorSpace;
       material = new THREE.MeshBasicMaterial({ map: rt.texture });
       // le rendu de la passe a déjà son exposition : pas de double tone mapping
       material.toneMapped = false;
+      // LE FONDU : le carreau lit ses deux peintures et les mélange par
+      // `uMix` (0 : l'ancienne, 1 : la nouvelle). Les uniformes vivent sur
+      // le matériau : la greffe les branche à chaque compilation.
+      material.userData.tAvant = { value: rtAvant.texture };
+      material.userData.uMix = { value: 1 };
+      material.onBeforeCompile = (shader) => {
+        shader.uniforms.tAvant = material.userData.tAvant;
+        shader.uniforms.uMix = material.userData.uMix;
+        shader.fragmentShader = shader.fragmentShader
+          .replace('#include <common>', '#include <common>\nuniform sampler2D tAvant;\nuniform float uMix;')
+          .replace('#include <map_fragment>', `
+          #ifdef USE_MAP
+            vec4 apparitionNeuve = texture2D( map, vMapUv );
+            vec4 apparitionAvant = texture2D( tAvant, vMapUv );
+            diffuseColor *= mix( apparitionAvant, apparitionNeuve, uMix );
+          #endif`);
+      };
+      material.customProgramCacheKey = () => 'apparition-fondu';
     } else {
       // sans renderer (tests hors navigateur) : plaque teintée de la cible
       const target = this.app.rooms?.get?.(cfg.room);
@@ -348,7 +374,16 @@ export class VistaManager {
     // l'apparition en remplit une). La caméra de rendu doit s'y accorder,
     // sinon l'ailleurs est étiré dans son ouverture — c'est le décalage qui
     // restait visible au couloir après avoir pourtant recalé la découpe.
-    return { cfg, mesh, rt, camAt: null, bw, bh };
+    return { cfg, mesh, rt, rtAvant, fondu: 1, camAt: null, bw, bh };
+  }
+
+  /** Les fondus des baies de la salle : la nouvelle peinture monte en FONDU_VISTA secondes. */
+  _fondre(room, dt) {
+    for (const v of room?.vistas ?? []) {
+      if (v.fondu >= 1 || !v.mesh.material?.userData?.uMix) continue;
+      v.fondu = Math.min(1, v.fondu + dt / FONDU_VISTA);
+      v.mesh.material.userData.uMix.value = v.fondu;
+    }
   }
 
   /**
@@ -361,6 +396,7 @@ export class VistaManager {
     if (!this.app.renderer) return;
     const rooms = this.app.rooms;
     const current = rooms?.current;
+    this._fondre(current, dt);
     // pas de rendu d'apparition pendant un warp : la frame est déjà chère,
     // et l'image est de toute façon tordue par la passe — repeindre une
     // lucarne pendant qu'on traverse un portail, c'est payer pour rien
@@ -445,9 +481,20 @@ export class VistaManager {
     // une baie sans pièce cible ne sera jamais peinte : on la marque quand
     // même, sinon elle repasserait en tête de file à chaque frame et
     // affamerait les autres
+    const premiere = !vista.camAt;
     vista.camAt = (vista.camAt ?? new THREE.Vector3()).copy(camWorld.position);
     const target = rooms.get(vista.cfg.room);
     if (!target || target === current) return;
+    // la nouvelle peinture va dans l'AUTRE cible ; l'ancienne reste lue le
+    // temps du fondu — sauf à la première, où il n'y a rien à fondre
+    if (vista.rtAvant) {
+      [vista.rt, vista.rtAvant] = [vista.rtAvant, vista.rt];
+      const m = vista.mesh.material;
+      m.map = vista.rt.texture;
+      m.userData.tAvant.value = vista.rtAvant.texture;
+      vista.fondu = premiere ? 1 : 0;
+      m.userData.uMix.value = vista.fondu;
+    }
 
     // UNE FENÊTRE N'EST PAS UNE CAMÉRA.
     //

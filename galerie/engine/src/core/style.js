@@ -46,7 +46,15 @@ export function estFluide() { return _style === 'fluide'; }
  * Rugosité basse mais pas nulle : les coques Hadid sont satinées, elles
  * étirent les reflets des lampes sans devenir des miroirs.
  */
-export function materiauFluide({ teinte = '#e9e7f0', rugosite = 0.38 } = {}) {
+// LA RUGOSITÉ À 0,72, PAS 0,38. Satinée, la coque blanche des huisseries
+// et des anneaux de portail accrochait les lampes en reflets SPÉCULAIRES :
+// un reflet spéculaire dépend du point de vue, il glisse sur la forme
+// quand on marche, et il s'allume ou s'éteint avec chaque lampe que le
+// budget fait fondre — « des reflets blancs bizarres, découpés à la forme,
+// qui flashent autour des fenêtres et des portails ». Mate, la coque garde
+// sa blancheur (la couleur et la lumière des corniches, diffuses) et perd
+// le miroir. Même remède que pour les chambranles et les sabliers.
+export function materiauFluide({ teinte = '#e9e7f0', rugosite = 0.72 } = {}) {
   return new THREE.MeshStandardMaterial({
     color: new THREE.Color(teinte),
     roughness: rugosite,

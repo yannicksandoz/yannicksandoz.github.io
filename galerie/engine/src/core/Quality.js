@@ -118,7 +118,12 @@ export class QualityManager {
           // trente-deux), moins de lampes proches, moins de poussière,
           // moins de lignes. L'anticrénelage reste : sans lui, la dalle 3×
           // montre chaque marche.
-          bloomMips: 3,
+          // …sauf les niveaux du bloom, revenus à cinq : mesuré à l'image,
+          // les deux niveaux larges portent le halo de toute la salle — aux
+          // archives, 28,9 % de clarté moyenne contre 24,9 sans eux — pour
+          // quatre petites passes. L'atmosphère vaut ces dixièmes de
+          // milliseconde.
+          bloomMips: 5,
           contourAnneaux: 2,
           contourPas: 2,
           // LE GRAIN, seulement à pleine densité : sur un téléphone qui rend
