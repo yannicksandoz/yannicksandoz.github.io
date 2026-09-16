@@ -568,13 +568,16 @@ html, body, #app, #app canvas { touch-action: none; }
   pointer-events: none; user-select: none;
 }
 #fps-meter.fps-low { color: #ffb36b; border-color: rgba(255, 179, 107, 0.35); }
-/* le cartouche de mesure (?perf=1, ui/Perf.js) : au-dessus du compteur
-   d'images, même habit ; en orange quand le p95 dépasse 33 ms */
+/* le cartouche de mesure (?perf=1, ui/Perf.js) : EN HAUT, sous la rangée
+   du HUD, même habit ; en orange quand le p95 dépasse 33 ms. En bas, il
+   couvrait le manche et le bouton de course : on visait à l'aveugle, au
+   bord de l'écran, où le système avale les gestes — et l'on avançait sans
+   pouvoir s'arrêter. Il ne prend jamais le doigt (pointer-events: none). */
 #perf-cartouche {
   position: fixed;
   left: calc(0.8rem + env(safe-area-inset-left, 0px));
-  bottom: calc(2.7rem + env(safe-area-inset-bottom, 0px));
-  z-index: 22; max-width: min(92vw, 30rem);
+  top: calc(7.6rem + env(safe-area-inset-top, 0px));
+  z-index: 22; max-width: min(92vw, 30rem); max-height: 55vh; overflow: hidden;
   padding: 0.35rem 0.6rem; border-radius: 0.4rem; line-height: 1.45;
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
   font-size: 0.7rem; letter-spacing: 0.03em;

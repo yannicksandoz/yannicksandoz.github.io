@@ -543,9 +543,13 @@ export function patcherRepetition(material, force = 0.45) {
           float repOctave = texture2D(map, repBiais * vMapUv * 1.6180339887 + 0.37).r;
           diffuseColor.rgb *= mix(1.0, repOctave / 0.9, uRepetForce);
         #endif`);
-    // deux matériaux au même programme ne doivent pas se partager le cache
-    material.customProgramCacheKey = () => `repet-${force}`;
   };
+  // deux matériaux au même programme ne doivent pas se partager le cache —
+  // et la clé se pose ICI, pas dans la greffe : posée pendant la première
+  // compilation, elle changeait la clé APRÈS coup, et le programme tout
+  // juste compilé ne se retrouvait plus au dessin suivant : chaque sol et
+  // chaque mur compilaient deux fois (mesuré sur le premier pas d'une salle)
+  material.customProgramCacheKey = () => `repet-${force}`;
   material.needsUpdate = true;
   return material;
 }

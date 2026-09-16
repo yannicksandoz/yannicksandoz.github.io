@@ -74,6 +74,19 @@ test('le budget DEMANDE, il ne bascule plus : la lampe rendue descend, la demand
   assert.equal(fondreLampes(room, 0.6), false);    // plus rien ne bouge
 });
 
+test('le budget IMMÉDIAT (l\'entrée d\'une salle) : pas de fondu, les rendues s\'éteignent, les demandées sont pleines', () => {
+  const { group, lampes } = salle([[0, 2, 0], [10, 2, 0], [20, 2, 0]]);
+  budgetLampes({ group }, new THREE.Vector3(0, 2, 0), { points: 2, cones: 0, immediat: true });
+  assert.deepEqual(lampes.map((l) => l.visible), [true, true, false]);
+  assert.deepEqual(lampes.map((l) => l.userData.fondu), [1, 1, 0]);
+  assert.deepEqual(lampes.map((l) => l.intensity), [2, 2, 0]);
+  assert.equal(fondreLampes({ group }, 1), false, 'rien ne reste à fondre');
+  // sous le budget, immédiat : toutes pleines
+  budgetLampes({ group }, new THREE.Vector3(0, 2, 0), { points: 4, cones: 0, immediat: true });
+  assert.deepEqual(lampes.map((l) => l.visible), [true, true, true]);
+  assert.deepEqual(lampes.map((l) => l.intensity), [2, 2, 2]);
+});
+
 test('sous le budget, toutes les lampes sont voulues et rien ne descend', () => {
   const { group, lampes } = salle([[0, 2, 0], [5, 2, 0]]);
   budgetLampes({ group }, new THREE.Vector3(), { points: 4, cones: 0 });

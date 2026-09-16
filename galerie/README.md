@@ -5248,6 +5248,38 @@ montrant une image sur douze en double — c'est cela qu'on lit comme un
 lag. Le filet doit se tendre AVANT que l'œil ne voie les à-coups. À
 vérifier au banc, sur le même appareil, au même endroit.
 
+**Le manche qui ne lâchait plus, et le premier pas qui accrochait.**
+Deux retours de la même visite avec `?perf=1`. « J'avance sans pouvoir
+m'arrêter » : le cartouche, en bas, couvrait le manche et le bouton de
+course ; on visait à l'aveugle, au bord de l'écran, là où le système
+avale les gestes, et le relâchement n'arrivait jamais à la zone. Le
+cartouche vit désormais EN HAUT, sous la rangée du HUD ; et le manche
+comme la course ont une sûreté : tout relâchement vu par la fenêtre,
+toute perte de focus, toute fin de contact tactile remet le manche au
+centre (`Controls`). « Le premier mouvement lag, comme si tout n'était
+pas prêt à l'arrivée » : c'était vrai, three ne compile le programme
+d'un matériau qu'au premier dessin. À l'arrivée, seul ce qui est dans le
+champ se dessine ; au premier pas, ce qui était derrière compile. Et le
+compte des lumières visibles est une VARIANTE de tous les programmes :
+l'arrivée voyait toutes les lampes de la salle (dix-neuf au belvédère),
+puis le budget, puis une de plus le temps d'un fondu. Désormais, dans le
+noir de la transition (`RoomManager._chaufferProgrammes`) : le budget de
+lampes se pose SANS fondu (`budgetLampes`, `immediat`), la salle se
+compile pour la cible de scène (un programme dépend de là où il dessine :
+linéaire sans courbe de tons dans une cible, sRGB à l'écran) avec
+`renderer.compile(salle, caméra, scène)`, puis avec un point de plus, un
+cône de plus, les deux — les variantes que chaque fondu traverse — et
+chaque apparition compile sa pièce cible pour sa propre caméra
+(`VistaManager.chauffer`). Une œuvre qui charge son visuel plus tard se
+compile à l'instant (`App.notifyVisualLoaded`). Et `patcherRepetition`
+posait sa clé de cache DANS la greffe, pendant la première compilation :
+la clé changeait après coup, et chaque sol, chaque mur compilaient deux
+fois — la clé se pose maintenant avec la greffe. Mesuré en émulation sur
+dix mètres de marche : de douze à dix-huit programmes compilés par
+salle il en reste sept à dix-huit, pour l'essentiel les variantes des
+apparitions et des lampes qui n'étaient pas dans le champ — la suite
+se lit sur l'appareil.
+
 **Le second banc, et ce qu'il a appris au banc lui-même.** Après les
 coupes, témoin 17,1 ms au lieu de 19,4 — mais toutes les variantes
 sortaient PLUS LENTES que le témoin (+0,4 à +0,9, y compris « sans

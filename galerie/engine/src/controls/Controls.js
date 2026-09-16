@@ -249,6 +249,18 @@ export class Controls {
     };
     zone.addEventListener('pointerup', end);
     zone.addEventListener('pointercancel', end);
+    // LA SÛRETÉ : un doigt dont le relâchement n'arrive jamais à la zone
+    // (le geste avalé par le système au bord de l'écran, l'onglet qui passe
+    // en arrière-plan) laissait le manche poussé — on avançait sans pouvoir
+    // s'arrêter. Tout relâchement vu par la fenêtre, toute perte de focus,
+    // toute fin de contact tactile remet le manche au centre.
+    const surete = (e) => { if (activeId !== null && (e?.pointerId === undefined || e.pointerId === activeId)) end({ pointerId: activeId }); };
+    window.addEventListener('pointerup', surete);
+    window.addEventListener('pointercancel', surete);
+    window.addEventListener('blur', () => surete());
+    document.addEventListener('visibilitychange', () => { if (document.hidden) surete(); });
+    window.addEventListener('touchend', (e) => { if (e.touches.length === 0) surete(); }, { passive: true });
+    window.addEventListener('touchcancel', () => surete(), { passive: true });
   }
 
   /**
@@ -293,6 +305,15 @@ export class Controls {
     };
     bouton.addEventListener('pointerup', lacher);
     bouton.addEventListener('pointercancel', lacher);
+    // la même sûreté que le manche : un pouce dont le relâchement se perd
+    // ne fait pas courir jusqu'au rechargement
+    const surete = (e) => { if (doigt !== null && (e?.pointerId === undefined || e.pointerId === doigt)) lacher({ pointerId: doigt }); };
+    window.addEventListener('pointerup', surete);
+    window.addEventListener('pointercancel', surete);
+    window.addEventListener('blur', () => surete());
+    document.addEventListener('visibilitychange', () => { if (document.hidden) surete(); });
+    window.addEventListener('touchend', (e) => { if (e.touches.length === 0) surete(); }, { passive: true });
+    window.addEventListener('touchcancel', () => surete(), { passive: true });
     // Le bouton se présente au lecteur d'écran (aria-label) : il doit aussi
     // s'entendre au clavier — une tablette à clavier attaché montre les
     // deux mondes à la fois. Maintenir Espace ou Entrée court, relâcher

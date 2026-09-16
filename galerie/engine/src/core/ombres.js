@@ -423,8 +423,21 @@ export function fondreLampes(room, dt) {
  * de POCHE — leur flaque à 40 m couvre trois pixels d'écran.
  */
 export function budgetLampes(room, camPos,
-  { points = 6, cones = 6, projecteurs = 0, surBascule = null } = {}) {
+  { points = 6, cones = 6, projecteurs = 0, surBascule = null, immediat = false } = {}) {
   if (!room?.group) return;
+  // IMMÉDIAT (l'entrée d'une salle) : pas de fondu — l'attribution se pose
+  // telle quelle, les lampes rendues s'éteignent sur-le-champ, les
+  // demandées sont pleines. Sans cela, la première image d'une salle se
+  // rendait avec TOUTES ses lampes visibles (dix-neuf au belvédère) le
+  // temps du fondu : un programme à dix-neuf lumières compilé pour rien,
+  // puis recompilé quand elles s'éteignaient ensemble.
+  const poser = (l, veut) => {
+    l.userData.voulue = veut;
+    l.userData.fondu = veut ? 1 : 0;
+    l.visible = veut;
+    if (l.userData.artwork?.appliquerFonduLampe) l.userData.artwork.appliquerFonduLampe(veut ? 1 : 0);
+    else { l.userData.intensiteNominale ??= l.intensity; l.intensity = veut ? l.userData.intensiteNominale : 0; }
+  };
   const P = [], S = [];
   room.group.traverse((o) => {
     if (o.isPointLight) P.push(o);
@@ -439,6 +452,7 @@ export function budgetLampes(room, camPos,
     if (liste.length <= n) {
       for (const l of liste) {
         if (!(l.userData.voulue ?? l.visible)) bascule = true;
+        if (immediat) { poser(l, true); continue; }
         l.userData.voulue = true;
         if (!l.visible) { l.userData.fondu = 0; l.visible = true; }
       }
@@ -459,6 +473,7 @@ export function budgetLampes(room, camPos,
       // temps de descendre.
       const avant = l.userData.voulue ?? l.visible;
       if (avant !== veut) bascule = true;
+      if (immediat) { poser(l, veut); return; }
       l.userData.voulue = veut;
       if (veut && !l.visible) {
         l.userData.fondu = 0;

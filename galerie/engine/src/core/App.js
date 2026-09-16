@@ -914,6 +914,12 @@ export class App {
     // un maillage vient d'apparaître : son ombre doit exister à l'image
     // suivante, pas au prochain filet de 500 ms
     this.ombresSales = true;
+    // …et ses programmes se compilent MAINTENANT, avec les lumières de la
+    // scène — pas au premier dessin, quand le visiteur tourne la tête vers
+    // lui (voir RoomManager._chaufferProgrammes)
+    if (artwork?.mesh && this.renderer?.compile && this.scene && this.camera) {
+      try { this.renderer.compile(artwork.mesh, this.camera, this.scene); } catch { /* le premier dessin compilera */ }
+    }
     for (const fn of this._visualListeners ?? []) fn(artwork);
   }
 

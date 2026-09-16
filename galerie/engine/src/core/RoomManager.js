@@ -705,6 +705,9 @@ export class RoomManager {
     // qu'une fois sa zone quittée — sinon, arrivée près du portail de retour
     // = renvoi immédiat d'où l'on vient.
     this._disarmPortalsNearCamera();
+    // les programmes de shader de la salle, compilés MAINTENANT, derrière
+    // le noir de la transition — pas au premier pas (voir _chaufferProgrammes)
+    this._chaufferProgrammes(room);
 
     if (!instant) {
       await wait(120);
@@ -717,6 +720,76 @@ export class RoomManager {
       this._cooldown = 1.2; // évite un aller-retour immédiat dans le portail
     }
     return true;
+  }
+
+  /**
+   * LA CHAUFFE DES PROGRAMMES — le premier pas dans une salle ne compile
+   * plus rien.
+   *
+   * « Le premier mouvement lag, comme si tout n'était pas prêt à l'arrivée. »
+   * C'était vrai : three ne compile le programme d'un matériau qu'au
+   * premier dessin. À l'arrivée, seul ce qui est dans le champ se dessine ;
+   * au premier pas, ce qui était derrière entre dans le champ et compile.
+   * Et le compte des lumières visibles change avec le budget de lampes
+   * (ombres.budgetLampes), chaque compte étant une VARIANTE de tous les
+   * programmes : l'arrivée en voyait toutes les lampes, puis trois, puis
+   * quatre le temps d'un fondu — trois compilations générales sur le
+   * premier pas. Ici, dans le noir de la transition : le budget se pose
+   * sans fondu (`immediat`) pour que le compte soit celui de la visite,
+   * `renderer.compile` compile tout ce que la scène contient, dans le
+   * champ ou non, puis une seconde fois avec une lampe de plus par sorte
+   * — la variante que chaque fondu traversera.
+   */
+  _chaufferProgrammes(room) {
+    const app = this.app;
+    const r = app?.renderer;
+    if (!r?.compile || !app.scene || !app.camera || !room?.group) return;
+    const t0 = typeof performance !== 'undefined' ? performance.now() : 0;
+    const profil = app.quality?.profile;
+    const budget = profil?.lampesProches;
+    if (budget) {
+      const clos = profil.shadows && coqueClose(room.config);
+      app.camera.getWorldPosition(_worldPos);
+      budgetLampes(room, _worldPos, {
+        ...budget, projecteurs: clos ? (profil.projecteursOmbre ?? 0) : 0, immediat: true
+      });
+      app.ombresSales = true;
+    }
+    app.camera.updateMatrixWorld(true);
+    // LA SALLE SEULE, avec les lumières de la scène : `compile(scene)`
+    // compilerait les matériaux des dix-sept salles (cent quarante
+    // programmes à l'entrée, mesuré) pour un compte de lumières qui n'est
+    // que celui-ci
+    // …ET DANS LA CIBLE DE LA SCÈNE : un programme dépend de là où il
+    // dessine (espace de couleur linéaire, sans courbe de tons dans une
+    // cible ; sRGB et courbe de tons à l'écran). Compilé pour l'écran, il
+    // se recompilait au premier dessin dans la cible — mesuré : treize
+    // programmes de plus sur dix mètres, à compte de lumières constant.
+    const cibleAvant = r.getRenderTarget();
+    r.setRenderTarget(app.scenePass?.cible ?? null);
+    const compiler = () => {
+      try { r.compile(room.group, app.camera, app.scene); } catch (e) { console.warn('[galerie] chauffe des programmes :', e?.message ?? e); }
+    };
+    compiler();
+    // les variantes d'un fondu : une lampe rendue et une demandée visibles
+    // ensemble — un point de plus, un cône de plus, ou les deux
+    const eteintes = [];
+    room.group.traverse((o) => { if ((o.isPointLight || o.isSpotLight) && !o.visible) eteintes.push(o); });
+    const point = eteintes.find((o) => o.isPointLight);
+    const cone = eteintes.find((o) => o.isSpotLight);
+    for (const extra of [[point], [cone], [point, cone]].map((l) => l.filter(Boolean))) {
+      if (!extra.length || (extra.length === 2 && !(point && cone))) continue;
+      for (const l of extra) l.visible = true;
+      compiler();
+      for (const l of extra) l.visible = false;
+    }
+    r.setRenderTarget(cibleAvant);
+    // …et les apparitions de la salle, chacune pour sa pièce cible
+    app.vistas?.chauffer?.(room);
+    if (t0) {
+      const ms = performance.now() - t0;
+      if (ms > 5) console.info(`[galerie] programmes chauffés pour ${room.config?.id ?? '?'} : ${r.info?.programs?.length ?? '?'} programmes, ${ms.toFixed(0)} ms`);
+    }
   }
 
   /** Anime l'uniform du warp entre deux valeurs (easing cubique). */
@@ -1923,7 +1996,7 @@ export {
   suivreOmbre, PORTEE_OMBRE
 } from './ombres.js';
 import { buildKeyLight, orientKeyLight, frameKeyLightShadow, disposeKeyLight,
-  coqueClose, ENV_CLOS, cleDepuisOeuvre } from './ombres.js';
+  coqueClose, ENV_CLOS, cleDepuisOeuvre, budgetLampes } from './ombres.js';
 
 /* ---------------------------------------------------- lumière ambiante --- */
 

@@ -171,6 +171,34 @@ export class VistaManager {
     }
   }
 
+  /**
+   * LA CHAUFFE des apparitions d'une salle (voir RoomManager
+   * ._chaufferProgrammes) : la pièce cible se compile pour la caméra de
+   * l'apparition, dans sa cible, avec ses propres lumières — pas au premier
+   * repeint, pendant la marche.
+   */
+  chauffer(room) {
+    const renderer = this.app.renderer; const scene = this.app.scene; const rooms = this.app.rooms;
+    if (!renderer?.compile || !scene || !rooms) return 0;
+    const current = rooms.current; let n = 0;
+    const cibleAvant = renderer.getRenderTarget();
+    for (const vista of room.vistas ?? []) {
+      const target = rooms.get(vista.cfg.room);
+      if (!target || target === current || !vista.rt) continue;
+      if (current) current.group.visible = false;
+      target.group.visible = true;
+      try {
+        renderer.setRenderTarget(vista.rt);
+        renderer.compile(target.group, this._camera, scene);
+        n++;
+      } catch (e) { console.warn('[galerie] chauffe d\'une apparition :', e?.message ?? e); }
+      target.group.visible = false;
+      if (current) current.group.visible = true;
+    }
+    renderer.setRenderTarget(cibleAvant);
+    return n;
+  }
+
   dispose(room) {
     for (const v of room.vistas ?? []) {
       v.mesh.traverse((o) => {
