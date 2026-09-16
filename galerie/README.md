@@ -5295,6 +5295,26 @@ chauffe. Éprouvé au nœud (le paquet, le compte de lumières, la remise en
 place même si l'appel lève, les invités, l'attente, son délai et la
 liaison forcée).
 
+**« Après un tour dans la galerie, je n'ai soudainement plus pu contrôler
+la vue (rotation), seulement le joystick. »** (`controls/surete-regard.js`,
+`Controls`). Le regard, c'est OrbitControls sur la toile : il note chaque
+pointeur qui descend et ne l'oublie qu'au relâchement reçu PAR LA TOILE.
+Qu'un relâchement lui échappe — capture qui n'a pas pris, geste avalé par
+le système au bord de l'écran, élément d'interface apparu sous le doigt —
+et il garde un pointeur FANTÔME : chaque doigt qui glisse compte alors
+pour deux, le glissé n'est plus une rotation mais un pincement, et le
+regard est mort jusqu'au rechargement. Le manche, qui a sa propre sûreté,
+continue — exactement le symptôme. La sûreté du regard tient sa propre
+comptabilité (descendu sur la toile, vu repartir par la toile) et, quand
+la fenêtre sait qu'un relâchement est passé ailleurs ou que plus aucun
+contact ne reste (fin du tactile, perte de focus, onglet caché), envoie
+aux fantômes un `pointercancel` de synthèse que OrbitControls traite
+comme un vrai. `releasePointerCapture` lève pour un pointeur déjà parti,
+et OrbitControls l'appelle sans filet : la toile le reçoit avec un filet.
+Éprouvé au nœud (la comptabilité) et en émulation : un doigt descendu sur
+la toile et relâché sur le corps du document, puis un glissé qui tourne
+encore la caméra.
+
 **« Je suis ok avec un petit écran de chargement de quelques secondes
 pour éviter de freeze ou lag dans la pièce. L'écran de chargement, c'est
 une animation de transition de portails. »** Alors l'entrée prend le

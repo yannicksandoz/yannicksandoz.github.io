@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { damp, pointeurGrossier } from '../core/utils.js';
 import { preparerRayons, rayonRapide } from '../core/rayons.js';
+import { SureteRegard } from './surete-regard.js';
 
 /**
  * Navigation : orbite (souris / tactile) + déplacement clavier ZQSD/WASD +
@@ -185,6 +186,50 @@ export class Controls {
       const lacher = (e) => doigts.delete(e.pointerId);
       window.addEventListener('pointerup', lacher);
       window.addEventListener('pointercancel', lacher);
+    }
+
+    // LA SÛRETÉ DU REGARD (voir surete-regard.js) : OrbitControls ne
+    // libère un pointeur qu'au relâchement reçu PAR LA TOILE ; un
+    // relâchement passé ailleurs lui laisse un fantôme, et chaque doigt
+    // compte alors pour deux — le regard meurt, le manche continue. Ce que
+    // la fenêtre sait relâché et que la toile tient encore reçoit un
+    // `pointercancel` de synthèse, que OrbitControls traite comme un vrai.
+    {
+      const toile = app.renderer?.domElement;
+      if (toile && typeof PointerEvent === 'function') {
+        const surete = this._sureteRegard = new SureteRegard();
+        toile.addEventListener('pointerdown', (e) => surete.enfoncer(e.pointerId), true);
+        const vu = (e) => surete.vu(e.pointerId);
+        toile.addEventListener('pointerup', vu, true);
+        toile.addEventListener('pointercancel', vu, true);
+        const annuler = (ids) => {
+          for (const id of ids) {
+            try { toile.dispatchEvent(new PointerEvent('pointercancel', { pointerId: id, bubbles: true, cancelable: true })); } catch { /* rien à annuler */ }
+          }
+        };
+        // un relâchement vu par la fenêtre : la toile l'a-t-elle vu aussi ?
+        // (elle le reçoit avant, par capture ou remontée — on regarde après)
+        const parFenetre = (e) => { const id = e.pointerId; setTimeout(() => annuler(surete.relacheAilleurs(id)), 0); };
+        window.addEventListener('pointerup', parFenetre);
+        window.addEventListener('pointercancel', parFenetre);
+        const tout = () => annuler(surete.toutRelache());
+        window.addEventListener('touchend', (e) => { if (e.touches.length === 0) tout(); }, { passive: true });
+        window.addEventListener('touchcancel', () => tout(), { passive: true });
+        window.addEventListener('blur', tout);
+        document.addEventListener('visibilitychange', () => { if (document.hidden) tout(); });
+        // `releasePointerCapture` lève pour un pointeur déjà parti — celui
+        // d'un `pointercancel` de synthèse l'est toujours ; OrbitControls
+        // l'appelle sans filet, et l'exception l'arrêterait avant de remettre
+        // son état à zéro
+        const relacher = toile.releasePointerCapture.bind(toile);
+        toile.releasePointerCapture = (id) => { try { relacher(id); } catch { /* déjà parti */ } };
+        // et `setPointerCapture` lève pour un pointeur qui n'est plus actif à
+        // l'instant du `pointerdown` (parti dans la même rafale) : OrbitControls
+        // l'appelle en premier, et l'exception lui ferait manquer TOUT le
+        // geste — sans capture, la toile reçoit encore ce qui glisse sur elle
+        const capturer = toile.setPointerCapture.bind(toile);
+        toile.setPointerCapture = (id) => { try { capturer(id); } catch { /* pas de capture, le geste passe quand même */ } };
+      }
     }
 
     window.addEventListener('keydown', (e) => {
