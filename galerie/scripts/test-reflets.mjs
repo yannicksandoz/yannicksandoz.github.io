@@ -80,11 +80,14 @@ test('le centre d’une salle : sa coque, sinon son sol, sinon tout le groupe', 
 globalThis.window ??= { devicePixelRatio: 1, matchMedia: () => ({ matches: false }) };
 globalThis.navigator ??= { userAgent: 'node', maxTouchPoints: 0 };
 const { QualityManager } = await import('../engine/src/core/Quality.js');
-test('l’image unique demande une sonde fixe par salle (pas infini)', () => {
+test('l’image unique n’a pas de sonde ; l’enrichie garde la sienne, vivante', () => {
   const q = new QualityManager();
-  assert.equal(q.profile.reflets.pas, Infinity);
-  assert.equal(q.profile.reflets.cadence, 2);
-  assert.equal(q.profile.reflets.resolution, 64);
+  assert.equal(q.profile.reflets, false);
+  globalThis.location = { search: '?profil=riche' };
+  const riche = new QualityManager();
+  delete globalThis.location;
+  assert.equal(riche.profile.reflets.resolution, 128);
+  assert.equal(riche.profile.reflets.cadence, 1);
 });
 
 console.log(`\n${ok} ✓ / ${ko} ✗`);

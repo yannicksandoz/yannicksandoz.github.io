@@ -151,21 +151,18 @@ export class QualityManager {
           // déjà coupées (shadows: false)
           projecteursOmbre: 0,
           envIntensity: 0.5,
-          // LA SONDE DE REFLETS (reflets.js) : un cube de 64 px, une face
-          // toutes les deux images — le reflet est flou de toute façon — et
-          // UNE PHOTO PAR SALLE, du centre de la salle (`pas: Infinity`).
-          // Mesuré sous profil mobile au belvédère (287 maillages), la
-          // sonde continue coûtait les deux tiers de l'image : chaque face
-          // est un rendu complet de la salle, et à 64 px c'est le compte de
-          // maillages qui paie, pas les pixels. Et rephotographiée tous les
-          // 2,5 m de marche, elle se recousait de six instants et fondait
-          // sans cesse : des reflets « glitchy », qui « laguent ». Fixe,
-          // elle est stable et ne coûte rien en marchant.
-          // Et SIMPLE au pixel : un niveau de flou au lieu de deux mélangés,
-          // pas de rebond (la sonde d'ambiance le porte) — quatre lectures
-          // au lieu de seize. Mesuré à l'entrée, les reflets pleins
-          // coûtaient 13 % de l'image.
-          reflets: { resolution: 64, cadence: 2, pas: Infinity, simple: true, rebond: 0 }
+          // PAS DE SONDE DE REFLETS (reflets.js) sur l'image unique. Elle a
+          // été essayée sous toutes ses formes : continue (les deux tiers de
+          // l'image au belvédère, chaque face étant un rendu complet de la
+          // salle), paresseuse tous les 2,5 m (recousue de six instants,
+          // fondue sans cesse : des reflets « glitchy » qui « laguent »),
+          // puis fixe par salle, du centre. Même fixe, une sonde sans
+          // parallaxe à 64 px projette sur les murs et les sols, autour de
+          // chaque fenêtre et de chaque portail, une tache blanche « comme
+          // découpée à la forme », qui glisse par à-coups quand on marche.
+          // Le studio et la sonde d'ambiance (ambiance-salle.js) suffisent
+          // à l'image unique ; l'image enrichie garde la sonde vivante.
+          reflets: false
         };
     // L'IMAGE ENRICHIE (`riche`) : ce que l'image unique a laissé pour tenir
     // sur un téléphone — au choix du visiteur, mémorisé, proposé quand la

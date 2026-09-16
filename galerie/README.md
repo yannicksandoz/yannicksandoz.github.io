@@ -5215,6 +5215,18 @@ pas. Les six faces d'un cube se prennent maintenant du même point sur
 tous les profils (celui de la première face). Stable, et rien à payer en
 marchant. L'image enrichie garde sa sonde vivante.
 
+**Plus de sonde de reflets sur l'image unique** (`reflets: false`,
+Quality). Le cartouche des phases a tranché : 3,5 ms de JavaScript pour
+17 ms d'image, c'est le GPU qui retient. Et même fixe, du centre de la
+salle, une sonde sans parallaxe à 64 px projetait sur les murs et les
+sols, autour de chaque fenêtre et de chaque portail, une tache blanche
+« comme découpée à la forme », qui glissait par à-coups en marchant.
+Enlevée : plus de faces de cube, plus de PMREM, quatre lectures de moins
+par pixel, et la branche du shader se ferme d'elle-même (`uRefletsForce`
+reste à zéro sans sonde). Le studio pré-filtré et la sonde d'ambiance
+portent ce qui se reflète. L'image enrichie garde la sonde vivante à
+128 px, une face par image.
+
 **Le cartouche dit désormais LES PHASES** (`?perf=1`, `App.phases`,
 `ui/Perf.js`). Après la sentinelle dans la passe et la sonde fixe, le
 labo restait à 17,9 ms de moyenne sur l'iPhone, p95 22 : les leviers

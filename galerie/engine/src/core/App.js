@@ -465,8 +465,11 @@ export class App {
     // LA SONDE DE REFLETS (reflets.js) : la salle elle-même — ses écrans,
     // ses corniches, ses lanternes — s'ajoute à ce studio dans tous les
     // reflets. Une face de cube par image, pré-filtrée toutes les six.
+    // Sur l'image unique, PAS DE SONDE (`reflets: false`, voir Quality) :
+    // sans elle, la branche du shader se ferme et le studio seul reflète.
+    this.reflets = null;
     try {
-      this.reflets = new SondeReflets(this, this.quality.profile.reflets ?? {});
+      if (this.quality.profile.reflets !== false) this.reflets = new SondeReflets(this, this.quality.profile.reflets ?? {});
     } catch (e) {
       console.warn(`[galerie] Reflets : sonde indisponible — ${e?.message ?? e}`);
       this.reflets = null;
