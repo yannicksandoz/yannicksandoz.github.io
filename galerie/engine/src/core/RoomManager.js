@@ -721,6 +721,14 @@ export class RoomManager {
     try {
       await this._chargerOeuvres(room);
       await this._chaufferProgrammes(room);
+      // …puis une image dans le noir, la salle et ses baies : ce que le
+      // premier dessin envoie au GPU (géométries, textures, premier usage
+      // de chaque programme) s'envoie ici, où personne ne le voit
+      this.app.vistas?.peindreToutes?.(room);
+      this.app.rendreDansLeNoir?.();
+      // …et les sphères de collision de la salle (Controls), pour que le
+      // premier pas ne les calcule pas
+      this.app.controls?.chaufferCollision?.();
     } finally { this._entree = false; }
 
     if (!instant) {

@@ -896,6 +896,25 @@ export class App {
     artwork.dispose();
   }
 
+  /**
+   * UNE IMAGE DANS LE NOIR de l'entrée (RoomManager.setCurrent, après la
+   * chauffe) : la première image d'une salle envoie ses géométries et ses
+   * textures au GPU et fait le premier usage de chaque programme — un gel
+   * léger au premier pas si elle est aussi la première image VUE. Celle-ci
+   * ne l'est pas : le voile est encore noir, et le rendu ordinaire reprend
+   * à l'ouverture avec tout déjà envoyé.
+   */
+  rendreDansLeNoir() {
+    if (!this.composer || this.headless) return false;
+    try {
+      this.composer.render();
+      return true;
+    } catch (e) {
+      console.warn('[galerie] image dans le noir :', e?.message ?? e);
+      return false;
+    }
+  }
+
   /** Enregistre un callback appelé à chaque frame : fn(dt, ctx).
    *  Renvoie la fonction de désabonnement. */
   onUpdate(fn) {
@@ -1021,7 +1040,7 @@ export class App {
         const t = this.clock.elapsedTime;
         this.camera.updateMatrixWorld(true);
         this.camera.getWorldPosition(camPos);
-        const ctx = { app: this, camera: this.camera, cameraPos: camPos, time: t };
+        const ctx = { app: this, camera: this.camera, cameraPos: camPos, time: t, chargements: 1, liberations: 1 };
         for (const fn of this._updatables) fn(dt, ctx);
         this.signaux.update(dt);
         for (const a of this.artworks) a.update(dt, ctx);
@@ -1050,7 +1069,9 @@ export class App {
       const dt = Math.min(this.clock.getDelta(), 0.1);
       const t = this.clock.elapsedTime;
       this.camera.getWorldPosition(camPos);
-      const ctx = { app: this, camera: this.camera, cameraPos: camPos, time: t };
+      // un chargement et une libération d'œuvre voisine par image, pas
+      // plus (Artwork.update, `prendreJeton`) : les gels s'étalent
+      const ctx = { app: this, camera: this.camera, cameraPos: camPos, time: t, chargements: 1, liberations: 1 };
       // LES PHASES DE L'IMAGE, chronométrées quand le cartouche `?perf=1`
       // les demande (`this.phases`, ui/Perf.js) : le JavaScript de chaque
       // étape, pour savoir si c'est le processeur ou le GPU qui retient

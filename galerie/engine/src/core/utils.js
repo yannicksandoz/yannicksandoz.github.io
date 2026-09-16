@@ -156,3 +156,16 @@ export function isWalkable(config) {
   if (config?.walkable) return true;
   return config?.model?.type === 'voxel';
 }
+
+/**
+ * Le jeton d'une image : `ctx[nom]` compte ce qu'on peut encore faire
+ * dans cette image (chargements, libérations — App le pose à un par
+ * image). Prend un jeton s'il en reste (true) ; sans compteur, tout est
+ * permis (un contexte d'avant les jetons, ou un test).
+ */
+export function prendreJeton(ctx, nom) {
+  if (!ctx || !(nom in ctx)) return true;
+  if (!(ctx[nom] > 0)) return false;
+  ctx[nom]--;
+  return true;
+}

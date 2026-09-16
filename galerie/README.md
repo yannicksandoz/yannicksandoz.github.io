@@ -5295,6 +5295,30 @@ chauffe. Éprouvé au nœud (le paquet, le compte de lumières, la remise en
 place même si l'appel lève, les invités, l'attente, son délai et la
 liaison forcée).
 
+**« Quelques freezes légers, mais c'est mieux. »** La même sonde,
+tournée vers le JavaScript cette fois : chaque abonné de la boucle et
+chaque œuvre chronométrés, image par image, après l'entrée. Trois
+restes, tous au premier pas. Le premier repeint d'une apparition, 78 ms
+au labo : une baie peinte pour la première fois envoie au GPU les
+géométries et les textures de la pièce d'en face, que rien n'avait
+encore dessinées. Un paquet de chargements d'œuvres VOISINES, 56 ms au
+belvédère : les œuvres des pièces d'à côté passaient sous les cinquante
+mètres ensemble, et leurs primitives (un sable, une margelle, un chemin,
+5 à 14 ms chacune) se bâtissaient dans la même image. Et la collision,
+15 ms : la sphère englobante de chaque surface foulable ne se calcule
+qu'à la première lecture, cent douze cibles au belvédère. Désormais,
+dans le noir, après la chauffe : toutes les baies de la salle se peignent
+une fois (`VistaManager.peindreToutes`), une image se rend sans être vue
+(`App.rendreDansLeNoir` : envois GPU et premier usage de chaque
+programme), la collision lit ses surfaces (`Controls.chaufferCollision`).
+Et la boucle ne charge qu'UNE œuvre voisine par image, n'en libère
+qu'une (`prendreJeton`, `ctx.chargements`, `ctx.liberations` : App pose
+les jetons, `Artwork.update` les prend) — la salle courante, elle, a
+tout chargé dans le noir. Mesuré en émulation, quatre entrées : plus
+aucune image à plus de 15 ms de JavaScript hors du premier pas, et le
+premier pas descend de 56 à 27 ms au belvédère avant la chauffe de la
+collision.
+
 **Le reflet qui changeait de côté sur l'anneau des portails.** Après la
 coque matée, « ça oscille toujours quand on tourne le regard, entre
 reflet à gauche et reflet à droite du portail ». Une sonde a tourné

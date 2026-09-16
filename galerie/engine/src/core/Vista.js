@@ -481,13 +481,40 @@ export class VistaManager {
       if (!vista) return;
       this._slow = 0;
     }
+    this._peindre(vista, current, camWorld);
+  }
+
+  /**
+   * TOUTES LES BAIES DE LA SALLE, PEINTES MAINTENANT — à l'entrée, dans le
+   * noir, après la chauffe (RoomManager.setCurrent). La première peinture
+   * d'une baie envoie au GPU les géométries et les textures de la pièce
+   * d'en face, que rien n'a encore dessinées : mesuré à 78 ms dans la
+   * phase « vistas » une seconde après l'ouverture, un gel léger au
+   * premier pas. Ici, il se paie derrière le noir, où personne ne le voit.
+   * Rend le nombre de baies peintes.
+   */
+  peindreToutes(room) {
+    if (!this.app.renderer || !room?.vistas?.length) return 0;
+    const camWorld = this.app.camera;
+    camWorld.updateMatrixWorld();
+    let n = 0;
+    for (const vista of room.vistas) {
+      if (!vista.rt) continue;
+      try { if (this._peindre(vista, room, camWorld)) n++; } catch (e) { console.warn('[galerie] peinture d\'une apparition :', e?.message ?? e); }
+    }
+    return n;
+  }
+
+  /** Peint `vista` depuis l'œil du visiteur ; true si une pièce cible a été rendue. */
+  _peindre(vista, current, camWorld) {
+    const rooms = this.app.rooms;
     // une baie sans pièce cible ne sera jamais peinte : on la marque quand
     // même, sinon elle repasserait en tête de file à chaque frame et
     // affamerait les autres
     const premiere = !vista.camAt;
     vista.camAt = (vista.camAt ?? new THREE.Vector3()).copy(camWorld.position);
     const target = rooms.get(vista.cfg.room);
-    if (!target || target === current) return;
+    if (!target || target === current) return false;
     // la nouvelle peinture va dans l'AUTRE cible ; l'ancienne reste lue le
     // temps du fondu — sauf à la première, où il n'y a rien à fondre
     if (vista.rtAvant) {
@@ -570,5 +597,6 @@ export class VistaManager {
     scene.fog.color.copy(this._fog);
     scene.background.copy(this._bg);
     scene.fog.density = fogDensity;
+    return true;
   }
 }

@@ -536,6 +536,23 @@ export class Controls {
   }
 
   /**
+   * LA CHAUFFE DE LA COLLISION — à l'entrée dans une salle, dans le noir
+   * (RoomManager.setCurrent). Les listes de surfaces se relisent chaque
+   * image, mais la sphère englobante de chaque géométrie ne se calcule
+   * qu'une fois, à la première lecture : au belvédère, cent douze cibles,
+   * des pavés fusionnés à des milliers de sommets — quinze millisecondes
+   * dans le premier pas, mesurées. Une lecture ici, et le premier pas
+   * trouve ses sphères déjà faites.
+   */
+  chaufferCollision() {
+    try {
+      this._frame++;
+      this._targets(GROUND_REACH);
+      this._targets(1, 'mur');
+    } catch (e) { console.warn('[galerie] chauffe de la collision :', e?.message ?? e); }
+  }
+
+  /**
    * À appeler après avoir déplacé la caméra AUTREMENT qu'en marchant
    * (téléportation d'un portail, fin de bascule, point d'arrivée) : sans
    * cela, le saut serait pris pour un pas et la collision l'annulerait.

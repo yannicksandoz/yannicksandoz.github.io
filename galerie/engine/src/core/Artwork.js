@@ -4,7 +4,7 @@ import { buildPrimitive, isPrimitive } from './primitives.js';
 import { loadModel, fitModel, modelKind } from './modelLoaders.js';
 import { buildVoxelMesh, buildVoxelMeshMerged, buildVoxelCollider } from './voxel.js';
 import { EDITOR_AVAILABLE } from '../editorLoader.js';
-import { isWalkable } from './utils.js';
+import { isWalkable, prendreJeton } from './utils.js';
 import { scaleObjetUV } from './textures.js';
 import { jeuDeSurface, habillerModele } from './matieres.js';
 import { ombreDeContact } from './ombres.js';
@@ -1588,13 +1588,22 @@ export class Artwork {
     const unloadDist = loadDist * 1.6;
     // Sans WebGL (visite audio en repli), aucun visuel n'est jamais chargé :
     // ni textures, ni modèles — seul l'audio compte, et il suit son cours.
-    if (this._distance < loadDist) this.demanderVisuel();
+    // UNE ŒUVRE VOISINE PAR IMAGE, pas toutes à la fois : à l'entrée dans
+    // une salle, les œuvres des pièces d'à côté passaient sous les
+    // cinquante mètres ensemble, et leurs primitives (un sable, une
+    // margelle, un chemin : 5 à 14 ms chacune) se bâtissaient dans la
+    // même image — 56 ms mesurés au belvédère, un gel au premier pas.
+    // Le jeton (`ctx.chargements`, un par image, App) les étale sur
+    // autant d'images ; la salle courante, elle, a tout chargé dans le
+    // noir (RoomManager._chargerOeuvres). Même chose pour les libérations.
+    if (this._distance < loadDist && !this._visualRequested && !this.app.headless
+      && (roomState === 'current' || prendreJeton(ctx, 'chargements'))) this.demanderVisuel();
     if (!this._audioRequested && this.app.audio.unlocked && this._distance < loadDist) {
       this._audioRequested = true;
       this._loadAudio();
     }
     if (this._distance > unloadDist) {
-      if (this._visualLoaded) this._unloadVisual();
+      if (this._visualLoaded && prendreJeton(ctx, 'liberations')) this._unloadVisual();
       if (this.audioReady) this._unloadAudio();
     }
 
