@@ -26,9 +26,12 @@ import { texteEtiquette, encreEtiquette } from './cartels-reglages.js';
 const PORTAL_COLOR = 0x9f8cff;
 // à l'entrée dans une salle, dans le noir : le temps accordé aux visuels
 // de la salle pour arriver, puis aux programmes pour se lier (voir
-// _chargerOeuvres et _compilerSalle) — la salle s'ouvre de toute façon
-const ATTENTE_OEUVRES = 1500;
-const ATTENTE_PROGRAMMES = 2000;
+// _chargerOeuvres et _compilerSalle) — la salle s'ouvre de toute façon.
+// Quelques secondes, derrière l'animation de portail du voile : « je suis
+// ok avec un petit écran de chargement de quelques secondes pour éviter
+// de freeze ou lag dans la pièce »
+const ATTENTE_OEUVRES = 6000;
+const ATTENTE_PROGRAMMES = 6000;
 /** Densité de brouillard par défaut — celle d'une salle d'exposition. */
 export const FOG_DENSITY = 0.026;
 const REARM_DIST2 = 7; // (m²) zone à quitter pour réarmer un portail d'arrivée
@@ -718,18 +721,34 @@ export class RoomManager {
     // la compilation est parallèle dans le pilote, l'attente ne fige rien,
     // et la salle s'ouvre sur des programmes qui existent.
     this._entree = true;   // les lumières qui arrivent maintenant attendent la chauffe
+    // L'ANIMATION DE PORTAIL sur le voile (style.css, `#room-fade.chargement`)
+    // tant que la salle se prépare : elle n'apparaît qu'après un quart de
+    // seconde — une entrée déjà prête ne montre pas d'attente
+    if (!instant && this.fadeEl) {
+      this.fadeEl.classList.add('chargement');
+      // UNE IMAGE AU NAVIGATEUR avant le gros du travail : la classe posée,
+      // l'animation doit DÉMARRER (un calcul de style, une image) avant que
+      // la chauffe ne tienne le fil principal — démarrée, elle tourne sur le
+      // compositeur, transformations et opacité seulement, quoi que fasse
+      // le fil principal ensuite
+      await new Promise((res) => requestAnimationFrame(() => setTimeout(res, 0)));
+    }
     try {
       await this._chargerOeuvres(room);
       await this._chaufferProgrammes(room);
       // …puis une image dans le noir, la salle et ses baies : ce que le
       // premier dessin envoie au GPU (géométries, textures, premier usage
       // de chaque programme) s'envoie ici, où personne ne le voit
+      this.app.chaufferTextures?.(room);
       this.app.vistas?.peindreToutes?.(room);
       this.app.rendreDansLeNoir?.();
       // …et les sphères de collision de la salle (Controls), pour que le
       // premier pas ne les calcule pas
       this.app.controls?.chaufferCollision?.();
-    } finally { this._entree = false; }
+    } finally {
+      this._entree = false;
+      this.fadeEl?.classList.remove('chargement');
+    }
 
     if (!instant) {
       await wait(120);

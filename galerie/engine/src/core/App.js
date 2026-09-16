@@ -906,13 +906,48 @@ export class App {
    */
   rendreDansLeNoir() {
     if (!this.composer || this.headless) return false;
+    // AU GRAND ANGLE : ce que le visiteur a dans le dos se dessinera à son
+    // premier demi-tour — cent cinquante degrés de champ, le temps d'une
+    // image, en envoient l'essentiel maintenant
+    const cam = this.camera;
+    const fov = cam.fov;
     try {
+      if (cam.isPerspectiveCamera) { cam.fov = 150; cam.updateProjectionMatrix(); }
       this.composer.render();
       return true;
     } catch (e) {
       console.warn('[galerie] image dans le noir :', e?.message ?? e);
       return false;
+    } finally {
+      if (cam.isPerspectiveCamera) { cam.fov = fov; cam.updateProjectionMatrix(); }
     }
+  }
+
+  /**
+   * LES TEXTURES DE LA SALLE, envoyées au GPU maintenant (dans le noir de
+   * l'entrée) : three n'envoie une texture qu'au premier dessin qui la
+   * lit — et une image de deux mille pixels de côté, avec ses mipmaps, se
+   * paie en millisecondes au milieu de l'image où l'on se retourne vers
+   * elle. `initTexture` fait cet envoi sans dessiner. Rend le nombre de
+   * textures vues.
+   */
+  chaufferTextures(room) {
+    const r = this.renderer;
+    if (!r?.initTexture || !room?.group) return 0;
+    const vues = new Set();
+    room.group.traverse((o) => {
+      const mats = Array.isArray(o.material) ? o.material : (o.material ? [o.material] : []);
+      for (const m of mats) {
+        for (const k of ['map', 'emissiveMap', 'normalMap', 'bumpMap', 'roughnessMap', 'metalnessMap', 'aoMap', 'alphaMap']) {
+          const t = m[k];
+          if (t?.isTexture && !t.isRenderTargetTexture && !t.isVideoTexture && !vues.has(t)) {
+            vues.add(t);
+            try { r.initTexture(t); } catch { /* le premier dessin l'enverra */ }
+          }
+        }
+      }
+    });
+    return vues.size;
   }
 
   /** Enregistre un callback appelé à chaque frame : fn(dt, ctx).

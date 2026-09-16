@@ -145,6 +145,35 @@ html, body, #app, #app canvas { touch-action: none; }
   transition: opacity 0.35s ease;
 }
 #room-fade.active { opacity: 1; pointer-events: auto; }
+/* L'ANIMATION DE PORTAIL, pendant que la salle se prépare derrière le
+   noir (RoomManager.setCurrent : œuvres chargées, programmes liés, baies
+   peintes, une image rendue sans être vue). Un anneau de la couleur des
+   portails qui respire, une lueur qui tourne — et rien avant un quart de
+   seconde : une entrée déjà prête ne montre pas d'attente. */
+#room-fade::before, #room-fade::after {
+  content: ''; position: absolute; left: 50%; top: 50%;
+  width: 7.5rem; height: 7.5rem; margin: -3.75rem 0 0 -3.75rem;
+  border-radius: 50%; opacity: 0; pointer-events: none;
+}
+#room-fade::before {
+  background: radial-gradient(circle, rgba(159, 140, 255, 0.28) 0%, rgba(159, 140, 255, 0.08) 45%, transparent 70%);
+  transform: scale(1.8);
+}
+#room-fade::after {
+  border: 2px solid rgba(159, 140, 255, 0.9);
+  box-shadow: 0 0 18px rgba(159, 140, 255, 0.45), inset 0 0 18px rgba(159, 140, 255, 0.25);
+  mask: conic-gradient(from 0deg, #000 0 70%, transparent 82%, #000 94%);
+  -webkit-mask: conic-gradient(from 0deg, #000 0 70%, transparent 82%, #000 94%);
+}
+#room-fade.chargement::before { animation: portail-souffle 2.4s ease-in-out 0.25s infinite; }
+#room-fade.chargement::after { animation: portail-tour 3.2s linear 0.25s infinite, portail-venue 0.5s ease 0.25s forwards; }
+@keyframes portail-venue { to { opacity: 1; } }
+@keyframes portail-souffle {
+  0% { opacity: 0; transform: scale(1.5); }
+  50% { opacity: 1; transform: scale(2); }
+  100% { opacity: 0.35; transform: scale(1.6); }
+}
+@keyframes portail-tour { to { transform: rotate(360deg); } }
 
 /* ---------------------------------------------------- chapeau (TipJar) --- */
 #tipjar-overlay {
@@ -386,6 +415,8 @@ html, body, #app, #app canvas { touch-action: none; }
 @media (prefers-reduced-motion: reduce) {
   #enter-screen { transition: none; }
   #focus-overlay, #tipjar-overlay { animation: none; }
+  /* l'anneau du portail, sans souffle ni tour : il apparaît, c'est tout */
+  #room-fade.chargement::before, #room-fade.chargement::after { animation: portail-venue 0.5s ease 0.25s forwards; }
 }
 
 /* ------------------------------------------ le HUD qui s'efface (tactile) --- */

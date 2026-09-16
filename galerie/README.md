@@ -5295,6 +5295,21 @@ chauffe. Éprouvé au nœud (le paquet, le compte de lumières, la remise en
 place même si l'appel lève, les invités, l'attente, son délai et la
 liaison forcée).
 
+**« Je suis ok avec un petit écran de chargement de quelques secondes
+pour éviter de freeze ou lag dans la pièce. L'écran de chargement, c'est
+une animation de transition de portails. »** Alors l'entrée prend le
+temps qu'il faut : les visuels de la salle ont six secondes pour arriver
+et les programmes six pour se lier (`ATTENTE_OEUVRES`,
+`ATTENTE_PROGRAMMES`), au lieu d'une et demie et deux ; les textures de
+la salle s'envoient au GPU sans attendre qu'on les regarde
+(`App.chaufferTextures`, `renderer.initTexture`) ; et l'image rendue sans
+être vue se rend AU GRAND ANGLE, cent cinquante degrés, pour envoyer
+aussi ce que le visiteur a dans le dos. Pendant ce temps, le voile noir
+porte l'animation de portail (`#room-fade.chargement`, style.css) : un
+anneau de la couleur des portails qui respire, une lueur qui tourne —
+et rien avant un quart de seconde, une entrée déjà prête ne montre pas
+d'attente. En mouvement réduit, l'anneau apparaît, sans souffle ni tour.
+
 **« Quelques freezes légers, mais c'est mieux. »** La même sonde,
 tournée vers le JavaScript cette fois : chaque abonné de la boucle et
 chaque œuvre chronométrés, image par image, après l'entrée. Trois
