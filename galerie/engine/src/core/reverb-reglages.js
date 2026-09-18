@@ -1,7 +1,7 @@
 /**
  * Les réglages de réverbération, et les lieux qu'ils décrivent.
  *
- * À part de `Reverb.js`, qui charge la source du worklet (`?raw`) : ce qui
+ * À part de `Reverb.js`, qui charge le worklet par son URL (`?worker&url`) : ce qui
  * décide de quelque chose doit pouvoir s'éprouver au nœud.
  */
 

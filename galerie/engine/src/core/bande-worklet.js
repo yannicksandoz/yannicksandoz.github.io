@@ -1,8 +1,10 @@
-/**
+/*!
  * LA BANDE — ToTape6, d'Airwindows.
  *
  * D'après **ToTape6** de Chris Johnson
  * (© 2016 airwindows, licence MIT — https://github.com/airwindows/airwindows).
+ */
+/**
  * Le pleurage interpolé, la bosse de tête et son biquad, l'adoucissement des
  * aigus, l'étage « mojo », l'UnBox et l'écrêteur ADClip sont les siens.
  *

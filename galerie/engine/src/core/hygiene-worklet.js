@@ -1,8 +1,10 @@
-/**
+/*!
  * L'HYGIÈNE DU MAÎTRE — Ultrasonic et Infrasonic, d'Airwindows.
  *
  * D'après **Ultrasonic** et **Infrasonic** de Chris Johnson
  * (© 2016 airwindows, licence MIT — https://github.com/airwindows/airwindows).
+ */
+/**
  * Les deux fréquences, les cinq Q du Butterworth d'ordre dix et la forme
  * directe I sont les siennes.
  *

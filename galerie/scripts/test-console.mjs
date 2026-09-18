@@ -191,12 +191,12 @@ console.log('\nla chaîne tourne au nœud, sans empaqueteur');
   const { fileURLToPath } = await import('node:url');
   const ici = dirname(fileURLToPath(import.meta.url));
   const coeur = join(ici, '..', 'engine', 'src', 'core');
-  // Deux façons de dépendre de l'empaqueteur, et le nœud butе sur les deux :
-  // la source d'un worklet chargée en TEXTE (`?raw`), et un FICHIER importé
-  // pour son URL (la police des cartels, `.woff`). La seconde est arrivée
-  // après la première ; le contrôle les cherche donc par la forme de
+  // Trois façons de dépendre de l'empaqueteur, et le nœud bute sur les
+  // trois : une source chargée en TEXTE (`?raw`), un worklet chargé par son
+  // URL de chunk (`?worker&url`), et un FICHIER importé pour son URL (la
+  // police des cartels, `.woff`). Le contrôle les cherche par la forme de
   // l'import et non par une liste de suffixes qu'il faudrait tenir à jour.
-  const EMPAQUETEUR = /^import .*(\?raw'|\.(woff2?|ttf|otf|png|jpe?g|svg|glb|hdr|mp3|wav)')/m;
+  const EMPAQUETEUR = /^import .*(\?raw'|\?worker&url'|\.(woff2?|ttf|otf|png|jpe?g|svg|glb|hdr|mp3|wav)')/m;
   const teintes = new Set(readdirSync(coeur)
     .filter((f) => f.endsWith('.js'))
     .filter((f) => EMPAQUETEUR.test(readFileSync(join(coeur, f), 'utf8'))));

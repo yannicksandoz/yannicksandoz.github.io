@@ -112,11 +112,14 @@ try {
 const tous = await fichiers(RACINE);
 const texte = tous.filter((f) => EXTENSIONS_TEXTE.has(extname(f)));
 
-// Les en-têtes de copyright d'Airwindows vivent DANS les sources de worklet,
-// chargées en `?raw` : ce sont des chaînes de caractères et non des
-// commentaires, et c'est pour cela qu'elles traversent la minification. Cela
-// tient à un détail de montage — donc on le vérifie.
+// Les en-têtes de copyright d'Airwindows vivent en tête de chaque source de
+// worklet, dans un commentaire LÉGAL (`/*! … */`) : c'est la seule sorte de
+// commentaire que la minification garde. Les worklets sont livrés en chunks
+// séparés (`?worker&url`, un fichier `*-worklet-*.js` par plugin porté) et
+// chacun doit porter son en-tête. Cela tient à un détail de montage — donc
+// on le vérifie, chunk par chunk et non « quelque part dans le JS ».
 let creditAirwindows = false;
+const workletsSansCredit = [];
 // Même exigence pour Slug : Eric Lengyel demande le crédit en échange de
 // ses shaders. Le nom vit dans les CHAÎNES GLSL du lettrage (un shader est
 // une chaîne, pas un commentaire) et doit donc survivre à la minification.
@@ -126,6 +129,9 @@ for (const chemin of texte) {
   const contenu = await readFile(chemin, 'utf8');
   if (extname(chemin) === '.js' && contenu.includes('airwindows')) {
     creditAirwindows = true;
+  }
+  if (/-worklet-[\w-]+\.js$/.test(chemin) && !contenu.includes('airwindows')) {
+    workletsSansCredit.push(relative(RACINE, chemin));
   }
   if (extname(chemin) === '.js' && contenu.includes('Lengyel')) {
     creditLengyel = true;
@@ -206,6 +212,10 @@ if (!licence) {
 if (!creditAirwindows) {
   erreurs.push('aucune mention d’Airwindows dans le JS livré : les en-têtes '
     + 'de copyright ont été perdus à la minification');
+}
+if (workletsSansCredit.length) {
+  erreurs.push('des worklets livrés sans leur en-tête de copyright (le bloc '
+    + `\`/*! … */\` manque ou n’est pas légal) : ${workletsSansCredit.join(', ')}`);
 }
 if (!creditLengyel) {
   erreurs.push('aucune mention d’Eric Lengyel dans le JS livré : le crédit '

@@ -1,4 +1,4 @@
-/**
+/*!
  * LE LIMITEUR — Pressure4 puis ClipOnly2, dans le fil audio.
  *
  * D'après les plugins **Airwindows** de Chris Johnson, publiés sous licence
@@ -6,7 +6,8 @@
  *
  *   Pressure4  — Copyright (c) 2016 airwindows, Airwindows uses the MIT license
  *   ClipOnly2  — Copyright (c) 2018 airwindows, Airwindows uses the MIT license
- *
+ */
+/**
  * Portage en JavaScript pour AudioWorklet ; l'algorithme, les coefficients et
  * les constantes sont ceux de Chris. Le crédit n'est pas une politesse : la
  * galerie refuse de publier une œuvre dont l'attribution est incomplète, et

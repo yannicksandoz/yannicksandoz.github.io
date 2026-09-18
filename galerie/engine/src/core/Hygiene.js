@@ -1,4 +1,4 @@
-import sourceWorklet from './hygiene-worklet.js?raw';
+import urlWorklet from './hygiene-worklet.js?worker&url';
 import { HYGIENE_DEFAUTS, AIGUS_HZ, GRAVES_HZ, Q_BUTTERWORTH,
   coupureUtile, normaliserHygiene } from './hygiene-reglages.js';
 
@@ -34,7 +34,6 @@ export class Hygiene {
     this.noeud = null;      // le worklet, s'il est là
     this.mode = 'aucun';    // 'worklet' | 'repli' | 'aucun'
     this.reglages = { ...HYGIENE_DEFAUTS };
-    this._url = null;
   }
 
   /**
@@ -48,9 +47,7 @@ export class Hygiene {
     this.ctx = ctx;
     try {
       if (!ctx.audioWorklet) throw new Error('pas d’AudioWorklet');
-      this._url = URL.createObjectURL(
-        new Blob([sourceWorklet], { type: 'text/javascript' }));
-      await ctx.audioWorklet.addModule(this._url);
+      await ctx.audioWorklet.addModule(urlWorklet);
       const noeud = new AudioWorkletNode(ctx, 'galerie-hygiene', {
         numberOfInputs: 1, numberOfOutputs: 1, outputChannelCount: [2],
         channelCount: 2, channelCountMode: 'explicit', channelInterpretation: 'speakers'
@@ -66,8 +63,6 @@ export class Hygiene {
       this.entree = repli.entree;
       this.sortie = repli.sortie;
       this.mode = 'repli';
-    } finally {
-      if (this._url) { URL.revokeObjectURL(this._url); this._url = null; }
     }
 
     // On ne coupe le fil qu'une fois l'étage prêt : source → hygiène → cible.

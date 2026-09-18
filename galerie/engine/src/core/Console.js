@@ -1,4 +1,4 @@
-import source7 from './console7-worklet.js?raw';
+import url7 from './console7-worklet.js?worker&url';
 import { POINTS, encoder, decoder, courbe, CONSOLE_DEFAUTS,
   MOTEURS_CONSOLE, normaliserConsole } from './console-reglages.js';
 
@@ -64,7 +64,6 @@ export class Console {
     // worklets, un par tranche). Voir MOTEURS_CONSOLE plus bas.
     this.moteur = CONSOLE_DEFAUTS.moteur;
     this.console7 = 'absent';   // 'absent' | 'pret' | 'refuse'
-    this._url7 = null;
     this.somme = null;     // le point où toutes les tranches arrivent
     this.sortie = null;    // ce que branche la suite de la chaîne
     this.decodeur = null;
@@ -163,15 +162,11 @@ export class Console {
     if (this.console7 !== 'absent') return this.console7;
     try {
       if (!ctx.audioWorklet) throw new Error('pas d’AudioWorklet');
-      this._url7 = URL.createObjectURL(
-        new Blob([source7], { type: 'text/javascript' }));
-      await ctx.audioWorklet.addModule(this._url7);
+      await ctx.audioWorklet.addModule(url7);
       this.console7 = 'pret';
     } catch (err) {
       console.warn('[galerie] Console7 indisponible :', err?.message ?? err);
       this.console7 = 'refuse';
-    } finally {
-      if (this._url7) { URL.revokeObjectURL(this._url7); this._url7 = null; }
     }
     // le moteur demandé attendait peut-être son module
     if (this.moteur === 'console7' && this.console7 === 'pret') this._rebatir();

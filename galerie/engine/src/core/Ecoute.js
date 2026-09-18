@@ -1,4 +1,4 @@
-import sourceWorklet from './monitoring-worklet.js?raw';
+import urlWorklet from './monitoring-worklet.js?worker&url';
 import { MODES_ECOUTE, modeEcouteValide } from './ecoute-modes.js';
 
 export { MODES_ECOUTE, modeEcouteValide };
@@ -33,10 +33,7 @@ export class Ecoute {
     this.ctx = ctx;
     try {
       if (!ctx.audioWorklet) throw new Error('pas d’AudioWorklet');
-      const url = URL.createObjectURL(
-        new Blob([sourceWorklet], { type: 'text/javascript' }));
-      try { await ctx.audioWorklet.addModule(url); }
-      finally { URL.revokeObjectURL(url); }
+      await ctx.audioWorklet.addModule(urlWorklet);
       this.noeud = new AudioWorkletNode(ctx, 'galerie-monitoring', {
         numberOfInputs: 1, numberOfOutputs: 1, outputChannelCount: [2],
         channelCount: 2, channelCountMode: 'explicit', channelInterpretation: 'speakers'

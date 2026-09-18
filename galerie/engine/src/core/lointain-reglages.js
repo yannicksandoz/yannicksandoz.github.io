@@ -7,8 +7,8 @@
  * pour la distance ORDINAIRE — celle qu'on parcourt — qui, elle, est
  * automatique et ne se règle pas par œuvre.
  *
- * Séparé de `Lointain.js` parce que celui-ci importe le worklet en `?raw` :
- * un fichier illisible hors navigateur, donc intestable. Ici, tout est pur.
+ * Séparé de `Lointain.js` parce que celui-ci importe le worklet par son URL (`?worker&url`) :
+ * un import illisible hors navigateur, donc intestable. Ici, tout est pur.
  */
 
 /** Au-dessous, on ne branche rien : un worklet par œuvre se mérite. */

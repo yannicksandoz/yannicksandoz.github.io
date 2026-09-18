@@ -1,8 +1,10 @@
-/**
+/*!
  * LES COULEURS DU BUS — BussColors4, d'Airwindows.
  *
  * D'après **BussColors4** de Chris Johnson
  * (© 2016 airwindows, licence MIT — https://github.com/airwindows/airwindows).
+ */
+/**
  * Les huit jeux de trente-trois coefficients, leurs gains d'entrée et de
  * sortie, l'affaissement dynamique et les deux étages de saturation sont les
  * siens.

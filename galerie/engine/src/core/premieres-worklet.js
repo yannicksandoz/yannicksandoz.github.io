@@ -1,8 +1,10 @@
-/**
+/*!
  * LES PREMIÈRES RÉFLEXIONS — ClearCoat, d'Airwindows.
  *
  * D'après **ClearCoat** de Chris Johnson
  * (© 2018 airwindows, licence MIT — https://github.com/airwindows/airwindows).
+ */
+/**
  * Les dix-sept jeux de longueurs, les matrices de Householder, l'étage
  * SubTight et l'enchaînement sont les siens.
  *

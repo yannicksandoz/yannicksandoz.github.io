@@ -1,8 +1,8 @@
 /**
  * Les réglages de la table de mixage, et les deux courbes de Console6.
  *
- * À part de `Console.js`, qui charge la source du worklet de Console7
- * (`?raw`) : ce qui décide de quelque chose doit pouvoir s'éprouver au nœud,
+ * À part de `Console.js`, qui charge le worklet de Console7 par son URL
+ * (`?worker&url`) : ce qui décide de quelque chose doit pouvoir s'éprouver au nœud,
  * sans navigateur ni empaqueteur.
  */
 

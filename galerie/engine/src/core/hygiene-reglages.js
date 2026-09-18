@@ -1,7 +1,7 @@
 /**
  * Les réglages de l'hygiène du maître, et les coefficients qui vont avec.
  *
- * À part de `Hygiene.js`, qui charge la source du worklet (`?raw`) : ce qui
+ * À part de `Hygiene.js`, qui charge le worklet par son URL (`?worker&url`) : ce qui
  * décide de quelque chose doit pouvoir s'éprouver au nœud.
  */
 

@@ -4785,6 +4785,46 @@ pendant que vous composiez, l'envoi échoue au lieu d'écraser son travail.
 
 Une attribution incomplète refuse la mise en ligne, avant tout appel réseau.
 
+#### 4 · Les garde-fous de publication
+
+Tout ce qui part en ligne passe par la même chaîne, sur le RÉSULTAT du
+build et non sur la configuration : `npm run build`, puis `npm test`
+(toutes les suites `scripts/test-*.mjs`, auto-découvertes), puis `npm run
+check`. Le workflow `deploy.yml` la rejoue à chaque push et ne déploie que
+si tout est vert. Les garde-fous, dans l'ordre où ils tombent :
+
+| Garde-fou | Où | Ce qu'il refuse |
+|---|---|---|
+| l'éditeur absent du build visiteur | `check-visitor-build.mjs` | un chunk, un style, un bloc HTML de l'éditeur ; un hôte tiers (`api.github.com`) ; la moindre clé |
+| les licences qui voyagent | `check-visitor-build.mjs` | un build sans `LICENCES/airwindows-MIT.txt` ou `slug-MIT.txt` ; un chunk de worklet livré sans son en-tête `/*! … */` de copyright ; un JS sans le crédit d'Eric Lengyel |
+| le poids du son | `check-visitor-build.mjs`, règles dans `poids-audio.mjs` | un master (wav, aiff, flac) de plus d'un mégaoctet, un fichier audio de plus de 8 Mo, un original publié à côté de ses fragments |
+| le budget des salles | `check-visitor-build.mjs`, règles dans `budget-salle.js` | une salle qui dépasse son budget de lampes, de lignes, de sources étendues |
+| le poids du build | `poids-build.mjs`, seuils dans `poids-seuils.json` | un paquet principal, un total de JavaScript ou un site hors médias au-dessus de son seuil |
+| les sauvegardes de l'éditeur | `vite.config.js` puis `check-visitor-build.mjs` | `content/.sauvegardes/` publié |
+
+**Le poids du build** (`scripts/poids-build.mjs`, `scripts/poids-seuils.json`,
+`scripts/test-poids-build.mjs`). Trois mesures sur `dist/` : le paquet
+principal (le plus gros `assets/index-*.js`, celui que tout visiteur
+télécharge avant la première image), le JavaScript total (paquet, three,
+chargeurs, worklets, morceaux à la demande) et le site hors médias (tout
+ce qui n'est ni son, ni image, ni modèle, ni vidéo). Les seuils sont les
+mesures d'un build connu plus dix pour cent ; un build qui dépasse fait
+échouer la publication en nommant le fichier fautif et son dépassement —
+pour le paquet, le fichier lui-même ; pour un total, ses trois fichiers
+les plus lourds. Le contrôle tombe deux fois : dans `npm test` (la suite
+`test-poids-build.mjs` éprouve la logique pure sur des fichiers factices,
+puis contrôle le vrai `dist/` s'il existe) et dans `npm run check`, que
+`deploy.yml` lance en étape nommée. Une croissance VOULUE se déclare en
+relevant le seuil dans `poids-seuils.json`, dans le même commit, avec sa
+raison dans le message : le garde-fou n'interdit pas de grossir, il
+interdit de grossir sans le savoir.
+
+| Mesure (18 septembre 2026) | Build | Seuil |
+|---|---|---|
+| paquet principal | 791 ko | 870 ko |
+| JavaScript total | 2 012 ko | 2 215 ko |
+| site hors médias | 2 435 ko | 2 680 ko |
+
 ## Modules fournis
 
 | Module | Rôle | Paramètres principaux |
@@ -5294,6 +5334,29 @@ liaison attendue pendant un rendu — toutes sont passées du rendu à la
 chauffe. Éprouvé au nœud (le paquet, le compte de lumières, la remise en
 place même si l'appel lève, les invités, l'attente, son délai et la
 liaison forcée).
+
+**Les worklets sortent du paquet, et le poids du build a son garde-fou.**
+Deux optimisations de livraison, sans changement fonctionnel. Les douze
+worklets d'Airwindows (réverbe, grand espace, premières réflexions,
+limiteur, plafond, pupitre, couleurs, bande, hygiène, lointain, console,
+écoute) étaient embarqués en CHAÎNES dans le paquet principal (`import …
+?raw`), commentaires compris : cent quarante-trois kilo-octets de source
+que tout visiteur téléchargeait, entrât-il ou non. Ils sont désormais
+des chunks séparés, minifiés (`import … ?worker&url`, un fichier
+`*-worklet-*.js` par plugin, 59 ko à eux douze), demandés par
+`audioWorklet.addModule(url)` au déblocage audio seulement — plus de
+`Blob` ni d'URL à révoquer. L'en-tête de copyright de chaque worklet est
+passé en commentaire LÉGAL (`/*! … */`, la seule sorte que la minification
+garde) ; la documentation qui suivait reste en `/** … */` et disparaît du
+livré. Le garde-fou de publication vérifie désormais chaque chunk de
+worklet, pas seulement « une mention d'Airwindows quelque part ». La
+convention des tests tient : un worklet chargé par son URL est un import
+d'empaqueteur comme un `?raw`, et `test-console.mjs` refuse toujours qu'une
+suite au nœud importe un module qui en dépend. Mesuré : le paquet
+principal passe de 935 ko à 791 ko (319 à 276 ko en gzip), le JavaScript
+total de 2 097 à 2 012 ko. Et pour que cette dérive-là ne se reproduise
+pas sans qu'on le voie, le poids du build est contrôlé en CI (voir
+« Les garde-fous de publication », plus bas).
 
 **« Après un tour dans la galerie, je n'ai soudainement plus pu contrôler
 la vue (rotation), seulement le joystick. »** (`controls/surete-regard.js`,

@@ -1,8 +1,10 @@
-/**
+/*!
  * LE GRAND ESPACE — Galactic2, d'Airwindows.
  *
  * D'après **Galactic2** de Chris Johnson
  * (© 2018 airwindows, licence MIT — https://github.com/airwindows/airwindows).
+ */
+/**
  * Les seize longueurs, les matrices de Householder, le conditionnement non
  * linéaire de la contre-réaction, les seuils d'assombrissement et l'étage de
  * sortie sont les siens.

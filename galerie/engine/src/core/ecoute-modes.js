@@ -1,7 +1,7 @@
 /**
  * Les modes de l'écoute de contrôle, et ce que chacun apprend.
  *
- * À part du reste parce que `Ecoute.js` charge la source du worklet (`?raw`,
+ * À part du reste parce que `Ecoute.js` charge le worklet par son URL (`?worker&url`,
  * une affaire de bundler) : cette liste doit pouvoir s'éprouver au nœud, et
  * elle doit rester d'accord avec `monitoring-worklet.js` — un test le
  * vérifie, sans quoi un bouton pourrait pointer un mode qui n'existe pas.

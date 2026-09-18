@@ -1,8 +1,10 @@
-/**
+/*!
  * LE LOINTAIN — Distance2, d'Airwindows.
  *
  * D'après **Distance2** de Chris Johnson
  * (© 2016 airwindows, licence MIT — https://github.com/airwindows/airwindows).
+ */
+/**
  * Les treize seuils de pente, les coefficients et l'enchaînement sont les
  * siens. Distance2 est lui-même l'hybride de ses plugins *Distance* et
  * *Atmosphere*.

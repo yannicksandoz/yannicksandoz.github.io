@@ -1,0 +1,6 @@
+{
+  "_": "Seuils du garde-fou de poids (scripts/poids-build.mjs), en octets : les mesures du build du 18 septembre 2026 plus dix pour cent. Un dépassement voulu se déclare ici, dans le même commit, avec sa raison dans le message.",
+  "paquetPrincipal": 870000,
+  "jsTotal": 2215000,
+  "siteHorsMedias": 2680000
+}

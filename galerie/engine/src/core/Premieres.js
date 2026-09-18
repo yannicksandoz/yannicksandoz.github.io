@@ -1,4 +1,4 @@
-import sourceWorklet from './premieres-worklet.js?raw';
+import urlWorklet from './premieres-worklet.js?worker&url';
 import { PLACES, PREMIERES_DEFAUT, salleDeTaille, nomDeSalle, normaliserPremieres }
   from './premieres-reglages.js';
 
@@ -52,10 +52,7 @@ export class Premieres {
     this.retour.gain.value = 0;
     try {
       if (!ctx.audioWorklet) throw new Error('pas d’AudioWorklet');
-      const url = URL.createObjectURL(
-        new Blob([sourceWorklet], { type: 'text/javascript' }));
-      try { await ctx.audioWorklet.addModule(url); }
-      finally { URL.revokeObjectURL(url); }
+      await ctx.audioWorklet.addModule(urlWorklet);
       this.noeud = new AudioWorkletNode(ctx, 'galerie-premieres', {
         numberOfInputs: 1, numberOfOutputs: 1, outputChannelCount: [2],
         channelCount: 2, channelCountMode: 'explicit', channelInterpretation: 'speakers'

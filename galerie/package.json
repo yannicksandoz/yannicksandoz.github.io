@@ -13,7 +13,7 @@
     "build:auteur": "GALERIE_EDITOR=1 vite build --outDir dist-auteur && node scripts/genere-liste.mjs dist-auteur",
     "preview": "vite preview",
     "preview:auteur": "vite preview --outDir dist-auteur",
-    "check": "node scripts/check-visitor-build.mjs",
+    "check": "node scripts/check-visitor-build.mjs && node scripts/poids-build.mjs",
     "sonde:visuels": "node scripts/sonde-visuels.cjs",
     "sonde:editeur": "node scripts/sonde-editeur.cjs",
     "sonde:charge": "node scripts/sonde-charge.cjs",

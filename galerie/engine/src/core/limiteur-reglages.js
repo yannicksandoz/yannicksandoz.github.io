@@ -1,8 +1,8 @@
 /**
  * Les réglages du limiteur, et rien d'autre.
  *
- * À part du reste parce que `Limiteur.js` charge la source du worklet
- * (`?raw`, une affaire de bundler) : ces quelques fonctions doivent pouvoir
+ * À part du reste parce que `Limiteur.js` charge le worklet par son URL
+ * (`?worker&url`, une affaire de bundler) : ces quelques fonctions doivent pouvoir
  * s'éprouver au nœud, sans navigateur ni empaqueteur, comme tout ce qui
  * décide de quelque chose.
  */

@@ -1,4 +1,4 @@
-import sourceWorklet from './couleurs-worklet.js?raw';
+import urlWorklet from './couleurs-worklet.js?worker&url';
 import { COULEURS, ORDRE_COULEURS, COULEURS_DEFAUTS, normaliserCouleurs,
   indiceDeCouleur } from './couleurs-reglages.js';
 
@@ -28,7 +28,6 @@ export class Couleurs {
     this.noeud = null;
     this.mode = 'aucun';    // 'worklet' | 'aucun'
     this.reglages = { ...COULEURS_DEFAUTS };
-    this._url = null;
   }
 
   /** Pose la couleur entre `source` et `cible`. */
@@ -36,9 +35,7 @@ export class Couleurs {
     this.ctx = ctx;
     try {
       if (!ctx.audioWorklet) throw new Error('pas d’AudioWorklet');
-      this._url = URL.createObjectURL(
-        new Blob([sourceWorklet], { type: 'text/javascript' }));
-      await ctx.audioWorklet.addModule(this._url);
+      await ctx.audioWorklet.addModule(urlWorklet);
       this.noeud = new AudioWorkletNode(ctx, 'galerie-couleurs', {
         numberOfInputs: 1, numberOfOutputs: 1, outputChannelCount: [2],
         channelCount: 2, channelCountMode: 'explicit', channelInterpretation: 'speakers'
@@ -49,8 +46,6 @@ export class Couleurs {
     } catch (err) {
       console.warn('[galerie] couleurs de bus indisponibles :', err?.message ?? err);
       this.mode = 'aucun';
-    } finally {
-      if (this._url) { URL.revokeObjectURL(this._url); this._url = null; }
     }
 
     if (this.mode === 'worklet' && source && cible) {

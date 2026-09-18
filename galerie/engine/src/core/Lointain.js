@@ -1,4 +1,4 @@
-import sourceWorklet from './lointain-worklet.js?raw';
+import urlWorklet from './lointain-worklet.js?worker&url';
 import { normaliserLointain, repereLointain, REPERES, SEUIL }
   from './lointain-reglages.js';
 
@@ -87,10 +87,7 @@ export class Lointain {
     this.ctx = ctx ?? this.ctx;
     try {
       if (!ctx.audioWorklet) throw new Error('pas d’AudioWorklet');
-      const url = URL.createObjectURL(
-        new Blob([sourceWorklet], { type: 'text/javascript' }));
-      try { await ctx.audioWorklet.addModule(url); }
-      finally { URL.revokeObjectURL(url); }
+      await ctx.audioWorklet.addModule(urlWorklet);
       this.disponible = true;
       // Les œuvres chargées pendant l'attente ont noté leur valeur sans
       // pouvoir la servir : on les sert maintenant.

@@ -1,8 +1,10 @@
-/**
+/*!
  * LE PLAFOND, DERNIÈRE VERSION — Pressure5, d'Airwindows.
  *
  * D'après **Pressure5** de Chris Johnson
  * (© 2018 airwindows, licence MIT — https://github.com/airwindows/airwindows).
+ */
+/**
  * Le compresseur vari-µ et ses deux jeux de coefficients alternés, les deux
  * Butterworth fixes à 24 kHz, la modulation de la courbe par la pente
  * (« PawClaw ») et l'écrêteur ClipOnly2 intégré sont les siens.

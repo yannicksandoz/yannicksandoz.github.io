@@ -1,8 +1,10 @@
-/**
+/*!
  * LA TABLE, VERSION SEPT — Console7, d'Airwindows.
  *
  * D'après **Console7Channel** et **Console7Buss** de Chris Johnson
  * (© 2018 airwindows, licence MIT — https://github.com/airwindows/airwindows).
+ */
+/**
  * Les deux mélanges d'harmoniques, les passe-bas à 20 kHz et leurs Q au
  * nombre d'or, et le fader poursuivi sont les siens.
  *

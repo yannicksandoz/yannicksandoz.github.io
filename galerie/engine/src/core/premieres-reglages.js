@@ -1,7 +1,7 @@
 /**
  * Les premières réflexions, côté réglages.
  *
- * À part du worklet parce que celui-ci est chargé en TEXTE (`?raw`) puis
+ * À part du worklet parce que celui-ci est chargé par son URL (`?worker&url`) et
  * exécuté dans le fil audio : il ne peut rien importer, tout doit y tenir.
  * Ce qui décide de quelque chose vit donc ici, où le nœud sait le lire.
  *

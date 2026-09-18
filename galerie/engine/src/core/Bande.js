@@ -1,4 +1,4 @@
-import sourceWorklet from './bande-worklet.js?raw';
+import urlWorklet from './bande-worklet.js?worker&url';
 import { BANDE_DEFAUTS, normaliserBande } from './bande-reglages.js';
 
 export { BANDE_DEFAUTS, normaliserBande };
@@ -26,7 +26,6 @@ export class Bande {
     this.noeud = null;
     this.mode = 'aucun';    // 'worklet' | 'aucun'
     this.reglages = { ...BANDE_DEFAUTS };
-    this._url = null;
   }
 
   /** Pose la bande entre `source` et `cible`. */
@@ -34,9 +33,7 @@ export class Bande {
     this.ctx = ctx;
     try {
       if (!ctx.audioWorklet) throw new Error('pas d’AudioWorklet');
-      this._url = URL.createObjectURL(
-        new Blob([sourceWorklet], { type: 'text/javascript' }));
-      await ctx.audioWorklet.addModule(this._url);
+      await ctx.audioWorklet.addModule(urlWorklet);
       this.noeud = new AudioWorkletNode(ctx, 'galerie-bande', {
         numberOfInputs: 1, numberOfOutputs: 1, outputChannelCount: [2],
         channelCount: 2, channelCountMode: 'explicit', channelInterpretation: 'speakers'
@@ -47,8 +44,6 @@ export class Bande {
     } catch (err) {
       console.warn('[galerie] bande indisponible :', err?.message ?? err);
       this.mode = 'aucun';
-    } finally {
-      if (this._url) { URL.revokeObjectURL(this._url); this._url = null; }
     }
 
     if (this.mode === 'worklet' && source && cible) {

@@ -1,7 +1,7 @@
 /**
  * Le pupitre de mixage : quelle table, et combien.
  *
- * À part de `Pupitre.js`, qui charge la source du worklet (`?raw`) : ce qui
+ * À part de `Pupitre.js`, qui charge le worklet par son URL (`?worker&url`) : ce qui
  * décide de quelque chose doit pouvoir s'éprouver au nœud.
  */
 

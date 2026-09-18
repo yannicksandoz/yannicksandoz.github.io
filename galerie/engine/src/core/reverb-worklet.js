@@ -1,8 +1,10 @@
-/**
+/*!
  * LA RÉVERBÉRATION DES PIÈCES — Verbity, d'Airwindows.
  *
  * D'après **Verbity** de Chris Johnson
  * (© 2016 airwindows, licence MIT — https://github.com/airwindows/airwindows).
+ */
+/**
  * Portage en JavaScript pour AudioWorklet ; les longueurs de retard (3407,
  * 1823, 859, 331 · 4801, 2909, 1153, 461 · 7607, 4217, 2269, 1597), les
  * coefficients et la structure sont ceux de Chris.

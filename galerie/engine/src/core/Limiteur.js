@@ -1,5 +1,5 @@
-import sourceWorklet from './limiteur-worklet.js?raw';
-import source5 from './pression5-worklet.js?raw';
+import urlWorklet from './limiteur-worklet.js?worker&url';
+import url5 from './pression5-worklet.js?worker&url';
 import { LIMITEUR_DEFAUTS, MOTEURS_LIMITEUR, normaliserLimiteur, reductionEnDb,
   sortiePression5 } from './limiteur-reglages.js';
 
@@ -40,7 +40,6 @@ export class Limiteur {
     this.mode = 'aucun';     // 'worklet' | 'repli' | 'aucun'
     this.reglages = { ...LIMITEUR_DEFAUTS };
     this._reduction = 0;     // dB, lissés pour l'affichage
-    this._url = null;
   }
 
   /**
@@ -58,16 +57,11 @@ export class Limiteur {
 
     try {
       if (!ctx.audioWorklet) throw new Error('pas d’AudioWorklet');
-      this._url = URL.createObjectURL(
-        new Blob([sourceWorklet], { type: 'text/javascript' }));
-      await ctx.audioWorklet.addModule(this._url);
+      await ctx.audioWorklet.addModule(urlWorklet);
       // LES DEUX PLAFONDS SONT MONTÉS, UN SEUL EST ALIMENTÉ — comme les deux
       // moteurs de queue. Enregistrer un module au milieu d'une visite
       // demanderait d'attendre, et un plafond ne se change pas en deux fois.
-      const url5 = URL.createObjectURL(
-        new Blob([source5], { type: 'text/javascript' }));
-      try { await ctx.audioWorklet.addModule(url5); }
-      finally { URL.revokeObjectURL(url5); }
+      await ctx.audioWorklet.addModule(url5);
       const monter = (nom) => {
         const n = new AudioWorkletNode(ctx, nom, {
           numberOfInputs: 1, numberOfOutputs: 1, outputChannelCount: [2],
@@ -99,8 +93,6 @@ export class Limiteur {
       this._entree = repli.entree;
       this._sortie = repli.sortie;
       this.mode = 'repli';
-    } finally {
-      if (this._url) { URL.revokeObjectURL(this._url); this._url = null; }
     }
 
     // LA MARGE, en tête de chaîne : un simple gain, mais c'est lui qui décide

@@ -79,7 +79,17 @@ jobs:
       # ligne.
       - name: Contrôle — aucun code d'éditeur dans ce qui sera publié
         working-directory: galerie
-        run: npm run check
+        run: node scripts/check-visitor-build.mjs
+
+      # Le poids du build : paquet principal, JavaScript total, site hors
+      # médias, chacun sous son seuil (scripts/poids-seuils.json, les
+      # mesures d'un build connu plus dix pour cent). Rouge nomme le fichier
+      # fautif et son dépassement ; une croissance voulue relève le seuil
+      # dans le même commit. `npm run check` enchaîne les deux contrôles ;
+      # ici en deux étapes, pour que le journal dise lequel a rougi.
+      - name: Contrôle — poids du build
+        working-directory: galerie
+        run: node scripts/poids-build.mjs
 
       # `cp -r src dest` copie DANS dest quand dest existe déjà (on obtiendrait
       # _site/galerie/dist/). On supprime donc la cible d'abord, puis on vérifie

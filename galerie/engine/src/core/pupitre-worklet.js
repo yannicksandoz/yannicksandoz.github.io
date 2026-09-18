@@ -1,8 +1,10 @@
-/**
+/*!
  * LE PUPITRE — Channel9, d'Airwindows.
  *
  * D'après **Channel9** de Chris Johnson
  * (© 2016 airwindows, licence MIT — https://github.com/airwindows/airwindows).
+ */
+/**
  * Les cinq jeux de constantes, le passe-haut « diélectrique », la saturation
  * Spiral, l'écrêtage de pente au nombre d'or et les deux biquads sont les
  * siens.

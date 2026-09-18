@@ -1,5 +1,5 @@
-import sourceWorklet from './reverb-worklet.js?raw';
-import sourceGalactique from './galactique-worklet.js?raw';
+import urlWorklet from './reverb-worklet.js?worker&url';
+import urlGalactique from './galactique-worklet.js?worker&url';
 import { REVERB_DEFAUTS, LIEUX, MOTEURS, normaliserReverb, reverbDePiece }
   from './reverb-reglages.js';
 
@@ -63,13 +63,10 @@ export class Reverb {
     try {
       if (!ctx.audioWorklet) throw new Error('pas d’AudioWorklet');
       const charger = async (source) => {
-        const url = URL.createObjectURL(
-          new Blob([source], { type: 'text/javascript' }));
-        try { await ctx.audioWorklet.addModule(url); }
-        finally { URL.revokeObjectURL(url); }
+        await ctx.audioWorklet.addModule(source);
       };
-      await charger(sourceWorklet);
-      await charger(sourceGalactique);
+      await charger(urlWorklet);
+      await charger(urlGalactique);
       const monter = (nom) => new AudioWorkletNode(ctx, nom, {
         numberOfInputs: 1, numberOfOutputs: 1, outputChannelCount: [2],
         channelCount: 2, channelCountMode: 'explicit', channelInterpretation: 'speakers'

@@ -1,4 +1,4 @@
-import sourceWorklet from './pupitre-worklet.js?raw';
+import urlWorklet from './pupitre-worklet.js?worker&url';
 import { PUPITRES, ORDRE_PUPITRES, PUPITRE_DEFAUTS, normaliserPupitre,
   indiceDePupitre } from './pupitre-reglages.js';
 
@@ -31,7 +31,6 @@ export class Pupitre {
     this.noeud = null;
     this.mode = 'aucun';    // 'worklet' | 'aucun'
     this.reglages = { ...PUPITRE_DEFAUTS };
-    this._url = null;
   }
 
   /** Pose le pupitre entre `source` et `cible`. */
@@ -39,9 +38,7 @@ export class Pupitre {
     this.ctx = ctx;
     try {
       if (!ctx.audioWorklet) throw new Error('pas d’AudioWorklet');
-      this._url = URL.createObjectURL(
-        new Blob([sourceWorklet], { type: 'text/javascript' }));
-      await ctx.audioWorklet.addModule(this._url);
+      await ctx.audioWorklet.addModule(urlWorklet);
       this.noeud = new AudioWorkletNode(ctx, 'galerie-pupitre', {
         numberOfInputs: 1, numberOfOutputs: 1, outputChannelCount: [2],
         channelCount: 2, channelCountMode: 'explicit', channelInterpretation: 'speakers'
@@ -52,8 +49,6 @@ export class Pupitre {
     } catch (err) {
       console.warn('[galerie] pupitre indisponible :', err?.message ?? err);
       this.mode = 'aucun';
-    } finally {
-      if (this._url) { URL.revokeObjectURL(this._url); this._url = null; }
     }
 
     // On ne coupe le fil qu'une fois l'étage prêt. S'il ne l'est pas, on ne

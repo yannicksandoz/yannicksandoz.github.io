@@ -1,7 +1,7 @@
 /**
  * Les couleurs de bus : laquelle, et combien.
  *
- * À part de `Couleurs.js`, qui charge la source du worklet (`?raw`) : ce qui
+ * À part de `Couleurs.js`, qui charge le worklet par son URL (`?worker&url`) : ce qui
  * décide de quelque chose doit pouvoir s'éprouver au nœud.
  */
 

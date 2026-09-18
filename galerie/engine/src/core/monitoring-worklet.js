@@ -1,8 +1,10 @@
-/**
+/*!
  * L'ÉCOUTE DE CONTRÔLE — Monitoring, d'Airwindows.
  *
  * D'après **Monitoring** de Chris Johnson
  * (© 2018 airwindows, licence MIT — https://github.com/airwindows/airwindows).
+ */
+/**
  * Portage en JavaScript pour AudioWorklet ; les coefficients, les longueurs
  * d'allpass (149 et 223 échantillons, « des nombres premiers bien espacés »)
  * et les gains sont les siens.
