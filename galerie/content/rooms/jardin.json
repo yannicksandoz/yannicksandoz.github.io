@@ -44,7 +44,8 @@
     "buisson-jardin-4",
     "buisson-jardin-5",
     "lanterne-jardin-2",
-    "margelle-bassin"
+    "margelle-bassin",
+    "cascade-jardin"
   ],
   "portals": [
     {
@@ -160,5 +161,12 @@
     8.0,
     0.6,
     5.0
+  ],
+  "ambience": [
+    {
+      "file": "assets/freesound/waterfall-nan-lian-garden-zen-848184.mp3",
+      "fragments": "assets/freesound/waterfall-nan-lian-garden-zen-848184.fragments.json",
+      "gain": 0.09
+    }
   ]
 }

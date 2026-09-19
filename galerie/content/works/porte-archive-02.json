@@ -1,0 +1,46 @@
+{
+  "id": "porte-archive-02",
+  "title": "Porte — Archive 02 (à venir)",
+  "description": "Une œuvre-porte sans cible pour l'instant : l'Archive 02 se créera dans l'éditeur, et le portail « via » de la salle la reliera ici.",
+  "position": [
+    12.64,
+    1.4,
+    1.0
+  ],
+  "rotation": [
+    0,
+    -90,
+    0
+  ],
+  "scale": [
+    1.4,
+    2.8,
+    0.24
+  ],
+  "modules": [
+    {
+      "type": "FocusCamera",
+      "params": {
+        "distance": 4
+      }
+    },
+    {
+      "type": "Portail"
+    }
+  ],
+  "model": {
+    "shape": "box",
+    "color": "#141322",
+    "roughness": 0.7,
+    "metalness": 0.05,
+    "emissive": 0.14,
+    "emissiveColor": "#9f8cff"
+  },
+  "lightColor": "#9f8cff",
+  "lightIntensity": 3,
+  "credit": {
+    "author": "Galerie",
+    "license": "CC0-1.0",
+    "sourceUrl": "https://github.com/yannicksandoz/yannicksandoz.github.io"
+  }
+}

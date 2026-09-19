@@ -1,0 +1,68 @@
+{
+  "id": "archive-01",
+  "title": "Archive 01",
+  "spawn": [
+    0,
+    2.2,
+    3.2
+  ],
+  "regard": [
+    0,
+    1.4,
+    -4
+  ],
+  "fogColor": "#051012",
+  "floor": {
+    "size": 16,
+    "color": "#4f5959",
+    "grid": false,
+    "texture": "bois"
+  },
+  "shell": {
+    "width": 14,
+    "depth": 12,
+    "height": 6.5,
+    "color": "#546f70",
+    "texture": "brique-vraie",
+    "ceiling": true,
+    "wallColors": {
+      "plafond": "#344545"
+    }
+  },
+  "keyLight": false,
+  "envIntensity": 0.25,
+  "works": [
+    "lanterne-archive-01-a",
+    "lanterne-archive-01-b"
+  ],
+  "portals": [
+    {
+      "to": "phare-01",
+      "position": [
+        0,
+        0,
+        5.6
+      ],
+      "rotationY": 180,
+      "label": "Phare 01",
+      "arrival": [
+        10.8,
+        2.2,
+        1.0
+      ],
+      "regard": [
+        0,
+        2.0,
+        -9.7
+      ]
+    }
+  ],
+  "reverb": {
+    "actif": true,
+    "taille": 0.25,
+    "duree": 0.35,
+    "sombre": 0.8,
+    "envoi": 0.12,
+    "premieres": 0.3
+  }
+}

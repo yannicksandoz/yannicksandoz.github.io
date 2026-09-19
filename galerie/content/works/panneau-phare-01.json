@@ -1,0 +1,43 @@
+{
+  "id": "panneau-phare-01",
+  "title": "Panneau — œuvre à venir",
+  "description": "Emplacement réservé de la salle phare : ce panneau sera remplacé par une œuvre en stems dans l'éditeur.",
+  "position": [
+    0,
+    2.2,
+    -9.72
+  ],
+  "rotation": [
+    0,
+    0,
+    0
+  ],
+  "scale": [
+    4.2,
+    2.6,
+    0.08
+  ],
+  "modules": [
+    {
+      "type": "FocusCamera",
+      "params": {
+        "distance": 7
+      }
+    }
+  ],
+  "model": {
+    "shape": "box",
+    "color": "#262638",
+    "roughness": 0.85,
+    "metalness": 0,
+    "emissive": 0.1,
+    "emissiveColor": "#9f8cff"
+  },
+  "lightColor": "#cbb4ff",
+  "lightIntensity": 4,
+  "credit": {
+    "author": "Galerie",
+    "license": "CC0-1.0",
+    "sourceUrl": "https://github.com/yannicksandoz/yannicksandoz.github.io"
+  }
+}

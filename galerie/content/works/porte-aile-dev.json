@@ -1,0 +1,46 @@
+{
+  "id": "porte-aile-dev",
+  "title": "Porte de service",
+  "description": "Une porte discrète, sans enseigne. Derrière : l'aile dev — la galerie d'avant, telle qu'elle a été construite, salle après salle (labo, annexe, archives, couloir des fenêtres, salle des shaders, dancefloor, bibliothèque).",
+  "position": [
+    -12.64,
+    1.4,
+    1.0
+  ],
+  "rotation": [
+    0,
+    90,
+    0
+  ],
+  "scale": [
+    1.4,
+    2.8,
+    0.24
+  ],
+  "modules": [
+    {
+      "type": "FocusCamera",
+      "params": {
+        "distance": 4
+      }
+    },
+    {
+      "type": "Portail"
+    }
+  ],
+  "model": {
+    "shape": "box",
+    "color": "#141322",
+    "roughness": 0.7,
+    "metalness": 0.05,
+    "emissive": 0.14,
+    "emissiveColor": "#9f8cff"
+  },
+  "lightColor": "#9f8cff",
+  "lightIntensity": 3,
+  "credit": {
+    "author": "Galerie",
+    "license": "CC0-1.0",
+    "sourceUrl": "https://github.com/yannicksandoz/yannicksandoz.github.io"
+  }
+}

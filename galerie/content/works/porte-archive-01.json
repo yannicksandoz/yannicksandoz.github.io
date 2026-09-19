@@ -1,0 +1,46 @@
+{
+  "id": "porte-archive-01",
+  "title": "Porte — Archive 01",
+  "description": "Une œuvre-porte : l'approcher, puis entrer. Derrière, l'Archive 01 — vide pour l'instant, une petite salle de stèles à venir.",
+  "position": [
+    12.64,
+    1.4,
+    1.0
+  ],
+  "rotation": [
+    0,
+    -90,
+    0
+  ],
+  "scale": [
+    1.4,
+    2.8,
+    0.24
+  ],
+  "modules": [
+    {
+      "type": "FocusCamera",
+      "params": {
+        "distance": 4
+      }
+    },
+    {
+      "type": "Portail"
+    }
+  ],
+  "model": {
+    "shape": "box",
+    "color": "#141322",
+    "roughness": 0.7,
+    "metalness": 0.05,
+    "emissive": 0.14,
+    "emissiveColor": "#9f8cff"
+  },
+  "lightColor": "#9f8cff",
+  "lightIntensity": 3,
+  "credit": {
+    "author": "Galerie",
+    "license": "CC0-1.0",
+    "sourceUrl": "https://github.com/yannicksandoz/yannicksandoz.github.io"
+  }
+}

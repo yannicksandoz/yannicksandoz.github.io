@@ -37,23 +37,23 @@
       ]
     },
     {
-      "to": "entree",
+      "to": "phare-02",
       "position": [
         0,
         0,
         20
       ],
       "rotationY": 180,
-      "label": "Entrée",
+      "label": "Phare 02",
       "arrival": [
-        -7,
+        -10.8,
         2.2,
-        -9.5
+        1.0
       ],
       "regard": [
-        0.0,
-        4.5,
-        -21.0
+        0,
+        2.0,
+        -9.7
       ]
     },
     {
@@ -75,6 +75,26 @@
         10.08,
         4.24,
         13.11
+      ]
+    },
+    {
+      "to": "archives",
+      "position": [
+        -12,
+        0,
+        20
+      ],
+      "rotationY": 180,
+      "label": "Archives",
+      "arrival": [
+        0,
+        2.2,
+        6
+      ],
+      "regard": [
+        0,
+        2.0,
+        -6
       ]
     }
   ],

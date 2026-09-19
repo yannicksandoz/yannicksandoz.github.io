@@ -1,0 +1,81 @@
+{
+  "id": "phare-02",
+  "title": "Phare 02",
+  "spawn": [
+    0,
+    2.2,
+    7
+  ],
+  "regard": [
+    0,
+    2.0,
+    -9.7
+  ],
+  "fogColor": "#06060c",
+  "floor": {
+    "size": 30,
+    "color": "#15151f",
+    "grid": false
+  },
+  "shell": {
+    "width": 26,
+    "depth": 20,
+    "height": 6.5,
+    "color": "#1e1e2e"
+  },
+  "keyLight": {
+    "color": "#c4b8ff",
+    "intensity": 3.5,
+    "azimuth": 40,
+    "elevation": 40
+  },
+  "envIntensity": 1,
+  "works": [
+    "panneau-phare-02",
+    "porte-aile-dev",
+    "porte-archive-02"
+  ],
+  "portals": [
+    {
+      "to": "entree",
+      "position": [
+        0,
+        0,
+        9.5
+      ],
+      "rotationY": 180,
+      "label": "Entrée",
+      "arrival": [
+        7,
+        2.2,
+        -9.5
+      ],
+      "regard": [
+        0,
+        4.5,
+        -21
+      ]
+    },
+    {
+      "to": "labo",
+      "via": "porte-aile-dev",
+      "label": "Aile dev",
+      "position": [
+        -11.2,
+        0,
+        1.0
+      ],
+      "rotationY": 90,
+      "arrival": [
+        0,
+        2.2,
+        15
+      ],
+      "regard": [
+        0,
+        2.4,
+        -6
+      ]
+    }
+  ]
+}

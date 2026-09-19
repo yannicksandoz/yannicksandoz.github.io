@@ -780,6 +780,24 @@ disait.
   des œuvres (−28 à −30 LUFS), pour qu'on l'oublie et qu'on l'entende
   encore ; la cible −18 de la table reste celle des œuvres, et l'écart
   orange d'une ambiance n'est pas une faute.
+- **La cascade retrouve sa perspective.** Une nappe de pièce n'a pas de
+  lieu : à 30 m de fondu, la cascade venait de partout. Elle est désormais
+  une SOURCE POSITIONNÉE, l'œuvre de décor `cascade-jardin` posée sur la
+  margelle du bassin — une piste spatiale (`spatial` : distance de
+  référence 2 m, décroissance 0,8, plafond 10 m ; rayon d'audibilité 10 m,
+  fondu spatial 10 m à partir de 2,5 m), qui reçoit donc le gain de
+  distance et l'absorption de l'air comme n'importe quelle œuvre. Et pour
+  que le jardin ne soit jamais sec, une nappe résiduelle très basse : la
+  même piste en ambiance de pièce, gain 0,09, soit ≈ −39 LUFS effectifs.
+  Le banc n'a plus de piste. Valeurs de départ, à régler à l'oreille dans
+  la table.
+- **La règle des ambiances en bruit large bande.** Une cascade, une pluie,
+  un souffle : un bruit large bande MASQUE tout ce qui joue au-dessus de
+  lui, à sonie égale bien plus qu'une nappe tonale. Il se place donc
+  nettement SOUS la règle des −28 à −30 LUFS des ambiances tonales — vers
+  −38 à −40 effectifs pour la part omniprésente, la présence venant de la
+  source positionnée quand on s'en approche. Le critère est le masquage,
+  pas la sonie.
 
 Vérifié dans l'éditeur (build auteur) : le tiroir du banc de l'entrée dit
 « −17,2 LUFS · eff. −18,6 · −0,6 LU », « → −18 » écrit 1,1 au document et
@@ -3884,6 +3902,56 @@ pas en ligne. Aujourd'hui la plus lourde, l'entrée avec ses quatre
 voisines, pèse 3,4 Mo et 42 Mo de PCM ; le labo atteint 3 voix sur 6 au fond
 (il en comptait 5 quand chaque piste des marées valait une voix).
 
+## Plan de la galerie
+
+La galerie est un **hub** : l'entrée est le carrefour de l'exposition,
+d'où partent les salles phares, le jardin et le belvédère. L'espace
+construit avant (labo, annexe, archives, couloir des fenêtres, salle des
+shaders, dancefloor, bibliothèque, allée) est l'**aile dev**, archivée
+intacte derrière une porte discrète. Toute la structure vit dans
+`content/rooms/*.json` et `content/works/*.json` — rien n'est câblé
+ailleurs, tout se retouche dans l'éditeur.
+
+```
+entree (hall, banc, ambiance) — apparitions sur phare-01 et phare-02
+├── phare-01 ─ œuvre-porte « porte-archive-01 » ──▶ archive-01 (stèles à venir, vide)
+├── phare-02 ─ œuvre-porte « porte-aile-dev » ────▶ labo (hall de l'aile dev)
+│              œuvre-porte « porte-archive-02 » (sans cible : archive-02 à créer)
+├── jardin ── allee ── bibliotheque ── couloir-est ── shaders ─(œuvre-porte)─ dancefloor
+│                                       (archives ── labo ── annexe)
+└── belvedere ── face-1 … face-6, et ses bascules d'Escher vers labo, archives,
+                 jardin, bibliotheque, allee, couloir-est
+```
+
+- **Les salles phares** (`phare-01`, `phare-02`) viennent du gabarit
+  « salle » : coque 26 × 20 × 6,5, brume légère, une lampe-clé (relevée à
+  la charte : 3,5 à 40°, le gabarit livre 2,2 à 60°, hors bande). Chacune
+  porte un panneau réservé (`panneau-phare-*`, un volume sobre sans média)
+  à remplacer par une œuvre en stems, et une porte de retour vers
+  l'entrée. Elles sont sobres en médias parce que le hub les précharge.
+- **Les œuvres-portes** (module `Portail`, portail `via` dans la pièce) :
+  depuis phare-01 vers l'Archive 01 ; depuis phare-02, la porte de service
+  vers l'aile dev — l'easter egg — et une porte sans cible pour l'Archive
+  02 à venir (le module sans cible ne montre pas de bouton). L'entrée ne
+  mène plus au labo ni aux archives : ces deux salles se sont reliées
+  entre elles (le labo est le hall de l'aile dev, l'annexe l'appelait déjà
+  « Hall »), et le belvédère garde ses bascules — il reste un second accès
+  à l'aile dev, par le haut.
+- **L'Archive 01** : une petite salle du gabarit « archives » (14 × 12),
+  deux lanternes, vide pour l'instant ; les stèles à petit rayon viendront.
+- **Le jardin** garde ses portes (entrée, allée, belvédère) ; sa cascade
+  est désormais une source positionnée près du bassin, sous une nappe
+  résiduelle (voir le sonomètre, plus haut).
+- **Ce qui le vérifie** : `test-portails` (chaque aller a son retour, tout
+  se rejoint depuis l'entrée), `test-carte` (le plan se pose sans
+  chevauchement, un trait par passage), la charte (ampleur à chaque
+  arrivée, premier regard composé, seuils, lignes de force) et le budget
+  par salle. Jauges après recâblage : l'entrée charge 0,51 Mo et 22 Mo de
+  PCM pour quatre voisines (contre 3,4 Mo et 41,7 Mo pour quatre avant) ;
+  phare-01 0,29 Mo et 11 Mo de PCM ; phare-02 2,2 Mo et 22 Mo (le labo
+  est sa voisine). Dette de charte : aucune — les deux phares tiennent la
+  règle à chaque arrivée (25° sur le panneau, 104° sur la porte).
+
 ## Composer une exposition
 
 L'éditeur est équipé pour composer VITE : des pièces qui naissent de
@@ -5334,6 +5402,22 @@ liaison attendue pendant un rendu — toutes sont passées du rendu à la
 chauffe. Éprouvé au nœud (le paquet, le compte de lumières, la remise en
 place même si l'appel lève, les invités, l'attente, son délai et la
 liaison forcée).
+
+**La galerie devient un hub.** Chantier de portails et de contenu, sans
+démolition ni changement moteur : l'entrée est le carrefour (deux salles
+phares, le jardin, le belvédère — et deux apparitions sur les phares, à la
+place des trois baies qui donnaient sur l'aile d'avant), les salles phares
+naissent du gabarit « salle » avec un panneau réservé chacune, l'Archive
+01 attend ses stèles derrière l'œuvre-porte de phare-01, la porte de
+service de phare-02 mène au labo, hall de l'aile dev où tout le câblage
+d'avant reste intact (labo et archives, qui donnaient tous deux sur le
+hall, se relient désormais l'un à l'autre). Les identifiants existants ne
+bougent pas : liens `?room=` et `?work=` et catalogue tiennent. L'état
+d'avant est sauvegardé (`content/.sauvegardes/2026-09-18-avant-hub/`,
+plus une archive livrée ; git garde le commit d'avant). Vérifié en
+navigateur : entrée → phare-01 → Archive 01 par la porte → phare-02 →
+labo par la porte de service ; apparitions peintes ; cascade en voie
+spatiale et nappe de pièce au jardin. Voir « Plan de la galerie ».
 
 **Les worklets sortent du paquet, et le poids du build a son garde-fou.**
 Deux optimisations de livraison, sans changement fonctionnel. Les douze

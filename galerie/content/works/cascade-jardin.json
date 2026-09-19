@@ -1,0 +1,57 @@
+{
+  "id": "cascade-jardin",
+  "title": "Cascade",
+  "description": "",
+  "position": [
+    11.6,
+    0.3,
+    4.5
+  ],
+  "rotation": [
+    0,
+    0,
+    0
+  ],
+  "scale": [
+    1.6,
+    0.7,
+    1.0
+  ],
+  "modules": [
+    {
+      "type": "SpatialCrossfade",
+      "params": {
+        "radius": 10,
+        "inner": 2.5
+      }
+    }
+  ],
+  "role": "decor",
+  "model": {
+    "shape": "box",
+    "color": "#6a6456",
+    "roughness": 0.95,
+    "metalness": 0,
+    "texture": "pierre"
+  },
+  "lightIntensity": 0,
+  "stems": [
+    {
+      "file": "assets/freesound/waterfall-nan-lian-garden-zen-848184.mp3",
+      "fragments": "assets/freesound/waterfall-nan-lian-garden-zen-848184.fragments.json",
+      "radius": 10,
+      "gain": 0.5,
+      "spatial": {
+        "refDistance": 2,
+        "rolloff": 0.8,
+        "maxDistance": 10
+      },
+      "source": "freesound",
+      "credit": {
+        "author": "ivolipa",
+        "license": "CC0",
+        "sourceUrl": "https://freesound.org/s/848184/"
+      }
+    }
+  ]
+}
