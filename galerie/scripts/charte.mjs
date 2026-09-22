@@ -270,88 +270,96 @@ export function bandeLumiere(ciel) {
 }
 
 /** Ce que la charte dit de chaque salle : les écarts, nommés. */
+/**
+ * Ce que la charte dit d'UNE salle (`s` : sa configuration) : les écarts,
+ * nommés, dans `fautes`. `oeuvresParId` sert à la lampe-clé portée par une
+ * œuvre (la lune du labo) ; `dehors` exempte un extérieur de ses murs et
+ * de l'élévation. Pure : le test des gabarits de l'éditeur juge ainsi une
+ * pièce qui n'est pas encore dans le contenu.
+ */
+export function jugerSalle(s, oeuvresParId = new Map(), dehors = EXTERIEURS.has(s?.id)) {
+  const sol = typeof s.floor === 'object' ? s.floor?.color : null;
+  const mur = s.shell?.color;
+  const ligne = { id: s.id, dehors, fautes: [] };
+  if (sol && mur) {
+    ligne.clarteSol = clarte(sol);
+    ligne.clarteMur = clarte(mur);
+    ligne.ecart = ligne.clarteMur - ligne.clarteSol;
+    const ts = teinteEtSaturation(sol), tm = teinteEtSaturation(mur);
+    ligne.saturation = Math.max(ts.saturation, tm.saturation);
+    ligne.ecartTeinte = ecartTeinte(ts.teinte, tm.teinte);
+    if (!dehors) {
+      const { vise, tolerance } = CHARTE.ecartMurSol;
+      if (Math.abs(ligne.ecart - vise) > tolerance) {
+        ligne.fautes.push(`écart mur/sol ${ligne.ecart.toFixed(1)} (visé ${vise})`);
+      }
+      if (ligne.ecartTeinte > CHARTE.ecartTeinteMax) {
+        ligne.fautes.push(`teintes distantes de ${ligne.ecartTeinte.toFixed(0)}°`);
+      }
+    }
+    if (ligne.saturation > CHARTE.saturationMax) {
+      ligne.fautes.push(`saturation ${ligne.saturation.toFixed(0)} %`);
+    }
+    // LES FACES AUSSI. `wallColors` peint chaque paroi séparément — et
+    // l'audit ne lisait que `shell.color`. Les cinq faces du belvédère
+    // ont vécu là des mois entre 51 et 61 % de saturation, sous un
+    // plafond de 45, sans que rien ne le dise : la DA avait dérivé
+    // exactement là où l'on ne regardait pas. Une couleur posée dans la
+    // galerie est jugée, quel que soit le champ qui la porte.
+    for (const [face, teinteFace] of Object.entries(s.shell?.wallColors ?? {})) {
+      const tf = teinteEtSaturation(teinteFace);
+      ligne.saturation = Math.max(ligne.saturation, tf.saturation);
+      if (tf.saturation > CHARTE.saturationMax) {
+        ligne.fautes.push(`face ${face} à ${tf.saturation.toFixed(0)} % de saturation`);
+      }
+      if (!dehors) {
+        const ecartFace = clarte(teinteFace) - ligne.clarteSol;
+        // UN PLAFOND N'EST PAS UN MUR. La règle « le mur au-dessus du
+        // sol » vient de la muséographie : un mur plus clair que le sol
+        // fait monter le regard vers les œuvres. Un plafond, lui, doit
+        // rester SOUS ses murs — sinon il renvoie l'œil vers le haut et
+        // écrase la salle, et c'est d'autant plus vrai ici où il n'y a
+        // pas de rebond : un plafond clair ne rend rien, il ne fait que
+        // se voir. Il a donc sa propre borne, en creux.
+        if (face === 'plafond' && FACES_HABITEES.has(s.id)) continue;
+        const { vise, tolerance } = face === 'plafond'
+          ? CHARTE.ecartPlafondSol : CHARTE.ecartMurSol;
+        if (Math.abs(ecartFace - vise) > tolerance) {
+          ligne.fautes.push(`face ${face} : écart au sol ${ecartFace.toFixed(1)}`);
+        }
+      }
+    }
+  }
+  if (coqueCloseContenu(s) && s.keyLight !== false) {
+    ligne.fautes.push('chambre close avec un soleil');
+  }
+  if (coqueCloseContenu(s) && (s.envIntensity ?? 1) > 0.3) {
+    ligne.fautes.push(`coque close à l'IBL de plein ciel (${s.envIntensity})`);
+  }
+  // La lampe-clé peut être portée par une ŒUVRE (la lune du labo) plutôt
+  // que par le JSON de la pièce : la charte suit la lumière où elle est,
+  // sans quoi elle jugerait une salle éclairée comme une salle éteinte.
+  const parOeuvre = cleDepuisOeuvre(
+    (s.works ?? []).map((id) => oeuvresParId.get(id)).filter(Boolean));
+  if (parOeuvre) ligne.cleOeuvre = parOeuvre.oeuvre;
+  const k = parOeuvre ?? (s.keyLight || {});
+  const { elevation, margeElevation } = CHARTE.lumiere;
+  const bande = bandeLumiere(s.sky);
+  ligne.nuit = bande.nuit;
+  if (Number.isFinite(k.intensity) && Math.abs(k.intensity - bande.vise) > bande.tolerance) {
+    ligne.fautes.push(`intensité ${k.intensity}${bande.nuit ? ' (bande de nuit)' : ''}`);
+  }
+  if (Number.isFinite(k.elevation) && !dehors
+    && Math.abs(k.elevation - elevation) > margeElevation) {
+    ligne.fautes.push(`élévation ${k.elevation}°`);
+  }
+  return ligne;
+}
+
 export function auditSalles() {
   const rapport = [];
   const oeuvresParId = new Map(toutesOeuvres().map((w) => [w.id, w]));
-  for (const s of salles()) {
-    const sol = typeof s.floor === 'object' ? s.floor?.color : null;
-    const mur = s.shell?.color;
-    const dehors = EXTERIEURS.has(s.id);
-    const ligne = { id: s.id, dehors, fautes: [] };
-    if (sol && mur) {
-      ligne.clarteSol = clarte(sol);
-      ligne.clarteMur = clarte(mur);
-      ligne.ecart = ligne.clarteMur - ligne.clarteSol;
-      const ts = teinteEtSaturation(sol), tm = teinteEtSaturation(mur);
-      ligne.saturation = Math.max(ts.saturation, tm.saturation);
-      ligne.ecartTeinte = ecartTeinte(ts.teinte, tm.teinte);
-      if (!dehors) {
-        const { vise, tolerance } = CHARTE.ecartMurSol;
-        if (Math.abs(ligne.ecart - vise) > tolerance) {
-          ligne.fautes.push(`écart mur/sol ${ligne.ecart.toFixed(1)} (visé ${vise})`);
-        }
-        if (ligne.ecartTeinte > CHARTE.ecartTeinteMax) {
-          ligne.fautes.push(`teintes distantes de ${ligne.ecartTeinte.toFixed(0)}°`);
-        }
-      }
-      if (ligne.saturation > CHARTE.saturationMax) {
-        ligne.fautes.push(`saturation ${ligne.saturation.toFixed(0)} %`);
-      }
-      // LES FACES AUSSI. `wallColors` peint chaque paroi séparément — et
-      // l'audit ne lisait que `shell.color`. Les cinq faces du belvédère
-      // ont vécu là des mois entre 51 et 61 % de saturation, sous un
-      // plafond de 45, sans que rien ne le dise : la DA avait dérivé
-      // exactement là où l'on ne regardait pas. Une couleur posée dans la
-      // galerie est jugée, quel que soit le champ qui la porte.
-      for (const [face, teinteFace] of Object.entries(s.shell?.wallColors ?? {})) {
-        const tf = teinteEtSaturation(teinteFace);
-        ligne.saturation = Math.max(ligne.saturation, tf.saturation);
-        if (tf.saturation > CHARTE.saturationMax) {
-          ligne.fautes.push(`face ${face} à ${tf.saturation.toFixed(0)} % de saturation`);
-        }
-        if (!dehors) {
-          const ecartFace = clarte(teinteFace) - ligne.clarteSol;
-          // UN PLAFOND N'EST PAS UN MUR. La règle « le mur au-dessus du
-          // sol » vient de la muséographie : un mur plus clair que le sol
-          // fait monter le regard vers les œuvres. Un plafond, lui, doit
-          // rester SOUS ses murs — sinon il renvoie l'œil vers le haut et
-          // écrase la salle, et c'est d'autant plus vrai ici où il n'y a
-          // pas de rebond : un plafond clair ne rend rien, il ne fait que
-          // se voir. Il a donc sa propre borne, en creux.
-          if (face === 'plafond' && FACES_HABITEES.has(s.id)) continue;
-          const { vise, tolerance } = face === 'plafond'
-            ? CHARTE.ecartPlafondSol : CHARTE.ecartMurSol;
-          if (Math.abs(ecartFace - vise) > tolerance) {
-            ligne.fautes.push(`face ${face} : écart au sol ${ecartFace.toFixed(1)}`);
-          }
-        }
-      }
-    }
-    if (coqueCloseContenu(s) && s.keyLight !== false) {
-      ligne.fautes.push('chambre close avec un soleil');
-    }
-    if (coqueCloseContenu(s) && (s.envIntensity ?? 1) > 0.3) {
-      ligne.fautes.push(`coque close à l'IBL de plein ciel (${s.envIntensity})`);
-    }
-    // La lampe-clé peut être portée par une ŒUVRE (la lune du labo) plutôt
-    // que par le JSON de la pièce : la charte suit la lumière où elle est,
-    // sans quoi elle jugerait une salle éclairée comme une salle éteinte.
-    const parOeuvre = cleDepuisOeuvre(
-      (s.works ?? []).map((id) => oeuvresParId.get(id)).filter(Boolean));
-    if (parOeuvre) ligne.cleOeuvre = parOeuvre.oeuvre;
-    const k = parOeuvre ?? (s.keyLight || {});
-    const { elevation, margeElevation } = CHARTE.lumiere;
-    const bande = bandeLumiere(s.sky);
-    ligne.nuit = bande.nuit;
-    if (Number.isFinite(k.intensity) && Math.abs(k.intensity - bande.vise) > bande.tolerance) {
-      ligne.fautes.push(`intensité ${k.intensity}${bande.nuit ? ' (bande de nuit)' : ''}`);
-    }
-    if (Number.isFinite(k.elevation) && !dehors
-      && Math.abs(k.elevation - elevation) > margeElevation) {
-      ligne.fautes.push(`élévation ${k.elevation}°`);
-    }
-    rapport.push(ligne);
-  }
+  for (const s of salles()) rapport.push(jugerSalle(s, oeuvresParId));
   return rapport;
 }
 

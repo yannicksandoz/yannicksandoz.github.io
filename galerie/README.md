@@ -4605,6 +4605,21 @@ portail de retour est créé automatiquement, déplaçable ensuite comme
 n'importe quel objet — clic dessus pour le sélectionner, cible/étiquette
 modifiables).
 
+**Le retour se pose sur un mur, et les arrivées se déduisent.** Le retour
+tombait à trois mètres du point d'arrivée de la pièce visée, sans
+rotation, au milieu du sol — et chaque porte d'un parcours demandait de le
+reposer à la main (le chantier du hub l'a fait pour chacune). Il se pose
+désormais comme une œuvre murale (`editor/state/portails-regles.js`,
+pur, `test-portail-retour.mjs`) : sur le mur de la pièce visée le plus
+proche de son point d'arrivée — parmi les murs qu'elle A, une coque
+partielle ne comptant que les siens —, à plat contre la face, en retrait
+de 0,6 m, tourné vers la salle, décalé de quatre mètres le long du mur
+si un portail y gêne ; sans coque (un extérieur), devant le point
+d'arrivée comme avant. Et les deux portes reçoivent leur arrivée : on
+débarque à 2,5 m DEVANT celle par laquelle on vient d'entrer, le regard
+six mètres plus loin vers la salle — la règle qui a sorti le jardin de la
+dette d'ampleur. Un seul lot, un seul Ctrl+Z.
+
 **Un aller a toujours son retour, et c'est vérifié.** L'éditeur pose les deux
 portes d'un coup, mais une galerie s'écrit aussi à la main ou par script — et
 c'est ce qui était arrivé : le belvédère ouvrait sur six pièces qui n'avaient
@@ -5402,6 +5417,19 @@ liaison attendue pendant un rendu — toutes sont passées du rendu à la
 chauffe. Éprouvé au nœud (le paquet, le compte de lumières, la remise en
 place même si l'appel lève, les invités, l'attente, son délai et la
 liaison forcée).
+
+**Deux irritants de l'éditeur, sortis de l'audit du geste.** Le retour
+d'un portail se pose sur un mur de la pièce visée, tourné vers elle, et
+les deux arrivées se déduisent des deux portes (voir « Pièces et
+portails »). Et les gabarits du moteur tiennent la charte : le modèle
+« salle » livrait une lampe-clé à 2,2 et 60° pour une charte à 3,5 ± 0,8
+à 40 ± 8° — une pièce neuve naissait avec un écart dans « la charte en
+direct » avant tout geste de l'auteur, la règle grondait sur ce que
+l'outil venait de faire ; le couloir était à 1,8 et 70°. Les deux sont
+alignés, et `test-gabarits-charte.mjs` juge chaque gabarit comme une
+pièce, par la même fonction que le rapport (`jugerSalle`, extraite de
+`auditSalles`), description comprise (un gabarit ne promet pas un autre
+angle que celui qu'il pose).
 
 **La galerie devient un hub.** Chantier de portails et de contenu, sans
 démolition ni changement moteur : l'entrée est le carrefour (deux salles
