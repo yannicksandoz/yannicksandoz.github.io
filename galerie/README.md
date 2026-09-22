@@ -4421,6 +4421,26 @@ est écrite en console et affichée dans son panneau de propriétés.
 
 ### Éditer les objets
 
+**L'objet en main** (`editor/tools/EnMain.js`, règle pure dans
+`editor/state/pose-regles.js`, `test-pose-en-main.mjs`). Ce qu'on vient
+d'ajouter (« Ajouter », Maj+D) est DANS LA MAIN : il suit le curseur sur
+ce qu'il vise — un panneau se colle au mur visé, à hauteur d'accrochage ;
+un volume se pose sur ce qu'il vise, son bas affleure (une marche compte
+comme un sol) ; visé sur un mur, il se pose à son pied — la molette ou R
+le tourne par pas de 15° (Maj : 5°), la charte en direct le teinte AVANT
+le dépôt (vert : rien à redire ; ambre : en écart), un clic ou Entrée le
+pose, Échap le range en annulant la création. Tout ce qui s'est écrit
+depuis la prise se replie en UNE entrée d'historique : un seul Ctrl+Z
+après la pose défait le geste entier, création comprise — comme dans les
+builders (tycoons, Trackmania, Minecraft), où l'on tient avant de poser.
+Au doigt, on pose au tap. Et **glisser un objet déjà sélectionné le
+déplace sans gizmo** : presser sur son corps et glisser plus de six pixels
+(presser ailleurs orbite — l'intention se lit après coup, comme en mode
+Voxel) ; le corps l'emporte sur les poignées du gizmo qui le traversent,
+qui restent prenables hors du corps ; relâcher pose (une entrée
+« déplacement »), Échap remet. Le gizmo et les champs numériques gardent
+la précision et la hauteur.
+
 Clic sur un objet → sélection : gizmo (déplacer/tourner/échelle) **et**
 champs numériques x/y/z, rotation, échelle dans le panneau — indispensables
 sur tactile. Le panneau expose : titre, description, taille du plan, stems
@@ -5417,6 +5437,21 @@ liaison attendue pendant un rendu — toutes sont passées du rendu à la
 chauffe. Éprouvé au nœud (le paquet, le compte de lumières, la remise en
 place même si l'appel lève, les invités, l'attente, son délai et la
 liaison forcée).
+
+**L'objet en main — le chantier principal de l'audit du geste.** L'audit
+de l'éditeur, confronté aux builders (tycoons, Trackmania, Minecraft,
+éditeurs de cartes), tenait en un écart : on ne tenait pas l'objet avant
+de le poser. « Ajouter » le déposait à quatre mètres devant la caméra,
+puis il fallait le retrouver, saisir une poignée de gizmo, glisser,
+corriger l'axe — sur tactile, le geste le plus dur de tout l'éditeur.
+Désormais, ce qu'on ajoute ou duplique suit le curseur, se colle au mur
+ou se pose au sol par la règle de la charte, se tourne à la molette, se
+teinte selon la charte en direct avant même le dépôt, se pose d'un clic
+et se range d'un Échap — et un seul Ctrl+Z défait le geste entier,
+création comprise. Glisser un objet sélectionné le déplace sans gizmo.
+Vérifié dans l'éditeur réel : ajout, suivi, rotation, pose, annulation en
+une entrée, rangement, glissement d'un objet sans passer par la poignée.
+Voir « Éditer les objets ».
 
 **Deux irritants de l'éditeur, sortis de l'audit du geste.** Le retour
 d'un portail se pose sur un mur de la pièce visée, tourné vers elle, et
