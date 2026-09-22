@@ -2095,6 +2095,8 @@ export function buildShell(config) {
     // laisse passer la clé, comme un plafond lumineux de musée. Les murs,
     // eux, continuent de projeter — ce sont eux qui découpent les baies.
     plafond.castShadow = false;
+    // nommé : la vue de dessus de l'éditeur le cache le temps du plan
+    plafond.name = 'plafond';
   }
   return group;
 }

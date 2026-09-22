@@ -4441,6 +4441,51 @@ qui restent prenables hors du corps ; relâcher pose (une entrée
 « déplacement »), Échap remet. Le gizmo et les champs numériques gardent
 la précision et la hauteur.
 
+**La vue de dessus** (Tab, ou le bouton carte de la barre ;
+`editor/tools/VueDessus.js`, cadrage pur dans `editor/state/vue-regles.js`,
+`test-vue-dessus.mjs`). Composer une pièce en plan, comme dans les tycoons
+et les éditeurs de cartes : la caméra de la visite monte à l'aplomb du
+centre de la pièce, à l'altitude qui la fait tenir entière dans l'image
+(la profondeur contre la hauteur de l'écran, la largeur contre sa
+largeur, jamais sous le plafond), le nord de la pièce en haut. Le temps
+du plan, glisser (bouton gauche, un doigt) déplace le plan au lieu de
+tourner, la molette et le pincement l'approchent, ZQSD marche sur le
+plan ; le brouillard se tait et le plafond de la coque se cache. Tout le
+reste est l'éditeur ordinaire : clic sélectionne, gizmos, objet en main
+(un cube ajouté en plan se pose au sol sous le curseur), aimant, charte en
+direct. Changer de pièce en plan recadre sur la nouvelle. Tab redescend
+là où l'on était : position, regard, cible et réglages de l'orbite,
+champ, brouillard, plafond — tout est rendu. Dans une boîte de dialogue,
+Tab reste la navigation entre les champs.
+
+**« Tester ici »** (T, ou le bouton Tester de la barre ;
+`Editor.testerIci`). Le geste de Trackmania : on essaie, on revient, tout
+est là. L'essai quitte l'édition là où la caméra est — le sol la reprend
+à hauteur d'œil, les portails s'ouvrent, les fiches répondent, le son est
+celui de la visite — sous un bandeau discret. T ou ² ramènent à
+l'édition, là où l'on est arrivé, avec la sélection, l'onglet et le
+sous-onglet de l'inspecteur, l'outil de gizmo et la vue de dessus d'avant
+l'essai. (Un essai lancé depuis le plan en redescend d'abord — on ne
+visite pas à trente mètres — et y remonte au retour.)
+
+**Répéter sans effort.** Trois gestes, un même principe : la copie est en
+main, on la pose où l'on veut, un seul Ctrl+Z la défait.
+*Ctrl/Cmd+glisser* un objet sélectionné le duplique et c'est la copie qui
+suit la main (l'original ne bouge pas) ; relâcher pose (une entrée
+« copie »), Échap l'annule et resélectionne l'original. Alt reste la
+touche qui suspend l'aimant. *« Dupliquer en ligne… »* (menu … de l'objet
+dans la hiérarchie, ou clic droit) fait n copies à pas constant le long
+d'un axe DE L'OBJET — sa largeur, sa profondeur ou la verticale : une
+cimaise de dix panneaux, une rangée de socles, une allée de lampes en un
+geste, qui suit l'orientation de l'original (`editor/state/serie-regles.js`,
+pur, `test-serie-regles.mjs`). Le pas se propose de lui-même (l'emprise
+de l'objet plus un interstice de 50 cm) et suit l'axe choisi tant qu'on ne
+l'a pas fixé ; la boîte dit où finira la série avant de la faire ; les
+titres se numérotent, les copies sont sélectionnées, la série est UN lot
+d'annulation. *Ctrl/Cmd+V* d'un seul objet le colle EN MAIN, à poser
+(Échap défait le collage) ; plusieurs objets se collent en file devant la
+caméra, comme avant.
+
 Clic sur un objet → sélection : gizmo (déplacer/tourner/échelle) **et**
 champs numériques x/y/z, rotation, échelle dans le panneau — indispensables
 sur tactile. Le panneau expose : titre, description, taille du plan, stems
@@ -5437,6 +5482,24 @@ liaison attendue pendant un rendu — toutes sont passées du rendu à la
 chauffe. Éprouvé au nœud (le paquet, le compte de lumières, la remise en
 place même si l'appel lève, les invités, l'attente, son délai et la
 liaison forcée).
+
+**Trois gestes de builder, suite de l'audit : le plan, l'essai, la
+répétition.** Tab monte en VUE DE DESSUS — la caméra de la visite à
+l'aplomb du centre de la pièce, à l'altitude qui la fait tenir entière
+(règle pure, testée au nœud), le nord en haut, l'orbite en déplacement,
+le brouillard tu, le plafond caché — et Tab redescend où l'on était, tout
+rendu ; changer de pièce en plan recadre. T « TESTE ICI » : l'édition
+quittée là où la caméra est, la visite entière (sol, portails, fiches),
+et T ou ² ramènent avec la sélection, l'onglet, le sous-onglet, l'outil et
+le plan d'avant. RÉPÉTER SANS EFFORT : Ctrl/Cmd+glisser duplique et met la
+copie en main (Échap l'annule, l'original resélectionné) ; « Dupliquer en
+ligne… » fait n copies à pas constant dans un axe de l'objet, pas proposé
+et aperçu avant de faire, un seul lot d'annulation ; Ctrl/Cmd+V d'un seul
+objet le colle en main. Vérifié dans l'éditeur réel (cadrage, pan,
+plafond, brouillard, recadrage sur une autre pièce, retour ; essai et
+retour avec onglet Son, outil Tourner et plan retrouvés ; copie en main,
+annulation, série, collage en main). Deux icônes Lucide de plus (carte,
+pas). Voir « Éditer les objets ».
 
 **L'objet en main — le chantier principal de l'audit du geste.** L'audit
 de l'éditeur, confronté aux builders (tycoons, Trackmania, Minecraft,
