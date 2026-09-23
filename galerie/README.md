@@ -4486,12 +4486,51 @@ d'annulation. *Ctrl/Cmd+V* d'un seul objet le colle EN MAIN, à poser
 (Échap défait le collage) ; plusieurs objets se collent en file devant la
 caméra, comme avant.
 
+**Le retour du geste** (`editor/tools/RetourGeste.js`). Une pose réussie
+se voit et s'entend, sans rien lire : un flash d'une demi-seconde sur
+l'objet posé (une boîte verte autour de lui, pleine à l'instant de la pose,
+qui s'efface à l'horloge, pas au compte d'images) et un clac bref,
+synthétisé sur place (un sinus qui chute de 1,4 kHz à 420 Hz en soixante
+millisecondes, sans fichier ni licence), joué dans la chaîne maîtresse de
+la galerie — sous le limiteur, muet si le son de la galerie est coupé. Le
+clac se désactive dans « Préférences de l'éditeur » (onglet Pièce) ; la
+préférence survit au rechargement. Il joue à chaque dépôt de l'objet en
+main : pose, glissement, copie.
+
+**Récents et « encore le même »** (`editor/state/recents-regles.js`, pur,
+`test-recents-regles.mjs`). Le menu Ajouter commence par les six derniers
+TYPES d'objets ajoutés — forme, modèle de bibliothèque, lampe, shader —
+un par type (six cubes de couleurs différentes sont un seul récent, le
+dernier gagne). Chaque récent est une recette : la config sans ce qui est
+propre à l'exemplaire (identifiant, position, rotation, pistes, place dans
+un ensemble). La refaire la met en main là où le regard pointe ; si
+l'exemplaire qui l'a laissée existe encore, c'est sa config vivante qui
+sert — une couleur changée après la pose compte. Ctrl/Cmd+Maj+V refait le
+dernier sans ouvrir le menu. Les récents sont une préférence de l'auteur
+(navigateur), jamais un export.
+
 Clic sur un objet → sélection : gizmo (déplacer/tourner/échelle) **et**
 champs numériques x/y/z, rotation, échelle dans le panneau — indispensables
 sur tactile. Le panneau expose : titre, description, taille du plan, stems
 (rayon/gain par piste, sphères de rayon visibles), son de vidéo, et les
 modules activés (crossfade spatial + rayon, HRTF, réactivité audio, focus
 caméra). Dupliquer/Supprimer via la barre d'outils.
+
+**Simple / Expert.** Le même inspecteur, deux niveaux de lecture, par le
+bouton en tête des onglets ou dans « Préférences de l'éditeur ». En
+Simple, l'essentiel : titre, description, position et échelle, média ou
+modèle, couleur et matériau, la piste et sa portée, décor ou œuvre,
+approche au clic — et, pour la pièce, la coque, le sol, la lumière clé,
+le ciel, la réverbération d'un mot, l'ambiance, l'arrivée et les portails.
+Expert dévoile le reste, section par section : rotation, solidité, lumière
+d'appoint, textures, distance de chargement, ensembles, cartel, bornes et
+placement des pistes, lointain, binaural, réaction à l'audio, brume,
+couleurs par face, dancefloor, matières, ombres et reflets, moteur et
+étages de la réverbération, liens, passages, apparitions, jetons, budget,
+réglages généraux. Aucun champ ne disparaît : ils se rangent (`expert()`
+les enveloppe, le CSS les cache), le bas du panneau dit combien et où les
+retrouver. Mémorisé ; un auteur qui a déjà fait ses premiers pas commence
+en Expert, un nouveau en Simple.
 
 La hiérarchie (à gauche) permet de **masquer** (👁) et **verrouiller** (🔒) un
 objet pour travailler dans une scène chargée. Ces deux états décrivent votre
@@ -5482,6 +5521,24 @@ liaison attendue pendant un rendu — toutes sont passées du rendu à la
 chauffe. Éprouvé au nœud (le paquet, le compte de lumières, la remise en
 place même si l'appel lève, les invités, l'attente, son délai et la
 liaison forcée).
+
+**Fin de l'audit du geste : le retour, les récents, Simple / Expert.**
+Une pose se voit et s'entend : un flash d'une demi-seconde sur l'objet
+posé et un clac synthétisé sur place, dans la chaîne maîtresse (sous le
+limiteur, muet si la galerie l'est), désactivable dans les nouvelles
+« Préférences de l'éditeur ». Le menu Ajouter commence par les six
+derniers types ajoutés, un par type, et Ctrl/Cmd+Maj+V refait le dernier
+en main — la recette préfère la config vivante de l'exemplaire (une
+couleur changée compte), règle pure testée au nœud. L'inspecteur gagne un
+niveau de lecture : Simple ne montre que l'essentiel (huit champs sur
+dix-huit pour l'onglet Objet, trente-huit sur quatre-vingt-treize pour la
+pièce), Expert dévoile tout, rien ne quitte le DOM, le bas du panneau dit
+combien de réglages sont rangés ; mémorisé, Expert d'office pour qui a
+fait ses premiers pas. Au passage, une lampe en main garde sa hauteur
+d'applique au lieu de tomber au sol. Vérifié dans l'éditeur réel : flash
+et clac à la pose, préférence lue, récents et leur ordre, menu, encore le
+même, rejeu d'un récent, bascule Simple / Expert par le bouton et par la
+préférence, comptes de champs visibles.
 
 **Trois gestes de builder, suite de l'audit : le plan, l'essai, la
 répétition.** Tab monte en VUE DE DESSUS — la caméra de la visite à

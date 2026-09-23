@@ -69,6 +69,16 @@ test('un volume qui vise un mur se pose à son pied, en avant du mur', () => {
   assert.ok(proche([pose.position[0], pose.position[1]], [5, DEMI]));
 });
 
+test('une lampe garde sa hauteur : au sol comme au pied d\'un mur', () => {
+  const lampe = { id: 'l', lightType: 'point', selfLit: true, position: [0, 2.4, 0], model: { shape: 'sphere', size: 0.35 } };
+  const sol = poserDepuisImpact(lampe, salle, { point: [2, 0, 3], genre: 'sol' });
+  assert.ok(proche(sol.position, [2, 2.4, 3]));
+  const mur = poserDepuisImpact(lampe, salle, { point: [5, 1.5, -9.825], genre: 'mur' });
+  assert.equal(mur.mur, 'nord');
+  assert.equal(mur.position[1], 2.4);
+  assert.ok(mur.position[2] >= -10 + RETRAIT_PIED - 1e-6);
+});
+
 test('la molette tourne par pas de 15°, 5° en fin, et reste dans ]−180, 180]', () => {
   assert.equal(tournerParMolette(0, 1), 15);
   assert.equal(tournerParMolette(15, -1), 0);
