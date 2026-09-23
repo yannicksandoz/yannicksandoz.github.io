@@ -4265,6 +4265,31 @@ terminal ouvert. L'application fait trois choses et rien de plus :
    souvient dans ses données d'utilisateur. Sans dossier, on édite une
    copie de la galerie du build, sans pouvoir la publier dans un dossier.
 
+**Publier passe par l'application, sans boîte ni permission.** Dans un
+navigateur, « Publier » demande le dossier `content/` par la File System
+Access API et redemande la permission à chaque redémarrage. Dans
+l'application, le dossier de contenu est déjà connu — c'est celui que le
+serveur sert, choisi dans une boîte native — et la page y écrit par un
+pont (`app/preload.cjs` → `app/main.cjs` → `app/dossiers.cjs`) : une
+liste blanche de racines autorisées (le dossier de contenu, et tout
+dossier choisi par une boîte native pendant la session, pour « Exporter
+vers un dossier… »), des chemins relatifs qui ne sortent jamais d'une
+racine, jamais la racine elle-même à supprimer. Côté éditeur,
+`editor/state/DossierApp.js` habille ce pont en poignée qui parle la
+langue de la File System Access API (`getDirectoryHandle`,
+`getFileHandle`, `createWritable`, `removeEntry`, `entries`) :
+`Publication.js` n'a rien à savoir de l'endroit où il écrit — publier,
+sauvegarder, revenir, exporter vers un dossier passent par la même
+poignée. « Changer de dossier » dans le panneau Sauvegarde ouvre la
+boîte native ; l'application adopte le dossier, le sert, et recharge la
+galerie depuis lui. Le serveur remplace ses racines à chaud, même port :
+l'origine de la page ne change pas, son profil (jeton, brouillon) non
+plus. Éprouvé au nœud (les dossiers autorisés : quatre cas ; le serveur :
+neuf) et sous Xvfb : une publication de deux cent six fichiers écrite
+dans le dossier de l'auteur avec sa sauvegarde, un export de deux cent
+huit fichiers dans un dossier choisi, un changement de dossier adopté,
+servi et rechargé.
+
 Pas de mise à jour automatique (elle exigerait un jeton pour lire une
 Release privée : Aide › Vérifier les mises à jour ouvre la page des
 Releases), pas de clé d'API dans l'application. `npm run app` la lance en
@@ -5584,6 +5609,17 @@ liaison attendue pendant un rendu — toutes sont passées du rendu à la
 chauffe. Éprouvé au nœud (le paquet, le compte de lumières, la remise en
 place même si l'appel lève, les invités, l'attente, son délai et la
 liaison forcée).
+
+**L'application auteur publie par son pont.** Dans l'application, le
+dossier de contenu est celui que le serveur sert : la page y écrit par
+un pont à liste blanche (`app/dossiers.cjs`, testé au nœud), habillé
+côté éditeur en poignée compatible File System Access API
+(`DossierApp.js`), si bien que publier, sauvegarder, revenir et exporter
+vers un dossier n'ont pas changé d'une ligne. Plus de boîte ni de
+permission à redemander ; « Changer de dossier » ouvre la boîte native
+et l'application recharge la galerie depuis le dossier adopté, sans
+changer de port. Vérifié sous Xvfb : publication, export, changement de
+dossier. Voir « L'application auteur ».
 
 **L'application auteur.** Le build auteur devient une application de
 bureau (Electron, `app/`) : un serveur interne sert le build et le

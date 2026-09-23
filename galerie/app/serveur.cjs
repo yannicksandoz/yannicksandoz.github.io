@@ -194,7 +194,8 @@ const PREMIERE_RACINE_SEULE = ['/rooms/rooms.json', '/works/works.json'];
  */
 function demarrerServeur({ racines, port = 0, hote = '127.0.0.1', proxys = true,
   premiereSeule = PREMIERE_RACINE_SEULE } = {}) {
-  const dossiers = (racines ?? []).filter((r) => r && fs.existsSync(r));
+  const filtrer = (liste) => (liste ?? []).filter((r) => r && fs.existsSync(r));
+  let dossiers = filtrer(racines);
   const reserves = new Set(premiereSeule ?? []);
   const serveur = http.createServer((req, res) => {
     const url = req.url ?? '/';
@@ -230,7 +231,10 @@ function demarrerServeur({ racines, port = 0, hote = '127.0.0.1', proxys = true,
       resoudre({
         port: p,
         url: `http://${hote}:${p}/`,
-        racines: dossiers,
+        get racines() { return dossiers; },
+        // un autre dossier de contenu, sans changer de port : l'origine de la
+        // page reste la même, son profil (jeton, brouillon) avec elle
+        remplacerRacines(liste) { dossiers = filtrer(liste); return dossiers; },
         fermer: () => new Promise((r) => serveur.close(() => r()))
       });
     });

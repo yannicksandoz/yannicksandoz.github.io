@@ -21,10 +21,11 @@
  * liens vers le dehors s'ouvrent dans le navigateur du système.
  */
 'use strict';
-const { app, BrowserWindow, Menu, dialog, shell, session } = require('electron');
+const { app, BrowserWindow, Menu, dialog, shell, session, ipcMain } = require('electron');
 const path = require('node:path');
 const fs = require('node:fs');
 const { demarrerServeur } = require('./serveur.cjs');
+const { Dossiers } = require('./dossiers.cjs');
 
 const DIST = path.join(__dirname, '..', 'dist-auteur');
 const PAGE_RELEASES = 'https://github.com/yannicksandoz/yr0-editor/releases';
@@ -46,30 +47,78 @@ function ecrireReglages(r) {
 let serveur = null;
 let fenetre = null;
 let reglages = {};
+// les dossiers que la page a le droit de toucher (voir dossiers.cjs)
+const dossiers = new Dossiers();
 
-/** (Re)démarre le serveur sur le dossier de contenu courant. */
+/** Les racines servies : le dossier de contenu (s'il y en a un) devant le build. */
+const racines = () => [reglages.contenu, DIST].filter(Boolean);
+
+/** Démarre le serveur sur le dossier de contenu courant. */
 async function demarrer() {
   if (serveur) await serveur.fermer();
-  const racines = [reglages.contenu, DIST].filter(Boolean);
-  serveur = await demarrerServeur({ racines, port: Number(process.env.GALERIE_PORT) || 0 });
+  serveur = await demarrerServeur({ racines: racines(), port: Number(process.env.GALERIE_PORT) || 0 });
   return serveur;
 }
 
-/** La boîte « Choisir le dossier de contenu », puis redémarrage et rechargement. */
-async function choisirContenu() {
+/** Le dossier de contenu, tel que la page le voit : { id, nom } ou null. */
+function contenuPourLaPage() {
+  if (!reglages.contenu) return null;
+  return { id: dossiers.autoriser(reglages.contenu), nom: path.basename(reglages.contenu) };
+}
+
+/** Retient `chemin` comme dossier de contenu : réglage, racines servies, rechargement. */
+function adopterContenu(chemin) {
+  reglages.contenu = chemin;
+  ecrireReglages(reglages);
+  serveur?.remplacerRacines(racines());
+  construireMenu();
+  // la page recharge sa galerie depuis le nouveau dossier — après que
+  // l'appelant a reçu sa réponse, si c'est elle qui a demandé
+  setTimeout(() => ouvrirPage(), 50);
+  return contenuPourLaPage();
+}
+
+/**
+ * Une boîte native « choisir un dossier ». `but` : 'contenu' (le dossier de
+ * la galerie, adopté et mémorisé) ou 'export' (un dossier quelconque,
+ * autorisé pour la session seulement). Rend { id, nom } ou null.
+ */
+async function choisirDossier(but = 'contenu') {
+  const contenu = but === 'contenu';
   const r = await dialog.showOpenDialog(fenetre ?? undefined, {
-    title: 'Le dossier de contenu de la galerie',
-    message: 'Choisissez le dossier « content » de votre galerie : ses pièces, ses œuvres, ses médias. « Publier » y écrira.',
+    title: contenu ? 'Le dossier de contenu de la galerie' : 'Où écrire la galerie ?',
+    message: contenu
+      ? 'Choisissez le dossier « content » de votre galerie : ses pièces, ses œuvres, ses médias. « Publier » y écrira.'
+      : 'Choisissez le dossier où écrire l’arbre complet de la galerie (comme galerie.zip, décompressé).',
     buttonLabel: 'Choisir ce dossier',
     properties: ['openDirectory', 'createDirectory'],
     defaultPath: reglages.contenu || undefined
   });
-  if (r.canceled || !r.filePaths?.[0]) return false;
-  reglages.contenu = r.filePaths[0];
-  ecrireReglages(reglages);
-  await demarrer();
-  ouvrirPage();
-  return true;
+  if (r.canceled || !r.filePaths?.[0]) return null;
+  const chemin = r.filePaths[0];
+  if (contenu) return adopterContenu(chemin);
+  return { id: dossiers.autoriser(chemin), nom: path.basename(chemin) };
+}
+
+/** Fichier › Choisir le dossier de contenu… */
+async function choisirContenu() { return Boolean(await choisirDossier('contenu')); }
+
+/* ---------------------------------------------------------------- pont --- */
+
+/**
+ * Ce que la page peut demander (preload.cjs → ipcRenderer.invoke). Chaque
+ * opération de fichier passe par `dossiers`, qui refuse tout chemin hors
+ * d'une racine autorisée.
+ */
+function brancherLePont() {
+  ipcMain.handle('dossier:contenu', () => contenuPourLaPage());
+  ipcMain.handle('dossier:choisir', (e, but) => choisirDossier(but === 'export' ? 'export' : 'contenu'));
+  ipcMain.handle('fs:lister', (e, id, rel) => dossiers.lister(id, rel));
+  ipcMain.handle('fs:existe', (e, id, rel) => dossiers.existe(id, rel));
+  ipcMain.handle('fs:lire', (e, id, rel) => dossiers.lire(id, rel));
+  ipcMain.handle('fs:ecrire', (e, id, rel, donnees) => dossiers.ecrire(id, rel, donnees));
+  ipcMain.handle('fs:creerDossier', (e, id, rel) => dossiers.creerDossier(id, rel));
+  ipcMain.handle('fs:supprimer', (e, id, rel, recursive) => dossiers.supprimer(id, rel, { recursive: Boolean(recursive) }));
 }
 
 function ouvrirPage() {
@@ -180,6 +229,8 @@ app.whenReady().then(async () => {
     app.quit();
     return;
   }
+  if (reglages.contenu) dossiers.autoriser(reglages.contenu);
+  brancherLePont();
   await demarrer();
   construireMenu();
   creerFenetre();

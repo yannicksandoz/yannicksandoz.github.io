@@ -93,6 +93,16 @@ await test('la page et les modules viennent du build ; le contenu de l\'auteur p
   assert.equal(rooms.headers.get('cache-control'), 'no-cache');
 });
 
+await test('les racines se remplacent à chaud, même port', async () => {
+  const port = s.port;
+  s.remplacerRacines([dist]);
+  assert.equal(s.port, port);
+  assert.deepEqual((await (await fetch(`${s.url}rooms/index.json`)).json()), { du: 'build' });
+  s.remplacerRacines([contenu, dist, join(tmp, 'absent')]);
+  assert.deepEqual(s.racines, [contenu, dist]);
+  assert.deepEqual((await (await fetch(`${s.url}rooms/index.json`)).json()), { du: 'contenu' });
+});
+
 await test('les combinés du build ne cachent pas le dossier de l\'auteur : première racine seule', async () => {
   assert.equal((await fetch(`${s.url}rooms/rooms.json`)).status, 404);   // le contenu n'en a pas : le build ne répond pas à sa place
   assert.equal((await fetch(`${s.url}works/works.json`)).status, 404);
