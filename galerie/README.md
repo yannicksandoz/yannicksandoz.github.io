@@ -4241,6 +4241,50 @@ avec **`?edit`** (ex. `http://localhost:5173/?edit`). Les mêmes commandes
 referment l'éditeur. Utilisable au doigt sur iOS : panneaux repliables,
 champs numériques pour le placement précis, barre d'outils défilante.
 
+### L'application auteur
+
+Le build auteur dans une fenêtre, sans terminal (`app/`, Electron). Le
+quotidien était `npm run dev` puis Chrome : Node, Vite, le dépôt cloné, un
+terminal ouvert. L'application fait trois choses et rien de plus :
+
+1. elle **sert** le build auteur et le **dossier de contenu de l'auteur**
+   sur `127.0.0.1`, port libre (`app/serveur.cjs`, Node pur, testé au
+   nœud : `test-app-serveur.mjs`). Le contenu vivant passe devant celui
+   figé au build ; les fichiers combinés que le build fabrique
+   (`rooms/rooms.json`, `works/works.json`) ne se servent que depuis le
+   dossier de l'auteur, sans quoi ils cacheraient le sien ; les médias se
+   servent par plages ; les proxys Freesound et Poly Pizza sont ceux du
+   serveur Vite, la clé de l'auteur voyage dans sa requête comme en dev ;
+2. elle **ouvre** une fenêtre Chromium dessus, en mode auteur — le moteur
+   tourne sur le navigateur où il est vérifié, « Publier » (File System
+   Access API) écrit dans le dossier comme dans Chrome, la mise en ligne
+   passe par l'API GitHub comme avant ; les liens vers le dehors s'ouvrent
+   dans le navigateur du système ;
+3. elle **demande** une fois le dossier `content/` (au premier lancement,
+   puis Fichier › Choisir le dossier de contenu…, Cmd/Ctrl+O) et s'en
+   souvient dans ses données d'utilisateur. Sans dossier, on édite une
+   copie de la galerie du build, sans pouvoir la publier dans un dossier.
+
+Pas de mise à jour automatique (elle exigerait un jeton pour lire une
+Release privée : Aide › Vérifier les mises à jour ouvre la page des
+Releases), pas de clé d'API dans l'application. `npm run app` la lance en
+développement (après `npm run build:auteur`), `npm run app:build` fabrique
+les paquets dans `app-dist/` (electron-builder : `.dmg` universel pour
+macOS, `.exe` NSIS pour Windows, `AppImage` pour Linux), `npm run
+app:icone` redessine l'icône (`scripts/genere-icone-app.mjs`, un PNG
+encodé à la main, sans bibliothèque). **Les binaires sont privés** : ils
+embarquent l'éditeur, et les Releases d'un dépôt public sont publiques. Le
+workflow qui les construit vit donc dans le dépôt privé de l'éditeur
+(`.github/workflows/application.yml`) : il clone le site, y place
+l'éditeur comme sous-module, construit sur macOS, Windows et Linux, et
+range les paquets dans une Release privée sur un tag `app-v*`. La
+signature macOS et Windows est facultative et vient des secrets d'Actions
+s'ils existent ; sans elle, macOS demande un clic droit › Ouvrir à la
+première ouverture. Vérifié sous Xvfb (Playwright pilote Electron) :
+l'application démarre, sert le dossier de l'auteur devant le build,
+entre en édition, expose l'API de publication, sert les plages, relaie
+les proxys, ouvre les liens dehors, et son menu est en français.
+
 **Barre d'outils** (icônes [Lucide](https://lucide.dev), ISC, vendorées —
 un trait SVG est le même sur toutes les plateformes, ce qu'aucun émoji ne
 garantit) : Objets / Voxel (**V**) / Découpe (**C**),
@@ -5540,6 +5584,21 @@ liaison attendue pendant un rendu — toutes sont passées du rendu à la
 chauffe. Éprouvé au nœud (le paquet, le compte de lumières, la remise en
 place même si l'appel lève, les invités, l'attente, son délai et la
 liaison forcée).
+
+**L'application auteur.** Le build auteur devient une application de
+bureau (Electron, `app/`) : un serveur interne sert le build et le
+dossier de contenu de l'auteur (celui-ci devant, les combinés du build
+masqués, plages, proxys Freesound et Poly Pizza), une fenêtre Chromium
+s'ouvre dessus en mode auteur, le dossier se choisit une fois et se
+mémorise. Rien de l'éditeur n'est réécrit : publication, mise en ligne
+et brouillon marchent comme dans Chrome. electron-builder fabrique le
+`.dmg` universel, l'`.exe` et l'`AppImage` ; le workflow vit dans le
+dépôt privé de l'éditeur, parce que les binaires l'embarquent. Le
+serveur est éprouvé au nœud (huit cas : proxys, chemins sûrs, plages,
+types, priorité des racines, combinés) et l'application sous Xvfb par
+Playwright. Étude préalable : Electron plutôt que Tauri (WKWebView sans
+File System Access API) ou qu'un `.pkg` (un installateur, pas une
+application). Voir « L'application auteur ».
 
 **Le plan cliquable, dernier cran de l'audit.** P ouvre le plan de la
 galerie dans l'éditeur, le même tracé que la carte du visiteur. Clic sur

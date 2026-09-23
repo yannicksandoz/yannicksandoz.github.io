@@ -12,3 +12,6 @@ content/.sauvegardes/
 # scripts/fragmente-sons.py et encode-sons.py les y cherchent (--sources,
 # GALERIE_SOURCES). Ce qui part en ligne est une copie d'écoute encodée.
 sources/
+
+# Les paquets de l’application auteur (electron-builder)
+app-dist/

@@ -5,6 +5,7 @@
   "author": "Yannick Sandoz",
   "version": "1.0.0-beta.1",
   "type": "module",
+  "main": "app/main.cjs",
   "description": "Galerie d'art 3D immersive, statique et modulaire (Vite + Three.js + Web Audio)",
   "scripts": {
     "dev": "GALERIE_EDITOR=1 vite",
@@ -26,7 +27,10 @@
     "assets": "node scripts/generate-assets.mjs",
     "library": "node scripts/generate-library.mjs",
     "test": "node scripts/tests.mjs",
-    "wasm:audio": "clang --target=wasm32 -O3 -nostdlib -Wl,--no-entry -Wl,--export-dynamic -o engine/assets/wasm/console7.wasm engine/src/audio/console7.c"
+    "wasm:audio": "clang --target=wasm32 -O3 -nostdlib -Wl,--no-entry -Wl,--export-dynamic -o engine/assets/wasm/console7.wasm engine/src/audio/console7.c",
+    "app": "electron .",
+    "app:build": "npm run build:auteur && electron-builder",
+    "app:icone": "node scripts/genere-icone-app.mjs"
   },
   "dependencies": {
     "@mkkellogg/gaussian-splats-3d": "^0.4.7",
@@ -37,12 +41,77 @@
   "devDependencies": {
     "@fontsource/inter": "^5.3.0",
     "@pmndrs/assets": "^1.7.0",
+    "electron": "^44.4.5",
+    "electron-builder": "^26.15.3",
     "jpeg-js": "^0.4.4",
     "lucide-static": "^1.34.0",
     "vite": "^5.3.4"
   },
   "allowScripts": {
     "esbuild@0.21.5": true,
-    "fsevents@2.3.3": true
+    "fsevents@2.3.3": true,
+    "electron@44.4.5": true
+  },
+  "build": {
+    "appId": "ch.yannicksandoz.galerie.auteur",
+    "productName": "Galerie auteur",
+    "executableName": "galerie-auteur",
+    "copyright": "Yannick Sandoz",
+    "directories": {
+      "output": "app-dist",
+      "buildResources": "app"
+    },
+    "files": [
+      "app/**",
+      "dist-auteur/**",
+      "!dist-auteur/.sauvegardes/**",
+      "!**/*.map"
+    ],
+    "asar": true,
+    "mac": {
+      "category": "public.app-category.graphics-design",
+      "target": [
+        {
+          "target": "dmg",
+          "arch": [
+            "universal"
+          ]
+        }
+      ],
+      "icon": "app/icone.png",
+      "hardenedRuntime": true,
+      "gatekeeperAssess": false
+    },
+    "dmg": {
+      "artifactName": "${productName}-${version}-mac.${ext}"
+    },
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "icon": "app/icone.png",
+      "artifactName": "${productName}-${version}-win.${ext}"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "language": "1036"
+    },
+    "linux": {
+      "target": [
+        "AppImage"
+      ],
+      "icon": "app/icone.png",
+      "category": "Graphics",
+      "artifactName": "${productName}-${version}-linux.${ext}",
+      "desktopName": "galerie-auteur.desktop",
+      "syncDesktopName": true
+    },
+    "publish": null
   }
 }

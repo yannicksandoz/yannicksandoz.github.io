@@ -61,6 +61,11 @@ jobs:
       # pas seulement désactivé — il n'est pas émis. Voir vite.config.js.
       - name: Build de la galerie (Vite, mode Visiteur)
         working-directory: galerie
+        env:
+          # Electron (l'application auteur) est une dépendance de
+          # développement : le déploiement n'a pas à en télécharger le
+          # binaire, cent mégaoctets qu'aucune étape ici n'exécute
+          ELECTRON_SKIP_BINARY_DOWNLOAD: '1'
         run: |
           npm ci
           npm run build
