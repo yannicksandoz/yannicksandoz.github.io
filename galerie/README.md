@@ -4724,6 +4724,25 @@ débarque à 2,5 m DEVANT celle par laquelle on vient d'entrer, le regard
 six mètres plus loin vers la salle — la règle qui a sorti le jardin de la
 dette d'ampleur. Un seul lot, un seul Ctrl+Z.
 
+**Le plan cliquable : composer le parcours d'en haut** (P, ou le bouton
+carte de la barre ; `editor/ui/Plan.js`, règle pure dans
+`editor/state/plan-regles.js`, `test-plan-regles.mjs`). Le plan de métro
+que la visite dessine en marchant (`planGalerie`, le même tracé que la
+carte du visiteur) devient, dans l'éditeur, une table de composition.
+Clic sur une pièce : on y va. Tirer un trait d'une pièce à une autre :
+un portail et son retour, chacun sur le mur qui FAIT FACE à l'autre
+pièce dans le plan — partir vers l'est, c'est sortir par le mur est et
+arriver par le mur ouest de la voisine —, avec leurs deux arrivées
+déduites, décalés le long du mur si un portail y gêne ; une coque sans ce
+mur prend le voisin le plus proche qu'elle a, une pièce sans coque pose
+la porte au bord de son empreinte dessinée. Un seul lot d'annulation ;
+deux pièces déjà reliées dans ce sens le disent au lieu de doubler la
+porte, et le trait ferme un sens unique s'il en trouve un. Clic sur un
+trait : le portail de départ est sélectionné, à régler dans
+l'inspecteur ; un sens unique se lit en pointillé, la pièce courante et
+le trait choisi sont en vert. Le portail d'Escher (une pièce vers
+elle-même) reste au menu Ajouter.
+
 **Un aller a toujours son retour, et c'est vérifié.** L'éditeur pose les deux
 portes d'un coup, mais une galerie s'écrit aussi à la main ou par script — et
 c'est ce qui était arrivé : le belvédère ouvrait sur six pièces qui n'avaient
@@ -5521,6 +5540,20 @@ liaison attendue pendant un rendu — toutes sont passées du rendu à la
 chauffe. Éprouvé au nœud (le paquet, le compte de lumières, la remise en
 place même si l'appel lève, les invités, l'attente, son délai et la
 liaison forcée).
+
+**Le plan cliquable, dernier cran de l'audit.** P ouvre le plan de la
+galerie dans l'éditeur, le même tracé que la carte du visiteur. Clic sur
+une pièce : on y va. Un trait tiré d'une pièce à une autre pose le
+portail et son retour sur les murs qui se font face dans le plan, avec
+leurs arrivées, en un lot d'annulation (règle pure, testée au nœud :
+mur qui fait face, mur absent qui cède au voisin, pièce sans coque à
+l'empreinte du plan, portail qui gêne et décale). Clic sur un trait :
+le portail de départ est sélectionné. Vérifié dans l'éditeur réel :
+vingt pièces et vingt-six liens dessinés, clic qui change de pièce,
+trait entrée → labo qui pose l'aller sur le mur nord et le retour sur le
+mur est, le lien qui apparaît, le second trait refusé en le disant, le
+clic sur le trait qui sélectionne le portail, un Ctrl+Z qui défait les
+deux portes, Échap qui ferme. Voir « Pièces et portails ».
 
 **Fin de l'audit du geste : le retour, les récents, Simple / Expert.**
 Une pose se voit et s'entend : un flash d'une demi-seconde sur l'objet

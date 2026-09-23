@@ -36,7 +36,7 @@ export const NOMS = [
   'folder', 'folder-open', 'link', 'download', 'upload', 'camera',
   'move', 'rotate-cw', 'scaling', 'magnet',           // gizmos
   'copy', 'trash-2', 'undo-2', 'redo-2',
-  'map', 'footprints',                                // vue de dessus, essai
+  'scan-eye', 'map', 'footprints',                    // vue de dessus, plan, essai
   'cloud-upload', 'sparkles', 'circle-help', 'x'
 ];
 
