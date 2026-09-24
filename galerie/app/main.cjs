@@ -26,9 +26,14 @@ const path = require('node:path');
 const fs = require('node:fs');
 const { demarrerServeur } = require('./serveur.cjs');
 const { Dossiers } = require('./dossiers.cjs');
+const { noterRecent, plusRecente, estUneGalerie } = require('./reglages-regles.cjs');
 
 const DIST = path.join(__dirname, '..', 'dist-auteur');
 const PAGE_RELEASES = 'https://github.com/yannicksandoz/yr0-editor/releases';
+// la version de référence : celle du dépôt PUBLIC du site, lisible sans jeton
+// (les binaires, eux, vivent dans une Release privée)
+const URL_VERSION = process.env.GALERIE_URL_VERSION
+  || 'https://raw.githubusercontent.com/yannicksandoz/yannicksandoz.github.io/master/galerie/package.json';
 
 /* ------------------------------------------------------------ réglages --- */
 
@@ -69,6 +74,8 @@ function contenuPourLaPage() {
 /** Retient `chemin` comme dossier de contenu : réglage, racines servies, rechargement. */
 function adopterContenu(chemin) {
   reglages.contenu = chemin;
+  // Fichier › Galeries récentes : celle-ci en tête
+  reglages.recents = noterRecent(reglages.recents, chemin);
   ecrireReglages(reglages);
   serveur?.remplacerRacines(racines());
   construireMenu();
@@ -102,6 +109,75 @@ async function choisirDossier(but = 'contenu') {
 
 /** Fichier › Choisir le dossier de contenu… */
 async function choisirContenu() { return Boolean(await choisirDossier('contenu')); }
+
+/**
+ * Fichier › Galeries récentes › une galerie : adoptée si elle existe
+ * encore, retirée de la liste sinon — et on le dit.
+ */
+function ouvrirRecente(chemin) {
+  if (fs.existsSync(chemin)) { adopterContenu(chemin); return; }
+  reglages.recents = (reglages.recents ?? []).filter((c) => c !== chemin);
+  ecrireReglages(reglages);
+  construireMenu();
+  dialog.showMessageBox(fenetre ?? undefined, {
+    type: 'info', message: 'Cette galerie n’est plus là',
+    detail: `${chemin}\n\nLe dossier a été déplacé ou supprimé : il quitte la liste des galeries récentes.`
+  });
+}
+
+/**
+ * Un dossier de galerie DÉPOSÉ sur l'application (macOS : « Ouvrir avec »,
+ * un dossier glissé sur l'icône) ou passé en argument : adopté, s'il porte
+ * un index d'œuvres ou de pièces — rien d'autre n'est pris pour une galerie.
+ */
+function ouvrirDossierDepose(chemin) {
+  const abs = path.resolve(String(chemin ?? ''));
+  if (!estUneGalerie(abs, fs.existsSync)) return false;
+  if (app.isReady() && serveur) adopterContenu(abs);
+  else reglages.contenuDepose = abs;   // avant le départ : adopté au démarrage
+  return true;
+}
+
+/* ------------------------------------------------------ mises à jour --- */
+
+/**
+ * La version de référence est celle du package.json du dépôt public : pas
+ * de jeton, pas de Release à interroger. `silencieux` : au démarrage, on
+ * ne dit rien si tout est à jour, ni si le réseau manque.
+ */
+async function verifierMisesAJour({ silencieux = false } = {}) {
+  const courante = app.getVersion();
+  let derniere = null;
+  try {
+    const r = await fetch(URL_VERSION, { headers: { 'Cache-Control': 'no-cache' }, signal: AbortSignal.timeout(8000) });
+    if (!r.ok) throw new Error(`HTTP ${r.status}`);
+    derniere = String((await r.json()).version ?? '');
+  } catch (e) {
+    if (!silencieux) {
+      dialog.showMessageBox(fenetre ?? undefined, { type: 'warning', message: 'Impossible de vérifier',
+        detail: `La version de référence n’a pas pu être lue (${e?.message ?? e}). Réessayez plus tard, ou ouvrez la page des Releases.` });
+    }
+    return null;
+  }
+  const nouvelle = plusRecente(derniere, courante);
+  if (!nouvelle) {
+    if (!silencieux) {
+      dialog.showMessageBox(fenetre ?? undefined, { type: 'info', message: 'Vous êtes à jour',
+        detail: `Version ${courante} — c’est la plus récente.` });
+    }
+    return { courante, derniere, nouvelle: false };
+  }
+  // au démarrage, une version déjà écartée ne revient pas à chaque ouverture
+  if (silencieux && reglages.versionEcartee === derniere) return { courante, derniere, nouvelle: true };
+  const r = await dialog.showMessageBox(fenetre ?? undefined, {
+    type: 'info', buttons: ['Voir la Release', 'Plus tard'], defaultId: 0, cancelId: 1,
+    message: `Une version ${derniere} est disponible`,
+    detail: `Vous avez la ${courante}. Les paquets se téléchargent depuis la page des Releases (dépôt privé de l’éditeur, votre compte GitHub).`
+  });
+  if (r.response === 0) shell.openExternal(PAGE_RELEASES);
+  else if (silencieux) { reglages.versionEcartee = derniere; ecrireReglages(reglages); }
+  return { courante, derniere, nouvelle: true };
+}
 
 /* ---------------------------------------------------------------- pont --- */
 
@@ -172,6 +248,16 @@ function construireMenu() {
         { label: 'Choisir le dossier de contenu…', accelerator: 'CmdOrCtrl+O', click: () => choisirContenu() },
         { label: 'Ouvrir le dossier de contenu', enabled: Boolean(reglages.contenu),
           click: () => { if (reglages.contenu) shell.openPath(reglages.contenu); } },
+        { label: 'Galeries récentes', submenu: [
+          ...(reglages.recents ?? []).map((chemin) => ({
+            label: `${path.basename(chemin)}  —  ${path.dirname(chemin)}`,
+            type: 'checkbox', checked: chemin === reglages.contenu,
+            click: () => ouvrirRecente(chemin)
+          })),
+          ...((reglages.recents ?? []).length ? [{ type: 'separator' }] : []),
+          { label: 'Effacer la liste', enabled: (reglages.recents ?? []).length > 0,
+            click: () => { reglages.recents = []; ecrireReglages(reglages); construireMenu(); } }
+        ] },
         { type: 'separator' },
         { label: 'Recharger la galerie', accelerator: 'CmdOrCtrl+R', click: () => ouvrirPage() },
         { type: 'separator' },
@@ -194,7 +280,8 @@ function construireMenu() {
       label: 'Aide',
       role: 'help',
       submenu: [
-        { label: 'Vérifier les mises à jour…', click: () => shell.openExternal(PAGE_RELEASES) },
+        { label: 'Vérifier les mises à jour…', click: () => verifierMisesAJour() },
+        { label: 'Page des Releases', click: () => shell.openExternal(PAGE_RELEASES) },
         { label: `Version ${app.getVersion()}`, enabled: false }
       ]
     }
@@ -209,9 +296,22 @@ app.commandLine.appendSwitch('autoplay-policy', 'no-user-gesture-required');
 // un autre dossier de données (réglages, profil) : pour les sondes et les essais
 if (process.env.GALERIE_DONNEES) app.setPath('userData', process.env.GALERIE_DONNEES);
 
+// macOS : un dossier de galerie déposé sur l'icône, ou « Ouvrir avec »
+app.on('open-file', (e, chemin) => { if (ouvrirDossierDepose(chemin)) e.preventDefault(); });
+
 app.whenReady().then(async () => {
   reglages = lireReglages();
   if (reglages.contenu && !fs.existsSync(reglages.contenu)) delete reglages.contenu;
+  // Windows, Linux, ligne de commande : un dossier de galerie en argument
+  for (const arg of process.argv.slice(1)) {
+    if (!arg.startsWith('-') && ouvrirDossierDepose(arg)) break;
+  }
+  if (reglages.contenuDepose) {
+    reglages.contenu = reglages.contenuDepose;
+    reglages.recents = noterRecent(reglages.recents, reglages.contenu);
+    delete reglages.contenuDepose;
+    ecrireReglages(reglages);
+  }
 
   // « Publier » : la File System Access API demande la permission d'écrire
   // dans le dossier choisi, et de s'en souvenir ; l'auteur l'a déjà donnée
@@ -247,6 +347,8 @@ app.whenReady().then(async () => {
       if (r.response === 0) await choisirContenu();
     }, 800);
   }
+  // une version plus récente ? Demandé sans bruit, une fois la galerie ouverte
+  if (!process.env.GALERIE_SANS_DIALOGUE) setTimeout(() => verifierMisesAJour({ silencieux: true }), 6000);
   app.on('activate', () => { if (!fenetre) { creerFenetre(); ouvrirPage(); } });
 });
 

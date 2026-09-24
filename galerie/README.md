@@ -4290,9 +4290,22 @@ dans le dossier de l'auteur avec sa sauvegarde, un export de deux cent
 huit fichiers dans un dossier choisi, un changement de dossier adopté,
 servi et rechargé.
 
-Pas de mise à jour automatique (elle exigerait un jeton pour lire une
-Release privée : Aide › Vérifier les mises à jour ouvre la page des
-Releases), pas de clé d'API dans l'application. `npm run app` la lance en
+**Galeries récentes, dossier déposé, mises à jour.** Fichier › Galeries
+récentes liste les huit derniers dossiers de contenu adoptés (la
+courante cochée) : un clic et l'application change de galerie ; un
+dossier disparu quitte la liste en le disant. Un dossier de galerie
+déposé sur l'icône (macOS, « Ouvrir avec ») ou passé en argument est
+adopté s'il porte un index d'œuvres ou de pièces, rien d'autre n'est
+pris pour une galerie. Aide › Vérifier les mises à jour compare la
+version de l'application à celle du `package.json` du dépôt public,
+lisible sans jeton (les binaires, eux, vivent dans la Release privée) ;
+une version plus récente propose la page des Releases, et la vérification
+se fait aussi sans bruit au démarrage, une version écartée ne revenant
+pas à chaque ouverture. Règles pures et testées au nœud
+(`app/reglages-regles.cjs` : récents sans doublon, comparaison semver
+avec pré-versions, reconnaissance d'une galerie). Pas de mise à jour
+automatique : elle exigerait un jeton dans l'application pour lire une
+Release privée. Pas de clé d'API dans l'application. `npm run app` la lance en
 développement (après `npm run build:auteur`), `npm run app:build` fabrique
 les paquets dans `app-dist/` (electron-builder : `.dmg` universel pour
 macOS, `.exe` NSIS pour Windows, `AppImage` pour Linux), `npm run
@@ -5609,6 +5622,16 @@ liaison attendue pendant un rendu — toutes sont passées du rendu à la
 chauffe. Éprouvé au nœud (le paquet, le compte de lumières, la remise en
 place même si l'appel lève, les invités, l'attente, son délai et la
 liaison forcée).
+
+**L'application auteur : récentes, dépôt de dossier, mises à jour.**
+Fichier › Galeries récentes (huit, la courante cochée, les disparues
+retirées en le disant), un dossier de galerie déposé sur l'icône ou
+passé en argument adopté s'il porte un index, et Aide › Vérifier les
+mises à jour qui compare la version à celle du dépôt public sans jeton,
+au démarrage aussi, sans bruit. Règles pures testées au nœud (récents,
+semver avec pré-versions, galerie reconnue à son index). Vérifié sous
+Xvfb : le sous-menu des récentes après un changement de dossier, et la
+vérification dans ses trois issues (plus récente, à jour, hors ligne).
 
 **L'application auteur publie par son pont.** Dans l'application, le
 dossier de contenu est celui que le serveur sert : la page y écrit par
