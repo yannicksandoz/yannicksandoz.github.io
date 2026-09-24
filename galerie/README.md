@@ -4290,6 +4290,31 @@ dans le dossier de l'auteur avec sa sauvegarde, un export de deux cent
 huit fichiers dans un dossier choisi, un changement de dossier adopté,
 servi et rechargé.
 
+**Une galerie neuve, git sans terminal, la fenêtre et l'image.**
+Fichier › Nouvelle galerie… (Cmd/Ctrl+N) crée un dossier de contenu qui
+tient debout seul (`app/galerie-neuve.cjs`, plan pur testé au nœud, la
+salle jugée par la charte) : une première salle close à la charte, les
+index, les réglages, un `.gitignore` pour les sauvegardes, et les
+partagés du build copiés (`library/`, `shaders/`, `textures/`,
+`LICENCES`, `RIGHTS.md`) — sans eux, un site construit depuis ce dossier
+n'aurait pas ses socles ; jamais dans un dossier qui n'est pas vide, et
+la galerie neuve est adoptée aussitôt. Le panneau Sauvegarde gagne un
+bloc « 2 bis · Committer dans git » (`app/git-local.cjs`, éprouvé sur un
+vrai dépôt temporaire) : le git de la machine, celui de l'auteur avec ses
+clés et son trousseau, rien de stocké ; l'état du dépôt qui contient le
+dossier de contenu (branche, ajoutés, modifiés, supprimés — les
+suppressions nommées avant d'être engagées), « Committer… » limité au
+dossier de contenu avec un message proposé, « Pousser » sur la branche
+courante ; un dépôt absent ou un git manquant le disent au lieu
+d'échouer. Et l'ordinateur se comporte en ordinateur : l'application
+part en image enrichie (Affichage › Image enrichie l'ôte, mémorisé), la
+fenêtre reprend sa taille et sa place si elles tiennent encore dans un
+écran. Vérifié sous Xvfb : état lu après une publication (deux cents
+modifiés, deux cent quatre ajoutés), commit qui ramène l'état à zéro,
+poussée sans dépôt distant refusée en le disant, galerie neuve créée et
+ouverte avec sa salle et ses partagés, image enrichie dans l'adresse,
+cadre mémorisé.
+
 **Galeries récentes, dossier déposé, mises à jour.** Fichier › Galeries
 récentes liste les huit derniers dossiers de contenu adoptés (la
 courante cochée) : un clic et l'application change de galerie ; un
@@ -5622,6 +5647,15 @@ liaison attendue pendant un rendu — toutes sont passées du rendu à la
 chauffe. Éprouvé au nœud (le paquet, le compte de lumières, la remise en
 place même si l'appel lève, les invités, l'attente, son délai et la
 liaison forcée).
+
+**L'application auteur : galerie neuve, git sans terminal, fenêtre et
+image.** Fichier › Nouvelle galerie… crée un dossier de contenu complet
+(première salle à la charte, index, réglages, `.gitignore`, partagés du
+build) et l'adopte ; le panneau Sauvegarde commit et pousse par le git
+de la machine, limité au dossier de contenu, suppressions nommées
+d'abord ; l'application part en image enrichie et sa fenêtre se
+souvient d'elle. Règles pures testées au nœud, git éprouvé sur un dépôt
+temporaire, le tout vérifié sous Xvfb. Voir « L'application auteur ».
 
 **L'application auteur : récentes, dépôt de dossier, mises à jour.**
 Fichier › Galeries récentes (huit, la courante cochée, les disparues

@@ -21,12 +21,14 @@
  * liens vers le dehors s'ouvrent dans le navigateur du système.
  */
 'use strict';
-const { app, BrowserWindow, Menu, dialog, shell, session, ipcMain } = require('electron');
+const { app, BrowserWindow, Menu, dialog, shell, session, ipcMain, screen } = require('electron');
 const path = require('node:path');
 const fs = require('node:fs');
 const { demarrerServeur } = require('./serveur.cjs');
 const { Dossiers } = require('./dossiers.cjs');
 const { noterRecent, plusRecente, estUneGalerie } = require('./reglages-regles.cjs');
+const { creerGalerie, dossierVide } = require('./galerie-neuve.cjs');
+const { GitLocal } = require('./git-local.cjs');
 
 const DIST = path.join(__dirname, '..', 'dist-auteur');
 const PAGE_RELEASES = 'https://github.com/yannicksandoz/yr0-editor/releases';
@@ -54,6 +56,8 @@ let fenetre = null;
 let reglages = {};
 // les dossiers que la page a le droit de toucher (voir dossiers.cjs)
 const dossiers = new Dossiers();
+// le git de la machine, pour le dépôt qui contient le dossier de contenu
+const git = new GitLocal();
 
 /** Les racines servies : le dossier de contenu (s'il y en a un) devant le build. */
 const racines = () => [reglages.contenu, DIST].filter(Boolean);
@@ -109,6 +113,38 @@ async function choisirDossier(but = 'contenu') {
 
 /** Fichier › Choisir le dossier de contenu… */
 async function choisirContenu() { return Boolean(await choisirDossier('contenu')); }
+
+/**
+ * Fichier › Nouvelle galerie… : un dossier VIDE (ou à créer), une première
+ * salle à la charte, les partagés du build copiés (galerie-neuve.cjs) ;
+ * puis la galerie neuve est adoptée. Le nom du dossier fait le titre.
+ */
+async function nouvelleGalerie() {
+  const r = await dialog.showSaveDialog(fenetre ?? undefined, {
+    title: 'Nouvelle galerie',
+    message: 'Nommez le dossier de la nouvelle galerie : il sera créé, vide, avec une première salle. (Il deviendra votre dossier « content ».)',
+    buttonLabel: 'Créer la galerie',
+    defaultPath: path.join(app.getPath('documents'), 'ma-galerie'),
+    properties: ['createDirectory', 'showOverwriteConfirmation'],
+    nameFieldLabel: 'Dossier'
+  });
+  if (r.canceled || !r.filePath) return null;
+  const dossier = r.filePath;
+  if (!(await dossierVide(dossier))) {
+    dialog.showMessageBox(fenetre ?? undefined, { type: 'warning', message: 'Ce dossier n’est pas vide',
+      detail: `${dossier}\n\nUne galerie neuve se crée dans un dossier vide : choisissez-en un autre, ou ouvrez celui-ci par « Choisir le dossier de contenu… » s’il contient déjà une galerie.` });
+    return null;
+  }
+  const titre = path.basename(dossier).replace(/[-_]+/g, ' ').trim();
+  try {
+    const bilan = await creerGalerie(dossier, { titre: titre ? titre[0].toUpperCase() + titre.slice(1) : 'Entrée', partagesDepuis: DIST });
+    adopterContenu(dossier);
+    return bilan;
+  } catch (e) {
+    dialog.showErrorBox('La galerie n’a pas pu être créée', String(e?.message ?? e));
+    return null;
+  }
+}
 
 /**
  * Fichier › Galeries récentes › une galerie : adoptée si elle existe
@@ -195,18 +231,72 @@ function brancherLePont() {
   ipcMain.handle('fs:ecrire', (e, id, rel, donnees) => dossiers.ecrire(id, rel, donnees));
   ipcMain.handle('fs:creerDossier', (e, id, rel) => dossiers.creerDossier(id, rel));
   ipcMain.handle('fs:supprimer', (e, id, rel, recursive) => dossiers.supprimer(id, rel, { recursive: Boolean(recursive) }));
+  // git sans terminal : toujours sur le dossier de contenu, jamais ailleurs
+  ipcMain.handle('git:etat', async () => {
+    if (!reglages.contenu) return { git: await git.version(), depot: null };
+    const version = await git.version();
+    if (!version) return { git: null, depot: null };
+    return { git: version, depot: await git.changements(reglages.contenu) };
+  });
+  ipcMain.handle('git:committer', (e, message) => {
+    if (!reglages.contenu) throw new Error('Aucun dossier de contenu.');
+    return git.committer(reglages.contenu, String(message ?? ''));
+  });
+  ipcMain.handle('git:pousser', () => {
+    if (!reglages.contenu) throw new Error('Aucun dossier de contenu.');
+    return git.pousser(reglages.contenu);
+  });
+}
+
+/* ------------------------------------------------------------- fenêtre --- */
+
+/** La fenêtre reprend sa taille et sa place, si elles tiennent encore dans un écran. */
+function cadreMemorise() {
+  const f = reglages.fenetre;
+  if (!f || !Number.isFinite(f.width) || !Number.isFinite(f.height)) return null;
+  const ecran = screen.getDisplayMatching({ x: f.x ?? 0, y: f.y ?? 0, width: f.width, height: f.height });
+  const z = ecran?.workArea;
+  if (!z) return null;
+  const width = Math.min(Math.max(960, f.width), z.width);
+  const height = Math.min(Math.max(600, f.height), z.height);
+  const x = Number.isFinite(f.x) ? Math.min(Math.max(z.x, f.x), z.x + z.width - width) : undefined;
+  const y = Number.isFinite(f.y) ? Math.min(Math.max(z.y, f.y), z.y + z.height - height) : undefined;
+  return { width, height, x, y };
+}
+
+let _cadreDelai = null;
+function memoriserCadre() {
+  if (!fenetre || fenetre.isDestroyed() || fenetre.isMinimized() || fenetre.isFullScreen()) return;
+  clearTimeout(_cadreDelai);
+  _cadreDelai = setTimeout(() => {
+    if (!fenetre || fenetre.isDestroyed()) return;
+    reglages.fenetre = { ...fenetre.getBounds(), maximisee: fenetre.isMaximized() };
+    ecrireReglages(reglages);
+  }, 400);
+}
+
+/** L'adresse de la page : le mode auteur, et l'image enrichie selon le réglage. */
+function adressePage() {
+  const params = new URLSearchParams();
+  params.set('edit', '');
+  // L'IMAGE ENRICHIE (ombres, occlusion, sources étendues) : l'application
+  // tourne sur un ordinateur, elle part enrichie ; Affichage › Image
+  // enrichie l'ôte, et le choix est mémorisé ici
+  params.set('riche', reglages.imageRiche === false ? '0' : '1');
+  return `${serveur.url}?${params.toString().replace('edit=', 'edit')}`;
 }
 
 function ouvrirPage() {
   if (!fenetre || !serveur) return;
-  fenetre.loadURL(`${serveur.url}?edit`);
+  fenetre.loadURL(adressePage());
 }
 
 /* ------------------------------------------------------------- fenêtre --- */
 
 function creerFenetre() {
+  const cadre = cadreMemorise();
   fenetre = new BrowserWindow({
-    width: 1440, height: 900, minWidth: 960, minHeight: 600,
+    width: 1440, height: 900, ...(cadre ?? {}), minWidth: 960, minHeight: 600,
     title: 'Galerie — auteur',
     backgroundColor: '#05050a',
     show: false,
@@ -219,8 +309,16 @@ function creerFenetre() {
       additionalArguments: [`--galerie-version=${app.getVersion()}`]
     }
   });
-  fenetre.once('ready-to-show', () => fenetre.show());
+  fenetre.once('ready-to-show', () => {
+    if (reglages.fenetre?.maximisee) fenetre.maximize();
+    fenetre.show();
+  });
   fenetre.on('closed', () => { fenetre = null; });
+  // la taille et la place se mémorisent : la fenêtre revient où on l'a laissée
+  fenetre.on('resize', memoriserCadre);
+  fenetre.on('move', memoriserCadre);
+  fenetre.on('maximize', memoriserCadre);
+  fenetre.on('unmaximize', memoriserCadre);
   // le dehors s'ouvre dehors : Freesound, GitHub, la documentation
   fenetre.webContents.setWindowOpenHandler(({ url }) => {
     if (serveur && url.startsWith(serveur.url)) return { action: 'allow' };
@@ -245,6 +343,7 @@ function construireMenu() {
     {
       label: 'Fichier',
       submenu: [
+        { label: 'Nouvelle galerie…', accelerator: 'CmdOrCtrl+N', click: () => nouvelleGalerie() },
         { label: 'Choisir le dossier de contenu…', accelerator: 'CmdOrCtrl+O', click: () => choisirContenu() },
         { label: 'Ouvrir le dossier de contenu', enabled: Boolean(reglages.contenu),
           click: () => { if (reglages.contenu) shell.openPath(reglages.contenu); } },
@@ -268,6 +367,9 @@ function construireMenu() {
     {
       label: 'Affichage',
       submenu: [
+        { label: 'Image enrichie', type: 'checkbox', checked: reglages.imageRiche !== false,
+          click: (item) => { reglages.imageRiche = item.checked; ecrireReglages(reglages); ouvrirPage(); } },
+        { type: 'separator' },
         { role: 'resetZoom' }, { role: 'zoomIn' }, { role: 'zoomOut' },
         { type: 'separator' },
         { role: 'togglefullscreen' },

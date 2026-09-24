@@ -27,5 +27,11 @@ contextBridge.exposeInMainWorld('galerieApp', {
     ecrire: (id, rel, donnees) => ipcRenderer.invoke('fs:ecrire', id, rel, donnees),
     creerDossier: (id, rel) => ipcRenderer.invoke('fs:creerDossier', id, rel),
     supprimer: (id, rel, recursive) => ipcRenderer.invoke('fs:supprimer', id, rel, recursive)
+  },
+  /** Le git de la machine, sur le dossier de contenu (voir app/git-local.cjs). */
+  git: {
+    etat: () => ipcRenderer.invoke('git:etat'),
+    committer: (message) => ipcRenderer.invoke('git:committer', message),
+    pousser: () => ipcRenderer.invoke('git:pousser')
   }
 });
