@@ -300,11 +300,25 @@ export class QualityManager {
    * Le taux de l'écran se lit dans l'intervalle MINIMAL entre deux images
    * (voir `estimerHz`) ; on garde le plus haut jamais vu, un écran ne
    * change pas de taux en cours de visite.
+   *
+   * Cet intervalle se mesure sur l'HORODATAGE du rappel d'animation
+   * (`time`, aligné sur le balayage), pas sur le chrono : le chrono date
+   * le DÉBUT du travail de l'image, et un rappel retardé par une tâche
+   * longue (chargement de salle, ramasse-miettes) suivi d'un rappel à
+   * l'heure donnait un intervalle de 8 à 14 ms sur un écran à 60 Hz — lu
+   * comme un 120 Hz, dont la cible (114 images) était inatteignable : la
+   * densité tombait à 1 pour toujours. Le chrono garde son rôle pour la
+   * moyenne des images (`_fps`).
    */
-  tick(dt, app) {
+  tick(dt, app, time) {
     if (this.gouverneur === false) return; // figé (?gouverneur=0) : rien ne bouge
     if (dt > 0) this._fps += ((1 / dt) - this._fps) * 0.05;
-    if (dt > 1 / 250) this._periode = Math.min(this._periode ?? Infinity, dt);
+    let p = dt;
+    if (Number.isFinite(time)) {
+      p = Number.isFinite(this._tPrec) ? (time - this._tPrec) / 1000 : 0;
+      this._tPrec = time;
+    }
+    if (p > 1 / 250) this._periode = Math.min(this._periode ?? Infinity, p);
     this._acc += dt;
     if (this._acc < 3) return;
     this._acc = 0;

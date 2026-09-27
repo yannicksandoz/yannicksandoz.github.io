@@ -1,7 +1,7 @@
 {
   "id": "banc-jardin",
   "title": "Banc",
-  "description": "Zen",
+  "description": "",
   "position": [
     12.09,
     0,
@@ -40,5 +40,6 @@
     "sourceUrl": "https://github.com/yannicksandoz/yannicksandoz.github.io"
   },
   "lightColor": "#cfd0e0",
-  "lightIntensity": 3.2
+  "lightIntensity": 3.2,
+  "role": "decor"
 }

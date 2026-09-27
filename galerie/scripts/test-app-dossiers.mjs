@@ -7,7 +7,7 @@
  * Lancer avec : npm test
  */
 import assert from 'node:assert/strict';
-import { mkdtempSync, rmSync, existsSync, readFileSync } from 'node:fs';
+import { mkdtempSync, rmSync, existsSync, readFileSync, readdirSync, symlinkSync, mkdirSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { createRequire } from 'node:module';
@@ -56,6 +56,26 @@ await test('écrire crée les dossiers, lire rend octets et date, lister dit le 
   assert.equal(await d.existe(id, 'rooms/entree.json'), 'file');
   assert.equal(await d.existe(id, 'rien'), null);
   assert.equal(readFileSync(join(tmp, 'assets', 'son.bin')).length, 3);
+  // l'écriture passe par un voisin temporaire : il ne reste jamais
+  assert.ok(!readdirSync(join(tmp, 'rooms')).some((n) => n.endsWith('.tmp')));
+  await d.ecrire(id, 'rooms/entree.json', '{"id":"entree","v":2}');   // remplacer un fichier existant
+  assert.equal(readFileSync(join(tmp, 'rooms', 'entree.json'), 'utf8'), '{"id":"entree","v":2}');
+  assert.deepEqual(readdirSync(join(tmp, 'rooms')), ['entree.json']);
+});
+
+await test('un lien symbolique vers le dehors : lire passe, écrire et effacer sont refusés', async () => {
+  const dehors = mkdtempSync(join(tmpdir(), 'galerie-dehors-'));
+  mkdirSync(join(dehors, 'sous'));
+  symlinkSync(dehors, join(tmp, 'lien'));
+  assert.equal(await d.existe(id, 'lien/sous'), 'directory');
+  assert.ok(await refuse(d.ecrire(id, 'lien/x.json', '{}')));
+  assert.ok(await refuse(d.ecrire(id, 'lien/nouveau/x.json', '{}')));
+  assert.ok(await refuse(d.creerDossier(id, 'lien/nouveau')));
+  assert.ok(await refuse(d.supprimer(id, 'lien/sous', { recursive: true })));
+  assert.ok(existsSync(join(dehors, 'sous')));
+  assert.ok(!existsSync(join(dehors, 'x.json')));
+  rmSync(join(tmp, 'lien'));
+  rmSync(dehors, { recursive: true, force: true });
 });
 
 await test('supprimer un fichier, un dossier entier ; jamais la racine', async () => {

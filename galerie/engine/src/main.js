@@ -105,8 +105,11 @@ async function boot() {
   app.onUpdate((dt) => app.editor?.update(dt)); // absent tant que non chargé
 
   // Clics hors mode édition : focus des œuvres, franchissement des portails.
-  app.onArtworkClick((hit) => {
+  app.onArtworkClick((hit, e) => {
     if (app.editor?.enabled) return false; // le handler de l'éditeur s'en charge
+    // sur tactile, un tap dans le tiers haut qui a RAMENÉ le HUD effacé
+    // n'était pas destiné à la scène : il ne fait ni approcher ni ramasser
+    if (app._hudTactile?.aAvale(e)) return true;
     if (hit?.type === 'portal') {
       // Une porte fermée refuse le passage (RoomManager.traverse) : le clic
       // reste consommé pour autant — on ne veut pas qu'il aille chercher

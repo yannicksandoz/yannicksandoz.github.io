@@ -26,11 +26,14 @@ const path = require('node:path');
 const fs = require('node:fs');
 const { demarrerServeur } = require('./serveur.cjs');
 const { Dossiers } = require('./dossiers.cjs');
-const { noterRecent, plusRecente, estUneGalerie } = require('./reglages-regles.cjs');
+const { noterRecent, plusRecente, estUneGalerie, lienExterneSur, portPrefere } = require('./reglages-regles.cjs');
 const { creerGalerie, dossierVide } = require('./galerie-neuve.cjs');
 const { GitLocal } = require('./git-local.cjs');
 
-const DIST = path.join(__dirname, '..', 'dist-auteur');
+// Empaqueté, le build auteur est sorti de l'archive asar (package.json,
+// build.asarUnpack) : le serveur le lit par flux et « Nouvelle galerie… »
+// en copie les partagés, deux choses que l'archive ne sait pas faire
+const DIST = path.join(__dirname, '..', 'dist-auteur').replace(`${path.sep}app.asar${path.sep}`, `${path.sep}app.asar.unpacked${path.sep}`);
 const PAGE_RELEASES = 'https://github.com/yannicksandoz/yr0-editor/releases';
 // la version de référence : celle du dépôt PUBLIC du site, lisible sans jeton
 // (les binaires, eux, vivent dans une Release privée)
@@ -54,6 +57,9 @@ function ecrireReglages(r) {
 let serveur = null;
 let fenetre = null;
 let reglages = {};
+// un dossier de galerie déposé sur l'application AVANT qu'elle soit prête
+// (macOS : `open-file` précède `ready`) — adopté au démarrage
+let depose = null;
 // les dossiers que la page a le droit de toucher (voir dossiers.cjs)
 const dossiers = new Dossiers();
 // le git de la machine, pour le dépôt qui contient le dossier de contenu
@@ -62,10 +68,17 @@ const git = new GitLocal();
 /** Les racines servies : le dossier de contenu (s'il y en a un) devant le build. */
 const racines = () => [reglages.contenu, DIST].filter(Boolean);
 
-/** Démarre le serveur sur le dossier de contenu courant. */
+/**
+ * Démarre le serveur sur le dossier de contenu courant — sur le MÊME port
+ * qu'au lancement précédent quand il est libre : l'origine de la page ne
+ * change pas, et le profil de la fenêtre (jeton GitHub, clés, brouillon,
+ * préférences de l'éditeur) survit d'une ouverture à l'autre.
+ */
 async function demarrer() {
   if (serveur) await serveur.fermer();
-  serveur = await demarrerServeur({ racines: racines(), port: Number(process.env.GALERIE_PORT) || 0 });
+  const force = Number(process.env.GALERIE_PORT) || 0;
+  serveur = await demarrerServeur({ racines: racines(), port: force, portPrefere: force ? null : portPrefere(reglages) });
+  if (!force && reglages.port !== serveur.port) { reglages.port = serveur.port; ecrireReglages(reglages); }
   return serveur;
 }
 
@@ -139,6 +152,10 @@ async function nouvelleGalerie() {
   try {
     const bilan = await creerGalerie(dossier, { titre: titre ? titre[0].toUpperCase() + titre.slice(1) : 'Entrée', partagesDepuis: DIST });
     adopterContenu(dossier);
+    if (bilan.manquants?.length) {
+      dialog.showMessageBox(fenetre ?? undefined, { type: 'warning', message: 'Galerie créée, mais des partagés manquent',
+        detail: `Le build de l’application n’avait pas : ${bilan.manquants.join(', ')}.\nLa galerie s’ouvre, mais ces dossiers sont à copier depuis un autre build (npm run build:auteur).` });
+    }
     return bilan;
   } catch (e) {
     dialog.showErrorBox('La galerie n’a pas pu être créée', String(e?.message ?? e));
@@ -170,7 +187,7 @@ function ouvrirDossierDepose(chemin) {
   const abs = path.resolve(String(chemin ?? ''));
   if (!estUneGalerie(abs, fs.existsSync)) return false;
   if (app.isReady() && serveur) adopterContenu(abs);
-  else reglages.contenuDepose = abs;   // avant le départ : adopté au démarrage
+  else depose = abs;   // avant le départ : adopté au démarrage (hors des réglages, qui seront relus)
   return true;
 }
 
@@ -319,16 +336,29 @@ function creerFenetre() {
   fenetre.on('move', memoriserCadre);
   fenetre.on('maximize', memoriserCadre);
   fenetre.on('unmaximize', memoriserCadre);
-  // le dehors s'ouvre dehors : Freesound, GitHub, la documentation
+  // le dehors s'ouvre dehors : Freesound, GitHub, la documentation — le web
+  // et le courriel seulement (les adresses viennent aussi du contenu)
   fenetre.webContents.setWindowOpenHandler(({ url }) => {
     if (serveur && url.startsWith(serveur.url)) return { action: 'allow' };
-    shell.openExternal(url);
+    if (lienExterneSur(url)) shell.openExternal(url);
     return { action: 'deny' };
   });
   fenetre.webContents.on('will-navigate', (e, url) => {
     if (serveur && url.startsWith(serveur.url)) return;
     e.preventDefault();
-    shell.openExternal(url);
+    if (lienExterneSur(url)) shell.openExternal(url);
+  });
+  // Du travail non publié (le brouillon de l'éditeur pose un `beforeunload`) :
+  // sans cet écouteur, Electron n'affiche rien et ABANDONNE en silence la
+  // fermeture, le rechargement ou le changement de dossier — la fenêtre
+  // semble morte. Ici, on demande.
+  fenetre.webContents.on('will-prevent-unload', (e) => {
+    const r = dialog.showMessageBoxSync(fenetre, {
+      type: 'question', buttons: ['Rester', 'Continuer sans publier'], defaultId: 0, cancelId: 0,
+      message: 'Des modifications ne sont pas publiées',
+      detail: 'Le brouillon est gardé dans l’application et vous sera proposé à la prochaine ouverture de cette galerie. Continuer quand même ?'
+    });
+    if (r === 1) e.preventDefault();   // « empêcher d'empêcher » : la page se décharge
   });
   // le titre reste celui de l'application, pas celui de la page
   fenetre.on('page-title-updated', (e) => e.preventDefault());
@@ -401,17 +431,33 @@ if (process.env.GALERIE_DONNEES) app.setPath('userData', process.env.GALERIE_DON
 // macOS : un dossier de galerie déposé sur l'icône, ou « Ouvrir avec »
 app.on('open-file', (e, chemin) => { if (ouvrirDossierDepose(chemin)) e.preventDefault(); });
 
+// Une seule instance (Windows, Linux ; macOS le fait de lui-même) : un second
+// lancement, ou « Ouvrir avec » sur un dossier pendant que l'application
+// tourne, rejoint la fenêtre existante au lieu d'ouvrir un second serveur
+// et d'écrire les mêmes réglages à deux
+if (!app.requestSingleInstanceLock()) {
+  app.quit();
+} else {
+  app.on('second-instance', (e, argv) => {
+    for (const arg of argv.slice(1)) {
+      if (!arg.startsWith('-') && ouvrirDossierDepose(arg)) break;
+    }
+    if (fenetre) { if (fenetre.isMinimized()) fenetre.restore(); fenetre.focus(); }
+  });
+}
+
 app.whenReady().then(async () => {
   reglages = lireReglages();
   if (reglages.contenu && !fs.existsSync(reglages.contenu)) delete reglages.contenu;
+  delete reglages.contenuDepose;   // ancien mécanisme, sans effet
   // Windows, Linux, ligne de commande : un dossier de galerie en argument
   for (const arg of process.argv.slice(1)) {
     if (!arg.startsWith('-') && ouvrirDossierDepose(arg)) break;
   }
-  if (reglages.contenuDepose) {
-    reglages.contenu = reglages.contenuDepose;
+  if (depose) {
+    reglages.contenu = depose;
     reglages.recents = noterRecent(reglages.recents, reglages.contenu);
-    delete reglages.contenuDepose;
+    depose = null;
     ecrireReglages(reglages);
   }
 

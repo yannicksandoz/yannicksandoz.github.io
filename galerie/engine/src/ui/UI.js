@@ -155,6 +155,10 @@ export class UI {
       tip.innerHTML = this.tactile
         ? t('enter.tip.touch') : t('enter.tip', { move: MARCHE, pivot });
     }
+    // le pense-bête de la fiche : au doigt, il n'y a pas d'Échap — on touche
+    // ailleurs (traduireDom a repeint la version clavier juste avant)
+    const ftip = this.focusOverlay?.querySelector('.tip');
+    if (ftip && this.tactile) ftip.textContent = t('focus.tip.touch');
     if (this.hint && this._geste !== undefined) {
       // la prise en main tient la ligne : un geste à la fois (peindreGeste)
     } else if (this.hint) {

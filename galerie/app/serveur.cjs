@@ -94,8 +94,11 @@ function cheminSur(url) {
   let p;
   try { p = decodeURIComponent(new URL(url, 'http://x').pathname); } catch { return null; }
   // un segment « .. », même annulé par la normalisation, est un chemin
-  // qui a voulu sortir : on ne le sert pas
-  if (p.includes('\0') || p.split('/').includes('..')) return null;
+  // qui a voulu sortir : on ne le sert pas. Une barre oblique inverse non
+  // plus : l'analyseur d'URL ne la voit pas comme un séparateur, mais
+  // `path.join` sous Windows, si — « ..%5C..%5C » remonterait la racine.
+  // Aucun fichier de la galerie n'en porte.
+  if (p.includes('\0') || p.includes('\\') || p.split('/').includes('..')) return null;
   const propre = path.posix.normalize(p);
   return propre.endsWith('/') ? `${propre}index.html` : propre;
 }
@@ -112,6 +115,35 @@ function cibleProxy(url) {
   }
   return null;
 }
+
+/**
+ * L'URL réellement relayée pour une cible de proxy, ou null si le chemin
+ * demandé ferait changer d'hôte : « /fs-api//ailleurs.example/x » est une
+ * URL relative au schéma, et l'analyseur la résoudrait hors de Freesound.
+ * Le relais ne sort jamais de l'origine du préfixe. Pur, testé.
+ */
+function urlRelais(cible) {
+  if (!cible) return null;
+  let url;
+  try { url = new URL(cible.chemin, cible.origine); } catch { return null; }
+  return url.origin === cible.origine ? url : null;
+}
+
+/**
+ * L'en-tête Host attendu : l'hôte d'écoute lui-même, ou une boucle locale,
+ * avec ou sans port. Une page d'un autre domaine dont le DNS se mettrait
+ * à pointer sur 127.0.0.1 (« rebinding ») arrive avec SON nom d'hôte :
+ * elle n'obtient rien. Pur, testé.
+ */
+function hoteAutorise(entete, hote) {
+  const h = String(entete ?? '').trim().toLowerCase();
+  if (!h) return false;
+  const sansPort = h.replace(/:\d+$/, '');
+  return sansPort === String(hote).toLowerCase() || sansPort === '127.0.0.1' || sansPort === 'localhost' || sansPort === '[::1]';
+}
+
+/** Les seuls en-têtes de requête qui traversent le relais : la clé de l'auteur et la négociation. */
+const ENTETES_RELAYES = ['authorization', 'x-auth-token', 'accept', 'accept-language', 'accept-encoding', 'range', 'user-agent', 'if-none-match', 'if-modified-since'];
 
 /** Une plage `bytes=a-b` sur `taille` octets, ou null si absente ou invalide. */
 function plageDe(entete, taille) {
@@ -156,17 +188,24 @@ function servirFichier(req, res, fichier, stat) {
   fs.createReadStream(fichier).pipe(res);
 }
 
-/** Relaie une requête vers l'API visée, en-têtes et corps compris. */
+/**
+ * Relaie une lecture (GET, HEAD) vers l'API visée. Ne partent que les
+ * en-têtes utiles (la clé de l'auteur, la négociation) ; ne reviennent ni
+ * les cookies de l'API (ils s'installeraient sur l'origine de l'application)
+ * ni sa politique de sécurité.
+ */
 function relayer(req, res, cible) {
-  const url = new URL(cible.chemin, cible.origine);
-  const entetes = { ...req.headers, host: url.host };
-  delete entetes.origin;
-  delete entetes.referer;
+  const url = urlRelais(cible);
+  if (!url) { res.writeHead(400); res.end(); return; }
+  if (req.method !== 'GET' && req.method !== 'HEAD') { res.writeHead(405); res.end(); return; }
+  const entetes = { host: url.host };
+  for (const nom of ENTETES_RELAYES) if (req.headers[nom] !== undefined) entetes[nom] = req.headers[nom];
   const aller = https.request(url, { method: req.method, headers: entetes }, (reponse) => {
     const retour = { ...reponse.headers };
     // la réponse revient same-origin : ces en-têtes n'ont plus de sens ici
     delete retour['access-control-allow-origin'];
     delete retour['content-security-policy'];
+    delete retour['set-cookie'];
     res.writeHead(reponse.statusCode ?? 502, retour);
     reponse.pipe(res);
   });
@@ -174,7 +213,7 @@ function relayer(req, res, cible) {
     res.writeHead(502, { 'Content-Type': 'text/plain; charset=utf-8' });
     res.end(`proxy : ${e.message}`);
   });
-  req.pipe(aller);
+  aller.end();
 }
 
 /**
@@ -189,16 +228,20 @@ const PREMIERE_RACINE_SEULE = ['/rooms/rooms.json', '/works/works.json'];
 /**
  * Démarre le serveur. `racines` : les dossiers servis, dans l'ordre de
  * priorité (le premier qui a le fichier gagne) ; `port` 0 = un port libre ;
- * `premiereSeule` : les chemins que seule la première racine peut servir.
- * Rend { port, url, fermer, racines }.
+ * `portPrefere` : un port essayé d'abord, pour que l'ORIGINE de la page
+ * reste la même d'un lancement à l'autre (le profil du navigateur — jeton,
+ * brouillon, préférences — est rangé par origine, port compris) ; s'il est
+ * pris, on retombe sur `port` ; `premiereSeule` : les chemins que seule la
+ * première racine peut servir. Rend { port, url, fermer, racines }.
  */
-function demarrerServeur({ racines, port = 0, hote = '127.0.0.1', proxys = true,
+function demarrerServeur({ racines, port = 0, portPrefere = null, hote = '127.0.0.1', proxys = true,
   premiereSeule = PREMIERE_RACINE_SEULE } = {}) {
   const filtrer = (liste) => (liste ?? []).filter((r) => r && fs.existsSync(r));
   let dossiers = filtrer(racines);
   const reserves = new Set(premiereSeule ?? []);
   const serveur = http.createServer((req, res) => {
     const url = req.url ?? '/';
+    if (!hoteAutorise(req.headers.host, hote)) { res.writeHead(421); res.end(); return; }
     if (proxys) {
       const cible = cibleProxy(url);
       if (cible) { relayer(req, res, cible); return; }
@@ -224,21 +267,31 @@ function demarrerServeur({ racines, port = 0, hote = '127.0.0.1', proxys = true,
     res.writeHead(404, { 'Content-Type': 'text/plain; charset=utf-8' });
     res.end('introuvable');
   });
-  return new Promise((resoudre, rejeter) => {
-    serveur.once('error', rejeter);
-    serveur.listen(port, hote, () => {
-      const p = serveur.address().port;
-      resoudre({
-        port: p,
-        url: `http://${hote}:${p}/`,
-        get racines() { return dossiers; },
-        // un autre dossier de contenu, sans changer de port : l'origine de la
-        // page reste la même, son profil (jeton, brouillon) avec elle
-        remplacerRacines(liste) { dossiers = filtrer(liste); return dossiers; },
-        fermer: () => new Promise((r) => serveur.close(() => r()))
-      });
-    });
+  const ecouter = (p) => new Promise((resoudre, rejeter) => {
+    const surErreur = (e) => rejeter(e);
+    serveur.once('error', surErreur);
+    serveur.listen(p, hote, () => { serveur.off('error', surErreur); resoudre(serveur.address().port); });
   });
+  return (async () => {
+    let p;
+    try {
+      p = await ecouter(portPrefere || port);
+    } catch (e) {
+      // le port préféré est pris (une autre instance, un autre logiciel) :
+      // un port libre plutôt qu'un échec au lancement
+      if (!portPrefere || e.code !== 'EADDRINUSE') throw e;
+      p = await ecouter(port);
+    }
+    return {
+      port: p,
+      url: `http://${hote}:${p}/`,
+      get racines() { return dossiers; },
+      // un autre dossier de contenu, sans changer de port : l'origine de la
+      // page reste la même, son profil (jeton, brouillon) avec elle
+      remplacerRacines(liste) { dossiers = filtrer(liste); return dossiers; },
+      fermer: () => new Promise((r) => serveur.close(() => r()))
+    };
+  })();
 }
 
-module.exports = { demarrerServeur, cibleProxy, cheminSur, plageDe, typeDe, PROXYS, TYPES, PREMIERE_RACINE_SEULE };
+module.exports = { demarrerServeur, cibleProxy, urlRelais, hoteAutorise, cheminSur, plageDe, typeDe, PROXYS, TYPES, PREMIERE_RACINE_SEULE, ENTETES_RELAYES };

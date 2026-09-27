@@ -1392,9 +1392,23 @@ export class Artwork {
         await lecteurs[i].precharger();
         return null;
       };
-      const buffers = await Promise.all(
+      const resultats = await Promise.allSettled(
         stemCfgs.map((s, i) => this.app.loading.track(preparer(s, i), essentiel))
       );
+      const rate = resultats.find((r) => r.status === 'rejected');
+      if (rate) {
+        // Une piste manque (404, format refusé) : l'œuvre reste muette, mais
+        // ce que les autres pistes ont pris est RENDU — sinon leurs tampons
+        // restaient comptés au cache pour toute la visite, sans personne
+        // pour les libérer (`_unloadAudio` n'est jamais appelé sans audioReady).
+        resultats.forEach((r, i) => {
+          if (r.status !== 'fulfilled') return;
+          if (lecteurs[i]) lecteurs[i].liberer();
+          else if (this._urlsStems[i]) engine.release(this._urlsStems[i]);
+        });
+        throw rate.reason;
+      }
+      const buffers = resultats.map((r) => r.value);
       const ctx = engine.ctx;
 
       this.bus = ctx.createGain();
@@ -1493,19 +1507,32 @@ export class Artwork {
   _unloadAudio() {
     this.setStemsActive(false);
     for (const m of this.modules) m.onAudioReleased?.();
-    this.stems.forEach((s, i) => {
-      s.gain.disconnect();
-      this.app.spatial?.libererVoie(s.voie);
-      // un lecteur par fragments rend ses segments lui-même
-      if (s.lecteur) { s.lecteur.liberer(); return; }
-      // le chemin réellement chargé (format choisi), pas `file`
-      this.app.audio.release(this._urlsStems?.[i] ?? this._resolve(s.cfg.file));
-    });
-    if (this.bus) {
-      this.app.audio.debrancherCanal(this.bus);
-      this.app.audio.lointain?.liberer(this.bus);
-    }
-    this.bus?.disconnect();
+    const stems = this.stems;
+    const bus = this.bus;
+    const urls = this._urlsStems;
+    const audio = this.app.audio;
+    const spatial = this.app.spatial;
+    // Le graphe ne se tranche qu'APRÈS le fondu d'arrêt (EXTINCTION, ci-dessus) :
+    // déconnecté dans la même pile, le fondu n'existait plus, et une nappe
+    // grave claquait à chaque saut vers une pièce lointaine (menu, catalogue,
+    // lien partagé) — au pic du noir du warp. L'œuvre, elle, est déjà libre
+    // de recharger : ses champs sont remis à zéro tout de suite.
+    const trancher = () => {
+      stems.forEach((s, i) => {
+        s.gain.disconnect();
+        spatial?.libererVoie(s.voie);
+        // un lecteur par fragments rend ses segments lui-même
+        if (s.lecteur) { s.lecteur.liberer(); return; }
+        // le chemin réellement chargé (format choisi), pas `file`
+        audio.release(urls?.[i] ?? this._resolve(s.cfg.file));
+      });
+      if (bus) {
+        audio.debrancherCanal(bus);
+        audio.lointain?.liberer(bus);
+        bus.disconnect();
+      }
+    };
+    setTimeout(trancher, (EXTINCTION + 0.1) * 1000);
     this.bus = null;
     this.entreeSon = null;
     this.stems = [];

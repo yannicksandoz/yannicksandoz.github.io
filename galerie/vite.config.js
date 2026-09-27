@@ -288,6 +288,10 @@ export default defineConfig({
           // ce qu'il est ; les autres addons (lecteurs, EXR) restent différés
           if (/[\\/]three[\\/]build[\\/]three\.module\.js$/.test(id)
               || id.includes('three/examples/jsm/utils/BufferGeometryUtils')) return 'three';
+          // three-mesh-bvh (rayons.js, à la demande) : sous son nom, plutôt
+          // qu'un second « index-*.js » que le rapport de poids confondrait
+          // avec le paquet principal
+          if (/[\\/]three-mesh-bvh[\\/]/.test(id)) return 'mesh-bvh';
           return undefined;
         }
       }

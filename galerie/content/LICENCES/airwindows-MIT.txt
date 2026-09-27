@@ -15,6 +15,11 @@ ci-dessous, comme l'original.
   Distance2              engine/src/core/lointain-worklet.js
   Ultrasonic, Infrasonic engine/src/core/hygiene-worklet.js
   Channel9               engine/src/core/pupitre-worklet.js
+  Pressure5              engine/src/core/pression5-worklet.js
+  Console7 (Channel,     engine/src/core/console7-worklet.js,
+    Buss)                engine/src/audio/console7.c → engine/assets/wasm/console7.wasm
+  ToTape6                engine/src/core/bande-worklet.js
+  BussColors4            engine/src/core/couleurs-worklet.js
 
 Les en-têtes de Chris portent selon les plugins « (c) 2016 » ou « (c) 2018 » ;
 la licence du dépôt d'origine, reproduite telle quelle, porte 2018.

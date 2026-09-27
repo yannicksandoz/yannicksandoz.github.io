@@ -3,7 +3,7 @@
  * Sans dépendance ni navigateur.  Lancer avec : npm test
  */
 import { getPath, setPath, samePath } from '../engine/src/editor/state/paths.js';
-import { patch, splice, batch } from '../engine/src/editor/state/commands.js';
+import { patch, splice, batch, ordonnerRetraits } from '../engine/src/editor/state/commands.js';
 import { History } from '../engine/src/editor/state/History.js';
 
 let passed = 0, failed = 0;
@@ -353,6 +353,18 @@ console.log('\nmédiathèque — recensement des sons du projet');
   h.undo();
   check('après annulation : le geste d\'avant', h.prochainAnnule, 'liens du shader');
   check('et le rétabli est celui qu\'on vient de défaire', h.prochainRetabli, 'couleur de face');
+}
+
+{
+  // une suppression multiple : par tableau, les index décroissants — sinon le
+  // second splice vise l'élément suivant
+  const ordre = ordonnerRetraits([
+    { chemin: ['works'], index: 1 }, { chemin: ['rooms', 0, 'works'], index: 0 },
+    { chemin: ['works'], index: 4 }, { chemin: ['rooms', 0, 'works'], index: 2 }
+  ]).map((r) => `${r.chemin.join('/')}:${r.index}`);
+  check('les retraits se font par index décroissant, tableau par tableau', ordre,
+    ['rooms/0/works:2', 'rooms/0/works:0', 'works:4', 'works:1']);
+  check('rien à retirer : liste vide', ordonnerRetraits([]), []);
 }
 
 console.log(`\n${passed} réussis, ${failed} échoués\n`);

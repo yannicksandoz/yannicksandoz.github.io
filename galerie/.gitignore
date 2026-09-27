@@ -15,3 +15,6 @@ sources/
 
 # Les paquets de l’application auteur (electron-builder)
 app-dist/
+
+# bancs éphémères (un _x.mjs à la racine ne se versionne pas)
+/_*.mjs

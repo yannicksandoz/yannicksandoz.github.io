@@ -1,7 +1,9 @@
 # Déploiement GitHub Pages : blog Jekyll (racine) + galerie 3D (/galerie/).
 #
-# Se déclenche à chaque push sur master (et sur la branche de développement de
-# la galerie), ou manuellement depuis l'onglet Actions (« Run workflow »).
+# Se déclenche à chaque push : sur master, le site est construit, éprouvé et
+# DÉPLOYÉ ; sur toute autre branche, il est seulement construit et éprouvé
+# (tests, garde-fous), pour qu'un rouge se voie avant la fusion et non au
+# moment de publier. Ou manuellement depuis l'onglet Actions (« Run workflow »).
 #
 # Prérequis (une seule fois) : Settings → Pages → Source = « GitHub Actions ».
 # L'étape configure-pages tente de l'activer automatiquement.
@@ -9,7 +11,7 @@ name: Deploy Pages (blog + galerie)
 
 on:
   push:
-    branches: [master]
+    branches: ['**']
   workflow_dispatch:
 
 permissions:
@@ -17,8 +19,9 @@ permissions:
   pages: write
   id-token: write
 
+# une par branche : un run de branche n'annule pas un déploiement en cours
 concurrency:
-  group: pages
+  group: pages-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -51,9 +54,10 @@ jobs:
           source: ./
           destination: ./_site
 
+      # la version de Node de l'auteur et de l'application (package.json, engines)
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
           cache: npm
           cache-dependency-path: galerie/package-lock.json
 
@@ -119,6 +123,8 @@ jobs:
 
   deploy:
     needs: build
+    # master seule publie ; les autres branches s'arrêtent au build éprouvé
+    if: github.ref == 'refs/heads/master'
     runs-on: ubuntu-latest
     environment:
       name: github-pages

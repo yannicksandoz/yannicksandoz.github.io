@@ -1,7 +1,7 @@
 {
   "id": "voxel",
   "title": "Construction",
-  "description": "",
+  "description": "Un volume bâti cube à cube, à hauteur de main : la construction reste à l'état d'esquisse, pleins et vides.",
   "position": [
     -5.22,
     0,

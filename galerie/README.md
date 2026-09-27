@@ -1682,14 +1682,34 @@ npm install
 npm run dev          # mode AUTEUR — http://localhost:5173, éditeur inclus
 npm run dev:visiteur # mode Visiteur, pour vérifier ce que verra le public
 npm run build        # → dist/        site publiable, SANS éditeur
-npm run check        # vérifie que dist/ ne contient rien d'éditeur
+npm run check        # deux garde-fous sur dist/ : rien de l'éditeur, et le poids sous ses seuils
 npm run build:auteur # → dist-auteur/ build local avec éditeur (jamais publié)
 npm run preview      # prévisualise un build
 npm run test         # toute la suite au nœud (scripts/tests.mjs : chaque test-*.mjs ; « npm test -- crans » en filtre)
 npm run budget       # le budget de chaque salle : ce qu'un téléphone télécharge, décode et joue
+npm run charte       # la charte (direction artistique) sur toutes les salles
 npm run assets       # régénère les textures/stems de démo
 npm run library      # régénère le mobilier de galerie (GLB + vignettes)
+npm run sonde:visuels   # sondes navigateur (Playwright, jamais en CI) : visuels,
+                        # editeur, charge, basse-perf, piece-sons, poids-audio, lumiere, lisere
+npm run app          # l'application auteur (Electron) sur dist-auteur/ ; app:build l'empaquette, app:icone refait l'icône
+npm run wasm:audio   # recompile la console 7 en wasm (clang)
 ```
+
+**Les paramètres d'adresse** (`?edit&riche=1`, plusieurs se combinent) :
+
+| Paramètre | Effet | Pour qui | Lu dans |
+|---|---|---|---|
+| `edit` | ouvre le mode auteur (build auteur seulement) | auteur | `editorLoader.js` |
+| `room=<id>`, `work=<id>` | arriver dans une pièce, devant une œuvre (lien partagé) | visiteur | `main.js` |
+| `mode=guidee` | la visite guidée dès l'entrée | visiteur | `main.js` |
+| `riche=1` / `riche=0` | l'image enrichie, mémorisée (`profil=riche` la force sans mémoriser, `profil=unique` l'ôte) | visiteur, mesure | `core/crans.js` |
+| `profil=bureau` / `telephone` | force le profil d'un appareil (alias `desktop`, `mobile`) | mesure | `core/crans.js` |
+| `gouverneur=0` | fige le gouverneur de qualité | mesure | `core/crans.js` |
+| `eco=1` | l'image économe | visiteur | `core/crans.js` |
+| `perf=1`, `banc=1` | le cartouche de performance, le banc de mesure | mesure | `ui/Perf.js` |
+| `chrono=1` | le chrono de chargement | mesure | `ui/Chrono.js` |
+| `survol=masque` | sans liseré de survol | mesure | `core/App.js` |
 
 **Votre quotidien reste `npm run dev`** : l'éditeur y est complet, rien ne
 change. `dist-auteur/` est ignoré par git.
@@ -1756,8 +1776,9 @@ le repli si le combiné manque ou se lit mal.
 aux **touches physiques** (`e.code`) : les mêmes positions marchent sur tous
 les claviers, et l'aide affiche les étiquettes réelles quand le navigateur
 sait les donner (`getLayoutMap`).
-Mobile : **1 doigt** pour regarder autour, **2 doigts** pour se déplacer et
-pincer pour zoomer, joystick virtuel pour marcher. Le bouton **Entrer**
+Mobile : **1 doigt** pour regarder autour, **2 doigts** ou le manche pour
+marcher, le bouton coureur maintenu pour courir (pas de zoom au pincement :
+la scène retient le geste). Le bouton **Entrer**
 débloque l'`AudioContext` (obligatoire sur tous les navigateurs, iOS en tête).
 
 ## Déploiement
@@ -5648,6 +5669,48 @@ chauffe. Éprouvé au nœud (le paquet, le compte de lumières, la remise en
 place même si l'appel lève, les invités, l'attente, son délai et la
 liaison forcée).
 
+**Un audit, quatre-vingt-seize pistes, un lot de corrections.** Douze
+lectures indépendantes du dépôt (visite tactile et bureau, moteur audio,
+accessibilité, gestes et panneaux de l'éditeur, application, sécurité,
+vitrine, tests, documentation, poids, contenu), chaque piste contredite
+avant d'être gardée. Ce qui a été corrigé, petit et sûr : le HUD tactile
+qui ne s'effaçait plus après le premier ☰ (le menu et le plan restaient
+dans le DOM, cachés) ; le manche et la fiche hors des zones sûres de
+l'écran ; des cibles tactiles sous 44 px ; une aide qui décrivait un zoom
+et un bouton ≫ disparus ; le gouverneur qui prenait une image courte au
+chrono pour un écran à 120 Hz (la période se lit désormais sur
+l'horodatage du rappel) ; les pistes par fragments qui décodaient deux
+fois leur premier segment, rejouaient un morceau périmé en double et
+rendaient un segment repris au tour de boucle une fois sur deux ;
+l'ambiance d'une pièce quittée qui tournait pour du silence ; le
+déchargement audio qui tranchait le fondu ; les tampons d'une œuvre au
+chargement à demi échoué, comptés pour toujours ; la langue du contenu
+pour les lecteurs d'écran ; le pluriel anglais de zéro. Dans l'éditeur :
+le clic mort après un rectangle, Suppr qui n'effaçait qu'un objet sur
+cinq, la Découpe qui survivait à la sortie de l'éditeur (la visite perçait
+les murs), Échap qui ne rangeait plus rien une fois la pile d'annulation
+pleine (la marque de retour est une référence, plus une longueur), Tab
+confisqué aux panneaux, Maj+A en Voxel, le gizmo rattaché en Découpe,
+l'aimant collé après Alt+Tab, les réglages de mixage jamais « non
+publiés », « Revenir » qui effaçait la séance sans le dire, Firefox qui
+recevait les fichiers combinés, le catalogue de l'auteur oublié, les
+gabarits hors des sauvegardes. Dans l'application : le relais qui sortait
+de son origine (`/fs-api//ailleurs`), la traversée `..%5C` sous Windows,
+l'en-tête Host, les schémas de lien ouverts dehors, le port éphémère qui
+perdait jeton et brouillon à chaque lancement (port préféré, stable), la
+fermeture et le changement de dossier muets avec du travail non publié,
+un dossier déposé sur l'icône à froid oublié, l'écriture atomique, git
+sans attente d'identifiants, l'instance unique, l'asar. Dans le contenu :
+des notes de développement lues au visiteur, des titres anglais, des
+crédits CC0 sous l'auteur-sentinelle sur des œuvres réservées, deux sons
+Freesound sans compagnon d'attribution, six graphies de licence. Et les
+textes de licence : quinze portages Airwindows nommés au lieu de neuf,
+`galerie/app/` dans le périmètre, Electron dans les avis. Chaque règle
+nouvelle a son test au nœud ; le reste est vérifié dans les sondes et
+sous Xvfb. Ce qui reste, plus gros, est noté dans la suite du journal
+(les tables LTC dans le paquet principal, la reprise de position d'une
+piste suspendue, le contenu de chantier avant une vitrine).
+
 **L'application auteur : galerie neuve, git sans terminal, fenêtre et
 image.** Fichier › Nouvelle galerie… crée un dossier de contenu complet
 (première salle à la charte, index, réglages, `.gitignore`, partagés du
@@ -6297,7 +6360,7 @@ et la détection `(pointer: coarse)` vivait en trois exemplaires —
 
 | Dossier | Licence |
 |---|---|
-| `engine/` (+ `index.html`, `vite.config.js`, `scripts/`) | **Propriétaire — tous droits réservés** © Yannick Sandoz, voir [`engine/LICENSE`](engine/LICENSE) |
+| tout `galerie/` hors `content/` — `engine/`, `app/` (l'application auteur), `scripts/`, `index.html`, `scan.html`, `vite.config.js` | **Propriétaire — tous droits réservés** © Yannick Sandoz, voir [`engine/LICENSE`](engine/LICENSE) (la liste exacte est dans son périmètre) |
 | `content/` | **Tous droits réservés** — voir [`content/RIGHTS.md`](content/RIGHTS.md) |
 | `content/library/` | **CC0-1.0** (domaine public) — le mobilier livré est un outil, pas une œuvre |
 
@@ -6308,8 +6371,10 @@ c'est nécessaire à l'exécution, rien de plus.
 
 Les composants tiers — Three.js et ses modules d'exemple, Vite, le thème
 Jekyll du site, Primer — gardent leurs propres licences, listées dans
-[`../THIRD-PARTY-NOTICES.md`](../THIRD-PARTY-NOTICES.md). **Un seul est
-vendoré** : les plugins d'**Airwindows** (Chris Johnson), sous licence MIT,
+[`../THIRD-PARTY-NOTICES.md`](../THIRD-PARTY-NOTICES.md). Cinq sont
+**recopiés dans le dépôt** avec leur provenance : le lettrage Slug (portage),
+les courbes d'Inter, les icônes Lucide (mode Auteur seul), les matières de
+three.js, et les plugins d'**Airwindows** (Chris Johnson), sous licence MIT,
 portés en JavaScript — *Pressure4* et *ClipOnly2* au limiteur du maître,
 *Console6* à la table de mixage, *Monitoring* à l'écoute de contrôle,
 *Verbity* et *ClearCoat* aux pièces (la queue et ses premiers retours),
@@ -6320,8 +6385,10 @@ mixage l'affiche.
 
 La licence MIT demande deux choses et non une : le nom ET le texte de la
 licence, *« included in all copies or substantial portions »*. Le texte
-complet part donc avec le build, en `LICENCES/airwindows-MIT.txt`, et le
-garde-fou de publication refuse un build où il manquerait — au même titre
+complet part donc avec le build, en `LICENCES/airwindows-MIT.txt` (avec
+`slug-MIT.txt` et `inter-OFL.txt` pour les deux autres), et le
+garde-fou de publication refuse un build où il manquerait, ou qui livrerait
+un portage que la liste ne nomme pas — au même titre
 qu'un build qui contiendrait du code d'éditeur.
 
 Le dossier `content/` contient des créations personnelles, également tous

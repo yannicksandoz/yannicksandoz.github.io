@@ -69,6 +69,24 @@ test('l\'aide d\'accueil tactile mentionne la course', () => {
     }
   }
 });
+test('l\'aide tactile décrit les gestes qui existent : ni zoom au pincement, ni bouton ≫', () => {
+  // le pincement-zoom a été retiré (Controls : deux doigts = marcher) et
+  // le bouton course est une silhouette, plus un double chevron
+  for (const cle of ['hint.touch', 'enter.tip.touch', 'focus.tip.touch']) {
+    const defs = i18n.split(`'${cle}':`).slice(1);
+    assert.equal(defs.length, 2, `${cle} : ${defs.length} définition(s), 2 attendues (fr + en)`);
+    for (const morceau of defs) {
+      const ligne = morceau.slice(0, 220);
+      assert.ok(!/zoom/i.test(ligne), `${cle} parle d'un zoom qui n'existe plus`);
+      assert.ok(!ligne.includes('≫'), `${cle} cite un bouton ≫ disparu`);
+    }
+  }
+  // et la fiche, au doigt, ne parle pas d'Échap
+  const fiche = i18n.split("'focus.tip.touch':").slice(1).map((m) => m.slice(0, 120));
+  assert.ok(fiche.every((l) => !/Échap|Escape/.test(l)), 'la fiche tactile renvoie à Échap, qui n\'existe pas au doigt');
+  const ui = lire('engine', 'src', 'ui', 'UI.js');
+  assert.ok(ui.includes("t('focus.tip.touch')"), 'UI.js n\'applique pas focus.tip.touch');
+});
 
 titre('maintenu, il vaut Maj — la même course, pas une seconde');
 test('une seule expression décide du facteur, et elle lit les deux entrées', () => {
@@ -106,6 +124,16 @@ test('le clavier court aussi : maintenir Espace ou Entrée', () => {
   assert.ok(controles.includes("addEventListener('keydown'")
     && controles.includes("addEventListener('keyup'"),
     'aucun maintien clavier sur le bouton course');
+});
+test('le manche et la fiche respectent les zones sûres, comme la course', () => {
+  // viewport-fit=cover : sans l'inset, le manche descend sous l'indicateur
+  // d'accueil (34 px), où le système avale le geste
+  const manche = css.match(/#joystick\s*\{([^}]*)\}/s);
+  assert.ok(manche, 'règle #joystick introuvable');
+  assert.ok(/bottom:\s*calc\([\d.]+rem \+ env\(safe-area-inset-bottom/.test(manche[1]), '#joystick ignore safe-area-inset-bottom');
+  assert.ok(/left:\s*calc\([\d.]+rem \+ env\(safe-area-inset-left/.test(manche[1]), '#joystick ignore safe-area-inset-left (encoche en paysage)');
+  const fiche = css.match(/#focus-overlay\s*\{([^}]*)\}/s);
+  assert.ok(/bottom:\s*calc\([\d.]+vh \+ env\(safe-area-inset-bottom/.test(fiche[1]), '#focus-overlay ignore safe-area-inset-bottom');
 });
 test('le glissement de page ne coupe pas la course', () => {
   assert.ok(/#sprint\s*\{[^}]*touch-action:\s*none/s.test(css),

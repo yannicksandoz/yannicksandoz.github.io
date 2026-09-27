@@ -187,8 +187,8 @@ if (modelesHorsLibrairie.length) {
 // in all copies or substantial portions of the Software » — ce sont les mots
 // du texte MIT, et ils demandent deux choses, pas une. Citer le nom de Chris
 // ne suffit pas : il faut que le texte de la licence voyage avec le code.
-// Neuf plugins d'Airwindows sont portés ici ; c'est une part substantielle,
-// et un portage est une œuvre dérivée.
+// Quinze plugins d'Airwindows sont portés ici (un en C, compilé en wasm) ;
+// c'est une part substantielle, et un portage est une œuvre dérivée.
 //
 // On le vérifie sur le BUILD et non sur le dépôt, comme tout le reste de ce
 // fichier : un fichier de licence oublié dans une recopie ne se voit jamais,
@@ -204,6 +204,18 @@ if (!licence) {
     'this permission notice shall be included', 'Chris Johnson']) {
     if (!corps.includes(attendu)) {
       erreurs.push(`la licence d’Airwindows est incomplète : « ${attendu} » manque`);
+    }
+  }
+  // …et son inventaire suit les portages réellement livrés : chaque worklet
+  // du build qui se réclame d'Airwindows doit y être nommé par son fichier
+  // source, le wasm aussi — sinon la liste vieillit en silence (elle en
+  // était restée à neuf plugins sur quinze)
+  for (const f of tous.filter((x) => /-worklet-[\w-]+\.js$/.test(x) || x.endsWith('.wasm'))) {
+    const nom = f.split('/').pop();
+    const source = nom.endsWith('.wasm') ? nom : nom.replace(/-[\w-]+\.js$/, '-worklet.js');
+    const texte = nom.endsWith('.wasm') ? '' : await readFile(f, 'utf8');
+    if ((nom.endsWith('.wasm') || /airwindows/i.test(texte)) && !corps.includes(source)) {
+      erreurs.push(`la licence d’Airwindows ne nomme pas ${source}, pourtant livré`);
     }
   }
 }

@@ -1,6 +1,6 @@
 {
   "id": "rock-large",
-  "title": "Rock Large",
+  "title": "Grand rocher",
   "description": "",
   "position": [
     9.29,
@@ -33,7 +33,7 @@
   "lightIntensity": 0,
   "credit": {
     "author": "Quaternius",
-    "license": "CC0 1.0",
+    "license": "CC0-1.0",
     "sourceUrl": "https://poly.pizza/m/54jZKTAt5p"
   },
   "role": "decor"

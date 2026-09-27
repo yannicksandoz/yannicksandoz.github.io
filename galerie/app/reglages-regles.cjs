@@ -64,4 +64,26 @@ function estUneGalerie(chemin, existe) {
   return ['rooms/index.json', 'works/index.json'].some((f) => existe(`${chemin}/${f}`));
 }
 
-module.exports = { noterRecent, plusRecente, analyser, estUneGalerie, RECENTS_MAX };
+/**
+ * Un lien que l'application accepte d'ouvrir DEHORS, dans le navigateur ou
+ * le courrielleur du système : le web et le courriel, rien d'autre. Les
+ * adresses viennent aussi du contenu (pourboire, crédits, catalogue) : un
+ * `file:` ou un schéma à gestionnaire lancerait un programme au clic.
+ */
+function lienExterneSur(url) {
+  try { return ['http:', 'https:', 'mailto:'].includes(new URL(String(url)).protocol); } catch { return false; }
+}
+
+/**
+ * Le port que le serveur interne essaie d'abord : celui du dernier
+ * lancement, sinon un port fixe et peu couru. Même port, même origine,
+ * même profil de page (jeton, brouillon, préférences) d'une ouverture à
+ * l'autre. `port` 0 ou absent = jamais mémorisé.
+ */
+const PORT_PREFERE = 47391;
+function portPrefere(reglages) {
+  const p = Number(reglages?.port);
+  return Number.isInteger(p) && p > 1023 && p < 65536 ? p : PORT_PREFERE;
+}
+
+module.exports = { noterRecent, plusRecente, analyser, estUneGalerie, lienExterneSur, portPrefere, PORT_PREFERE, RECENTS_MAX };

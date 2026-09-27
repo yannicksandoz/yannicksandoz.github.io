@@ -45,8 +45,13 @@ function analyserPorcelain(texte) {
 class GitLocal {
   constructor({ executer = null, git = 'git' } = {}) {
     this._git = git;
+    // sans terminal, git ne peut demander ni mot de passe ni phrase secrète :
+    // il doit échouer tout de suite (« could not read Username »), pas
+    // attendre une saisie qui ne viendra jamais — d'où GIT_TERMINAL_PROMPT=0
+    // et une limite de temps, pour un `push` sur un réseau qui ne répond pas
+    const env = { ...process.env, GIT_TERMINAL_PROMPT: '0', SSH_ASKPASS_REQUIRE: 'never' };
     this._executer = executer ?? ((args, cwd) => new Promise((resoudre, rejeter) => {
-      execFile(this._git, args, { cwd, maxBuffer: 16 * 1024 * 1024, windowsHide: true }, (err, stdout, stderr) => {
+      execFile(this._git, args, { cwd, env, maxBuffer: 16 * 1024 * 1024, windowsHide: true, timeout: 120000 }, (err, stdout, stderr) => {
         if (err) { err.stderr = String(stderr ?? ''); rejeter(err); } else resoudre(String(stdout ?? ''));
       });
     }));
@@ -102,7 +107,11 @@ class GitLocal {
     try {
       return await this._executer(['push'], d.racine);
     } catch (e) {
-      throw new Error(`git push a échoué : ${(e.stderr || e.message || '').trim().split('\n').slice(-3).join(' ')}`);
+      const detail = (e.stderr || e.message || '').trim().split('\n').slice(-3).join(' ');
+      const conseil = /Username|Password|Authentication|Permission denied|publickey|askpass/i.test(detail)
+        ? ' — sans terminal, git ne peut rien demander : configurez un assistant d’identifiants (trousseau macOS, Git Credential Manager) ou une clé SSH chargée dans l’agent, puis réessayez.'
+        : e.killed ? ' — le distant n’a pas répondu dans les deux minutes.' : '';
+      throw new Error(`git push a échoué : ${detail}${conseil}`);
     }
   }
 }

@@ -1,7 +1,7 @@
 {
   "id": "banc-entree",
-  "title": "Banc",
-  "description": "",
+  "title": "Banc d'écoute",
+  "description": "Asseyez-vous : une nappe éthérée s'installe autour du banc, et s'éloigne quand on se relève.",
   "position": [
     8.0,
     0,
@@ -61,7 +61,7 @@
       "source": "freesound",
       "credit": {
         "author": "Matio888",
-        "license": "CC-BY",
+        "license": "CC-BY-4.0",
         "sourceUrl": "https://freesound.org/s/797831/"
       },
       "spatial": {

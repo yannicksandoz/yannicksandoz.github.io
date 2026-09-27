@@ -186,11 +186,19 @@ export class LecteurFragments {
     this._tenus = new Map();           // url → nombre de morceaux qui s'en servent
     this._timer = null;
     this._planification = null;
+    this._precharge = null;            // le segment décodé par `precharger`, tenu jusqu'au départ
+    this._gen = 0;                     // change à chaque départ ou arrêt : un passage périmé se reconnaît
   }
 
   /** Le segment `i`, décodé — compté au cache du moteur. */
   _charger(i) {
     const url = cheminFragment(this.motif, i);
+    // le segment préchargé se reprend tel quel : sa tenue est déjà comptée
+    if (this._precharge?.url === url) {
+      const p = this._precharge;
+      this._precharge = null;
+      return Promise.resolve(p);
+    }
     this._tenus.set(url, (this._tenus.get(url) ?? 0) + 1);
     return this.engine.load(url).then((buffer) => ({ url, buffer }), (e) => {
       this._rendre(url);
@@ -198,18 +206,30 @@ export class LecteurFragments {
     });
   }
 
+  /**
+   * Rend UNE tenue du segment : chaque `_charger` a compté une fois au
+   * moteur, chaque `_rendre` décompte une fois. (Longtemps le moteur n'était
+   * décompté qu'à la dernière tenue : un segment repris au tour de boucle —
+   * chargé deux fois, rendu une — restait au cache pour toute la visite.)
+   */
   _rendre(url) {
     const reste = (this._tenus.get(url) ?? 1) - 1;
-    if (reste > 0) { this._tenus.set(url, reste); return; }
-    this._tenus.delete(url);
+    if (reste > 0) this._tenus.set(url, reste);
+    else this._tenus.delete(url);
     this.engine.release(url);
   }
 
-  /** Décode le premier segment (et demande le suivant) avant tout départ. */
+  /**
+   * Décode le premier segment avant tout départ. Il reste TENU jusqu'au
+   * départ, où `_charger` le reprend tel quel : rendu ici, le cache du
+   * moteur l'oubliait aussitôt (plus personne ne le comptait), et le départ
+   * le retéléchargeait et le redécodait — chaque piste par fragments payait
+   * deux fois son premier segment, et partait en retard.
+   */
   async precharger() {
     const { morceaux } = programme(this.manifeste, this.bornes, this._etat, 0.01);
     const premier = await this._charger(morceaux[0].i);
-    this._rendre(premier.url); // le comptage réel se fait à la programmation
+    this._precharge = premier;
     return premier.buffer;
   }
 
@@ -217,18 +237,29 @@ export class LecteurFragments {
     if (this.actif) return;
     const ctx = this.engine.ctx;
     this.actif = true;
+    this._gen++;
     this._origine = quand ?? ctx.currentTime;
     this._etat = { position: this.bornes.debut, t: 0 };
+    // un passage périmé encore en vol (arrêt pendant un téléchargement) ne
+    // bloque pas le nouveau départ : il se reconnaîtra à sa génération
+    this._planification = null;
     this._planifier();
     this._timer = setInterval(() => this._planifier(), CADENCE_MS);
   }
 
-  /** Programme les morceaux jusqu'à HORIZON secondes d'avance — un seul passage à la fois. */
+  /**
+   * Programme les morceaux jusqu'à HORIZON secondes d'avance — un seul
+   * passage à la fois. Un passage lancé avant un arrêt ou un redépart est
+   * PÉRIMÉ : ce qu'il a chargé est rendu, rien n'est joué — sinon un
+   * morceau calculé sur l'ancien état partait sur la nouvelle origine, en
+   * double avec celui du nouveau passage (+6 dB pendant dix secondes).
+   */
   _planifier() {
     if (!this.actif || this._planification) return;
-    this._planification = (async () => {
+    const gen = this._gen;
+    const p = this._planification = (async () => {
       const ctx = this.engine.ctx;
-      while (this.actif && this._origine + this._etat.t < ctx.currentTime + HORIZON) {
+      while (this.actif && gen === this._gen && this._origine + this._etat.t < ctx.currentTime + HORIZON) {
         const { morceau, suivant } = morceauSuivant(this.manifeste, this.bornes, this._etat);
         this._etat = suivant;
         let charge;
@@ -236,10 +267,10 @@ export class LecteurFragments {
           console.warn('[galerie] fragment illisible :', cheminFragment(this.motif, morceau.i), e?.message ?? e);
           continue; // on saute le morceau : mieux vaut un trou qu'une piste morte
         }
-        if (!this.actif) { this._rendre(charge.url); return; }
+        if (!this.actif || gen !== this._gen) { this._rendre(charge.url); return; }
         this._jouer(morceau, charge);
       }
-    })().finally(() => { this._planification = null; });
+    })().finally(() => { if (this._planification === p) this._planification = null; });
   }
 
   _jouer(morceau, { url, buffer }) {
@@ -292,6 +323,7 @@ export class LecteurFragments {
   arreter(quand) {
     if (!this.actif) return;
     this.actif = false;
+    this._gen++;
     clearInterval(this._timer);
     this._timer = null;
     const t = quand ?? this.engine.ctx.currentTime;
@@ -309,9 +341,10 @@ export class LecteurFragments {
       try { s.src.disconnect(); s.gain.disconnect(); } catch { /* déjà */ }
     }
     this._sources.clear();
-    for (const url of [...this._tenus.keys()]) {
+    this._precharge = null;   // sa tenue est dans `_tenus` : rendue ci-dessous
+    for (const [url, n] of [...this._tenus.entries()]) {
       this._tenus.delete(url);
-      this.engine.release(url);
+      for (let k = 0; k < n; k++) this.engine.release(url);
     }
   }
 

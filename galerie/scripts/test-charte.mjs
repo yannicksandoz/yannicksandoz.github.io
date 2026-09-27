@@ -25,8 +25,9 @@ import { CHARTE, EXTERIEURS, LUMINAIRES, clarte, teinteEtSaturation, ecartTeinte
   auditRythme, auditBancs, auditAmpleur, ampleurOeuvre, angleApparent,
   arriveesDe, salles, auditDecor, auditLignes, empriseAuSol,
   occupationVoxel, LABYRINTHES, auditCouronnement, GARDE_COURONNE,
-  auditSeuils, AIR_SEUIL, auditCorniches, GARDE_CORNICHE }
+  auditSeuils, AIR_SEUIL, auditCorniches, GARDE_CORNICHE, toutesOeuvres }
   from './charte.mjs';
+import { existsSync } from 'node:fs';
 import { setStyle, loiCouronne } from '../engine/src/core/style.js';
 
 let ok = 0, ko = 0;
@@ -607,6 +608,41 @@ test("l'exemption ne couvre que les lueurs et l'eau — pas un fourre-tout", () 
   const audite = auditDecor().map((l) => l.id);
   assert.ok(audite.includes('arbre-1-couronne'), 'la végétation reste auditée');
   assert.ok(!audite.includes('lucioles-bel-1'), 'les lucioles sont des lueurs');
+});
+
+titre('le contenu publié : ce que lit le visiteur, ce qui est cité');
+const oeuvres = toutesOeuvres();
+const sourceModele = (w) => Array.isArray(w.model) ? w.model.find((m) => m?.source)?.source : w.model?.source;
+test('aucune note de développement dans une description (fiche, visite audio, catalogue la lisent telle quelle)', () => {
+  const fautifs = oeuvres.filter((w) => /Démo\s*:|scripts\/|remplacez/.test(String(w.description ?? '')));
+  assert.deepEqual(fautifs.map((w) => w.id), []);
+});
+test('les licences citées sont des identifiants SPDX : une seule graphie par licence sur la page des crédits', () => {
+  const forme = /^(CC0-1\.0|CC-BY-\d\.\d|CC-BY-SA-\d\.\d|MIT|ISC|OFL-1\.1)$/;
+  const fautes = [];
+  for (const w of oeuvres) {
+    if (w.credit?.license && !forme.test(w.credit.license)) fautes.push(`${w.id} : ${w.credit.license}`);
+    for (const s of w.stems ?? []) if (s.credit?.license && !forme.test(s.credit.license)) fautes.push(`${w.id} (${s.file}) : ${s.credit.license}`);
+  }
+  assert.deepEqual(fautes, []);
+});
+test('aucune concession sous l\'auteur-sentinelle « Galerie » hors du mobilier : le contenu est réservé (RIGHTS.md)', () => {
+  // « Galerie » est la sentinelle du cartel (pas de nom affiché) ; un crédit
+  // CC0 sous ce nom sur une stèle ou une porte publiait dans le domaine
+  // public des œuvres que RIGHTS.md dit réservées. Le mobilier (library)
+  // est CC0 par RIGHTS.md ; les shaders signés yr0-lab sont un choix de l'auteur.
+  const fautifs = oeuvres.filter((w) => w.credit?.author === 'Galerie' && sourceModele(w) !== 'library');
+  assert.deepEqual(fautifs.map((w) => `${w.id} : ${w.credit.license}`), []);
+});
+test('chaque son emprunté a son compagnon d\'attribution à côté du fichier (credits.js : le troisième verrou)', () => {
+  const manquants = [];
+  for (const w of oeuvres) {
+    for (const s of w.stems ?? []) {
+      if (!s.source) continue;
+      if (!existsSync(join(ici, '..', 'content', `${s.file}.attribution.json`))) manquants.push(`${w.id} : ${s.file}`);
+    }
+  }
+  assert.deepEqual(manquants, []);
 });
 
 console.log(`\n${ok} ✓ / ${ko} ✗`);

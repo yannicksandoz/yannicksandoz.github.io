@@ -12,12 +12,13 @@ chaque emplacement porte le texte complet de sa licence.
   │   _config.yml, _data/,         │ Texte : LICENSE-theme-MIT.txt        │
   │   _includes/, _layouts/,       │                                      │
   │   _posts/, _sass/, assets/,    │                                      │
-  │   index.html, README.md        │                                      │
+  │   index.html                   │                                      │
   ├────────────────────────────────┼──────────────────────────────────────┤
-  │ galerie/engine/                │ PROPRIÉTAIRE — tous droits réservés  │
-  │ galerie/index.html             │ © Yannick Sandoz                     │
-  │ galerie/scripts/               │ Texte : galerie/engine/LICENSE       │
-  │ galerie/vite.config.js         │ Licence commerciale sur demande      │
+  │ galerie/ hors content/ :       │ PROPRIÉTAIRE — tous droits réservés  │
+  │   engine/, app/, scripts/,     │ © Yannick Sandoz                     │
+  │   index.html, scan.html,       │ Texte : galerie/engine/LICENSE       │
+  │   vite.config.js, package.json │ (liste exacte dans son PÉRIMÈTRE)    │
+  │                                │ Licence commerciale sur demande      │
   ├────────────────────────────────┼──────────────────────────────────────┤
   │ galerie/content/               │ Tous droits réservés                 │
   │ (œuvres, médias, configs)      │ Texte : galerie/content/RIGHTS.md    │

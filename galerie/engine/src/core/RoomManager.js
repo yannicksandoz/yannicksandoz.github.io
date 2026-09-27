@@ -1168,32 +1168,61 @@ export class RoomManager {
       }
     }
     if (room.ambience.bus) {
-      const target = room.isCurrent ? 1 : 0;
-      room.ambience.bus.gain.setTargetAtTime(
-        target, this.app.audio.ctx.currentTime, 0.6
-      );
+      const amb = room.ambience;
+      const t = this.app.audio.ctx.currentTime;
+      if (room.isCurrent) {
+        clearTimeout(amb.fermeture);
+        amb.fermeture = null;
+        amb.bus.gain.setTargetAtTime(1, t, 0.6);
+      } else {
+        amb.bus.gain.setTargetAtTime(0, t, 0.6);
+        // Fondue, l'ambiance d'une pièce quittée ne tourne pas pour du
+        // silence : ses boucles, et surtout un lecteur par fragments qui
+        // téléchargerait et décoderait un segment toutes les dix secondes
+        // (la cascade du jardin, depuis chacune de ses trois voisines).
+        // Deux secondes et demie : le gain est à 1,5 %, rien ne s'entend ;
+        // si l'on revient avant, le fondu d'entrée reprend la même ambiance.
+        if (!amb.fermeture) {
+          amb.fermeture = setTimeout(() => {
+            if (room.ambience === amb && !room.isCurrent) this._releaseAmbience(room);
+          }, 2500);
+        }
+      }
     }
   }
 
   _releaseAmbience(room) {
-    if (!room.ambience) return;
-    for (const s of room.ambience.sources) {
-      if (s.lecteur) s.lecteur.liberer();
-      else {
-        try { s.src.stop(); } catch { /* déjà arrêtée */ }
-        s.src.disconnect();
+    const amb = room.ambience;
+    if (!amb) return;
+    clearTimeout(amb.fermeture);
+    room.ambience = null;   // dès maintenant : la pièce peut en refaire une
+    const audio = this.app.audio;
+    const trancher = () => {
+      for (const s of amb.sources) {
+        if (s.lecteur) s.lecteur.liberer();
+        else {
+          try { s.src.stop(); } catch { /* déjà arrêtée */ }
+          s.src.disconnect();
+        }
+        s.gain.disconnect();
       }
-      s.gain.disconnect();
+      // La tranche de console de l'ambiance se ferme avec elle : sans cela,
+      // son encodeur resterait branché à la somme, pour toujours.
+      if (amb.bus) audio.debrancherCanal(amb.bus);
+      amb.bus?.disconnect();
+      for (const c of room.config.ambience ?? []) {
+        // une ambiance par fragments a déjà rendu ses segments (liberer)
+        if (!c.fragments) audio.release(this.app.resolveAsset(c.file));
+      }
+    };
+    // Un fondu court avant de trancher : au saut vers une pièce lointaine
+    // (menu, catalogue), une nappe grave coupée net claquait au noir du warp.
+    if (amb.bus && audio.ctx) {
+      amb.bus.gain.setTargetAtTime(0, audio.ctx.currentTime, 0.04);
+      setTimeout(trancher, 200);
+    } else {
+      trancher();
     }
-    // La tranche de console de l'ambiance se ferme avec elle : sans cela,
-    // son encodeur resterait branché à la somme, pour toujours.
-    if (room.ambience.bus) this.app.audio.debrancherCanal(room.ambience.bus);
-    room.ambience.bus?.disconnect();
-    for (const c of room.config.ambience ?? []) {
-      // une ambiance par fragments a déjà rendu ses segments (liberer)
-      if (!c.fragments) this.app.audio.release(this.app.resolveAsset(c.file));
-    }
-    room.ambience = null;
   }
 
   /* ------------------------------------------------------------- cycle --- */

@@ -9,7 +9,7 @@
  * Lancer avec : npm test
  */
 import assert from 'node:assert/strict';
-import { poserDepuisImpact, classerImpact, tournerParMolette, PORTEE_MUR, RETRAIT_PIED }
+import { poserDepuisImpact, classerImpact, tournerParMolette, nombreARetirer, PORTEE_MUR, RETRAIT_PIED }
   from '../engine/src/editor/state/pose-regles.js';
 import { EPAISSEUR_MUR, RETRAIT_MUR, hauteurVisee, empriseAuSol } from '../engine/src/core/charte-regles.js';
 
@@ -92,6 +92,23 @@ test('sans impact, sans pièce ou sans objet : rien', () => {
   assert.equal(poserDepuisImpact(cube, salle, null), null);
   assert.equal(poserDepuisImpact(cube, null, { point: [0, 0, 0] }), null);
   assert.equal(poserDepuisImpact(null, salle, { point: [0, 0, 0] }), null);
+});
+
+test('le point de retour d\'Échap est une marque par référence : une pile pleine ne s\'allonge plus', () => {
+  const c = (n) => ({ label: `c${n}` });
+  const pile = [c(1), c(2), c(3)];
+  assert.equal(nombreARetirer(pile, c(0)), 0, 'marque inconnue (décalée hors de la pile) : rien à l\'aveugle');
+  assert.equal(nombreARetirer(pile, pile[2]), 0, 'rien écrit depuis la marque');
+  assert.equal(nombreARetirer(pile, pile[0]), 2, 'deux commandes depuis la marque');
+  assert.equal(nombreARetirer(pile, null), 3, 'pile vide à la prise : tout');
+  // la pile pleine (History.limit) : la longueur ne bouge plus, la marque si
+  const limite = 4;
+  const pleine = [c(1), c(2), c(3), c(4)];
+  const marque = pleine.at(-1);
+  const pousser = (x) => { pleine.push(x); if (pleine.length > limite) pleine.shift(); };
+  pousser(c(5)); pousser(c(6));
+  assert.equal(pleine.length, limite, 'la longueur n\'a pas changé');
+  assert.equal(nombreARetirer(pleine, marque), 2, 'la création et le mouvement sont retrouvés');
 });
 
 console.log(`\n${ok} ✓  ${ko} ✗`);

@@ -14,7 +14,8 @@ import { createRequire } from 'node:module';
 
 const require = createRequire(import.meta.url);
 const { planGalerieNeuve, creerGalerie, dossierVide, PARTAGES } = require('../app/galerie-neuve.cjs');
-const { jugerSalle } = await import('./charte.mjs').catch(() => ({ jugerSalle: null }));
+// la charte ne dépend pas de l'éditeur : un import qui casse doit faire rougir, pas se taire
+import { jugerSalle } from './charte.mjs';
 
 let ok = 0; let ko = 0;
 const test = async (nom, fn) => { try { await fn(); ok++; console.log(`  ✓ ${nom}`); } catch (e) { ko++; console.log(`  ✗ ${nom}\n      ${e.message}`); } };
@@ -34,10 +35,8 @@ await test('le plan : une salle d\'entrée, les index, les réglages, les partag
   assert.deepEqual(JSON.parse(plan.fichiers[0].contenu), ['entree.json']);
   assert.deepEqual(JSON.parse(plan.fichiers[2].contenu), []);
   assert.deepEqual(plan.partages, PARTAGES);
-  if (jugerSalle) {
-    const bilan = jugerSalle(salle, new Map(), false);
-    assert.deepEqual(bilan.fautes, [], 'la salle neuve tient la charte');
-  }
+  const bilan = jugerSalle(salle, new Map(), false);
+  assert.deepEqual(bilan.fautes, [], 'la salle neuve tient la charte');
 });
 
 const tmp = mkdtempSync(join(tmpdir(), 'galerie-neuve-'));

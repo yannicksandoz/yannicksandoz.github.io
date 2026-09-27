@@ -22,13 +22,13 @@ const FR = {
   'survol.inconnue': '??? — approchez pour découvrir',
   'enter.audio': 'Visite audio',
   'enter.tip': "{move} ou flèches pour se déplacer · {pivot} pour pivoter · souris pour orbiter · clic sur une œuvre pour l'approcher",
-  'enter.tip.touch': "1 doigt pour regarder autour · 2 doigts pour se déplacer et zoomer · joystick pour marcher · bouton ≫ maintenu pour courir · toucher une œuvre pour l'approcher",
+  'enter.tip.touch': "1 doigt pour regarder autour · 2 doigts ou le manche pour marcher · le bouton coureur, en bas à droite, maintenu pour courir · toucher une œuvre pour l'approcher",
   'enter.liste': 'Parcourir les œuvres en liste (2D)',
   'enter.error': "La configuration des œuvres n'a pas pu être chargée — l'incident est presque toujours passager.",
   'enter.retry': 'Réessayer',
 
   'hint.line': '{move} · {pivot} : pivoter · clic ou Espace : découvrir',
-  'hint.touch': '1 doigt : regarder · 2 doigts : se déplacer · joystick : marcher · ≫ maintenu : courir · toucher : découvrir',
+  'hint.touch': '1 doigt : regarder · 2 doigts ou le manche : marcher · coureur maintenu : courir · toucher : découvrir',
   'hint.fly': 'Vous planez · avancez en regardant vers le bas pour vous poser',
   // la prise en main : un geste à la fois, puis silence (core/gestes.js)
   'geste.regarder': 'Regardez autour de vous : glissez la souris, bouton enfoncé',
@@ -165,6 +165,7 @@ const FR = {
   'tour.room.done': 'Pièce complète.',
 
   'focus.tip': 'Échap ou × pour reculer',
+  'focus.tip.touch': 'Touchez ailleurs ou × pour reculer',
   'focus.close': 'Fermer',
   'ad.play': "Écouter la description de l'image",
   'ad.stop': 'Arrêter la description',
@@ -193,13 +194,13 @@ const EN = {
   'survol.inconnue': '??? — come closer to discover',
   'enter.audio': 'Audio tour',
   'enter.tip': '{move} or arrow keys to move · {pivot} to turn · mouse to orbit · click a work to approach it',
-  'enter.tip.touch': '1 finger to look around · 2 fingers to move and zoom · joystick to walk · hold ≫ to run · tap a work to approach it',
+  'enter.tip.touch': '1 finger to look around · 2 fingers or the stick to walk · hold the runner button, bottom right, to run · tap a work to approach it',
   'enter.liste': 'Browse the works as a list (2D)',
   'enter.error': 'The artwork configuration could not be loaded — this is almost always temporary.',
   'enter.retry': 'Try again',
 
   'hint.line': '{move} · {pivot}: turn · click or Space: discover',
-  'hint.touch': '1 finger: look · 2 fingers: move · joystick: walk · hold ≫: run · tap: discover',
+  'hint.touch': '1 finger: look · 2 fingers or the stick: walk · hold the runner: run · tap: discover',
   'hint.fly': 'You are gliding · look down and move forward to land',
   'geste.regarder': 'Look around: drag with the mouse button held',
   'geste.avancer': 'Move: {move} or the arrow keys',
@@ -335,6 +336,7 @@ const EN = {
   'tour.room.done': 'Room complete.',
 
   'focus.tip': 'Escape or × to step back',
+  'focus.tip.touch': 'Tap elsewhere or × to step back',
   'focus.close': 'Close',
   'ad.play': 'Listen to the image description',
   'ad.stop': 'Stop the description',
@@ -369,7 +371,9 @@ export function t(key, vars = {}) {
   const dict = DICTS[courante] ?? FR;
   let s = dict[key] ?? FR[key] ?? key;
   const all = { ...vars };
-  if (all.n !== undefined && all.s === undefined) all.s = all.n > 1 ? 's' : '';
+  // le pluriel : en français, zéro est singulier (« 0 œuvre ») ; en anglais,
+  // tout ce qui n'est pas un est pluriel (« 0 works », « 1 work »)
+  if (all.n !== undefined && all.s === undefined) all.s = (courante === 'en' ? all.n !== 1 : all.n > 1) ? 's' : '';
   for (const [k, v] of Object.entries(all)) s = s.replaceAll(`{${k}}`, String(v));
   return s;
 }

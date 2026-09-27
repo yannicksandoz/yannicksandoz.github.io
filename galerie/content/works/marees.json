@@ -1,7 +1,7 @@
 {
   "id": "marees",
   "title": "Triptyque des marées",
-  "description": "Trois strates sonores aux rayons concentriques : la nappe grave s'entend de loin, l'arpège apparaît à mi-distance, les scintillements ne se révèlent qu'au plus près. Démo : StemMixer (un rayon par stem) + FocusCamera.",
+  "description": "Trois strates sonores aux rayons concentriques : la nappe grave s'entend de loin, l'arpège apparaît à mi-distance, les scintillements ne se révèlent qu'au plus près.",
   "position": [
     5.5,
     3.15,

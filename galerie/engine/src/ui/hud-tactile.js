@@ -67,6 +67,14 @@ export class MinuterieHud {
 export const EFFACES = ['#toolbox', '#minimap', '#room-badge-name', '#progress-badge'];
 
 /**
+ * Les panneaux qui, OUVERTS, tiennent le HUD visible. Le menu et le plan
+ * restent dans le DOM une fois créés, cachés par `hidden` : sans le
+ * `:not([hidden])`, ils « tenaient » le HUD à vie dès le premier ☰, et le
+ * module ne s'effaçait plus jamais.
+ */
+export const PANNEAUX = '#progress-badge[aria-expanded="true"], #visit-menu:not([hidden]), #carte-pleine:not([hidden]), #focus-overlay:not([hidden])';
+
+/**
  * Monte l'effacement, sur tactile seulement. Rend une poignée { dispose }.
  * Sans `matchMedia` (nœud) ou sur un écran à pointeur fin, ne fait rien.
  */
@@ -79,10 +87,11 @@ export function mountHudTactile(app, { delai = DELAI } = {}) {
   const maintenant = () => performance.now() / 1000;
   minuterie._depuis = maintenant();
   let appui = null;
+  // le dernier pointerup qui a servi à RAMENER le HUD : il n'était pas pour
+  // la scène, et le clic de l'App (qui vient après, sur le canvas) le saute
+  let avale = null;
 
-  const panneauOuvert = () => Boolean(
-    document.querySelector('#progress-badge[aria-expanded="true"], #visit-menu, #carte-pleine, #focus-overlay:not([hidden])')
-  );
+  const panneauOuvert = () => Boolean(document.querySelector(PANNEAUX));
 
   const surAppui = (e) => {
     if (!e.isPrimary) return;
@@ -94,7 +103,7 @@ export function mountHudTactile(app, { delai = DELAI } = {}) {
     const t = maintenant();
     const glisse = Math.hypot(e.clientX - appui.x, e.clientY - appui.y) > TAP_PX;
     const long = (t - appui.t) * 1000 > TAP_MS;
-    if (!glisse && !long) minuterie.tap(t, e.clientY, window.innerHeight);
+    if (!glisse && !long && minuterie.tap(t, e.clientY, window.innerHeight)) avale = e;
     appui = null;
   };
   // en capture et passifs : on ÉCOUTE, on ne prend rien à la scène
@@ -115,6 +124,8 @@ export function mountHudTactile(app, { delai = DELAI } = {}) {
 
   const poignee = {
     minuterie,
+    /** Cet événement de pointeur a-t-il servi à ramener le HUD ? (identité de l'objet) */
+    aAvale: (e) => e != null && e === avale,
     dispose() {
       off?.();
       document.removeEventListener('pointerdown', surAppui, { capture: true });

@@ -1,7 +1,7 @@
 {
   "id": "onde-stationnaire",
   "title": "Onde stationnaire",
-  "description": "Scan gaussien de démonstration : une membrane figée en pleine vibration, sable de Chladni suspendu au-dessus des ventres. Fabriqué par scripts/genere-scan-demo.mjs — remplacez-le par votre propre capture (Polycam, Luma, .splat/.ksplat/.ply).",
+  "description": "Une membrane figée en pleine vibration : le sable de Chladni dessine les ventres et les nœuds de l'onde, suspendu au-dessus de la plaque. Le scan gaussien garde la lumière du moment de la capture.",
   "position": [
     -5,
     1.5,

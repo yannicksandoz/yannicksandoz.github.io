@@ -1,7 +1,7 @@
 {
   "id": "monolithe",
   "title": "Monolithe 55 Hz",
-  "description": "Stèle de verre sombre traversée d'ondes. Sa pulsation sub-grave est spatialisée en binaural (HRTF) : au casque, le son tourne autour de vous quand vous la contournez. Le shader se déforme et s'embrase à chaque battement. Démo : HRTFPanner + AudioReactive (uniforms de shader) + FocusCamera.",
+  "description": "Stèle de verre sombre traversée d'ondes. Sa pulsation sub-grave est spatialisée en binaural (HRTF) : au casque, le son tourne autour de vous quand vous la contournez. Le shader se déforme et s'embrase à chaque battement.",
   "position": [
     12,
     2.4,

@@ -61,10 +61,5 @@
       }
     }
   ],
-  "credit": {
-    "author": "Galerie",
-    "license": "CC0-1.0",
-    "sourceUrl": "https://github.com/yannicksandoz/yannicksandoz.github.io"
-  },
   "baseGain": 0.9
 }

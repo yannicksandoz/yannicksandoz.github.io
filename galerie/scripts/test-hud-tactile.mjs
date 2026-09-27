@@ -3,7 +3,7 @@
  * Lancer avec : npm test
  */
 import assert from 'node:assert/strict';
-import { MinuterieHud, DELAI, EFFACES } from '../engine/src/ui/hud-tactile.js';
+import { MinuterieHud, DELAI, EFFACES, PANNEAUX } from '../engine/src/ui/hud-tactile.js';
 
 let ok = 0; let ko = 0;
 const test = (nom, fn) => { try { fn(); ok++; console.log(`  ✓ ${nom}`); } catch (e) { ko++; console.log(`  ✗ ${nom}\n      ${e.message}`); } };
@@ -67,6 +67,14 @@ test('le délai se règle, et ☰ n\'est pas de ce qui s\'efface', () => {
   assert.equal(m.visible(2), false);
   assert.ok(EFFACES.includes('#toolbox') && EFFACES.includes('#minimap'));
   assert.ok(!EFFACES.includes('#room-menu-btn') && !EFFACES.includes('#hint'));
+});
+
+test('un panneau ne tient le HUD qu\'ouvert : le menu et le plan, cachés par `hidden`, restent dans le DOM', () => {
+  for (const id of ['#visit-menu', '#carte-pleine', '#focus-overlay']) {
+    assert.ok(PANNEAUX.includes(`${id}:not([hidden])`), `${id} doit être qualifié par :not([hidden])`);
+    assert.ok(!new RegExp(`${id}(,|$)`).test(PANNEAUX), `${id} nu tiendrait le HUD à vie`);
+  }
+  assert.ok(PANNEAUX.includes('#progress-badge[aria-expanded="true"]'));
 });
 
 console.log(`\n${ok} ✓ / ${ko} ✗`);

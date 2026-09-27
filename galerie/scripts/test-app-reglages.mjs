@@ -9,7 +9,7 @@ import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 
 const require = createRequire(import.meta.url);
-const { noterRecent, plusRecente, analyser, estUneGalerie, RECENTS_MAX } = require('../app/reglages-regles.cjs');
+const { noterRecent, plusRecente, analyser, estUneGalerie, lienExterneSur, portPrefere, PORT_PREFERE, RECENTS_MAX } = require('../app/reglages-regles.cjs');
 
 let ok = 0; let ko = 0;
 const test = (nom, fn) => { try { fn(); ok++; console.log(`  ✓ ${nom}`); } catch (e) { ko++; console.log(`  ✗ ${nom}\n      ${e.message}`); } };
@@ -51,6 +51,26 @@ test('un dossier de galerie se reconnaît à son index', () => {
   assert.ok(estUneGalerie('/g', existe));
   assert.ok(!estUneGalerie('/ailleurs', existe));
   assert.ok(!estUneGalerie('', existe));
+});
+
+test('dehors ne s\'ouvrent que le web et le courriel', () => {
+  assert.ok(lienExterneSur('https://freesound.org/people/x'));
+  assert.ok(lienExterneSur('http://localhost:5173/'));
+  assert.ok(lienExterneSur('mailto:quelqun@example.org'));
+  assert.ok(!lienExterneSur('file:///C:/Windows/System32/calc.exe'));
+  assert.ok(!lienExterneSur('ms-msdt:/id x'));
+  assert.ok(!lienExterneSur('javascript:alert(1)'));
+  assert.ok(!lienExterneSur('pas une adresse'));
+  assert.ok(!lienExterneSur(undefined));
+});
+
+test('le port préféré : celui du dernier lancement s\'il est plausible, sinon le port fixe', () => {
+  assert.equal(portPrefere({ port: 51234 }), 51234);
+  assert.equal(portPrefere({}), PORT_PREFERE);
+  assert.equal(portPrefere({ port: 0 }), PORT_PREFERE);
+  assert.equal(portPrefere({ port: 80 }), PORT_PREFERE);
+  assert.equal(portPrefere({ port: 'x' }), PORT_PREFERE);
+  assert.equal(portPrefere(null), PORT_PREFERE);
 });
 
 console.log(`\n${ok} ✓  ${ko} ✗`);

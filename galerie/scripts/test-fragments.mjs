@@ -111,29 +111,68 @@ function moteurFactice() {
     }
   };
   const sources = [];
+  const decodages = [];   // chaque `load` qui a dû décoder (le cache ne l'avait pas)
   return {
-    ctx, sources, usages,
+    ctx, sources, usages, decodages,
     load(url) {
       usages.set(url, (usages.get(url) ?? 0) + 1);
       if (!cache.has(url)) {
+        decodages.push(url);
         const i = Number(url.match(/(\d{3})\.webm$/)[1]);
         const longueur = planFragments(MANIFESTE.duree, 10, 0.1)[i].longueur;
         cache.set(url, Promise.resolve({ duration: longueur, length: Math.round(longueur * 48000), numberOfChannels: 2 }));
       }
       return cache.get(url);
     },
-    release(url) { const r = (usages.get(url) ?? 1) - 1; if (r > 0) usages.set(url, r); else usages.delete(url); },
+    // comme AudioEngine : un tampon que plus personne ne compte quitte le cache
+    release(url) { const r = (usages.get(url) ?? 1) - 1; if (r > 0) usages.set(url, r); else { usages.delete(url); cache.delete(url); } },
     residents() { return [...usages.keys()]; }
   };
 }
 const attendre = () => new Promise((r) => setTimeout(r, 0));
 
-await test('précharger décode le premier segment sans le garder tenu', async () => {
+await test('précharger décode le premier segment et le garde tenu jusqu\'au départ : un seul décodage', async () => {
   const engine = moteurFactice();
   const l = new LecteurFragments({ engine, manifeste: MANIFESTE, motif: 'assets/x.frag/{i}.webm', cfg: {}, destination: engine.ctx.createGain() });
   const b = await l.precharger();
   assert.equal(b.duration, 10.1);
-  assert.equal(l.residents(), 0);
+  assert.equal(l.residents(), 1, 'le premier segment reste tenu');
+  l.demarrer(1);
+  for (let k = 0; k < 6; k++) await attendre();
+  assert.deepEqual(engine.decodages.filter((u) => u.endsWith('000.webm')), ['assets/x.frag/000.webm'], 'le segment 000 n\'est décodé qu\'une fois');
+  assert.equal(engine.usages.get('assets/x.frag/000.webm'), 1, 'et compté une fois');
+  l.liberer();
+  assert.deepEqual(engine.residents(), []);
+  // préchargé puis jamais démarré : libérer rend aussi le segment préchargé
+  const l2 = new LecteurFragments({ engine, manifeste: MANIFESTE, motif: 'assets/x.frag/{i}.webm', cfg: {}, destination: engine.ctx.createGain() });
+  await l2.precharger();
+  l2.liberer();
+  assert.deepEqual(engine.residents(), []);
+});
+
+await test('arrêter pendant un téléchargement, puis redémarrer : aucun morceau ne part deux fois au même instant', async () => {
+  const engine = moteurFactice();
+  // un `load` différé : le segment n'arrive qu'à la demande
+  const enAttente = [];
+  const loadImmediat = engine.load.bind(engine);
+  engine.load = (url) => new Promise((resoudre, rejeter) => enAttente.push(() => loadImmediat(url).then(resoudre, rejeter)));
+  const l = new LecteurFragments({ engine, manifeste: MANIFESTE, motif: 'assets/x.frag/{i}.webm', cfg: {}, destination: engine.ctx.createGain() });
+  l.demarrer(0);
+  await attendre();
+  assert.equal(enAttente.length, 1, 'le segment 0 est demandé');
+  engine.ctx.avancer(3);
+  l.arreter(3);                       // pendant que le segment 0 voyage encore
+  engine.ctx.avancer(2);
+  l.demarrer(5);                      // le nouveau passage demande à son tour le segment 0
+  await attendre();
+  assert.equal(enAttente.length, 2);
+  enAttente.forEach((fn) => fn());    // les deux téléchargements aboutissent
+  for (let k = 0; k < 8; k++) await attendre();
+  const departs = engine.sources.map((s) => s.demarre.quand);
+  assert.deepEqual(departs.filter((q) => q === 5), [5], `le passage périmé ne joue pas : ${JSON.stringify(departs)}`);
+  assert.ok(!departs.some((q) => q < 5), 'rien ne part sur l\'ancienne origine');
+  l.liberer();
+  assert.deepEqual(engine.residents(), [], 'le segment du passage périmé est rendu');
 });
 await test('démarrer programme l\'horizon, pas plus ; les sources partent aux bons instants', async () => {
   const engine = moteurFactice();
@@ -154,6 +193,14 @@ await test('démarrer programme l\'horizon, pas plus ; les sources partent aux b
   engine.sources[0].onended();
   assert.equal(l.residents(), 2);
   assert.ok(!engine.residents().includes('assets/x.frag/000.webm'));
+  // au tour de boucle, le segment 000 est repris : chargé une seconde fois,
+  // il doit être rendu autant de fois qu'il a été pris
+  engine.ctx.avancer(30);
+  l._planifier();
+  for (let k = 0; k < 8; k++) await attendre();
+  assert.equal(engine.usages.get('assets/x.frag/000.webm'), 1, 'repris au tour de boucle');
+  assert.ok(engine.sources.some((s) => s.demarre.quand >= 41), 'le tour de boucle est programmé');
+  // libérer rend chaque segment autant de fois qu'il a été pris : plus rien au cache
   l.liberer();
   assert.equal(l.residents(), 0);
   assert.deepEqual(engine.residents(), [], 'plus rien au cache du moteur');

@@ -144,6 +144,39 @@ test('…et ne remonte jamais, même une minute à la cible', () => {
   fin();
 });
 
+test('le taux se lit sur l\'horodatage du rappel : une image de 9 ms au chrono n\'est pas un 120 Hz', () => {
+  const fin = silence();
+  const q = new QualityManager();
+  const app = appFactice();
+  q._fps = 60;
+  // un écran à 60 Hz exact : les horodatages avancent de 16,7 ms, mais le
+  // chrono, qui date le début du travail, voit une image retardée puis une
+  // image « courte » de 9 ms (une tâche longue entre les deux)
+  let time = 0;
+  for (let i = 0; i < 60 * 8; i++) {
+    time += 1000 / 60;
+    const dt = (i === 100) ? 0.0243 : (i === 101) ? 0.009 : 1 / 60;
+    q.tick(dt, app, time);
+  }
+  assert.equal(q._hz, 60, 'le 60 Hz reste un 60 Hz');
+  assert.equal(q.profile.pixelRatio, 2, 'à 60 images sur 60 Hz, la densité ne bouge pas');
+  // le retour d'onglet : le chrono est purgé, l'horodatage saute, rien n'est lu comme un taux
+  time += 30000;
+  q.tick(0.009, app, time);
+  for (let i = 0; i < 60 * 4; i++) { time += 1000 / 60; q.tick(1 / 60, app, time); }
+  assert.equal(q._hz, 60);
+  assert.equal(q.profile.pixelRatio, 2);
+  fin();
+});
+
+test('sans horodatage (les bancs), le chrono fait foi comme avant', () => {
+  const q = new QualityManager();
+  const app = appFactice();
+  q._fps = 60;
+  tourner(q, app, { fps: 60, hz: 120, secondes: 4 });
+  assert.equal(q._hz, 120);
+});
+
 test('58 images sur un écran à 60 Hz : au-dessus de la cible (57), rien ne bouge', () => {
   const q = new QualityManager();
   const app = appFactice();

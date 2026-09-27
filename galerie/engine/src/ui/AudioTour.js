@@ -353,6 +353,19 @@ export class AudioTour {
   }
 
   /**
+   * Pose le libellé sur un bouton, avec sa LANGUE : le titre d'une œuvre est
+   * du contenu (français), « Œuvre non découverte » est de l'interface (la
+   * langue courante). Sans `lang`, un lecteur d'écran en anglais lisait
+   * « Nébuleuse de la porte fermée » avec la voix anglaise.
+   */
+  _poserLibelle(b, art) {
+    const libelle = this._libelle(art);
+    b.textContent = libelle;
+    if (libelle === t('tour.unknown')) b.removeAttribute('lang');
+    else b.lang = 'fr';
+  }
+
+  /**
    * Photographie de ce qui est déjà rencontré en arrivant : sans elle, la
    * première découverte de la pièce annoncerait aussi tout ce qu'on avait
    * trouvé lors d'une visite précédente.
@@ -412,7 +425,7 @@ export class AudioTour {
 
     for (const b of this.el.querySelectorAll('#at-works button')) {
       const art = liste.find((a) => a.config.id === b.dataset.work);
-      if (art) b.textContent = this._libelle(art);
+      if (art) this._poserLibelle(b, art);
     }
     this._updateRoomLabel();
     if (!nouvelles.length) return;
@@ -439,7 +452,7 @@ export class AudioTour {
       const li = document.createElement('li');
       const b = document.createElement('button');
       b.dataset.work = art.config.id;
-      b.textContent = this._libelle(art);
+      this._poserLibelle(b, art);
       b.tabIndex = -1;
       li.appendChild(b);
       b.addEventListener('click', () => this._approach(art));

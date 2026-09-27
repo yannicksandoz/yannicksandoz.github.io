@@ -5,6 +5,9 @@
   "author": "Yannick Sandoz",
   "version": "1.0.0-beta.1",
   "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
   "main": "app/main.cjs",
   "description": "Galerie d'art 3D immersive, statique et modulaire (Vite + Three.js + Web Audio)",
   "scripts": {
@@ -24,6 +27,7 @@
     "sonde:lumiere": "node scripts/sonde-lumiere.cjs",
     "sonde:lisere": "node scripts/sonde-lisere.cjs",
     "budget": "node scripts/budget-salles.mjs",
+    "charte": "node scripts/charte.mjs",
     "assets": "node scripts/generate-assets.mjs",
     "library": "node scripts/generate-library.mjs",
     "test": "node scripts/tests.mjs",
@@ -68,6 +72,9 @@
       "!**/*.map"
     ],
     "asar": true,
+    "asarUnpack": [
+      "dist-auteur/**"
+    ],
     "mac": {
       "category": "public.app-category.graphics-design",
       "target": [

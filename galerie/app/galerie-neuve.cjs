@@ -89,6 +89,7 @@ async function creerGalerie(dossier, { titre, partagesDepuis } = {}) {
     await fs.writeFile(abs, f.contenu, 'utf8');
   }
   const copies = [];
+  const manquants = [];
   for (const nom of plan.partages) {
     const source = partagesDepuis ? path.join(partagesDepuis, nom) : null;
     if (!source) continue;
@@ -97,9 +98,10 @@ async function creerGalerie(dossier, { titre, partagesDepuis } = {}) {
       copies.push(nom);
     } catch (e) {
       if (e.code !== 'ENOENT') throw e;   // un partagé absent du build : tant pis, pas une faute
+      manquants.push(nom);                // …mais on le dit à l'auteur
     }
   }
-  return { fichiers: plan.fichiers.map((f) => f.chemin), partages: copies };
+  return { fichiers: plan.fichiers.map((f) => f.chemin), partages: copies, manquants };
 }
 
 module.exports = { planGalerieNeuve, creerGalerie, dossierVide, salleDEntree, PARTAGES };

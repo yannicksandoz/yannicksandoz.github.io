@@ -4,12 +4,15 @@ Ce dépôt intègre ou charge les composants tiers listés ci-dessous. Leurs
 licences respectives s'appliquent à eux, indépendamment des licences de ce
 dépôt (voir `LICENSE.txt`).
 
-Aucun de ces composants n'est vendoré — **à une exception près, signalée
-comme telle** (le limiteur Airwindows, plus bas) : les autres sont soit
-installés par `npm` ou `bundler`, soit chargés depuis un CDN. Les inventaires
-ci-dessous sont donc à relire après toute mise à jour de dépendance.
+Cinq composants sont **recopiés dans le dépôt**, avec leur provenance :
+les plugins Airwindows (portage), le lettrage Slug (portage), les courbes
+d'Inter, les icônes Lucide (mode Auteur seul) et les matières de three.js
+(`engine/assets/provenance.json`). Les autres sont installés par `npm` et
+assemblés par le bundler. Trois textes de licence partent avec chaque build
+(`LICENCES/airwindows-MIT.txt`, `slug-MIT.txt`, `inter-OFL.txt`). Les
+inventaires ci-dessous sont à relire après toute mise à jour de dépendance.
 
-Dernière vérification : 12 août 2026.
+Dernière vérification : 25 septembre 2026.
 
 ---
 
@@ -128,8 +131,8 @@ tombe volontiers, parce qu'on retient « MIT = il suffit de citer l'auteur ».
 Le texte dit exactement : *« The above copyright notice **and this permission
 notice** shall be included in all copies or substantial portions of the
 Software »*. Il faut donc que le TEXTE de la licence voyage avec le code, et
-pas seulement le nom. Neuf plugins portés, c'est une part substantielle, et
-un portage est une œuvre dérivée.
+pas seulement le nom. Quinze plugins portés (un en C, compilé en wasm), c'est
+une part substantielle, et un portage est une œuvre dérivée.
 
 Le texte complet est donc livré, à la racine du dépôt
 ([`LICENSE-airwindows-MIT.txt`](LICENSE-airwindows-MIT.txt)) **et dans le
@@ -202,14 +205,27 @@ certaines icônes dérivent de Feather, MIT, © Cole Bemis). Elles sont
 module généré (`engine/src/editor/icones.js`) qui porte le texte ISC et le
 crédit. Rien de Lucide n'atteint le build Visiteur.
 
+### Application auteur (binaires privés, jamais publiés ici)
+
+| Composant | Version | Licence | Copyright |
+|---|---|---|---|
+| [Electron](https://www.electronjs.org) *(embarqué dans les .dmg / .exe / AppImage de l'application auteur — avec Chromium, BSD-3-Clause, et Node.js, MIT ; electron-builder dépose leurs textes dans le paquet)* | 44.x | MIT | © Electron contributors |
+
+L'application auteur (`galerie/app/`) est construite par `electron-builder`
+(MIT, outillage) dans le dépôt privé de l'éditeur ; ses binaires embarquent
+le build auteur, donc l'éditeur : ils ne sont jamais publiés ici.
+
 ### Outillage (jamais livré)
 
 | Composant | Version | Licence |
 |---|---|---|
 | [Vite](https://vitejs.dev) | 5.4.x | MIT |
+| [electron-builder](https://www.electron.build) | 26.x | MIT |
+| [jpeg-js](https://github.com/jpeg-js/jpeg-js) *(scripts/rapatrie-matieres.mjs)* | 0.4.4 | BSD-3-Clause |
 
-Vite et ses dépendances transitives servent à construire le site ; aucun de
-leurs fichiers ne se retrouve dans `dist/`.
+Vite, electron-builder, jpeg-js et leurs dépendances transitives servent à
+construire le site et les paquets ; aucun de leurs fichiers ne se retrouve
+dans `dist/`.
 
 ### Rien d'autre
 

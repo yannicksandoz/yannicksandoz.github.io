@@ -118,15 +118,16 @@ console.log('\nce qui disparaît');
     'galerie/content/works/works.json',       // fichier COMBINÉ : une ombre
     'galerie/content/rooms/hall.json',
     'galerie/content/rooms/index.json',
+    'galerie/content/gabarits/vieux.json',    // un modèle de pièce renommé depuis
     'galerie/content/assets/son.mp3',         // un média : on n'y touche pas
     'galerie/content/reglages.json',          // hors works/ et rooms/
     'galerie/index.html',                     // le site lui-même
     'autre-dossier/works/perdue.json'         // hors du dossier de contenu
   ];
   const retires = entreesRetirees(distant, plan, 'galerie/content').map((e) => e.path);
-  check('seuls les JSON orphelins de works/ et rooms/ partent',
+  check('seuls les JSON orphelins de works/, rooms/ et gabarits/ partent',
     retires.sort(),
-    ['galerie/content/works/ancienne.json', 'galerie/content/works/works.json']);
+    ['galerie/content/gabarits/vieux.json', 'galerie/content/works/ancienne.json', 'galerie/content/works/works.json']);
   check('une suppression est un blob à sha nul',
     entreesRetirees(distant, plan, 'galerie/content')[0].sha, null);
   check('rien de connu ne disparaît',

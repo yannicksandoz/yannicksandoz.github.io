@@ -27,6 +27,12 @@ html, body {
    le défilement (les menus, la liste), retire le double-tap-zoom. */
 * { touch-action: manipulation; }
 html, body, #app, #app canvas { touch-action: none; }
+/* Le texte qui se lit se laisse sélectionner : « Énoncer la sélection »
+   (iOS, macOS) peut alors le dire, et un titre, un auteur à citer se
+   copient. Le `none` global reste pour la scène et les boutons. */
+#focus-overlay h2, #focus-overlay p, .credits-card, .at-panel, .cp-legende, #progress-list {
+  -webkit-user-select: text; user-select: text;
+}
 
 #app, #app canvas { position: fixed; inset: 0; display: block; }
 
@@ -78,7 +84,9 @@ html, body, #app, #app canvas { touch-action: none; }
 
 /* ----------------------------------------------------- fiche d'œuvre --- */
 #focus-overlay {
-  position: fixed; left: 50%; bottom: 4vh; transform: translateX(-50%);
+  /* le même inset que la rangée du bas : sous l'indicateur d'accueil, le
+     système avale le geste sur le pense-bête et les actions de la fiche */
+  position: fixed; left: 50%; bottom: calc(4vh + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%);
   z-index: 20; width: min(34rem, 92vw);
   padding: 1.4rem 1.6rem; border-radius: 0.8rem;
   background: var(--panel); backdrop-filter: blur(12px);
@@ -95,6 +103,10 @@ html, body, #app, #app canvas { touch-action: none; }
   font-size: 1.4rem; cursor: pointer;
 }
 #focus-close:hover { color: var(--fg); }
+/* au doigt, la croix a la taille d'un doigt (44 px), le glyphe reste */
+@media (pointer: coarse) {
+  #focus-close { width: 2.75rem; height: 2.75rem; top: 0.2rem; right: 0.3rem; padding: 0; }
+}
 
 /* -------------------------------------------------------------- aide --- */
 #hint {
@@ -325,7 +337,11 @@ html, body, #app, #app canvas { touch-action: none; }
 
 /* ---------------------------------------------------------- joystick --- */
 #joystick {
-  position: fixed; left: 1.4rem; bottom: 1.6rem; z-index: 15;
+  /* même inset que le bouton course : sous l'indicateur d'accueil, ou sous
+     l'encoche en paysage, le système avale le geste */
+  position: fixed; z-index: 15;
+  left: calc(1.4rem + env(safe-area-inset-left, 0px));
+  bottom: calc(1.6rem + env(safe-area-inset-bottom, 0px));
   width: 7.5rem; height: 7.5rem; border-radius: 50%;
   background: rgba(255, 255, 255, 0.05);
   border: 1px solid rgba(255, 255, 255, 0.12);
@@ -375,7 +391,7 @@ html, body, #app, #app canvas { touch-action: none; }
 
 /* ------------------------------------------------------ petits écrans --- */
 @media (max-width: 640px) {
-  #focus-overlay { bottom: 2vh; padding: 1rem 1.1rem; }
+  #focus-overlay { bottom: calc(2vh + env(safe-area-inset-bottom, 0px)); padding: 1rem 1.1rem; }
   #focus-overlay h2 { font-size: 1.1rem; }
   #focus-overlay p { font-size: 0.82rem; }
   /* la ligne des touches n'a pas sa place au doigt ; la prise en main (un
@@ -411,6 +427,14 @@ html, body, #app, #app canvas { touch-action: none; }
   }
 }
 
+/* Un téléphone en PAYSAGE (812 × 375) ne passe pas sous 640 px de large :
+   il recevait la minimap de bureau (8.4rem, un tiers de la hauteur). Le
+   hublot seul rapetisse ; le reste de la mise en page tient. */
+@media (pointer: coarse) and (max-height: 480px) {
+  :root { --minimap: 5.2rem; }
+  #minimap { padding: 0.35rem; }
+}
+
 /* --------------------------------------------- prefers-reduced-motion --- */
 @media (prefers-reduced-motion: reduce) {
   #enter-screen { transition: none; }
@@ -439,6 +463,19 @@ html, body, #app, #app canvas { touch-action: none; }
   #toolbox, #minimap, #room-badge-name, #progress-badge,
   body.hud-efface #toolbox, body.hud-efface #minimap,
   body.hud-efface #room-badge-name, body.hud-efface #progress-badge { transition: none; }
+}
+
+/* ------------------------------------------- les cibles tactiles (44 px) --- */
+/* La règle de la maison (44 px pleins au doigt) ne valait que pour la
+   toolbox et ☰. Ici les autres gestes d'ouverture et de sortie : le
+   compteur ◈ (il ouvre le catalogue), la croix du plan, celle du menu, les
+   pastilles de langue. Le costume ne change pas, la zone touchable oui.
+   Le jeton de dérive reste à sa taille mesurée (voir la barre du bas). */
+@media (pointer: coarse) {
+  #progress-badge { min-height: 2.75rem; }
+  #cp-fermer { width: 2.75rem; height: 2.75rem; padding: 0; }
+  .vm-x { width: 2.75rem; height: 2.75rem; }
+  .vm-lang button { min-height: 2.75rem; }
 }
 
 .credits-card .credits-source {
@@ -797,7 +834,10 @@ html, body, #app, #app canvas { touch-action: none; }
 #derive-suiv:hover, #derive-suiv:focus-visible {
   background: linear-gradient(to left, rgba(159, 140, 255, 0.2), transparent);
 }
-.derive-bord:hover, .derive-bord:focus-visible { color: var(--fg); outline: none; }
+.derive-bord:hover { color: var(--fg); }
+/* le cadre de focus, dedans : la bande touche le bord de l'écran, un cadre
+   extérieur serait coupé */
+.derive-bord:focus-visible { color: var(--fg); outline: 3px solid var(--accent); outline-offset: -4px; }
 .derive-bord[disabled] { color: rgba(232, 230, 240, 0.2); cursor: default; }
 .derive-chevron {
   /* La BANDE fait toute la hauteur (c'est la zone qu'on pousse) ; la flèche

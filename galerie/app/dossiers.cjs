@@ -47,6 +47,31 @@ class Dossiers {
     return abs;
   }
 
+  /**
+   * Avant d'ÉCRIRE ou d'EFFACER : le chemin, une fois les liens symboliques
+   * suivis, doit encore être sous la racine réelle. La garde de `resoudre`
+   * est lexicale ; un `library/` qui serait un lien vers ailleurs (dossier
+   * de contenu venu d'une autre machine) ferait sinon écrire ou effacer
+   * hors de la galerie. Le fichier visé peut ne pas exister encore : on
+   * remonte au premier ancêtre présent.
+   */
+  async _resoudreReel(id, relatif) {
+    const abs = this.resoudre(id, relatif);
+    const racineReelle = await fs.realpath(id);
+    let ancetre = abs;
+    let reel = null;
+    while (true) {
+      try { reel = await fs.realpath(ancetre); break; } catch (e) {
+        if (e.code !== 'ENOENT' && e.code !== 'ENOTDIR') throw e;
+        const parent = path.dirname(ancetre);
+        if (parent === ancetre) throw e;
+        ancetre = parent;
+      }
+    }
+    if (reel !== racineReelle && !reel.startsWith(racineReelle + path.sep)) throw new Error('chemin refusé');
+    return abs;
+  }
+
   /** Ce qu'un dossier contient : [{ nom, kind }] ; un dossier absent est vide. */
   async lister(id, relatif = '') {
     const abs = this.resoudre(id, relatif);
@@ -75,23 +100,35 @@ class Dossiers {
     return { donnees, modifie: Math.round(s.mtimeMs) };
   }
 
-  /** Écrit (crée les dossiers intermédiaires) ; `donnees` : chaîne ou octets. */
+  /**
+   * Écrit (crée les dossiers intermédiaires) ; `donnees` : chaîne ou octets.
+   * L'écriture passe par un voisin temporaire puis un renommage : une
+   * coupure au milieu d'un `index.json` ne laisse jamais un fichier tronqué
+   * à sa place — c'est ce que fait `createWritable()` dans le navigateur.
+   */
   async ecrire(id, relatif, donnees) {
-    const abs = this.resoudre(id, relatif);
+    const abs = await this._resoudreReel(id, relatif);
     await fs.mkdir(path.dirname(abs), { recursive: true });
     const octets = typeof donnees === 'string' ? Buffer.from(donnees, 'utf8')
       : donnees instanceof ArrayBuffer ? Buffer.from(donnees) : Buffer.from(donnees ?? []);
-    await fs.writeFile(abs, octets);
+    const tmp = `${abs}.${process.pid}.tmp`;
+    try {
+      await fs.writeFile(tmp, octets);
+      await fs.rename(tmp, abs);
+    } catch (e) {
+      await fs.rm(tmp, { force: true }).catch(() => {});
+      throw e;
+    }
     return octets.length;
   }
 
   async creerDossier(id, relatif) {
-    await fs.mkdir(this.resoudre(id, relatif), { recursive: true });
+    await fs.mkdir(await this._resoudreReel(id, relatif), { recursive: true });
   }
 
   /** Retire un fichier ou un dossier (vide, ou entier avec `recursive`). */
   async supprimer(id, relatif, { recursive = false } = {}) {
-    const abs = this.resoudre(id, relatif);
+    const abs = await this._resoudreReel(id, relatif);
     if (abs === id) throw new Error('chemin refusé');   // jamais la racine elle-même
     await fs.rm(abs, { recursive, force: false });
   }

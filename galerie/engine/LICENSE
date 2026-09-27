@@ -10,7 +10,9 @@ PÉRIMÈTRE
 Cette licence couvre le moteur de galerie 3D et son outillage :
 
     galerie/engine/          moteur (runtime Visiteur et mode Auteur)
+    galerie/app/             l'application auteur (Electron)
     galerie/index.html
+    galerie/scan.html
     galerie/scripts/
     galerie/vite.config.js
     galerie/package.json

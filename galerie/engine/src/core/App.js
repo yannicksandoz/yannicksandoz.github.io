@@ -1098,7 +1098,7 @@ export class App {
     }
 
     const camPos = new THREE.Vector3();
-    this.renderer.setAnimationLoop(() => {
+    this.renderer.setAnimationLoop((time) => {
       // la première image est marquée au CHRONO À LA FIN de la première
       // boucle (compilation des shaders comprise) — voir plus bas
       const dt = Math.min(this.clock.getDelta(), 0.1);
@@ -1171,7 +1171,9 @@ export class App {
       if (!this.quality.reducedMotion) WATER_TIME.value = t % 3600;
       this.sortie.uniforms.uTime.value = t;
       if (this.warpPass.enabled) this.warpPass.uniforms.uTime.value = t;
-      this.quality.tick(dt, this);
+      // `time` : l'horodatage du rappel, aligné sur le balayage de l'écran —
+      // c'est lui qui dit le taux de l'écran, pas le chrono (voir Quality.tick)
+      this.quality.tick(dt, this, time);
 
       // LA CARTE D'OMBRE NE SE REDESSINE QUE SI QUELQUE CHOSE A CHANGÉ.
       //

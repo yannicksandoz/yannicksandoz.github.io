@@ -2,11 +2,12 @@
 <html lang="fr">
 <head>
   <meta charset="UTF-8" />
-  <!-- Le PINCEMENT reste possible (accessibilité) : les gestes de la scène
-       3D sont déjà capturés par le canvas (touch-action), le pincement sur
-       l'interface, lui, appartient à l'utilisateur. Le DOUBLE TAP, non :
-       il zoomait la page entière depuis un bouton du HUD, et la scène ne
-       laissait plus dézoomer — `touch-action: manipulation` (style.css). -->
+  <!-- AUCUN ZOOM DE PAGE, ni au double tap ni au pincement : `touch-action:
+       none` sur html et body (style.css) l'interdit partout, parce qu'un
+       zoom de page resté enclenché depuis un bouton du HUD n'est pas
+       récupérable depuis la scène, qui retient tous les gestes. Le plan
+       en grand (#carte-pleine) a son propre zoom, en JS. Le viewport ne
+       pose pas `user-scalable=no` : c'est le CSS qui décide, pas la balise. -->
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <meta name="theme-color" content="#05050a" />
   <title>Galerie — espace sonore</title>
@@ -95,9 +96,13 @@
   <!-- Fiche d'œuvre affichée par le module FocusCamera -->
   <div id="focus-overlay" hidden>
     <button id="focus-close" data-i18n-attr="aria-label:focus.close" aria-label="Fermer">×</button>
-    <h2 id="focus-title"></h2>
-    <p id="focus-meta" hidden></p>
-    <p id="focus-desc"></p>
+    <!-- le contenu (titres, descriptions) est en français, même quand
+         l'interface est en anglais : `lang` garde la bonne voix au lecteur
+         d'écran (il suivra la langue de la piste le jour où le contenu
+         sera bilingue, comme le bouton d'audiodescription) -->
+    <h2 id="focus-title" lang="fr"></h2>
+    <p id="focus-meta" hidden lang="fr"></p>
+    <p id="focus-desc" lang="fr"></p>
     <div id="focus-actions" hidden>
       <button id="focus-image" hidden type="button"></button>
       <!-- Audiodescription : n'apparaît que si l'œuvre en déclare une pour
@@ -118,7 +123,7 @@
 
   <!-- Chapeau (module TipJar) : redirection vers une page de paiement externe -->
   <div id="tipjar-overlay" hidden>
-    <button class="tipjar-close" aria-label="Fermer">×</button>
+    <button class="tipjar-close" aria-label="Fermer" data-i18n-attr="aria-label:focus.close">×</button>
     <p class="tipjar-message"></p>
     <a class="tipjar-button" target="_blank" rel="noopener noreferrer"></a>
     <p class="tip" data-i18n="tipjar.tip">Paiement hébergé par un prestataire externe — rien ne transite par ce site.</p>

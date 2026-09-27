@@ -1,7 +1,7 @@
 {
   "id": "moon",
-  "title": "Moon",
-  "description": "#space",
+  "title": "Lune",
+  "description": "",
   "position": [
     9.19,
     17.0,
@@ -29,7 +29,7 @@
   "lightIntensity": 0,
   "credit": {
     "author": "Poly by Google",
-    "license": "CC-BY 3.0",
+    "license": "CC-BY-3.0",
     "sourceUrl": "https://poly.pizza/m/9OPocAqXM0u"
   },
   "selfLit": true,

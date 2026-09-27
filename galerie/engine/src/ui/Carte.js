@@ -688,7 +688,9 @@ export class Minimap {
     this.el = document.createElement('div');
     this.el.id = 'minimap';
     this.el.setAttribute('aria-hidden', 'true');
-    this.el.title = 'Carte de la visite (Échap → Pièces)';
+    // l'info-bulle dit ce que fait le clic (le plan en grand), dans la langue courante
+    this.el.title = t('carte.ouvrir');
+    this._offLangueBulle = onLangChange(() => { this.el.title = t('carte.ouvrir'); });
     document.body.appendChild(this.el);
     // le catalogue s'ouvre SOUS le hublot : il doit savoir qu'il est là
     document.body.classList.add('avec-minimap');
@@ -859,6 +861,7 @@ export class Minimap {
   dispose() {
     this._off?.();
     this._offMemoire?.();
+    this._offLangueBulle?.();
     this.el.remove();
     document.body.classList.remove('avec-minimap');
     this.app._minimap = null;
