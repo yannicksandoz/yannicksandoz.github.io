@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { premierPas } from '../core/planGalerie.js';
 
 /**
  * Le POINTEUR : il montre toujours la prochaine chose à découvrir.
@@ -82,29 +83,18 @@ export class Boussole {
    */
   _porteVers(room, cible) {
     const rooms = this.app.rooms;
-    const vues = new Set([room.config.id]);
-    // file : [pièce, premier portail emprunté depuis la pièce courante]
-    const file = [];
-    for (const p of room.config.portals ?? []) {
-      const suivante = rooms.rooms.get(p.to);
-      if (!suivante || vues.has(suivante.config.id)) continue;
-      vues.add(suivante.config.id);
-      file.push([suivante, p.to]);
-    }
-    const salleCible = cible?.room?.config.id;
-    while (file.length) {
-      const [salle, premier] = file.shift();
-      if (salle.config.id === salleCible) {
-        // la porte de CETTE pièce qui engage ce chemin
-        const mesh = (room.portalMeshes ?? []).find(
-          (m) => (m.userData.portal?.cfg?.to ?? m.userData.portal?.to) === premier);
-        if (mesh) return mesh;
-      }
-      for (const voisine of this._voisines(salle)) {
-        if (vues.has(voisine.config.id)) continue;
-        vues.add(voisine.config.id);
-        file.push([voisine, premier]);
-      }
+    const configs = [...rooms.rooms.values()].map((r) => r.config);
+    const pas = premierPas(configs, room.config.id, cible?.room?.config.id);
+    if (!pas) return null;
+    // la porte de CETTE pièce qui engage ce chemin : son maillage, ou bien
+    // l'ŒUVRE qui la porte (portail `via`, sans maillage — une porte de
+    // service, un écran)
+    const mesh = (room.portalMeshes ?? []).find(
+      (m) => (m.userData.portal?.cfg?.to ?? m.userData.portal?.to) === pas.to);
+    if (mesh) return mesh;
+    if (pas.via) {
+      const art = this.app.artworks.find((a) => a.config.id === pas.via);
+      if (art?.group) return art.group;
     }
     return null;
   }

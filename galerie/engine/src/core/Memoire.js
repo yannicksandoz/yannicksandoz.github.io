@@ -172,6 +172,12 @@ export function resumeReprise(memoire, rooms = [], oeuvres = []) {
   const ids = new Set((oeuvres ?? []).map((w) => w?.id).filter(Boolean));
   let trouvees = 0;
   for (const w of memoire.oeuvres ?? []) if (ids.has(w)) trouvees++;
+  // La scène se bâtit AVANT que le visiteur n'entre, et bâtir note déjà la
+  // pièce d'arrivée : à qui a ouvert la page puis refermé l'onglet (ou fait
+  // la visite guidée), l'accueil disait « Dernière visite : Entrée · 0 œuvre
+  // rencontrée ». Une seule pièce et rien de rencontré, ce n'est pas une
+  // visite : rien à dire.
+  if (trouvees === 0 && (memoire.pieces?.size ?? 0) <= 1) return null;
   return { salle: piece.title ?? piece.id, trouvees, total: ids.size };
 }
 
@@ -244,11 +250,14 @@ export function recommencerLaVisite(app) {
   if (app.jetons) {
     app.jetons.compte = 0;
     app.jetons.oublier();       // les octaèdres seront reposés à l'entrée
+    app.jetons._notifier?.();   // la barre de dérive lit le solde par cet abonnement
   }
   if (app.progression) {
     app.progression.nouvelles = 0;
     app.progression._dwell?.clear?.();
-    app.progression._peindre?.();
+    // notifier, pas seulement repeindre : la dérive (son ◈, son fil) ne se
+    // repeint que sur cet abonnement — elle gardait l'ancien solde
+    app.progression._notifier?.();
   }
   // les portes annoncent le contenu des salles : elles mentiraient jusqu'au
   // prochain pas si on ne les reprenait pas ici

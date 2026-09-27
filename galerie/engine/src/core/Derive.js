@@ -324,11 +324,20 @@ export class Derive {
 
   /* ---------------------------------------------------------- marche --- */
 
+  /**
+   * Démarre la dérive ; rend true si elle est partie. Sans rien à rejouer
+   * ni à débloquer, elle DIT pourquoi dans la ligne du bas : le bouton de
+   * lecture qui le disait est caché en visite libre, et le menu comme la
+   * toolbox appelaient ici sans rien savoir — le visiteur cliquait, rien.
+   */
   demarrer() {
-    if (this.active) return;
+    if (this.active) return true;
     const connues = this.connues.length;
     if (connues === 0
-      && !((this.app.jetons?.compte ?? 0) > 0 && this.inconnues.length)) return;
+      && !((this.app.jetons?.compte ?? 0) > 0 && this.inconnues.length)) {
+      this.app.ui?.direUnInstant?.(t('derive.empty'));
+      return false;
+    }
     this.active = true;
     this._aRendre = false;                // une remise des commandes en attente
     this.app.activeFocus?.release?.();
@@ -347,6 +356,7 @@ export class Derive {
     // déblocage — c'est tout l'intérêt du jeton
     if (connues === 0) this._versInconnue(0);
     this._peindre();
+    return true;
   }
 
   /**

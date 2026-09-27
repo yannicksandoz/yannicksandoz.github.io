@@ -119,6 +119,29 @@ export class UI {
   }
 
   /**
+   * Une phrase dans la ligne du bas, quelques secondes, puis la ligne
+   * reprend son état (le geste en cours, ou l'aide des touches). Pour un
+   * geste qui n'a rien pu faire et doit le dire — « Laisse-toi porter »
+   * sans rien à rejouer. Sur petit écran, la ligne ne se voit qu'en
+   * `geste` (elle monte sous la barre) : on lui prête la classe le temps.
+   */
+  direUnInstant(texte, ms = 5000) {
+    if (!this.hint) return;
+    clearTimeout(this._instant);
+    const avaitGeste = this.hint.classList.contains('geste');
+    this.hint.classList.add('geste');
+    this.hint.textContent = texte;
+    this.hint.hidden = false;
+    this._instant = setTimeout(() => {
+      this._instant = null;
+      this.hint.classList.toggle('geste', avaitGeste);
+      if (this._planant) { this.hint.textContent = t('hint.fly'); return; }
+      if (this._geste !== undefined) this.peindreGeste(this._geste, this._porte);
+      else this._renderKeyTexts();
+    }, ms);
+  }
+
+  /**
    * LA PRISE EN MAIN : un geste à la fois dans la ligne du bas, puis rien.
    * `nom` est le geste à faire (`regarder`, `avancer`, `approcher`) ou null
    * quand tout est fait ; `porte` dit que la dérive porte le visiteur — on

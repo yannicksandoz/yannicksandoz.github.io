@@ -155,7 +155,7 @@ const seuil = page({
   <a class="retour" href="./">← Entrer dans la galerie (casque recommandé)</a>
   <main>
     <section aria-labelledby="salles">
-      <h2 id="salles">${habitees.length} pièces, ${compte(toutes.length)}</h2>
+      <h2 id="salles">${habitees.length} pièces habitées sur ${rooms.length}, ${compte(toutes.length)}</h2>
       <ul class="salles">
 ${sallesListe}
       </ul>

@@ -9,7 +9,7 @@
 import { readFileSync, readdirSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { planGalerie, empreinte, sortie } from '../engine/src/core/planGalerie.js';
+import { planGalerie, empreinte, sortie, premierPas } from '../engine/src/core/planGalerie.js';
 import { migrateRoom } from '../engine/src/core/schema.js';
 
 const racine = join(dirname(fileURLToPath(import.meta.url)), '..');
@@ -277,6 +277,35 @@ console.log('\nMémoire de visite');
   const sansDisque = new Memoire();
   sansDisque.noter('pieces', 'entree');
   check('sans droit d\'écrire, la mémoire vit en RAM', [...sansDisque.pieces], ['entree']);
+}
+
+/* ------------------------------------------ le premier pas du pointeur --- */
+console.log('\nLe premier pas vers une pièce');
+{
+  const R = [
+    { id: 'a', portals: [{ to: 'b' }, { to: 'c', via: 'porte-c' }] },
+    { id: 'b', portals: [{ to: 'a' }, { to: 'd' }] },
+    { id: 'c', portals: [{ to: 'a' }] },
+    { id: 'd', portals: [{ to: 'b' }, { to: 'e', via: 'ecran-e' }] },
+    { id: 'e', portals: [] },
+    { id: 'seule', portals: [{ to: 'nulle-part' }] }
+  ];
+  check('une voisine : son portail', premierPas(R, 'a', 'b'), { to: 'b', via: null });
+  check('une voisine par une œuvre-porte : le portail dit l\'œuvre', premierPas(R, 'a', 'c'), { to: 'c', via: 'porte-c' });
+  check('à deux portes : le premier portail du chemin le plus court', premierPas(R, 'a', 'e'), { to: 'b', via: null });
+  check('depuis d, la pièce e est derrière un écran', premierPas(R, 'd', 'e'), { to: 'e', via: 'ecran-e' });
+  check('injoignable, inconnue, ou soi-même : rien', [premierPas(R, 'e', 'a'), premierPas(R, 'a', 'x'), premierPas(R, 'a', 'a'), premierPas(R, 'seule', 'a')], [null, null, null, null]);
+
+  const dossier = join(racine, 'content', 'rooms');
+  const index = JSON.parse(readFileSync(join(dossier, 'index.json'), 'utf8'));
+  const noms = Array.isArray(index) ? index : (index.rooms ?? []);
+  const rooms = noms.map((n) => migrateRoom(
+    JSON.parse(readFileSync(join(dossier, n.endsWith('.json') ? n : `${n}.json`), 'utf8'))));
+  // le contenu réel : les deux cas où le pointeur se taisait
+  check('phare-02 → labo passe par la porte de service (une œuvre)', premierPas(rooms, 'phare-02', 'labo'), { to: 'labo', via: 'porte-aile-dev' });
+  check('shaders → dancefloor passe par l\'écran', premierPas(rooms, 'shaders', 'dancefloor'), { to: 'dancefloor', via: 'shader-dancefloor' });
+  vrai('depuis l\'entrée, toute pièce du contenu est joignable', rooms.every((r) => r.id === 'entree' || premierPas(rooms, 'entree', r.id)),
+    rooms.filter((r) => r.id !== 'entree' && !premierPas(rooms, 'entree', r.id)).map((r) => r.id).join(', '));
 }
 
 console.log(`\n${passed} réussis, ${failed} échoués`);

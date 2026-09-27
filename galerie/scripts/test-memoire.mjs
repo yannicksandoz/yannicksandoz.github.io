@@ -56,9 +56,22 @@ test('elle survit au rechargement, et l\'accueil la dit avec le compte des œuvr
   assert.deepEqual(resumeReprise(relue, ROOMS, OEUVRES), { salle: 'Bibliothèque', trouvees: 2, total: 4 });
 });
 
+test('une seule pièce et rien de rencontré : rien à dire — bâtir la scène note déjà l\'entrée', () => {
+  disque.clear();
+  const m = new Memoire();
+  m.noter('pieces', 'entree');
+  assert.equal(resumeReprise(m, ROOMS, OEUVRES), null, 'ouvrir la page puis refermer l\'onglet n\'est pas une visite');
+  m.noter('pieces', 'bibliotheque');
+  assert.deepEqual(resumeReprise(m, ROOMS, OEUVRES), { salle: 'Bibliothèque', trouvees: 0, total: 4 }, 'deux pièces : une visite');
+  const m2 = new Memoire(); disque.clear();
+  m2.noter('pieces', 'entree'); m2.noter('oeuvres', 'lune');
+  assert.deepEqual(resumeReprise(m2, ROOMS, OEUVRES), { salle: 'Entrée', trouvees: 1, total: 4 }, 'une œuvre rencontrée : une visite');
+});
+
 test('une pièce sans titre se dit par son identifiant ; une pièce disparue, par rien', () => {
   disque.clear();
   const m = new Memoire();
+  m.noter('pieces', 'entree');
   m.noter('pieces', 'labo');
   assert.deepEqual(resumeReprise(m, ROOMS, OEUVRES), { salle: 'labo', trouvees: 0, total: 4 });
   m.noter('pieces', 'annexe-retiree');

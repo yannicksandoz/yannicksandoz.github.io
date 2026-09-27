@@ -502,3 +502,36 @@ function traceChemin(a, b, pieces) {
   }
   return lisse.map(([x, z]) => [Math.round(x * 10) / 10, Math.round(z * 10) / 10]);
 }
+
+/**
+ * LE PREMIER PAS vers une pièce : le portail de `depuis` qui engage le
+ * chemin le plus court (parcours en largeur) vers `vers`. Rend
+ * { to, via } — `via` est l'œuvre-porte quand le portail est porté par une
+ * œuvre (module Portail) et n'a pas de maillage — ou null si la pièce est
+ * injoignable. Le pointeur (ui/Boussole.js) s'en sert : longtemps il ne
+ * cherchait que les maillages, et se taisait devant une porte de service
+ * ou un écran-portail — il envoyait au Phare 02 puis s'éteignait. Pur.
+ */
+export function premierPas(rooms, depuis, vers) {
+  const parId = new Map((rooms ?? []).map((r) => [r?.id, r]));
+  const origine = parId.get(depuis);
+  if (!origine || !parId.has(vers)) return null;
+  if (depuis === vers) return null;
+  const vues = new Set([depuis]);
+  const file = [];
+  for (const p of origine.portals ?? []) {
+    if (!p?.to || !parId.has(p.to) || vues.has(p.to)) continue;
+    vues.add(p.to);
+    file.push([p.to, { to: p.to, via: p.via ?? null }]);
+  }
+  while (file.length) {
+    const [id, premier] = file.shift();
+    if (id === vers) return premier;
+    for (const p of parId.get(id)?.portals ?? []) {
+      if (!p?.to || !parId.has(p.to) || vues.has(p.to)) continue;
+      vues.add(p.to);
+      file.push([p.to, premier]);
+    }
+  }
+  return null;
+}

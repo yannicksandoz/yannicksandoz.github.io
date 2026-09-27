@@ -178,6 +178,7 @@ const FR = {
   'credits.label': 'Crédits',
   'credits.unknown': 'auteur non précisé',
   'credits.polypizza': 'Modèles fournis par Poly Pizza',
+  'tipjar.message.fin': "Si cet espace vous a touché, vous pouvez soutenir son artiste.",
   'tipjar.support': "Soutenir l'artiste",
   'tipjar.tip': 'Paiement hébergé par un prestataire externe — rien ne transite par ce site.'
 };
@@ -349,6 +350,7 @@ const EN = {
   'credits.label': 'Credits',
   'credits.unknown': 'author not specified',
   'credits.polypizza': 'Models provided by Poly Pizza',
+  'tipjar.message.fin': 'If this space touched you, you can support its artist.',
   'tipjar.support': 'Support the artist',
   'tipjar.tip': 'Payment hosted by an external provider — nothing transits through this site.'
 };
