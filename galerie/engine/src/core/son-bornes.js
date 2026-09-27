@@ -53,10 +53,23 @@ export function bornesLecture(cfg, duree) {
  * (Artwork.setStemsActive) et les ambiances de pièce (RoomManager) passent
  * toutes les deux par ici — sans quoi une seule des deux aurait le trim.
  */
-export function lancerBoucle(src, cfg, quand) {
+export function lancerBoucle(src, cfg, quand, position = null) {
   const b = bornesLecture(cfg, src.buffer?.duration);
   src.loop = true;
   if (b.borne) { src.loopStart = b.debut; src.loopEnd = b.fin; }
-  src.start(quand, b.debut);
+  src.start(quand, positionDansBoucle(b, position));
   return b;
+}
+
+/**
+ * Où reprendre dans la boucle : `position` en secondes depuis le début de
+ * la boucle, ramenée dans [debut, fin) — ou le début si elle n'est pas
+ * donnée. C'est ce qui permet à une piste suspendue (budget de voix, pièce
+ * quittée) de REPRENDRE où elle en serait au lieu de repartir de sa
+ * première mesure : `position = (maintenant − premierDepart)`.
+ */
+export function positionDansBoucle(b, position) {
+  const longueur = b.fin - b.debut;
+  if (!Number.isFinite(position) || position <= 0 || longueur <= 0) return b.debut;
+  return b.debut + (((position % longueur) + longueur) % longueur);
 }

@@ -17,7 +17,12 @@
     {
       "file": "audio/monolithe-pulse.wav",
       "radius": 30,
-      "gain": 1
+      "gain": 1,
+      "formats": {
+        "webm": "audio/monolithe-pulse.webm",
+        "m4a": "audio/monolithe-pulse.m4a"
+      },
+      "fin": 6.0
     }
   ],
   "modules": [

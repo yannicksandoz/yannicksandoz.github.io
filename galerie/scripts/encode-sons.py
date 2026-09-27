@@ -41,8 +41,15 @@ def ffmpeg():
     return os.environ.get('FFMPEG') or shutil.which('ffmpeg')
 
 
-def encoder(ff, source, cible, args):
-    cmd = [ff, '-hide_banner', '-loglevel', 'error', '-y', '-i', source, *args, cible]
+def encoder(ff, source, cible, args, queue=0.0):
+    """Encode `source` vers `cible`. Avec `queue` > 0, le début du fichier est
+    recopié à sa suite sur cette durée : la dernière trame du codec (Opus
+    complète 20 ms, AAC laisse 37 ms de silence) tombe alors APRÈS la fin de
+    la boucle, que `fin` borne à la durée de l'original — le raccord se fait
+    sur des échantillons sains."""
+    filtre = [] if queue <= 0 else ['-filter_complex',
+        f'[0:a]asplit[a][b];[b]atrim=0:{queue:.3f}[t];[a][t]concat=n=2:v=0:a=1[s]', '-map', '[s]']
+    cmd = [ff, '-hide_banner', '-loglevel', 'error', '-y', '-i', source, *filtre, *args, cible]
     subprocess.run(cmd, check=True)
 
 
@@ -50,11 +57,26 @@ def a_jour(cible, source):
     return os.path.exists(cible) and os.path.getmtime(cible) >= os.path.getmtime(source)
 
 
+def duree(ff, source):
+    """La durée de l'original, en secondes (ffmpeg décode jusqu'au bout)."""
+    r = subprocess.run([ff, '-hide_banner', '-i', source, '-f', 'null', '-'], capture_output=True, text=True)
+    m = None
+    for morceau in r.stderr.split('time='):
+        morceau = morceau[:11]
+        if morceau[:2].isdigit() and morceau[2] == ':':
+            m = morceau
+    if not m:
+        return None
+    h, mn, s = m.split(':')
+    return round(int(h) * 3600 + int(mn) * 60 + float(s), 3)
+
+
 def main():
     p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     p.add_argument('--min-mo', type=float, default=1.0, help='taille minimale du fichier à encoder (Mo)')
     p.add_argument('--opus', default='64k', help='débit Opus (WebM)')
     p.add_argument('--aac', default='96k', help='débit AAC (MP4)')
+    p.add_argument('--queue', type=float, default=0.1, help='secondes du début recopiées en queue des boucles courtes (< 60 s), pour un raccord sain')
     p.add_argument('--dry-run', action='store_true')
     a = p.parse_args()
 
@@ -82,6 +104,9 @@ def main():
             base, _ = os.path.splitext(fichier)
             cibles = {'webm': base + '.webm', 'm4a': base + '.m4a'}
             print(f'{nom}: {fichier} ({os.path.getsize(source) / 1048576:.1f} Mo)')
+            d = None if a.dry_run else duree(ff, source)
+            # une BOUCLE COURTE (moins d'une minute) reçoit une queue : voir encoder()
+            queue = a.queue if (d is not None and d < 60) else 0.0
             for cle, rel in cibles.items():
                 abs_cible = os.path.join(CONTENU, rel)
                 if a_jour(abs_cible, source):
@@ -90,12 +115,21 @@ def main():
                     print(f'   {cle}: à encoder → {rel}')
                 else:
                     if cle == 'webm':
-                        encoder(ff, source, abs_cible, ['-vn', '-c:a', 'libopus', '-b:a', a.opus, '-vbr', 'on', '-application', 'audio'])
+                        encoder(ff, source, abs_cible, ['-vn', '-c:a', 'libopus', '-b:a', a.opus, '-vbr', 'on', '-application', 'audio'], queue)
                     else:
-                        encoder(ff, source, abs_cible, ['-vn', '-c:a', 'aac', '-b:a', a.aac, '-movflags', '+faststart'])
-                    print(f'   {cle}: {os.path.getsize(abs_cible) / 1048576:.1f} Mo → {rel}')
+                        encoder(ff, source, abs_cible, ['-vn', '-c:a', 'aac', '-b:a', a.aac, '-movflags', '+faststart'], queue)
+                    print(f'   {cle}: {os.path.getsize(abs_cible) / 1048576:.1f} Mo → {rel}' + (f' (queue {queue:.2f} s)' if queue else ''))
             if stem.get('formats') != cibles:
                 stem['formats'] = cibles
+                change = True
+            # LA BORNE DE FIN. Un encodage AAC laisse une queue de silence
+            # (~37 ms, la dernière trame complétée) que les décodeurs ne
+            # retirent pas tous : bouclée telle quelle, une piste courte
+            # aurait un trou à chaque tour. La fin de boucle est donc posée
+            # à la durée de l'ORIGINAL, une fois pour toutes les formats
+            # (son-bornes.js : loopEnd) — sauf si l'auteur l'a déjà écrite.
+            if stem.get('fin') is None and d:
+                stem['fin'] = d
                 change = True
             faits += 1
         if change and not a.dry_run:

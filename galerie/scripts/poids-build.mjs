@@ -48,23 +48,46 @@ export const EXTENSIONS_MEDIAS = new Set([
 ]);
 
 const MESURES = [
+  { cle: 'premierChargement', nom: 'premier chargement' },
   { cle: 'paquetPrincipal', nom: 'paquet principal' },
   { cle: 'jsTotal', nom: 'JavaScript total' },
   { cle: 'siteHorsMedias', nom: 'site hors médias' }
 ];
 
+/** Les configurations lues avant la porte, en plus de ce que la page référence. */
+const AVANT_LA_PORTE = ['works/works.json', 'rooms/rooms.json', 'reglages.json'];
+
 /**
- * Les trois mesures, d'après une liste de `{ chemin, taille }` (chemins
- * relatifs à la racine du build, séparateur `/`). Rend aussi, pour chaque
- * total, les fichiers qui y entrent, du plus lourd au plus léger.
+ * Ce que la page d'entrée fait télécharger AVANT la porte : les scripts,
+ * préchargements et feuilles de style qu'elle référence (`./assets/…`),
+ * plus les configurations combinées. Rend les chemins relatifs, page
+ * comprise. Pur, testé.
  */
-export function mesurer(fichiers) {
+export function fichiersAvantLaPorte(html) {
+  const chemins = new Set(['index.html']);
+  for (const m of String(html ?? '').matchAll(/(?:src|href)="\.\/(assets\/[^"]+)"/g)) chemins.add(m[1]);
+  for (const c of AVANT_LA_PORTE) chemins.add(c);
+  return [...chemins];
+}
+
+/**
+ * Les quatre mesures, d'après une liste de `{ chemin, taille }` (chemins
+ * relatifs à la racine du build, séparateur `/`) et le texte de la page
+ * d'entrée. Rend aussi, pour chaque total, les fichiers qui y entrent, du
+ * plus lourd au plus léger.
+ */
+export function mesurer(fichiers, html = '') {
   const js = fichiers.filter((f) => extname(f.chemin) === '.js');
   const horsMedias = fichiers.filter((f) => !EXTENSIONS_MEDIAS.has(extname(f.chemin).toLowerCase()));
   const parPoids = (l) => [...l].sort((a, b) => b.taille - a.taille);
   const paquets = parPoids(js.filter((f) => /(^|\/)assets\/index-[\w-]+\.js$/.test(f.chemin)));
   const somme = (l) => l.reduce((n, f) => n + f.taille, 0);
+  const avant = new Set(fichiersAvantLaPorte(html));
+  const premier = fichiers.filter((f) => avant.has(f.chemin));
   return {
+    // la seule ligne qui compte pour un téléphone : ce qui passe sur le
+    // réseau entre l'ouverture de la page et « porte »
+    premierChargement: { taille: somme(premier), fichiers: parPoids(premier) },
     paquetPrincipal: { taille: paquets[0]?.taille ?? 0, fichiers: paquets.slice(0, 1) },
     jsTotal: { taille: somme(js), fichiers: parPoids(js) },
     siteHorsMedias: { taille: somme(horsMedias), fichiers: parPoids(horsMedias) }
@@ -137,7 +160,9 @@ export const FICHIER_SEUILS = join(dirname(fileURLToPath(import.meta.url)), 'poi
 /** Le contrôle complet sur un dossier ; rend { mesures, manquements }. */
 export async function controler(racine, seuils) {
   const fichiers = await lireDossier(racine);
-  const mesures = mesurer(fichiers);
+  let html = '';
+  try { html = await readFile(join(racine, 'index.html'), 'utf8'); } catch { /* pas de page : la mesure vaut zéro */ }
+  const mesures = mesurer(fichiers, html);
   return { mesures, manquements: verdict(mesures, seuils) };
 }
 

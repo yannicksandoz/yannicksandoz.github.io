@@ -264,6 +264,19 @@ export class Spatialisation {
   /** Répartit HRTF sur les voies les plus proches, equalpower au-delà. */
   _repartirModeles() {
     const max = this.reglages.maxHRTF;
+    // Les voies INACTIVES (pièce voisine préchargée, œuvre suspendue par le
+    // budget de voix) rendent leur HRTF sans voile : muettes, personne
+    // n'entend la couture — et le budget redevient juste. Sans cela, les
+    // voies d'une pièce quittée gardaient leurs places, et celles de la
+    // pièce suivante naissaient toutes en equalpower (mesuré à la sonde :
+    // aux archives, sept voies sur dix, pour un budget de quatre).
+    for (const v of this.voies) {
+      if (v.modele === 'HRTF' && !v._bascule && !this._active(v)) {
+        try { v.panner.panningModel = 'equalpower'; } catch { /* nœud libéré */ }
+        v.modele = 'equalpower';
+        this._hrtfActives--;
+      }
+    }
     const actives = [...this.voies].filter((v) => this._active(v))
       .sort((a, b) => (a.artwork._distance ?? 1e9) - (b.artwork._distance ?? 1e9));
     actives.forEach((v, i) => {

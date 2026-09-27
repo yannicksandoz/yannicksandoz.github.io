@@ -1465,6 +1465,13 @@ export class Artwork {
 
     if (active) {
       const t0 = ctx.currentTime + 0.05;
+      // REPRENDRE OÙ L'ON EN SERAIT. Le budget de voix suspend et rétablit
+      // les œuvres au fil des pas ; une piste relancée de sa première mesure
+      // « rembobinait » à chaque retour — sur une nappe de cinq minutes, on
+      // l'entendait. Le premier départ est retenu, et la reprise se place
+      // comme si la piste n'avait jamais cessé (son-bornes.js).
+      this._premierDepart ??= t0;
+      const position = t0 - this._premierDepart;
       for (const s of this.stems) {
         // Le gain de la piste a été FONDU À ZÉRO à la suspension (voir
         // l'arrêt en fondu, ci-dessous) : sans le rendre ici, une œuvre
@@ -1474,13 +1481,13 @@ export class Artwork {
         // qui reconduit les gains chaque frame, masquait le défaut.
         s.gain.gain.cancelScheduledValues(t0);
         s.gain.gain.setTargetAtTime(s.cfg.gain ?? 1, t0, 0.12);
-        if (s.lecteur) { s.lecteur.demarrer(t0); continue; }
+        if (s.lecteur) { s.lecteur.demarrer(t0, position); continue; }
         const src = ctx.createBufferSource();
         src.buffer = s.buffer;
         src.connect(s.gain);
         // « debut » / « fin » : la part du fichier qui est l'œuvre — un
         // silence d'amorce ne se réécoute pas à chaque tour de boucle
-        lancerBoucle(src, s.cfg, t0);
+        lancerBoucle(src, s.cfg, t0, position);
         s.source = src;
       }
     } else {
@@ -1538,6 +1545,7 @@ export class Artwork {
     this.stems = [];
     this.audioReady = false;
     this._audioRequested = false;
+    this._premierDepart = null;   // rechargée, l'œuvre repart de son début
   }
 
   /** Libération totale (pièce lointaine ou suppression). */

@@ -13,7 +13,7 @@ import assert from 'node:assert/strict';
 import { existsSync, readFileSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { mesurer, verdict, texteRapport, ko, controler, EXTENSIONS_MEDIAS, FICHIER_SEUILS } from './poids-build.mjs';
+import { mesurer, verdict, texteRapport, ko, controler, fichiersAvantLaPorte, EXTENSIONS_MEDIAS, FICHIER_SEUILS } from './poids-build.mjs';
 
 let ok = 0; let ko_ = 0;
 const test = (nom, fn) => { try { fn(); ok++; console.log(`  ✓ ${nom}`); } catch (e) { ko_++; console.log(`  ✗ ${nom}\n      ${e.message}`); } };
@@ -32,6 +32,21 @@ const FICHIERS = [
   { chemin: 'assets/images/mur.JPG', taille: 800000 },
   { chemin: 'library/banc.glb', taille: 200000 }
 ];
+
+const HTML = `<!doctype html><html><head>
+  <script type="module" crossorigin src="./assets/index-AAA.js"></script>
+  <link rel="modulepreload" crossorigin href="./assets/three-CCC.js">
+  <link rel="stylesheet" crossorigin href="./assets/index-EEE.css">
+</head><body></body></html>`;
+
+test('le premier chargement : la page, ce qu\'elle référence, les configurations combinées — rien d\'autre', () => {
+  assert.deepEqual(fichiersAvantLaPorte(HTML),
+    ['index.html', 'assets/index-AAA.js', 'assets/three-CCC.js', 'assets/index-EEE.css', 'works/works.json', 'rooms/rooms.json', 'reglages.json']);
+  const m = mesurer(FICHIERS, HTML);
+  assert.equal(m.premierChargement.taille, 10000 + 500000 + 400000 + 30000 + 70000, 'index-BBB (à la demande) et le worklet n\'en sont pas');
+  assert.equal(m.premierChargement.fichiers[0].chemin, 'assets/index-AAA.js');
+  assert.equal(mesurer(FICHIERS).premierChargement.taille, 10000 + 70000, 'sans page : la page et les configurations seules');
+});
 
 test('le paquet principal est le plus gros assets/index-*.js, et lui seul', () => {
   const m = mesurer(FICHIERS);

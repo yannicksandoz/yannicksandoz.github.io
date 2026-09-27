@@ -32,7 +32,12 @@
     {
       "file": "audio/stele-voix-alto.wav",
       "radius": 8,
-      "gain": 0.8
+      "gain": 0.8,
+      "formats": {
+        "webm": "audio/stele-voix-alto.webm",
+        "m4a": "audio/stele-voix-alto.m4a"
+      },
+      "fin": 6.0
     }
   ]
 }

@@ -50,11 +50,33 @@ LICENCE COMMERCIALE
 Pour tout usage, une licence commerciale est disponible auprès de
 Yannick Sandoz, titulaire des droits.
 
-Contact : yro.lab.licence@gmail.com
+Contact : yannicksandoz@gmail.com
 
 Merci d'indiquer dans votre message : l'usage envisagé, le produit ou le
 contexte de déploiement, l'organisation concernée et sa taille, et le
 périmètre souhaité. Réponse sous une dizaine de jours. FR / EN.
+
+
+LICENCE D'USAGE CLIENT (GALERIE LIVRÉE SUR COMMANDE)
+----------------------------------------------------
+
+Lorsque le titulaire des droits compose et livre une galerie sur commande,
+le commanditaire reçoit, avec les fichiers de sa galerie, une licence
+d'usage du moteur limitée à CETTE galerie :
+
+  - il peut l'héberger, la diffuser et la faire visiter, à l'adresse de
+    son choix, sans limite de durée ni de nombre de visiteurs ;
+  - il peut en modifier le CONTENU (œuvres, pièces, médias, réglages —
+    les fichiers de `content/`) lui-même ou avec l'aide du titulaire ;
+  - il ne peut ni modifier le moteur, ni l'extraire pour une autre galerie
+    ou un autre produit, ni le redistribuer, ni en concéder l'usage à un
+    tiers : le moteur reste la propriété du titulaire des droits, et une
+    autre galerie est une autre commande.
+
+Cette licence d'usage est incessible sans accord écrit, sauf avec la
+cession de l'œuvre (l'exposition) qu'elle accompagne. Elle n'emporte
+aucune obligation de maintenance : le suivi technique fait l'objet d'un
+accord distinct.
 
 
 MODULES SOUS CONDITIONS DE TIERS

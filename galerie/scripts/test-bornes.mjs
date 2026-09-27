@@ -8,8 +8,9 @@
  * Lancer avec : npm test
  */
 import assert from 'node:assert/strict';
-import { secondes, bornesLecture, lancerBoucle }
+import { secondes, bornesLecture, lancerBoucle, positionDansBoucle }
   from '../engine/src/core/son-bornes.js';
+import { sautRaccord, decalage, jugerFormat } from '../engine/src/core/boucle-regles.js';
 
 let ok = 0, ko = 0;
 const groupe = (t) => console.log(`\n${t}`);
@@ -110,6 +111,60 @@ test('une piste sans configuration du tout se lance quand même', () => {
   const src = fausseSource(6);
   lancerBoucle(src, undefined, 0);
   assert.deepEqual(src.demarrage, [0, 0]);
+});
+
+groupe('reprendre où l\'on en serait');
+
+test('la position de reprise se ramène dans la boucle, et vaut le début sans position', () => {
+  const b = { debut: 4.5, fin: 10.5, borne: true };
+  assert.equal(positionDansBoucle(b, null), 4.5);
+  assert.equal(positionDansBoucle(b, 0), 4.5);
+  assert.equal(positionDansBoucle(b, 2), 6.5);
+  assert.equal(positionDansBoucle(b, 6), 4.5, 'un tour entier');
+  assert.equal(positionDansBoucle(b, 13.25), 5.75, 'deux tours et un quart');
+  assert.equal(positionDansBoucle({ debut: 0, fin: 0, borne: false }, 3), 0, 'sans longueur : le début');
+});
+
+test('lancerBoucle reprend à la position demandée', () => {
+  const src = { buffer: { duration: 20 }, start(quand, offset) { this.demarrage = [quand, offset]; } };
+  lancerBoucle(src, { debut: 2, fin: 12 }, 1, 23);   // 23 s depuis le premier départ : 2 tours de 10 s + 3
+  assert.deepEqual(src.demarrage, [1, 5]);
+  lancerBoucle(src, {}, 1);
+  assert.deepEqual(src.demarrage, [1, 0]);
+});
+
+groupe('le raccord d\'une boucle encodée (boucle-regles.js)');
+
+const sinus = (n, periode, dephasage = 0) => Float32Array.from({ length: n }, (_, i) => Math.sin(2 * Math.PI * ((i - dephasage) / periode)));
+
+test('une boucle de période exacte a un raccord aussi doux que le reste du signal', () => {
+  const x = sinus(5000, 100);            // 50 périodes entières
+  const r = sautRaccord(x, 0, 4800);      // 48 : la fin rejoint le début
+  assert.ok(r.rapport < 2, `rapport ${r.rapport}`);   // un pas d'onde, pas plus
+  const casse = sautRaccord(x, 0, 4825);  // un quart de période en trop : la fin ne rejoint plus le début
+  assert.ok(casse.rapport > 10, `rapport ${casse.rapport}`);
+});
+
+test('le décalage d\'un signal en retard se retrouve par corrélation', () => {
+  // un signal NON périodique (bruit déterministe) : une seule corrélation maximale
+  let graine = 12345;
+  const ref = Float32Array.from({ length: 20000 }, () => { graine = (graine * 1103515245 + 12345) % 2147483648; return graine / 1073741824 - 1; });
+  const retard = new Float32Array(20000);
+  retard.set(ref.subarray(0, 20000 - 312), 312);     // 312 échantillons d'amorce non retirés (Opus)
+  assert.equal(decalage(ref, retard, { maxLag: 512, fenetre: 4096 }).lag, 312);
+  assert.equal(decalage(ref, ref, { maxLag: 512, fenetre: 4096 }).lag, 0);
+  const avance = new Float32Array(20000);
+  avance.set(ref.subarray(40), 0);
+  assert.equal(decalage(ref, avance, { maxLag: 512, fenetre: 4096 }).lag, -40);
+});
+
+test('le verdict : décalé ou qui claque, refusé ; sinon accepté', () => {
+  assert.equal(jugerFormat({ lag: 0, rapportOriginal: 1.2, rapportFormat: 1.4 }).ok, true);
+  assert.equal(jugerFormat({ lag: 312, rapportOriginal: 1.2, rapportFormat: 1.4 }).ok, false);
+  assert.equal(jugerFormat({ lag: 1, rapportOriginal: 1.2, rapportFormat: 9 }).ok, false);
+  assert.equal(jugerFormat({ lag: 1, rapportOriginal: 1.2, rapportFormat: 5 }).ok, true);   // sous 3× + 3
+  assert.equal(jugerFormat({ lag: 0, rapportOriginal: 0, rapportFormat: 2.2 }).ok, true);   // un raccord presque muet : la marge absolue
+  assert.match(jugerFormat({ lag: 5, rapportOriginal: 1, rapportFormat: 1 }).raisons[0], /décalé de 5/);
 });
 
 console.log(`\n${ok} ✓ / ${ko} ✗`);

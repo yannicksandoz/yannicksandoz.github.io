@@ -32,7 +32,12 @@
     {
       "file": "audio/stele-voix-grave.wav",
       "radius": 8,
-      "gain": 0.8
+      "gain": 0.8,
+      "formats": {
+        "webm": "audio/stele-voix-grave.webm",
+        "m4a": "audio/stele-voix-grave.m4a"
+      },
+      "fin": 6.0
     }
   ]
 }

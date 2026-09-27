@@ -626,13 +626,12 @@ test('les licences citées sont des identifiants SPDX : une seule graphie par li
   }
   assert.deepEqual(fautes, []);
 });
-test('aucune concession sous l\'auteur-sentinelle « Galerie » hors du mobilier : le contenu est réservé (RIGHTS.md)', () => {
-  // « Galerie » est la sentinelle du cartel (pas de nom affiché) ; un crédit
-  // CC0 sous ce nom sur une stèle ou une porte publiait dans le domaine
-  // public des œuvres que RIGHTS.md dit réservées. Le mobilier (library)
-  // est CC0 par RIGHTS.md ; les shaders signés yr0-lab sont un choix de l'auteur.
-  const fautifs = oeuvres.filter((w) => w.credit?.author === 'Galerie' && sourceModele(w) !== 'library');
-  assert.deepEqual(fautifs.map((w) => `${w.id} : ${w.credit.license}`), []);
+test('une œuvre de l\'auteur ne porte aucun crédit : le contenu est réservé (RIGHTS.md), seul le mobilier CC0 en a un', () => {
+  // un crédit (CC0 sous l'auteur-sentinelle « Galerie », CC-BY sur un
+  // shader du labo) publiait sur la page des crédits une concession que
+  // RIGHTS.md ne fait pas ; le mobilier (library) est CC0 par RIGHTS.md
+  const fautifs = oeuvres.filter((w) => w.credit && sourceModele(w) !== 'library' && !['polypizza', 'freesound'].includes(sourceModele(w)));
+  assert.deepEqual(fautifs.map((w) => `${w.id} : ${w.credit.author} — ${w.credit.license}`), []);
 });
 test('chaque son emprunté a son compagnon d\'attribution à côté du fichier (credits.js : le troisième verrou)', () => {
   const manquants = [];

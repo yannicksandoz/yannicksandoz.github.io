@@ -1,0 +1,60 @@
+# Les SONDES NAVIGATEUR (Playwright, Chromium logiciel) — à la main, avant
+# un vernissage : le déploiement ne les lance pas (elles durent, et le
+# WebGL logiciel des runners n'est pas une image de référence), mais elles
+# ont déjà rattrapé des régressions que les tests au nœud ne voient pas
+# (visuels non chargés, morceau de chargeur périmé). Actions › Sondes
+# navigateur › Run workflow. Playwright n'est pas une dépendance du dépôt :
+# il est installé pour le run seulement.
+name: Sondes navigateur
+
+on:
+  workflow_dispatch:
+    inputs:
+      sondes:
+        description: 'Les sondes à lancer (scripts npm sonde:*), séparées par des espaces'
+        default: 'sonde:visuels sonde:charge'
+        required: true
+
+permissions:
+  contents: read
+
+jobs:
+  sondes:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: galerie/package-lock.json
+      - name: Build visiteur
+        working-directory: galerie
+        env:
+          ELECTRON_SKIP_BINARY_DOWNLOAD: '1'
+        run: |
+          npm ci
+          npm run build
+      - name: Playwright (le temps du run)
+        run: |
+          npm install -g playwright@1.56
+          npx playwright install --with-deps chromium
+      - name: Serveur statique
+        working-directory: galerie
+        run: |
+          npx --yes http-server dist -p 8123 -s &
+          sleep 3
+          curl -sf -o /dev/null http://localhost:8123/index.html
+      - name: Les sondes
+        working-directory: galerie
+        env:
+          NODE_PATH: /usr/local/lib/node_modules
+        run: |
+          for s in ${{ github.event.inputs.sondes }}; do
+            echo "::group::$s"
+            npm run "$s"
+            echo "::endgroup::"
+          done

@@ -45,7 +45,7 @@ de modification ou de redistribution n'est concédé par défaut.
 Pour tout usage, une licence commerciale est disponible auprès de
 Yannick Sandoz, titulaire des droits.
 
-Contact : yro.lab.licence@gmail.com
+Contact : yannicksandoz@gmail.com
 
 Merci d'indiquer dans votre message : l'usage envisagé, le produit ou le
 contexte de déploiement, l'organisation concernée et sa taille, et le

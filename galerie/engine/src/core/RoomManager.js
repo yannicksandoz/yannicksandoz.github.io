@@ -16,6 +16,8 @@ import { compilerRacines, attendreProgrammes, invitesMasque } from './chauffe.js
 import { majAmbiance, oublierAmbiance, ambianceArmee } from './ambiance-salle.js';
 import { delaiDe, fermer, estFerme, tick as tickCooldown } from './Cooldown.js';
 import { lancerBoucle } from './son-bornes.js';
+import { doitRechaufferScans } from './budget-salle.js';
+import { rechauffer, importerChunk } from './chunks.js';
 import { choisirSource, supportAudio } from './formats-audio.js';
 import { LecteurFragments, chargerManifeste } from './fragments.js';
 import { reverbDePiece } from './reverb-reglages.js';
@@ -735,6 +737,13 @@ export class RoomManager {
     }
     try {
       await this._chargerOeuvres(room);
+      // le morceau des scans gaussiens, importé d'avance quand cette salle
+      // ou une voisine en porte un (voir chunks.js : un redéploiement ne
+      // peut plus le retirer) — et jamais pour qui n'en approche pas
+      if (!this._scansRechauffes && doitRechaufferScans(room.config, this.app.roomConfigs ?? [], this.app.worksConfigs ?? [])) {
+        this._scansRechauffes = true;
+        rechauffer([() => importerChunk(() => import('./scans.js'))], { delai: 1500 });
+      }
       await this._chaufferProgrammes(room);
       // …puis une image dans le noir, la salle et ses baies : ce que le
       // premier dessin envoie au GPU (géométries, textures, premier usage

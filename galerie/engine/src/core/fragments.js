@@ -34,7 +34,7 @@
  * La partie PURE (plan, chemins, chaînage des morceaux) est testée au nœud
  * par scripts/test-fragments.mjs ; `LecteurFragments` porte la Web Audio.
  */
-import { bornesLecture } from './son-bornes.js';
+import { bornesLecture, positionDansBoucle } from './son-bornes.js';
 import { FORMATS } from './formats-audio.js';
 
 export const VERSION_MANIFESTE = 1;
@@ -233,13 +233,21 @@ export class LecteurFragments {
     return premier.buffer;
   }
 
-  demarrer(quand) {
+  /**
+   * Démarre à `quand` ; `position` (secondes depuis le début de la boucle,
+   * ramenée dans la boucle) fait REPRENDRE la piste où elle en serait au
+   * lieu de la faire repartir du début — le premier morceau part alors au
+   * milieu d'un segment, sans fondu d'entrée (le gain de la piste s'en
+   * charge), et la ligne de temps repart de zéro.
+   */
+  demarrer(quand, position = null) {
     if (this.actif) return;
     const ctx = this.engine.ctx;
     this.actif = true;
     this._gen++;
     this._origine = quand ?? ctx.currentTime;
-    this._etat = { position: this.bornes.debut, t: 0 };
+    this._depart = positionDansBoucle(this.bornes, position);
+    this._etat = { position: this._depart, t: 0 };
     // un passage périmé encore en vol (arrêt pendant un téléchargement) ne
     // bloque pas le nouveau départ : il se reconnaîtra à sa génération
     this._planification = null;
@@ -357,7 +365,8 @@ export class LecteurFragments {
     const t = this.engine.ctx.currentTime - this._origine;
     const longueur = this.bornes.fin - this.bornes.debut;
     if (longueur <= 0) return this.bornes.debut;
-    return this.bornes.debut + (((t % longueur) + longueur) % longueur);
+    const depuisDebut = (this._depart ?? this.bornes.debut) - this.bornes.debut + t;
+    return this.bornes.debut + (((depuisDebut % longueur) + longueur) % longueur);
   }
 }
 

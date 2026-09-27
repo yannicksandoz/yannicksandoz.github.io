@@ -227,8 +227,12 @@ export default defineConfig({
   // comme dans un sous-dossier (ex. https://exemple.org/galerie/).
   base: './',
 
-  server: { proxy: proxyPolyPizza },
-  preview: { proxy: proxyPolyPizza },
+  // Un port PROPRE à la galerie : le jeton GitHub, les clés Freesound et
+  // Poly Pizza et le brouillon vivent dans le profil de l'ORIGINE
+  // (localhost:port). Sur le 5173 de tout projet Vite, n'importe quel autre
+  // projet ouvert plus tard sur la même machine les lirait.
+  server: { port: 5347, strictPort: true, proxy: proxyPolyPizza },
+  preview: { port: 5347, strictPort: true, proxy: proxyPolyPizza },
 
   // Séparation moteur / contenu : le dossier de contenu (œuvres + médias)
   // est servi tel quel à la racine du site. Pour brancher VOTRE contenu

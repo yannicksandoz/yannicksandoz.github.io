@@ -31,7 +31,12 @@
     {
       "file": "audio/rayonnage-murmure.wav",
       "radius": 8,
-      "gain": 0.7
+      "gain": 0.7,
+      "formats": {
+        "webm": "audio/rayonnage-murmure.webm",
+        "m4a": "audio/rayonnage-murmure.m4a"
+      },
+      "fin": 6.0
     }
   ]
 }

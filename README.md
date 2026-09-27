@@ -42,7 +42,7 @@ The gallery engine is proprietary. No right of use, reproduction,
 modification or redistribution is granted by default. For any use, a
 commercial licence is available from Yannick Sandoz, the rights holder.
 
-Contact: **yro.lab.licence@gmail.com**
+Contact: **yannicksandoz@gmail.com**
 
 Please state: the intended use, the product or deployment context, the
 organisation concerned and its size, and the scope you need. Reply within

@@ -7,7 +7,7 @@
     3.15,
     -18.5
   ],
-  "image": "textures/marees.png",
+  "image": "textures/marees.webp",
   "size": [
     9,
     4.5
@@ -17,17 +17,32 @@
     {
       "file": "audio/marees-basse.wav",
       "radius": 34,
-      "gain": 0.9
+      "gain": 0.9,
+      "formats": {
+        "webm": "audio/marees-basse.webm",
+        "m4a": "audio/marees-basse.m4a"
+      },
+      "fin": 6.0
     },
     {
       "file": "audio/marees-medium.wav",
       "radius": 14,
-      "gain": 0.8
+      "gain": 0.8,
+      "formats": {
+        "webm": "audio/marees-medium.webm",
+        "m4a": "audio/marees-medium.m4a"
+      },
+      "fin": 6.0
     },
     {
       "file": "audio/marees-aigu.wav",
       "radius": 7,
-      "gain": 0.7
+      "gain": 0.7,
+      "formats": {
+        "webm": "audio/marees-aigu.webm",
+        "m4a": "audio/marees-aigu.m4a"
+      },
+      "fin": 6.0
     }
   ],
   "modules": [

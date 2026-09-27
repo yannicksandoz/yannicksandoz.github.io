@@ -47,7 +47,8 @@ for (const [chemin, attendu] of Object.entries(provenance)) {
 test('et la provenance dit d’où vient chaque fichier', () => {
   for (const [chemin, e] of Object.entries(provenance)) {
     assert.ok(/^https:\/\/raw\.githubusercontent\.com\/mrdoob\/three\.js\/r166\//
-      .test(e.source) || /^npm:@pmndrs\/assets\//.test(e.source),
+      .test(e.source) || /^npm:@pmndrs\/assets\//.test(e.source)
+      || /^three 0\.166\.\d+, examples\/jsm\//.test(e.source),   // les tables LTC, extraites du paquet three (scripts/genere-ltc.mjs)
     `source inattendue pour ${chemin} : ${e.source}`);
   }
 });

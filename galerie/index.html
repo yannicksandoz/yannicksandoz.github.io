@@ -10,6 +10,16 @@
        pose pas `user-scalable=no` : c'est le CSS qui décide, pas la balise. -->
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <meta name="theme-color" content="#05050a" />
+  <!-- LA POLITIQUE DE SÉCURITÉ (CSP), par balise meta : GitHub Pages ne pose
+       pas d'en-têtes, et le mode « rapport seul » n'existe pas en meta (Chrome
+       l'ignore en le disant). Elle a donc été MESURÉE avant d'être posée :
+       sur le build, les sondes (visuels, entrée et deux pièces, console) ne
+       relèvent aucun refus. La page n'appelle aucun hôte tiers ; ses worklets
+       et ses chargeurs viennent de blob:, sa console 7 est du wasm
+       ('wasm-unsafe-eval'), ses médias peuvent venir d'un autre hôte
+       (reglages.medias, https:). Toute injection de script — un JSON d'œuvre
+       malformé passant par innerHTML — est refusée par le navigateur. -->
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' blob: 'wasm-unsafe-eval'; worker-src 'self' blob:; connect-src 'self' blob: data: https:; img-src 'self' data: blob: https:; media-src 'self' blob: data: https:; style-src 'self' 'unsafe-inline'; font-src 'self' data:; object-src 'none'; base-uri 'self'; form-action 'self'" />
   <title>Galerie — espace sonore</title>
   <!-- Favicon en ligne (le ◈ des jetons) : pas d'asset, pas de 404 -->
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%2305050a'/%3E%3Cpath d='M16 6 26 16 16 26 6 16Z' fill='none' stroke='%23ffb050' stroke-width='2.4' stroke-linejoin='round'/%3E%3C/svg%3E" />

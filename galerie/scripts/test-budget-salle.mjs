@@ -4,7 +4,7 @@
  * Lancer avec : npm test
  */
 import assert from 'node:assert/strict';
-import { budgetSalle, budgetsGalerie, voisinesDe, fichiersDe, pirePoint, dureeWav, texteBudgets, BUDGET, OCTETS_PAR_SECONDE, RESIDENT_S } from '../engine/src/core/budget-salle.js';
+import { budgetSalle, budgetsGalerie, voisinesDe, doitRechaufferScans, fichiersDe, pirePoint, dureeWav, texteBudgets, BUDGET, OCTETS_PAR_SECONDE, RESIDENT_S } from '../engine/src/core/budget-salle.js';
 
 let ok = 0; let ko = 0;
 const test = (nom, fn) => { try { fn(); ok++; console.log(`  ✓ ${nom}`); } catch (e) { ko++; console.log(`  ✗ ${nom}\n      ${e.message}`); } };
@@ -106,6 +106,20 @@ test('le rapport : une ligne par salle, les écarts marqués', () => {
   assert.match(t, /^budget par salle/);
   assert.match(t, /\n {3}a {13}.*✗ transfert/);
   assert.match(t, /\n {3}c {13}.*0 piste/);
+});
+
+test('le morceau des scans se réchauffe depuis la salle du scan et ses voisines, pas depuis la porte', () => {
+  const rooms = [
+    { id: 'entree', works: ['a'], portals: [{ to: 'labo' }] },
+    { id: 'labo', works: ['b'], portals: [{ to: 'entree' }, { to: 'annexe' }] },
+    { id: 'annexe', works: ['scan'], portals: [{ to: 'labo' }] }
+  ];
+  const works = [{ id: 'a' }, { id: 'b' }, { id: 'scan', scan: 'assets/x.splat' }];
+  assert.equal(doitRechaufferScans(rooms[0], rooms, works), false, 'à deux portes : non');
+  assert.equal(doitRechaufferScans(rooms[1], rooms, works), true, 'une voisine porte le scan');
+  assert.equal(doitRechaufferScans(rooms[2], rooms, works), true, 'la salle elle-même');
+  assert.equal(doitRechaufferScans(rooms[1], rooms, [{ id: 'scan' }]), false, 'aucune œuvre scannée dans la galerie');
+  assert.equal(doitRechaufferScans(null, rooms, works), false);
 });
 
 console.log(`\n${ok} ✓ / ${ko} ✗`);

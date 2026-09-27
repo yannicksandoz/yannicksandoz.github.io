@@ -33,7 +33,12 @@
     {
       "file": "audio/carillon-fenetres.wav",
       "radius": 10,
-      "gain": 0.6
+      "gain": 0.6,
+      "formats": {
+        "webm": "audio/carillon-fenetres.webm",
+        "m4a": "audio/carillon-fenetres.m4a"
+      },
+      "fin": 6.0
     }
   ],
   "lightColor": "#cbd4ff",

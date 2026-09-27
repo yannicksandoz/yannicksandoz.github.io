@@ -63,6 +63,22 @@ export function voisinesDe(salle, rooms) {
 }
 
 /**
+ * Faut-il RÉCHAUFFER le morceau des scans gaussiens (250 ko) depuis cette
+ * salle : elle-même, ou l'une de ses voisines, porte-t-elle une œuvre
+ * `scan` ? Le réchauffement protège d'un redéploiement (chunks.js), mais il
+ * n'a besoin de précéder que d'une porte : réchauffé dès l'entrée pour tout
+ * visiteur, le morceau partait sur chaque téléphone qui ne dépasserait
+ * jamais le jardin. Pur, testé.
+ */
+export function doitRechaufferScans(salle, rooms, works) {
+  if (!salle) return false;
+  const avecScan = new Set((works ?? []).filter((w) => w?.scan).map((w) => w.id));
+  if (!avecScan.size) return false;
+  const ids = [salle.id, ...voisinesDe(salle, rooms ?? [])];
+  return ids.some((id) => ((rooms ?? []).find((r) => r.id === id)?.works ?? []).some((w) => avecScan.has(w)));
+}
+
+/**
  * Les FICHIERS qu'une salle fait charger, chacun dit une fois :
  * { chemin, genre: 'image'|'video'|'modele'|'scan'|'son'|'fragments',
  *   fragments: manifeste|null, oeuvre }.

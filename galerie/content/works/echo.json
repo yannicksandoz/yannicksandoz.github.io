@@ -17,7 +17,12 @@
     {
       "file": "audio/nebuleuse-drone.wav",
       "radius": 16,
-      "gain": 0.8
+      "gain": 0.8,
+      "formats": {
+        "webm": "audio/nebuleuse-drone.webm",
+        "m4a": "audio/nebuleuse-drone.m4a"
+      },
+      "fin": 6.0
     }
   ],
   "modules": [

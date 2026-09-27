@@ -231,6 +231,25 @@ await test('arrêter puis redémarrer : la piste repart du début de ses bornes'
   assert.ok(engine.sources.some((s) => s.demarre.quand === 5 && s.demarre.offset === 4.5), `redépart à 4,5 s : ${JSON.stringify(dernier)}`);
   l.liberer();
 });
+await test('redémarrer à une position : le premier morceau part au milieu de son segment, sans fondu d\'entrée', async () => {
+  const engine = moteurFactice();
+  const l = new LecteurFragments({ engine, manifeste: MANIFESTE, motif: 'assets/x.frag/{i}.webm', cfg: {}, destination: engine.ctx.createGain() });
+  engine.ctx.avancer(2);
+  l.demarrer(2, 23);                  // 23 s dans une boucle de 34,5 s : segment 2, à 3 s
+  for (let k = 0; k < 6; k++) await attendre();
+  const premier = engine.sources[0].demarre;
+  assert.equal(premier.quand, 2);
+  assert.equal(premier.offset, 3);
+  assert.ok(engine.sources.some((s) => s.demarre.quand === 2 && s.demarre.offset === 3));
+  assert.equal(l.position(), 23, `la position rapportée suit (depart ${l._depart}, origine ${l._origine}, temps ${engine.ctx.currentTime})`);
+  l.liberer();
+  const l2 = new LecteurFragments({ engine, manifeste: MANIFESTE, motif: 'assets/x.frag/{i}.webm', cfg: {}, destination: engine.ctx.createGain() });
+  const n0 = engine.sources.length;
+  l2.demarrer(2, 34.5 + 1.5);         // un tour et une seconde et demie : segment 0, à 1,5 s
+  for (let k = 0; k < 6; k++) await attendre();
+  assert.deepEqual([engine.sources[n0].demarre.quand, engine.sources[n0].demarre.offset], [2, 1.5]);
+  l2.liberer();
+});
 await test('chargerManifeste : un manifeste faux lève une phrase, un bon revient normalisé', async () => {
   await assert.rejects(chargerManifeste('x.json', async () => ({ duree: 0 })), /manifeste x\.json : durée/);
   const m = await chargerManifeste('x.json', async () => MANIFESTE);

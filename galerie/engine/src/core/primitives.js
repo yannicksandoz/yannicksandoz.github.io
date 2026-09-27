@@ -1,21 +1,53 @@
 import * as THREE from 'three';
 import { estFluide } from './style.js';
-import { RectAreaLightUniformsLib } from 'three/examples/jsm/lights/RectAreaLightUniformsLib.js';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { scaleObjetUV } from './textures.js';
 import { jeuDeSurface } from './matieres.js';
 
 /**
- * Les tables de `RectAreaLight` (BRDF pré-intégrée) ne se chargent qu'une
- * fois, et seulement si une corniche existe : une galerie sans lumière
- * d'architecte n'en paie rien. `init()` touche au contexte WebGL — d'où le
- * garde `document`, qui laisse les suites node importer ce module.
+ * LES TABLES DE `RectAreaLight` (la BRDF pré-intégrée, LTC) viennent d'un
+ * fichier BINAIRE, `engine/assets/ltc.bin` (scripts/genere-ltc.mjs), et
+ * non de `RectAreaLightUniformsLib` : ses deux tables en littéraux
+ * JavaScript pesaient 246 ko — un tiers du paquet principal, 100 ko gzip —
+ * pour 64 ko de demi-flottants. On refait ici exactement ce que `init()`
+ * faisait : quatre DataTexture (flottantes pour WebGL2, demi-flottantes
+ * sinon) posées dans `UniformsLib`, que le rendu relit à chaque liaison de
+ * matériau — des tables arrivées après la première image sont prises à
+ * l'image suivante. Le chargement part dès l'import du module, en
+ * parallèle des JSON de la galerie ; `preparerCorniches()` ne fait que s'en
+ * assurer. Sans `fetch` (les suites node), rien ne part.
  */
-let tablesPretes = false;
+const URL_TABLES_LTC = new URL('../../assets/ltc.bin', import.meta.url);
+let chargementLTC = null;
+export function chargerTablesLTC() {
+  if (chargementLTC) return chargementLTC;
+  if (typeof fetch !== 'function' || typeof document === 'undefined') return Promise.resolve(false);
+  chargementLTC = fetch(URL_TABLES_LTC)
+    .then((r) => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.arrayBuffer(); })
+    .then((tampon) => {
+      const n = 64 * 64 * 4;
+      if (tampon.byteLength !== n * 2 * 2) throw new Error(`${tampon.byteLength} octets, ${n * 4} attendus`);
+      const demi = new Uint16Array(tampon);
+      const texture = (donnees, type) => {
+        const t = new THREE.DataTexture(donnees, 64, 64, THREE.RGBAFormat, type, THREE.UVMapping,
+          THREE.ClampToEdgeWrapping, THREE.ClampToEdgeWrapping, THREE.LinearFilter, THREE.NearestFilter, 1);
+        t.needsUpdate = true;
+        return t;
+      };
+      const demi1 = demi.slice(0, n), demi2 = demi.slice(n, 2 * n);
+      THREE.UniformsLib.LTC_HALF_1 = texture(demi1, THREE.HalfFloatType);
+      THREE.UniformsLib.LTC_HALF_2 = texture(demi2, THREE.HalfFloatType);
+      THREE.UniformsLib.LTC_FLOAT_1 = texture(Float32Array.from(demi1, THREE.DataUtils.fromHalfFloat), THREE.FloatType);
+      THREE.UniformsLib.LTC_FLOAT_2 = texture(Float32Array.from(demi2, THREE.DataUtils.fromHalfFloat), THREE.FloatType);
+      return true;
+    })
+    .catch((e) => { console.warn('[galerie] tables LTC (corniches) illisibles :', e?.message ?? e); return false; });
+  return chargementLTC;
+}
+chargerTablesLTC();
+
 function preparerCorniches() {
-  if (tablesPretes || typeof document === 'undefined') return;
-  tablesPretes = true;
-  RectAreaLightUniformsLib.init();
+  chargerTablesLTC();
 }
 
 /**

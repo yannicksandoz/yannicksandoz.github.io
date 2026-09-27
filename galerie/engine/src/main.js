@@ -184,7 +184,8 @@ async function boot() {
       chargeurs.push(() => installerRayons(THREE));
       chargeurs.push(() => importerChunk(() => import('./ui/VisitMenu.js')));
       chargeurs.push(() => importerChunk(() => import('./ui/AudioTour.js')));
-      if (works.some((w) => w.scan)) chargeurs.push(() => importerChunk(() => import('./core/scans.js')));
+      // le morceau des scans gaussiens (250 ko) n'est réchauffé qu'à une porte
+      // de la salle qui en porte un : RoomManager.setCurrent (doitRechaufferScans)
       rechauffer(chargeurs).then((bilan) => { app.chunksRechauffes = bilan; });
       if (new URLSearchParams(location.search).has('chrono')) {
         // le nombre de programmes GPU compilés dit ce que la première

@@ -32,7 +32,12 @@
     {
       "file": "audio/stele-voix-souffle.wav",
       "radius": 8,
-      "gain": 0.8
+      "gain": 0.8,
+      "formats": {
+        "webm": "audio/stele-voix-souffle.webm",
+        "m4a": "audio/stele-voix-souffle.m4a"
+      },
+      "fin": 6.0
     }
   ]
 }

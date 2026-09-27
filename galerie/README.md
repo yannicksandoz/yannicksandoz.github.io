@@ -18,6 +18,26 @@ données, aucun backend — un simple serveur de fichiers suffit.
 **Stack** : [Vite](https://vitejs.dev) · [Three.js](https://threejs.org)
 (EffectComposer : scène MSAA + sortie unique) · Web Audio API · modules ES.
 
+## Sommaire
+
+Les sections de référence, dans l'ordre du fichier ; entre elles, le
+journal des mesures (sous « L'expérience visiteur » et à la suite, la note
+la plus récente en premier), qui dit pourquoi chaque chose est comme elle est.
+
+- [Deux modes](#deux-modes)
+- [Démarrage](#démarrage)
+- [Déploiement](#déploiement)
+- [Utiliser le moteur avec VOTRE contenu](#utiliser-le-moteur-avec-votre-contenu)
+- [Plan de la galerie](#plan-de-la-galerie)
+- [Composer une exposition](#composer-une-exposition)
+- [Œuvres shader (ISF)](#œuvres-shader-isf)
+- [Éditeur de scène (mode auteur)](#éditeur-de-scène-mode-auteur)
+- [Modules fournis](#modules-fournis)
+- [Créer un nouveau module](#créer-un-nouveau-module)
+- [Qualité adaptative & mobile](#qualité-adaptative-mobile)
+- [Licences](#licences)
+- [Licence commerciale](#licence-commerciale)
+
 ## Deux modes
 
 Le moteur se construit de deux façons, à partir de la même base de code.
@@ -43,9 +63,192 @@ racine menant à l'éditeur, donc Rollup ne l'émet pas), le **CSS**
 Conséquence assumée : dans une galerie publiée, la touche **²**, le bouton
 **✎** et `?edit` ne font rien.
 
+## Démarrage
+
+```bash
+npm install
+npm run dev          # mode AUTEUR — http://localhost:5347, éditeur inclus
+npm run dev:visiteur # mode Visiteur, pour vérifier ce que verra le public
+npm run build        # → dist/        site publiable, SANS éditeur
+npm run check        # deux garde-fous sur dist/ : rien de l'éditeur, et le poids sous ses seuils
+npm run build:auteur # → dist-auteur/ build local avec éditeur (jamais publié)
+npm run preview      # prévisualise un build
+npm run test         # toute la suite au nœud (scripts/tests.mjs : chaque test-*.mjs ; « npm test -- crans » en filtre)
+npm run budget       # le budget de chaque salle : ce qu'un téléphone télécharge, décode et joue
+npm run charte       # la charte (direction artistique) sur toutes les salles
+npm run assets       # régénère les textures/stems de démo
+npm run library      # régénère le mobilier de galerie (GLB + vignettes)
+npm run sonde:visuels   # sondes navigateur (Playwright, jamais en CI) : visuels,
+                        # editeur, charge, basse-perf, piece-sons, poids-audio, lumiere, lisere
+npm run app          # l'application auteur (Electron) sur dist-auteur/ ; app:build l'empaquette, app:icone refait l'icône
+npm run wasm:audio   # recompile la console 7 en wasm (clang)
+```
+
+**Les paramètres d'adresse** (`?edit&riche=1`, plusieurs se combinent) :
+
+| Paramètre | Effet | Pour qui | Lu dans |
+|---|---|---|---|
+| `edit` | ouvre le mode auteur (build auteur seulement) | auteur | `editorLoader.js` |
+| `room=<id>`, `work=<id>` | arriver dans une pièce, devant une œuvre (lien partagé) | visiteur | `main.js` |
+| `mode=guidee` | la visite guidée dès l'entrée | visiteur | `main.js` |
+| `riche=1` / `riche=0` | l'image enrichie, mémorisée (`profil=riche` la force sans mémoriser, `profil=unique` l'ôte) | visiteur, mesure | `core/crans.js` |
+| `profil=bureau` / `telephone` | force le profil d'un appareil (alias `desktop`, `mobile`) | mesure | `core/crans.js` |
+| `gouverneur=0` | fige le gouverneur de qualité | mesure | `core/crans.js` |
+| `eco=1` | l'image économe | visiteur | `core/crans.js` |
+| `perf=1`, `banc=1` | le cartouche de performance, le banc de mesure | mesure | `ui/Perf.js` |
+| `chrono=1` | le chrono de chargement | mesure | `ui/Chrono.js` |
+| `survol=masque` | sans liseré de survol | mesure | `core/App.js` |
+
+**Votre quotidien reste `npm run dev`** : l'éditeur y est complet, rien ne
+change. `dist-auteur/` est ignoré par git.
+
+### L'éditeur vit dans un dépôt privé
+
+`engine/src/editor/` est un **sous-module** pointant sur
+`yannicksandoz/yr0-editor`, dépôt privé. Le build sélectif empêche de
+*publier* l'éditeur ; le sous-module empêche de le *lire* dans le dépôt
+public. Il faut les deux : le premier protège le déploiement, le second le
+code source.
+
+```bash
+git clone --recurse-submodules https://github.com/yannicksandoz/yannicksandoz.github.io
+# ou, sur un clone existant :
+git submodule update --init --recursive
+```
+
+Sans accès au dépôt privé, le clone réussit quand même : le dossier reste
+vide, `npm run build` fonctionne, et seul `npm run dev` s'arrête — avec un
+message qui dit quoi taper. C'est exactement ce dont la CI a besoin :
+`actions/checkout` ne récupère pas les sous-modules par défaut, donc le
+déploiement se fait **sans jamais avoir accès à l'éditeur**.
+
+Après une modification de l'éditeur, deux commits : un dans le sous-module,
+un dans le dépôt public pour enregistrer la nouvelle révision.
+
+```bash
+cd engine/src/editor && git commit -am "…" && git push
+cd ../../.. && git add engine/src/editor && git commit -m "Editor: bump"
+```
+
+**Livrer l'éditeur à un client** : ajoutez-le en collaborateur sur
+`yr0-editor` seul. Il obtient l'éditeur et ses mises à jour, rien d'autre,
+et l'accès se révoque en un clic.
+
+`npm test` lance `scripts/tests.mjs`, qui prend chaque `scripts/test-*.mjs`
+par le seul fait qu'il existe (la chaîne de cinquante `&&` d'avant oubliait
+ce qu'on n'y ajoutait pas). En CI, où le sous-module de l'éditeur n'est pas
+cloné, les suites qui l'importent sont sautées et dites sautées ; le
+déploiement (`deploy.yml`) lance désormais les tests avant le garde-fou.
+
+`npm run check` inspecte le **résultat** du build, pas la configuration —
+une erreur de configuration est précisément ce qu'on cherche à attraper. Il
+échoue si une empreinte d'éditeur, un hôte tiers ou quelque chose qui
+ressemble à une clé d'API apparaît dans ce qui serait publié. Le workflow
+de déploiement le lance avant de publier ; rouge vaut mieux que vert avec
+l'outil d'auteur en ligne.
+
+**Un fichier de configuration au lieu de cent soixante-quinze.** Le contenu
+vit en un fichier par œuvre et par pièce — c'est ce qui le rend lisible,
+versionnable, modifiable à la main. Le navigateur, lui, paie chaque fichier :
+l'index, puis les œuvres par vagues de huit, soit une vingtaine d'allers-
+retours **en série** avant que la scène puisse se construire. Le build
+concatène donc `works/*.json` en `dist/works/works.json` (idem pour les
+pièces), dans l'ordre de l'index. Le chargeur préférait déjà ce format —
+c'est celui qu'exporte l'éditeur — il n'était simplement jamais produit.
+`content/` garde ses fichiers séparés : ils restent la source de vérité, et
+le repli si le combiné manque ou se lit mal.
+
+**Navigation** — desktop : ZQSD / WASD / flèches (Maj = courir), **A/E**
+(Q/E en QWERTY) pour pivoter sur place, souris pour orbiter, clic sur une
+œuvre pour l'approcher (Échap pour reculer). Tous les raccourcis sont liés
+aux **touches physiques** (`e.code`) : les mêmes positions marchent sur tous
+les claviers, et l'aide affiche les étiquettes réelles quand le navigateur
+sait les donner (`getLayoutMap`).
+Mobile : **1 doigt** pour regarder autour, **2 doigts** ou le manche pour
+marcher, le bouton coureur maintenu pour courir (pas de zoom au pincement :
+la scène retient le geste). Le bouton **Entrer**
+débloque l'`AudioContext` (obligatoire sur tous les navigateurs, iOS en tête).
+
+## Déploiement
+
+### Automatique — GitHub Pages (configuré)
+
+Le workflow [`.github/workflows/deploy.yml`](../.github/workflows/deploy.yml)
+construit le blog Jekyll **et** la galerie, puis publie le tout sur GitHub
+Pages : la galerie est servie sous **`/galerie/`** de l'URL Pages du dépôt.
+
+**Pour redéployer :** il suffit de pousser sur `master` (ou de lancer le
+workflow à la main : onglet *Actions* → *Deploy Pages (blog + galerie)* →
+*Run workflow*).
+
+```bash
+git push origin master        # → build + déploiement automatiques
+```
+
+**Prérequis : *Settings → Pages → Source* doit être sur « GitHub Actions ».**
+Le workflow force ce réglage lui-même à chaque exécution (appel à l'API
+Pages), mais il vaut la peine de savoir pourquoi c'est indispensable.
+
+Tant que la source reste sur « Deploy from a branch », GitHub lance à chaque
+push son **propre** build Jekyll (workflow « pages build and deployment »)
+*en plus* du nôtre. Or ce build ignore `galerie/` — le dossier est exclu dans
+`_config.yml` puisque c'est un projet Vite, pas du Jekyll — et il écrase
+notre déploiement une fois sur deux. Symptôme caractéristique : **le blog
+s'affiche mais `/galerie/` renvoie 404**, alors que le workflow est vert et
+que l'artefact contient bien la galerie.
+
+Si vous revoyez ce symptôme, vérifiez dans l'onglet *Actions* qu'un run
+« pages build and deployment » ne se déclenche plus en parallèle du nôtre ;
+s'il est encore là, repassez la source sur « GitHub Actions » à la main.
+
+### Manuel — Nginx
+
+```nginx
+server {
+    listen 443 ssl;
+    server_name galerie.exemple.org;
+    # ssl_certificate ... ; ssl_certificate_key ... ;
+
+    root /var/www/galerie;          # contenu de dist/
+    index index.html;
+
+    gzip on;
+    gzip_types application/javascript application/json text/css;
+
+    location ~* \.(wav|mp3|ogg|png|jpg|glb|gltf)$ {
+        expires 30d;
+        add_header Cache-Control "public, immutable";
+    }
+}
+```
+
+```bash
+npm run build && rsync -av dist/ serveur:/var/www/galerie/
+```
+
+### Manuel — Caddy
+
+```caddyfile
+galerie.exemple.org {
+    root * /var/www/galerie
+    file_server
+    encode gzip
+    @assets path *.wav *.mp3 *.ogg *.png *.jpg *.glb *.gltf
+    header @assets Cache-Control "public, max-age=2592000, immutable"
+}
+```
+
+`base: './'` est configuré dans Vite : le build fonctionne à la racine d'un
+domaine comme dans n'importe quel sous-dossier, sans réglage.
+
 ## L'expérience visiteur
 
 Tout ce qui suit est dans le build Visiteur, sans backend ni service tiers.
+C'est ici que commence le JOURNAL DES MESURES : chaque paragraphe en gras
+est une note datée par sa place (la plus récente en premier), écrite quand
+une chose a été mesurée, changée ou comprise ; la référence (Démarrage,
+Déploiement, Composer, l'éditeur, l'application) est plus haut et dans le
+sommaire.
 
 **Ne jamais perdre le visiteur.** À l'arrivée dans une pièce, la caméra cadre
 déjà une œuvre. Les œuvres non encore découvertes portent une petite lueur
@@ -1674,184 +1877,6 @@ site. L'aide aux contrôles s'adapte à l'appareil (gestes tactiles sur écran
 tactile, clavier/souris sinon), le zoom de la page n'est plus bloqué, et le
 partage d'un lien affiche une carte d'aperçu (Open Graph / Twitter Card,
 image `content/apercu.jpg`).
-
-## Démarrage
-
-```bash
-npm install
-npm run dev          # mode AUTEUR — http://localhost:5173, éditeur inclus
-npm run dev:visiteur # mode Visiteur, pour vérifier ce que verra le public
-npm run build        # → dist/        site publiable, SANS éditeur
-npm run check        # deux garde-fous sur dist/ : rien de l'éditeur, et le poids sous ses seuils
-npm run build:auteur # → dist-auteur/ build local avec éditeur (jamais publié)
-npm run preview      # prévisualise un build
-npm run test         # toute la suite au nœud (scripts/tests.mjs : chaque test-*.mjs ; « npm test -- crans » en filtre)
-npm run budget       # le budget de chaque salle : ce qu'un téléphone télécharge, décode et joue
-npm run charte       # la charte (direction artistique) sur toutes les salles
-npm run assets       # régénère les textures/stems de démo
-npm run library      # régénère le mobilier de galerie (GLB + vignettes)
-npm run sonde:visuels   # sondes navigateur (Playwright, jamais en CI) : visuels,
-                        # editeur, charge, basse-perf, piece-sons, poids-audio, lumiere, lisere
-npm run app          # l'application auteur (Electron) sur dist-auteur/ ; app:build l'empaquette, app:icone refait l'icône
-npm run wasm:audio   # recompile la console 7 en wasm (clang)
-```
-
-**Les paramètres d'adresse** (`?edit&riche=1`, plusieurs se combinent) :
-
-| Paramètre | Effet | Pour qui | Lu dans |
-|---|---|---|---|
-| `edit` | ouvre le mode auteur (build auteur seulement) | auteur | `editorLoader.js` |
-| `room=<id>`, `work=<id>` | arriver dans une pièce, devant une œuvre (lien partagé) | visiteur | `main.js` |
-| `mode=guidee` | la visite guidée dès l'entrée | visiteur | `main.js` |
-| `riche=1` / `riche=0` | l'image enrichie, mémorisée (`profil=riche` la force sans mémoriser, `profil=unique` l'ôte) | visiteur, mesure | `core/crans.js` |
-| `profil=bureau` / `telephone` | force le profil d'un appareil (alias `desktop`, `mobile`) | mesure | `core/crans.js` |
-| `gouverneur=0` | fige le gouverneur de qualité | mesure | `core/crans.js` |
-| `eco=1` | l'image économe | visiteur | `core/crans.js` |
-| `perf=1`, `banc=1` | le cartouche de performance, le banc de mesure | mesure | `ui/Perf.js` |
-| `chrono=1` | le chrono de chargement | mesure | `ui/Chrono.js` |
-| `survol=masque` | sans liseré de survol | mesure | `core/App.js` |
-
-**Votre quotidien reste `npm run dev`** : l'éditeur y est complet, rien ne
-change. `dist-auteur/` est ignoré par git.
-
-### L'éditeur vit dans un dépôt privé
-
-`engine/src/editor/` est un **sous-module** pointant sur
-`yannicksandoz/yr0-editor`, dépôt privé. Le build sélectif empêche de
-*publier* l'éditeur ; le sous-module empêche de le *lire* dans le dépôt
-public. Il faut les deux : le premier protège le déploiement, le second le
-code source.
-
-```bash
-git clone --recurse-submodules https://github.com/yannicksandoz/yannicksandoz.github.io
-# ou, sur un clone existant :
-git submodule update --init --recursive
-```
-
-Sans accès au dépôt privé, le clone réussit quand même : le dossier reste
-vide, `npm run build` fonctionne, et seul `npm run dev` s'arrête — avec un
-message qui dit quoi taper. C'est exactement ce dont la CI a besoin :
-`actions/checkout` ne récupère pas les sous-modules par défaut, donc le
-déploiement se fait **sans jamais avoir accès à l'éditeur**.
-
-Après une modification de l'éditeur, deux commits : un dans le sous-module,
-un dans le dépôt public pour enregistrer la nouvelle révision.
-
-```bash
-cd engine/src/editor && git commit -am "…" && git push
-cd ../../.. && git add engine/src/editor && git commit -m "Editor: bump"
-```
-
-**Livrer l'éditeur à un client** : ajoutez-le en collaborateur sur
-`yr0-editor` seul. Il obtient l'éditeur et ses mises à jour, rien d'autre,
-et l'accès se révoque en un clic.
-
-`npm test` lance `scripts/tests.mjs`, qui prend chaque `scripts/test-*.mjs`
-par le seul fait qu'il existe (la chaîne de cinquante `&&` d'avant oubliait
-ce qu'on n'y ajoutait pas). En CI, où le sous-module de l'éditeur n'est pas
-cloné, les suites qui l'importent sont sautées et dites sautées ; le
-déploiement (`deploy.yml`) lance désormais les tests avant le garde-fou.
-
-`npm run check` inspecte le **résultat** du build, pas la configuration —
-une erreur de configuration est précisément ce qu'on cherche à attraper. Il
-échoue si une empreinte d'éditeur, un hôte tiers ou quelque chose qui
-ressemble à une clé d'API apparaît dans ce qui serait publié. Le workflow
-de déploiement le lance avant de publier ; rouge vaut mieux que vert avec
-l'outil d'auteur en ligne.
-
-**Un fichier de configuration au lieu de cent soixante-quinze.** Le contenu
-vit en un fichier par œuvre et par pièce — c'est ce qui le rend lisible,
-versionnable, modifiable à la main. Le navigateur, lui, paie chaque fichier :
-l'index, puis les œuvres par vagues de huit, soit une vingtaine d'allers-
-retours **en série** avant que la scène puisse se construire. Le build
-concatène donc `works/*.json` en `dist/works/works.json` (idem pour les
-pièces), dans l'ordre de l'index. Le chargeur préférait déjà ce format —
-c'est celui qu'exporte l'éditeur — il n'était simplement jamais produit.
-`content/` garde ses fichiers séparés : ils restent la source de vérité, et
-le repli si le combiné manque ou se lit mal.
-
-**Navigation** — desktop : ZQSD / WASD / flèches (Maj = courir), **A/E**
-(Q/E en QWERTY) pour pivoter sur place, souris pour orbiter, clic sur une
-œuvre pour l'approcher (Échap pour reculer). Tous les raccourcis sont liés
-aux **touches physiques** (`e.code`) : les mêmes positions marchent sur tous
-les claviers, et l'aide affiche les étiquettes réelles quand le navigateur
-sait les donner (`getLayoutMap`).
-Mobile : **1 doigt** pour regarder autour, **2 doigts** ou le manche pour
-marcher, le bouton coureur maintenu pour courir (pas de zoom au pincement :
-la scène retient le geste). Le bouton **Entrer**
-débloque l'`AudioContext` (obligatoire sur tous les navigateurs, iOS en tête).
-
-## Déploiement
-
-### Automatique — GitHub Pages (configuré)
-
-Le workflow [`.github/workflows/deploy.yml`](../.github/workflows/deploy.yml)
-construit le blog Jekyll **et** la galerie, puis publie le tout sur GitHub
-Pages : la galerie est servie sous **`/galerie/`** de l'URL Pages du dépôt.
-
-**Pour redéployer :** il suffit de pousser sur `master` (ou de lancer le
-workflow à la main : onglet *Actions* → *Deploy Pages (blog + galerie)* →
-*Run workflow*).
-
-```bash
-git push origin master        # → build + déploiement automatiques
-```
-
-**Prérequis : *Settings → Pages → Source* doit être sur « GitHub Actions ».**
-Le workflow force ce réglage lui-même à chaque exécution (appel à l'API
-Pages), mais il vaut la peine de savoir pourquoi c'est indispensable.
-
-Tant que la source reste sur « Deploy from a branch », GitHub lance à chaque
-push son **propre** build Jekyll (workflow « pages build and deployment »)
-*en plus* du nôtre. Or ce build ignore `galerie/` — le dossier est exclu dans
-`_config.yml` puisque c'est un projet Vite, pas du Jekyll — et il écrase
-notre déploiement une fois sur deux. Symptôme caractéristique : **le blog
-s'affiche mais `/galerie/` renvoie 404**, alors que le workflow est vert et
-que l'artefact contient bien la galerie.
-
-Si vous revoyez ce symptôme, vérifiez dans l'onglet *Actions* qu'un run
-« pages build and deployment » ne se déclenche plus en parallèle du nôtre ;
-s'il est encore là, repassez la source sur « GitHub Actions » à la main.
-
-### Manuel — Nginx
-
-```nginx
-server {
-    listen 443 ssl;
-    server_name galerie.exemple.org;
-    # ssl_certificate ... ; ssl_certificate_key ... ;
-
-    root /var/www/galerie;          # contenu de dist/
-    index index.html;
-
-    gzip on;
-    gzip_types application/javascript application/json text/css;
-
-    location ~* \.(wav|mp3|ogg|png|jpg|glb|gltf)$ {
-        expires 30d;
-        add_header Cache-Control "public, immutable";
-    }
-}
-```
-
-```bash
-npm run build && rsync -av dist/ serveur:/var/www/galerie/
-```
-
-### Manuel — Caddy
-
-```caddyfile
-galerie.exemple.org {
-    root * /var/www/galerie
-    file_server
-    encode gzip
-    @assets path *.wav *.mp3 *.ogg *.png *.jpg *.glb *.gltf
-    header @assets Cache-Control "public, max-age=2592000, immutable"
-}
-```
-
-`base: './'` est configuré dans Vite : le build fonctionne à la racine d'un
-domaine comme dans n'importe quel sous-dossier, sans réglage.
 
 ## Utiliser le moteur avec VOTRE contenu
 
@@ -4258,7 +4283,7 @@ et le chien en panneaux, le dancefloor en relief.
 
 **Lancer** : touche **²** (à gauche du 1 — `@` sur Mac FR), bouton **✎**
 (en haut à droite), ou ouvrir l'URL
-avec **`?edit`** (ex. `http://localhost:5173/?edit`). Les mêmes commandes
+avec **`?edit`** (ex. `http://localhost:5347/?edit`). Les mêmes commandes
 referment l'éditeur. Utilisable au doigt sur iOS : panneaux repliables,
 champs numériques pour le placement précis, barre d'outils défilante.
 
@@ -5669,6 +5694,31 @@ chauffe. Éprouvé au nœud (le paquet, le compte de lumières, la remise en
 place même si l'appel lève, les invités, l'attente, son délai et la
 liaison forcée).
 
+**Les pistes de l'audit, développées.** Les boucles courtes (douze WAV,
+3,2 Mo) sont encodées comme les autres, et un contrôle mesure le raccord
+(`scripts/controle-boucles.mjs`, règles pures dans `core/boucle-regles.js`) :
+décalage par corrélation, saut au raccord rapporté au pas du signal ; la
+borne `fin` est posée à la durée de l'original à l'encodage, parce qu'un
+AAC laisse 37 ms de silence en queue qu'une boucle rejouerait. Les tables
+LTC des corniches viennent d'un binaire de 64 ko (`scripts/genere-ltc.mjs`)
+au lieu de 246 ko de littéraux dans le paquet principal ; le morceau des
+scans ne se réchauffe qu'à une porte de la salle qui en porte un ; deux
+textures PNG sont en WebP ; le garde-fou de poids mesure le PREMIER
+CHARGEMENT (la page, ses scripts, ses styles, les configurations). Une
+piste suspendue par le budget de voix reprend où elle en serait
+(`positionDansBoucle`, pour les tampons comme pour les fragments) au lieu
+de rembobiner. Le hoquet HRTF supposé à l'entrée d'une pièce a été mesuré
+à la sonde : aucune bascule sous voile dans la seconde qui suit, mais les
+voies inactives d'une pièce quittée gardaient leur HRTF (sept voies sur dix
+nées en equalpower aux archives, pour un budget de quatre) : elles le
+rendent désormais sans voile, muettes. Une politique de sécurité en mode
+rapport dans la page, le garde-fou d'éditeur contre-éprouvé sur des builds
+factices, les sondes navigateur en workflow manuel, un port Vite propre au
+projet (5347). Le README a un sommaire et son Démarrage en tête. Et la
+vitrine : prix revus après une étude d'attractivité (`vitrine/TARIFS.md`,
+dans le dépôt privé), clause de licence d'usage client dans
+`engine/LICENSE`, une seule adresse de contact partout.
+
 **Un audit, quatre-vingt-seize pistes, un lot de corrections.** Douze
 lectures indépendantes du dépôt (visite tactile et bureau, moteur audio,
 accessibilité, gestes et panneaux de l'éditeur, application, sécurité,
@@ -6403,7 +6453,7 @@ Ce projet est distribué sous licence propriétaire — tous droits réservés.
 Aucun usage n'est concédé par défaut. Pour tout usage, une licence
 commerciale est disponible auprès de Yannick Sandoz, titulaire des droits.
 
-Contact : **yro.lab.licence@gmail.com**
+Contact : **yannicksandoz@gmail.com**
 
 Merci d'indiquer dans votre message : l'usage envisagé, le produit ou le
 contexte de déploiement, l'organisation concernée et sa taille, et le

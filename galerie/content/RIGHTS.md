@@ -18,7 +18,7 @@ Concrètement :
   licence commerciale (voir `engine/LICENSE`) ;
 - vous ne pouvez **pas** réutiliser les œuvres de ce dossier dans vos propres
   déploiements sans autorisation écrite préalable — demande à
-  **yro.lab.licence@gmail.com** ;
+  **yannicksandoz@gmail.com** ;
 - pour faire tourner le moteur, remplacez ce dossier par **votre propre
   contenu** (voir le README, section « Utiliser le moteur avec votre
   contenu »).
