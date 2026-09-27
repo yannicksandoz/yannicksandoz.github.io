@@ -277,9 +277,11 @@ function demarrerServeur({ racines, port = 0, portPrefere = null, hote = '127.0.
     try {
       p = await ecouter(portPrefere || port);
     } catch (e) {
-      // le port préféré est pris (une autre instance, un autre logiciel) :
-      // un port libre plutôt qu'un échec au lancement
-      if (!portPrefere || e.code !== 'EADDRINUSE') throw e;
+      // le port préféré est pris (une autre instance, un autre logiciel),
+      // ou refusé (Windows réserve des plages entières de ports éphémères,
+      // EACCES) : un port libre plutôt qu'un échec au lancement — QUELLE
+      // que soit l'erreur, le port mémorisé n'est qu'une préférence
+      if (!portPrefere) throw e;
       p = await ecouter(port);
     }
     return {

@@ -177,6 +177,12 @@ await test('un port préféré : repris s\'il est libre, remplacé sans bruit s\
   const c = await demarrerServeur({ racines: [dist], portPrefere: a.port });      // libéré : repris
   assert.equal(c.port, a.port);
   await b.fermer(); await c.fermer();
+  // refusé pour une AUTRE raison qu'« occupé » (un port réservé sous Windows,
+  // ici un numéro impossible) : un port libre quand même, pas un écran vide
+  const d = await demarrerServeur({ racines: [dist], portPrefere: 65536 });
+  assert.ok(d.port > 0 && d.port < 65536);
+  await d.fermer();
+  await assert.rejects(demarrerServeur({ racines: [dist], port: 65536 }), 'sans préférence, l\'erreur se voit');
 });
 
 await s.fermer();

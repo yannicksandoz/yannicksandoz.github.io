@@ -1496,6 +1496,7 @@ export class Artwork {
       // arrête toutes les demi-secondes, dès qu'une œuvre plus proche
       // réclame sa place — le visiteur entendait la mécanique.
       const t = ctx.currentTime;
+      this._arretA = t;   // la spatialisation attend la fin du fondu avant de retirer l'HRTF
       for (const s of this.stems) {
         s.gain.gain.cancelScheduledValues(t);
         s.gain.gain.setTargetAtTime(0, t, EXTINCTION / 3);

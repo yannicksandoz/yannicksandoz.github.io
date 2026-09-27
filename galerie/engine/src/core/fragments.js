@@ -213,8 +213,11 @@ export class LecteurFragments {
    * chargé deux fois, rendu une — restait au cache pour toute la visite.)
    */
   _rendre(url) {
-    const reste = (this._tenus.get(url) ?? 1) - 1;
-    if (reste > 0) this._tenus.set(url, reste);
+    const tenu = this._tenus.get(url);
+    // plus tenu du tout (libéré pendant le vol du téléchargement) : rendre
+    // encore décompterait la tenue d'un AUTRE détenteur de la même URL
+    if (tenu === undefined) return;
+    if (tenu > 1) this._tenus.set(url, tenu - 1);
     else this._tenus.delete(url);
     this.engine.release(url);
   }

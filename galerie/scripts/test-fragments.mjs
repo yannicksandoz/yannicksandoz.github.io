@@ -231,6 +231,23 @@ await test('arrêter puis redémarrer : la piste repart du début de ses bornes'
   assert.ok(engine.sources.some((s) => s.demarre.quand === 5 && s.demarre.offset === 4.5), `redépart à 4,5 s : ${JSON.stringify(dernier)}`);
   l.liberer();
 });
+await test('libérer pendant un téléchargement : le segment arrivé après n\'est pas rendu une fois de trop', async () => {
+  const engine = moteurFactice();
+  let charges = 0, rendus = 0;
+  const enAttente = [];
+  const loadImmediat = engine.load.bind(engine);
+  engine.load = (url) => { charges++; return new Promise((resoudre, rejeter) => enAttente.push(() => loadImmediat(url).then(resoudre, rejeter))); };
+  const releaseImmediat = engine.release.bind(engine);
+  engine.release = (url) => { rendus++; releaseImmediat(url); };
+  const l = new LecteurFragments({ engine, manifeste: MANIFESTE, motif: 'assets/x.frag/{i}.webm', cfg: {}, destination: engine.ctx.createGain() });
+  l.demarrer(0);
+  await attendre();
+  l.liberer();                        // pendant que le segment 0 voyage
+  enAttente.forEach((fn) => fn());
+  for (let k = 0; k < 6; k++) await attendre();
+  assert.equal(charges, 1);
+  assert.equal(rendus, charges, `rendu ${rendus} fois pour ${charges} chargement(s)`);
+});
 await test('redémarrer à une position : le premier morceau part au milieu de son segment, sans fondu d\'entrée', async () => {
   const engine = moteurFactice();
   const l = new LecteurFragments({ engine, manifeste: MANIFESTE, motif: 'assets/x.frag/{i}.webm', cfg: {}, destination: engine.ctx.createGain() });

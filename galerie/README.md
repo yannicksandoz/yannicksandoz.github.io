@@ -5694,6 +5694,26 @@ chauffe. Éprouvé au nœud (le paquet, le compte de lumières, la remise en
 place même si l'appel lève, les invités, l'attente, son délai et la
 liaison forcée).
 
+**Un micro-audit à deux relecteurs.** L'un a relu de façon contradictoire
+les deux derniers commits, l'autre a parcouru la visite comme un
+visiteur. Côté relecture : « Revenir » depuis une sauvegarde d'avant les
+gabarits aurait vidé `content/gabarits/` (on ne purge qu'un sous-dossier
+que la sauvegarde portait) ; le port préféré ne retombait sur un port
+libre que pour « occupé », pas pour « refusé » (les plages réservées de
+Windows) ; le verrou d'instance laissait le démarrage se faire quand
+même ; les tables LTC ne sont lues par three qu'à l'acquisition du
+programme, la lampe d'une corniche n'est donc ajoutée qu'une fois les
+tables là ; un segment de fragments arrivé après `liberer()` était rendu
+une fois de trop ; l'HRTF d'une voie qui fond encore n'est plus retirée à
+cru. Côté visiteur : le chapeau n'observait que le labo (une œuvre ne
+reçoit `update` que dans sa pièce), il suit la boucle de l'app et sa règle
+est pure ; le pointeur se taisait devant une porte de service ou un écran
+(portail sans maillage) : le premier pas est une règle pure sur les
+configurations, et l'œuvre-porte devient la cible ; « Laisse-toi porter »
+dit pourquoi il ne part pas ; l'accueil ne dit plus « Dernière visite :
+Entrée · 0 œuvre » à qui n'a fait qu'ouvrir la page ; « Recommencer »
+repeint la barre de dérive ; le méta ne donne plus un nombre de salles.
+
 **Les pistes de l'audit, développées.** Les boucles courtes (douze WAV,
 3,2 Mo) sont encodées comme les autres, et un contrôle mesure le raccord
 (`scripts/controle-boucles.mjs`, règles pures dans `core/boucle-regles.js`) :

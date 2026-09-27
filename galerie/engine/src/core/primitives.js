@@ -11,11 +11,16 @@ import { jeuDeSurface } from './matieres.js';
  * JavaScript pesaient 246 ko — un tiers du paquet principal, 100 ko gzip —
  * pour 64 ko de demi-flottants. On refait ici exactement ce que `init()`
  * faisait : quatre DataTexture (flottantes pour WebGL2, demi-flottantes
- * sinon) posées dans `UniformsLib`, que le rendu relit à chaque liaison de
- * matériau — des tables arrivées après la première image sont prises à
- * l'image suivante. Le chargement part dès l'import du module, en
- * parallèle des JSON de la galerie ; `preparerCorniches()` ne fait que s'en
- * assurer. Sans `fetch` (les suites node), rien ne part.
+ * sinon) posées dans `UniformsLib`. Le rendu ne les lit qu'à l'ACQUISITION
+ * du programme d'un matériau (three : `uniforms.ltc_1.value` est câblé
+ * dans getProgram, pas à chaque image) : un matériau compilé avant leur
+ * arrivée garderait une texture vide — lavage diffus, spéculaire absente —
+ * jusqu'au prochain changement du jeu de lumières. C'est pourquoi une
+ * corniche n'AJOUTE sa lampe qu'une fois les tables là (buildCorniche) :
+ * une lumière de plus change la clé des programmes, three les recâble.
+ * Le chargement part dès l'import du module, en parallèle des JSON de la
+ * galerie — en pratique, avant la première salle. Sans `fetch` (les suites
+ * node), rien ne part.
  */
 const URL_TABLES_LTC = new URL('../../assets/ltc.bin', import.meta.url);
 let chargementLTC = null;
@@ -602,8 +607,14 @@ function buildCorniche(size, model) {
       lampe.position.z = -0.02;
       // le gouverneur peut l'éteindre (cran « etendues », voir crans.js)
       lampe.userData.sourceEtendue = true;
-      groupe.add(lampe);
       groupe.userData.lampeCorniche = lampe;
+      // la lampe rejoint le groupe quand les tables LTC sont là (voir
+      // chargerTablesLTC) — tout de suite si elles le sont déjà, ce qui
+      // est le cas courant ; jamais si elles manquent (le trait reste) ; et
+      // pas si la flexion (Artwork._courberCorniche) l'a retirée entre-temps
+      chargerTablesLTC().then((ok) => {
+        if (ok && groupe.userData.lampeCorniche === lampe) groupe.add(lampe);
+      });
       // LA MARQUE, MÊME AVEC LA LAMPE. Une RectAreaLight est un rectangle
       // RIGIDE : sur un mur cintré au couronnement ondulé, le bandeau se
       // plie (Artwork._courberCorniche) mais elle non — son plan coupe le

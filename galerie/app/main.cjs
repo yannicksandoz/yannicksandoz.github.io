@@ -435,7 +435,8 @@ app.on('open-file', (e, chemin) => { if (ouvrirDossierDepose(chemin)) e.preventD
 // lancement, ou « Ouvrir avec » sur un dossier pendant que l'application
 // tourne, rejoint la fenêtre existante au lieu d'ouvrir un second serveur
 // et d'écrire les mêmes réglages à deux
-if (!app.requestSingleInstanceLock()) {
+const verrou = app.requestSingleInstanceLock();
+if (!verrou) {
   app.quit();
 } else {
   app.on('second-instance', (e, argv) => {
@@ -447,6 +448,9 @@ if (!app.requestSingleInstanceLock()) {
 }
 
 app.whenReady().then(async () => {
+  // sans le verrou, `quit()` est en route : ne rien démarrer (ni serveur qui
+  // écrirait un autre port dans les réglages partagés, ni fenêtre fugace)
+  if (!verrou) return;
   reglages = lireReglages();
   if (reglages.contenu && !fs.existsSync(reglages.contenu)) delete reglages.contenu;
   delete reglages.contenuDepose;   // ancien mécanisme, sans effet
@@ -479,7 +483,14 @@ app.whenReady().then(async () => {
   }
   if (reglages.contenu) dossiers.autoriser(reglages.contenu);
   brancherLePont();
-  await demarrer();
+  try {
+    await demarrer();
+  } catch (e) {
+    // sans serveur, pas de page : le dire plutôt qu'une application sans fenêtre
+    dialog.showErrorBox('Le serveur interne n’a pas pu démarrer', String(e?.message ?? e));
+    app.quit();
+    return;
+  }
   construireMenu();
   creerFenetre();
   ouvrirPage();

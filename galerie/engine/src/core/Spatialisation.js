@@ -270,8 +270,14 @@ export class Spatialisation {
     // voies d'une pièce quittée gardaient leurs places, et celles de la
     // pièce suivante naissaient toutes en equalpower (mesuré à la sonde :
     // aux archives, sept voies sur dix, pour un budget de quatre).
+    const t = this.app.audio.ctx.currentTime;
     for (const v of this.voies) {
-      if (v.modele === 'HRTF' && !v._bascule && !this._active(v)) {
+      // …une fois le fondu d'arrêt fini (Artwork : EXTINCTION, 0,12 s) : sur
+      // une voie qui fond encore, changer de modèle à cru ferait la couture
+      // que le voile évite partout ailleurs
+      const arretA = v.artwork?._arretA;
+      const enFondu = Number.isFinite(arretA) && t - arretA < 0.2;
+      if (v.modele === 'HRTF' && !v._bascule && !this._active(v) && !enFondu) {
         try { v.panner.panningModel = 'equalpower'; } catch { /* nœud libéré */ }
         v.modele = 'equalpower';
         this._hrtfActives--;
