@@ -4076,7 +4076,9 @@ auteur, image et bibliothèque comprises (28 vérifications).
 séparées (batterie, basse, voix…) : « ＋ Ajouter › Plan de scène… »
 (aussi la carte « Plan de scène… » du sélecteur de modèles, et le bouton
 du panneau Sons). La boîte montre la scène VUE DE DESSUS, le public en
-bas, jardin à gauche et cour à droite. Les pistes déposées (là, ou d'un
+bas, jardin à gauche et cour à droite — le langage d'un plan de régie
+(stage plot) : un pictogramme au trait par instrument, le prénom du
+musicien dessous. Les pistes déposées (là, ou d'un
 glisser sur la fenêtre) montent sur scène d'elles-mêmes, chacune à la
 place classique de son instrument — deviné au nom du fichier : « kick »,
 « snare », « OH » font une batterie, « Bass DI » une basse, « Lead Vox »
@@ -4090,7 +4092,13 @@ nommer le musicien (« Léa »), détacher une piste vers son propre poste
 ou la rattacher à un autre, « Placement classique » pour tout remettre en
 place (deux guitares de part et d'autre, une rangée pleine s'espace sans
 changer d'ordre), la scène en mètres (4 à 24), le nom de la pièce — le
-morceau —, finition et éclairage. L'en-tête compte « 3 voix sur 6 » et
+morceau —, finition et éclairage. L'ÉQUIPEMENT DE SCÈNE suit le plan
+comme sur une fiche technique : un praticable sous la batterie (case
+« praticable » sur tout poste), un ampli derrière chaque guitare et
+chaque basse, un retour devant chaque poste du premier rang — dessinés
+sur le plan, construits en décor dans la pièce (une case les retire).
+« Télécharger le plan » exporte un SVG autonome, noir sur blanc, titré
+du morceau et daté : ce qu'on envoie à la salle. L'en-tête compte « 3 voix sur 6 » et
 l'aperçu prévient au-delà du budget de voix : les postes les plus loin
 du visiteur se tairaient. « Créer la pièce » fabrique une SALLE DE
 CONCERT : le plateau (50 cm) au nord, reculé du mur, la salle taillée
@@ -4111,10 +4119,11 @@ scène (3 musiciens) » — que Ctrl+Z défait d'un bloc. Deux morceaux font
 deux pièces, chacune son plan ; un trait sur le plan de la galerie les
 relie. La logique (instruments, devinette, placement, cotes, œuvres)
 vit dans `editor/state/PlanDeScene.js`, pure, testée par
-`scripts/test-plan-de-scene.mjs` (17 vérifications) ; `npm run
+`scripts/test-plan-de-scene.mjs` (20 vérifications) ; `npm run
 sonde:plan-de-scene` rejoue le parcours au navigateur sur le build auteur
-(import, postes, glisser, création, phase, annulation, inspecteur,
-portes — 22 vérifications).
+(import, postes, pictogrammes et équipement, glisser, export SVG,
+création, praticable, phase, annulation, inspecteur, portes — 28
+vérifications).
 
 **Supprimer et dupliquer une pièce.** La boîte de confirmation NOMME tout
 ce qui part : œuvres (avec le choix « déplacer vers… »), portails entrants
@@ -5750,7 +5759,12 @@ basse à côté, le chant devant, et le visiteur au parterre. Plutôt qu'une
 grille de stèles, l'éditeur gagne le geste du régisseur — la scène vue de
 dessus, les postes à glisser, l'instrument deviné au nom du fichier, les
 pistes d'un même ensemble regroupées sur un poste — et « Créer la pièce »
-fabrique la salle de concert autour du plateau, l'entrée face à lui. Le
+fabrique la salle de concert autour du plateau, l'entrée face à lui.
+L'exemple de stage-plan.com a donné le reste du vocabulaire : des
+pictogrammes au trait plutôt que des pastilles, le prénom sous le poste,
+le praticable sous la batterie, l'ampli derrière la guitare, le retour
+devant le chanteur, « Front of Stage » en bas — et un plan noir sur
+blanc à envoyer à la salle, exporté en SVG. Le
 point dur n'était pas le plan mais la PHASE : un musicien par œuvre,
 c'est autant d'horloges de premier départ, et le budget de voix suspend
 et reprend chacune à son heure ; un décalage d'une demi-seconde entre la

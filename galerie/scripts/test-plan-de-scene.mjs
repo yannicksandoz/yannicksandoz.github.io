@@ -19,8 +19,9 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { INSTRUMENTS, SCENE, BUDGET_VOIX, devinerInstrument, ajouterSon, retirerSon,
-  detacherSon, rattacherSon, deplacerPoste, changerInstrument, nommerPoste, placementClassique,
+import { INSTRUMENTS, SCENE, BUDGET_VOIX, EQUIPEMENT, devinerInstrument, ajouterSon, retirerSon,
+  detacherSon, rattacherSon, deplacerPoste, changerInstrument, nommerPoste, basculerPraticable,
+  equipementDe, mobilierEquipement, placementClassique,
   espacer, placeDeReference, normaliserScene, dimensionsSalle, positionDansSalle, titrePoste,
   musicienDepuisPoste, mobilierScene, pieceDepuisPlan, resumePlan, couleurLumiere }
   from '../engine/src/editor/state/PlanDeScene.js';
@@ -198,7 +199,7 @@ test('un poste devient une œuvre debout sur la scène, à sa couleur, ses piste
   assert.match(o.description, /2 pistes : kick\.wav, snare\.wav/);
   assert.equal(o.model.shape, 'box');
   assert.equal(o.model.color, INSTRUMENTS.batterie.couleur);
-  assert.ok(Math.abs(o.position[1] - (0.5 + 0.95 / 2)) < 0.01, 'le corps repose sur le plateau');
+  assert.ok(Math.abs(o.position[1] - (0.5 + EQUIPEMENT.praticable.hauteur + 0.95 / 2)) < 0.01, 'la batterie repose sur son praticable');
   assert.equal(o.stems.length, 2);
   assert.deepEqual(o.stems[0], { file: 'assets/kick.wav', radius: 16, gain: 0.9 });
   assert.equal(o.sync, 'marees');
@@ -233,6 +234,52 @@ test('le mobilier : le plateau aux cotes de la scène, deux projecteurs de face 
   assert.ok(m[1].position[0] < -5 && m[2].position[0] > 5, 'les projecteurs encadrent la scène');
   assert.ok(m[1].position[2] > d.scene.zAvant, 'devant la scène');
   assert.equal(mobilierScene(d, { lanternes: false }).length, 1);
+});
+
+titre('l\'équipement de scène');
+
+test('la batterie naît sur praticable ; un poste s\'y monte ou en descend', () => {
+  const p = plan('kick.wav', 'vox.wav');
+  assert.equal(p[0].praticable, true);
+  assert.equal(p[1].praticable, false);
+  assert.equal(basculerPraticable(p, p[1].id)[1].praticable, true);
+  assert.equal(basculerPraticable(p, p[0].id, false)[0].praticable, false);
+});
+
+test('praticable sous la batterie, ampli derrière guitare et basse, retour devant le premier rang', () => {
+  const p = placementClassique(plan('kick.wav', 'bass.wav', 'gtr.wav', 'vox.wav', 'keys.wav'));
+  const e = equipementDe(p, { largeur: 10, profondeur: 6 });
+  const types = e.map((x) => x.type).sort();
+  assert.deepEqual(types, ['ampli', 'ampli', 'praticable', 'retour', 'retour'], `${types}`);
+  const prat = e.find((x) => x.type === 'praticable');
+  assert.equal(prat.poste, p[0].id);
+  assert.ok(prat.largeur > 0 && prat.largeur <= 2 && prat.profondeur > 0 && prat.profondeur <= 1);
+  const ampli = e.find((x) => x.type === 'ampli' && x.poste === p[1].id);
+  assert.ok(ampli.y > p[1].y, 'l\'ampli est derrière la basse');
+  assert.ok(!e.some((x) => x.type === 'ampli' && x.poste === p[4].id), 'pas d\'ampli pour les claviers');
+  const retours = e.filter((x) => x.type === 'retour').map((x) => x.poste);
+  assert.ok(retours.includes(p[3].id) && retours.includes(p[2].id), 'la voix et la guitare, au premier rang, ont un retour');
+  assert.ok(!retours.includes(p[0].id), 'pas de retour pour la batterie au fond');
+  const r = e.find((x) => x.type === 'retour' && x.poste === p[3].id);
+  assert.ok(r.y >= 0 && r.y < p[3].y, 'le retour est devant, jamais hors scène');
+});
+
+test('l\'équipement en trois dimensions : décor sur le plateau, le musicien monte sur son praticable', () => {
+  const p = placementClassique(plan('kick.wav', 'bass.wav', 'vox.wav'));
+  const d = dimensionsSalle({ largeur: 10, profondeur: 6 });
+  const m = mobilierEquipement(p, d);
+  assert.deepEqual(m.map((x) => x.title).sort(), ['Ampli', 'Praticable', 'Retour']);
+  assert.ok(m.every((x) => x.role === 'decor' && x.position[1] > d.scene.hauteur));
+  const retour = m.find((x) => x.title === 'Retour');
+  assert.equal(retour.rotation[0], -28, 'le retour est incliné vers le musicien');
+  const batt = musicienDepuisPoste(p[0], p, d, {});
+  const bas = musicienDepuisPoste(p[1], p, d, {});
+  assert.ok(Math.abs((batt.position[1] - INSTRUMENTS.batterie.corps.cotes[1] / 2) - (d.scene.hauteur + EQUIPEMENT.praticable.hauteur)) < 0.01, 'la batterie repose sur le praticable');
+  assert.ok(Math.abs((bas.position[1] - INSTRUMENTS.basse.corps.cotes[1] / 2) - d.scene.hauteur) < 0.01, 'la basse repose sur le plateau');
+  const sans = pieceDepuisPlan({ postes: p, equipement: false }, {});
+  assert.ok(!sans.meubles.some((x) => /Ampli|Praticable|Retour/.test(x.title)), 'sans équipement, rien de tout cela');
+  const avec = pieceDepuisPlan({ postes: p }, {});
+  assert.equal(avec.meubles.filter((x) => /Ampli|Praticable|Retour/.test(x.title)).length, 3);
 });
 
 test('la pièce complète : ids uniques contre le document, sync, entrée, gabarit valide', () => {

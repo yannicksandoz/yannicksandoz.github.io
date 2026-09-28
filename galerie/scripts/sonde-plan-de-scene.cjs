@@ -56,8 +56,12 @@ const verif = (ok, msg) => { console.log(`${ok ? '✓' : '✗'} ${msg}`); if (!o
     apercu: document.querySelector('[data-ps-apercu]').textContent,
     nom: document.querySelector('[data-ps-nom]').value,
     creer: !document.querySelector('[data-ps-creer]').disabled,
-    public: !!document.querySelector('.ed-ps-public')
+    public: !!document.querySelector('.ed-ps-public'),
+    pictos: [...document.querySelectorAll('[data-ps-poste] .ed-ps-picto')].length,
+    equip: [...document.querySelectorAll('[data-ps-equip]')].map((e) => e.dataset.psEquip).sort(),
+    praticables: [...document.querySelectorAll('[data-ps-praticable]:checked')].length
   }));
+  verif(etat.pictos === 3 && etat.equip.join(',') === 'ampli,praticable,retour' && etat.praticables === 1, `pictogrammes ${etat.pictos}, équipement ${etat.equip.join(', ')}, ${etat.praticables} praticable (la batterie)`);
   const batt = etat.cartes.find((c) => c.ins === 'batterie');
   verif(etat.cartes.length === 3 && batt && batt.pistes.length === 2, `trois postes, la batterie en deux pistes : ${etat.cartes.map((c) => `${c.ins}(${c.pistes.join('+')})`).join(' ; ')}`);
   verif(etat.cartes.some((c) => c.ins === 'basse') && etat.cartes.some((c) => c.ins === 'voix'), 'basse et voix devinées au nom');
@@ -96,6 +100,19 @@ const verif = (ok, msg) => { console.log(`${ok ? '✓' : '✗'} ${msg}`); if (!o
   verif(bx > 400 && by < 120, `la basse glissée à cour, au fond : (${bx}, ${by})`);
   verif(/scène de 12 × 6 m, salle de 18 × 19.2 m/.test(bouge.apercu) && bouge.lea.includes('Léa'), `scène élargie et voix nommée : « ${bouge.apercu} », ${bouge.lea.join(' / ')}`);
 
+  // 3 bis. le plan exporté : un SVG autonome, noir sur blanc, titré du morceau
+  const svg = await page.evaluate(() => new Promise((resoudre) => {
+    const clic = HTMLAnchorElement.prototype.click;
+    HTMLAnchorElement.prototype.click = async function () {
+      HTMLAnchorElement.prototype.click = clic;
+      const texte = await fetch(this.href).then((r) => r.text());
+      resoudre({ nom: this.download, texte });
+    };
+    document.querySelector('[data-ps-svg-export]').click();
+  }));
+  verif(svg.nom === 'plan-de-scene-marées.svg' && /^<\?xml/.test(svg.texte) && /Marées — plan de scène/.test(svg.texte) && /AVANT-SCÈNE · PUBLIC/.test(svg.texte) && (svg.texte.match(/ed-ps-picto/g) ?? []).length === 3 && /fill="#fff"/.test(svg.texte),
+    `plan exporté « ${svg.nom }» : ${svg.texte.length} car., titré, trois pictogrammes, noir sur blanc`);
+
   // 4. créer
   await page.evaluate(() => {
     window.__toasts = [];
@@ -122,7 +139,8 @@ const verif = (ok, msg) => { console.log(`${ok ? '✓' : '✗'} ${msg}`); if (!o
       annule: doc.history.prochainAnnule, cam: [cam.x, cam.y, cam.z]
     };
   });
-  verif(piece.title === 'Marées' && piece.musiciens.length === 3 && piece.n === 3 + piece.decor.length, `pièce « ${piece.title} » (${piece.id}) : ${piece.musiciens.length} musiciens + ${piece.decor.length} décors (${piece.decor.join(', ')})`);
+  verif(piece.title === 'Marées' && piece.musiciens.length === 3 && piece.n === 3 + piece.decor.length && piece.decor.length === 10, `pièce « ${piece.title} » (${piece.id}) : ${piece.musiciens.length} musiciens + ${piece.decor.length} décors (${piece.decor.join(', ')})`);
+  verif(['Praticable', 'Ampli', 'Retour'].every((t) => piece.decor.includes(t)), 'praticable, ampli et retour construits en décor');
   verif(piece.musiciens.every((m) => m.sync === piece.id), `chaque musicien porte sync = « ${piece.musiciens[0]?.sync} »`);
   const ID = piece.id;
   const lea = piece.musiciens.find((m) => m.title === 'Léa'); const basse = piece.musiciens.find((m) => /Basse/.test(m.title)); const batterie = piece.musiciens.find((m) => /Batterie/.test(m.title));
@@ -130,6 +148,8 @@ const verif = (ok, msg) => { console.log(`${ok ? '✓' : '✗'} ${msg}`); if (!o
   verif(basse && basse.x > 2 && basse.z < batterie.z + 1, `la basse est à cour, au fond : x ${basse?.x}, z ${basse?.z} (batterie z ${batterie?.z})`);
   const sc = piece.scene;
   verif(sc && sc.scale[0] === 12 && sc.scale[2] === 6 && piece.musiciens.every((m) => m.y > sc.scale[1] && Math.abs(m.z - sc.position[2]) <= 3), `le plateau fait ${sc?.scale.join(' × ')} m et les musiciens sont dessus`);
+  const pied = (m, h) => Math.round((m.y - h / 2) * 100) / 100;   // le bas du corps : ce sur quoi il repose
+  verif(Math.abs(pied(batterie, 0.95) - 0.9) < 0.02 && Math.abs(pied(basse, 1.75) - 0.5) < 0.02, `la batterie repose à ${pied(batterie, 0.95)} m (praticable), la basse à ${pied(basse, 1.75)} m (plateau)`);
   verif(piece.shell[0] === 18 && piece.spawn[2] > sc.position[2] + 3 && piece.regard && piece.regard[2] === sc.position[2], `salle ${piece.shell.join(' × ')} m, entrée z ${piece.spawn[2]} face à la scène (regard z ${piece.regard?.[2]})`);
   verif(Math.abs(piece.cam[2] - piece.spawn[2]) < 0.5 && piece.artworks === piece.n && piece.rouges.length === 0, `la caméra est à l'entrée (z ${piece.cam[2].toFixed(1)}), ${piece.artworks} objets construits, ${piece.rouges.length} en erreur`);
   verif(/pièce « Marées » depuis un plan de scène \(3 musiciens\)/.test(piece.annule), `l'historique nomme le lot : « ${piece.annule} »`);
