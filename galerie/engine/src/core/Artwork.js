@@ -40,7 +40,7 @@ import { ajouterLigne, ajouterPolyligne, patcherArbreLignes, MAX_POINTS_POLYLIGN
  * paragraphe plutôt qu'une constante.
  */
 const HAUTEUR_FENTE = 0.5;
-import { lancerBoucle, departDe } from './son-bornes.js';
+import { lancerBoucle, departDe, bornesLecture } from './son-bornes.js';
 import { creerCartel, tournerVersCamera, disposerCartel } from './cartels.js';
 
 // crossOrigin « anonymous » : indispensable pour les médias distants, dont
@@ -1475,6 +1475,23 @@ export class Artwork {
       this._premierDepart = departDe(this.app._departsSync ??= new Map(),
         this.config.sync, t0, this._premierDepart);
       const position = t0 - this._premierDepart;
+      // Un groupe ne reste en phase que si ses boucles ont la MÊME longueur :
+      // la reprise se place modulo la boucle de chaque piste. Une prise plus
+      // longue d'une seconde se décale à la première suspension — on le dit
+      // une fois à la console, avec la longueur attendue (celle du premier).
+      if (this.config.sync && this.stems[0]?.buffer) {
+        const longueurs = this.app._longueursSync ??= new Map();
+        const cle = String(this.config.sync);
+        const b = bornesLecture(this.stems[0].cfg, this.stems[0].buffer.duration);
+        const longueur = b.fin - b.debut;
+        const attendue = longueurs.get(cle);
+        if (attendue === undefined) longueurs.set(cle, longueur);
+        else if (Math.abs(attendue - longueur) > 0.01 && !this._syncSignale) {
+          this._syncSignale = true;
+          console.warn(`[galerie] « ${this.config.id} » : boucle de ${longueur.toFixed(3)} s dans le groupe « ${cle} » `
+            + `dont la boucle est de ${attendue.toFixed(3)} s — elles se décaleront à la première reprise.`);
+        }
+      }
       for (const s of this.stems) {
         // Le gain de la piste a été FONDU À ZÉRO à la suspension (voir
         // l'arrêt en fondu, ci-dessous) : sans le rendre ici, une œuvre

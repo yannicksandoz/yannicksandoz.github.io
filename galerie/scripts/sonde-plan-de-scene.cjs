@@ -69,7 +69,9 @@ const verif = (ok, msg) => { console.log(`${ok ? '✓' : '✗'} ${msg}`); if (!o
   const y = (t) => Number(t.match(/translate\([\d.]+ ([\d.]+)\)/)[1]);
   const pVoix = etat.postes.find((p) => /Voix/.test(p.aria)); const pBatt = etat.postes.find((p) => /Batterie/.test(p.aria));
   verif(pVoix && pBatt && y(pVoix.t) > y(pBatt.t), `sur le plan, la voix (${y(pVoix.t)}) est plus bas — côté public — que la batterie (${y(pBatt.t)})`);
-  verif(/3 voix sur 6, 4 pistes/.test(etat.compte) && /^3 postes, 4 pistes — scène de 10 × 6 m, salle de 16 × 19.2 m\.$/.test(etat.apercu), `compte « ${etat.compte} », aperçu « ${etat.apercu} »`);
+  verif(/^3 · 4 pistes$/.test(etat.compte) && /^3 postes, 4 pistes — scène de 10 × 6 m, salle de 16 × 19.2 m\.$/.test(etat.apercu), `compte « ${etat.compte} », aperçu « ${etat.apercu} »`);
+  const horsScene = await page.evaluate(() => ({ cache: document.querySelector('[data-ps-hors-scene]').hidden, ecoute: [...document.querySelectorAll('[data-ps-ecouter]')].length }));
+  verif(!horsScene.cache && horsScene.ecoute >= 4, `le bloc hors scène se montre (14 sons déjà posés), ${horsScene.ecoute} boutons de pré-écoute`);
   verif(etat.nom === 'Scène' && etat.creer && etat.public, `nom proposé « ${etat.nom} », bouton actif, le public est en bas`);
   if (process.env.CAPTURES) await page.screenshot({ path: `${process.env.CAPTURES}/plan-de-scene.png` });
 
@@ -100,6 +102,18 @@ const verif = (ok, msg) => { console.log(`${ok ? '✓' : '✗'} ${msg}`); if (!o
   verif(bx > 400 && by < 120, `la basse glissée à cour, au fond : (${bx}, ${by})`);
   verif(/scène de 12 × 6 m, salle de 18 × 19.2 m/.test(bouge.apercu) && bouge.lea.includes('Léa'), `scène élargie et voix nommée : « ${bouge.apercu} », ${bouge.lea.join(' / ')}`);
 
+  // 3 ter. l'équipement suit le poste glissé ; cliquer le nom d'une carte n'efface pas le champ
+  const suivi = await page.evaluate((id) => {
+    const xy = (el) => el.getAttribute('transform').match(/translate\(([\d.]+) ([\d.]+)\)/).slice(1).map(Number);
+    const [gx, gy] = xy(document.querySelector(`[data-ps-poste="${id}"]`));
+    const [ax, ay] = xy(document.querySelector('[data-ps-equip="ampli"]'));
+    const nom = document.querySelector('[data-ps-carte] [data-ps-poste-nom]');
+    nom.focus(); nom.click();
+    return { d: Math.hypot(gx - ax, gy - ay), focus: document.activeElement === nom, selection: nom.closest('[data-ps-carte]').classList.contains('actif') };
+  }, idBasse);
+  // collée au fond, la basse n'a pas de place derrière elle : l'ampli est à côté, à moins d'un mètre
+  verif(suivi.d < 60 && suivi.focus && suivi.selection, `l'ampli a suivi la basse (à ${suivi.d.toFixed(0)} px) ; le champ cliqué garde le focus, sa carte est sélectionnée`);
+
   // 3 bis. le plan exporté : un SVG autonome, noir sur blanc, titré du morceau
   const svg = await page.evaluate(() => new Promise((resoudre) => {
     const clic = HTMLAnchorElement.prototype.click;
@@ -110,7 +124,7 @@ const verif = (ok, msg) => { console.log(`${ok ? '✓' : '✗'} ${msg}`); if (!o
     };
     document.querySelector('[data-ps-svg-export]').click();
   }));
-  verif(svg.nom === 'plan-de-scene-marées.svg' && /^<\?xml/.test(svg.texte) && /Marées — plan de scène/.test(svg.texte) && /AVANT-SCÈNE · PUBLIC/.test(svg.texte) && (svg.texte.match(/ed-ps-picto/g) ?? []).length === 3 && /fill="#fff"/.test(svg.texte),
+  verif(svg.nom === 'plan-de-scene-marées.svg' && /^<\?xml/.test(svg.texte) && /Marées — plan de scène/.test(svg.texte) && /AVANT-SCÈNE · PUBLIC/.test(svg.texte) && (svg.texte.match(/ed-ps-picto/g) ?? []).length === 3 && /fill="#fff"/.test(svg.texte) && !/tabindex|data-ps-/.test(svg.texte),
     `plan exporté « ${svg.nom }» : ${svg.texte.length} car., titré, trois pictogrammes, noir sur blanc`);
 
   // 4. créer
@@ -198,10 +212,10 @@ const verif = (ok, msg) => { console.log(`${ok ? '✓' : '✗'} ${msg}`); if (!o
   await page.evaluate(() => window.__galerie.editor.ui.choisirGabarit());
   await page.waitForTimeout(200);
   const portes = await page.evaluate(() => {
-    const carte = !!document.querySelector('[data-gab-scene]');
+    const carte = !!document.querySelector('[data-gab-assistant="scene"]');
     document.querySelector('[data-dlg-annule]')?.click();
     window.__galerie.editor.ui.sons.toggle();
-    const bouton = !!document.querySelector('#sons-panel [data-son="scene"]');
+    const bouton = !!document.querySelector('#sons-panel [data-son-assistant="scene"]');
     window.__galerie.editor.ui.sons.hide();
     return { carte, bouton };
   });

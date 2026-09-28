@@ -22,7 +22,8 @@ import { GRILLES, PAS, STELE, FINITIONS, ECLAIRAGES, dispositionAuto,
   cartelDepuisSon, steleDepuisSon, mobilierArchives, pieceDepuisSons, resumePiece,
   apparierVisuels, panneauDeVisuel, corpsDeStele, FORMES }
   from '../engine/src/editor/state/PieceDepuisSons.js';
-import { validerGabarit, instancierGabarit } from '../engine/src/editor/state/Gabarits.js';
+import { validerGabarit, instancierGabarit, titreLibre } from '../engine/src/editor/state/Gabarits.js';
+import { LIGNE_MAX, PAS_NOMS } from '../engine/src/editor/state/PieceDepuisSons.js';
 import { estOeuvre } from '../engine/src/core/catalogue.js';
 
 let ok = 0, ko = 0;
@@ -268,6 +269,35 @@ test('un résumé lisible pour l\'aperçu', () => {
   assert.match(resumePiece(7, { mode: 'grille', cols: 3, rangs: 4 }), /3 × 4, 5 place\(s\) libre/);
   assert.match(resumePiece(6, { mode: 'grille', cols: 2, rangs: 2 }), /^6 stèles en grille 2 × 3 — /);
   assert.match(resumePiece(2, { mode: 'ligne' }), /^2 stèles en ligne/);
+});
+
+titre('ce que l\'audit des assistants a corrigé');
+
+test('un titre libre se compte sur les TITRES : Archives, Archives 2, Archives 3', () => {
+  assert.equal(titreLibre([], 'Archives'), 'Archives');
+  assert.equal(titreLibre([{ id: 'archives', title: 'Archives' }], 'Archives'), 'Archives 2');
+  // « Archives 2 » a pour id « archives-2 » : le compte ne dérive pas de l'id
+  assert.equal(titreLibre([{ id: 'archives', title: 'Archives' }, { id: 'archives-2', title: 'Archives 2' }], 'Archives'), 'Archives 3');
+  assert.equal(titreLibre([{ id: 'scene-1', title: 'Scène' }], 'Scène'), 'Scène 2');
+  assert.equal(titreLibre([{ id: 'x', title: 'archives' }], 'Archives'), 'Archives 2', 'la casse ne compte pas');
+  assert.equal(titreLibre([{ id: 'archives' }], 'Archives'), 'Archives 2', 'sans titre, l\'id parle');
+  assert.equal(titreLibre(null, ''), 'Pièce');
+});
+
+test('deux longs noms qui ne diffèrent qu\'à la fin gardent chacun leur image', () => {
+  const sons = [{ path: 'assets/enregistrement-marees-2024-01.wav' }, { path: 'assets/enregistrement-marees-2024-02.wav' }];
+  const visuels = [{ path: 'assets/enregistrement-marees-2024-02.jpg' }, { path: 'assets/Enregistrement-Marées-2024-01.png' }];
+  const paires = apparierVisuels(sons, visuels);
+  assert.equal(paires.get(sons[0].path)?.path, visuels[1].path);
+  assert.equal(paires.get(sons[1].path)?.path, visuels[0].path);
+});
+
+test('une ligne de trente stèles se replie en grille : la salle reste une salle', () => {
+  const d = normaliserDisposition({ mode: 'ligne' }, 30);
+  assert.deepEqual(d, { mode: 'grille', cols: LIGNE_MAX, rangs: 3 });
+  assert.ok(dimensionsPiece(30, d).width < 60, `salle de ${dimensionsPiece(30, d).width} m`);
+  assert.deepEqual(normaliserDisposition({ mode: 'ligne' }, LIGNE_MAX), { mode: 'ligne', cols: LIGNE_MAX, rangs: 1 });
+  assert.deepEqual(Object.keys(PAS_NOMS), Object.keys(PAS), 'chaque pas a son nom');
 });
 
 titre('le gabarit « Archives » du moteur');

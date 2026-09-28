@@ -4068,7 +4068,7 @@ modèle « Archives » rejoint aussi les gabarits du moteur
 (`editor/gabarits/archives.json`) pour une salle vide meublée. La
 logique (dispositions, cotes, couleurs, cartels, appariement, formes,
 mobilier) vit dans `editor/state/PieceDepuisSons.js`, pure, testée par
-`scripts/test-piece-sons.mjs` (27 vérifications) ; `npm run
+`scripts/test-piece-sons.mjs` (30 vérifications) ; `npm run
 sonde:piece-sons` rejoue tout le parcours au navigateur sur le build
 auteur, image et bibliothèque comprises (28 vérifications).
 
@@ -4119,10 +4119,10 @@ scène (3 musiciens) » — que Ctrl+Z défait d'un bloc. Deux morceaux font
 deux pièces, chacune son plan ; un trait sur le plan de la galerie les
 relie. La logique (instruments, devinette, placement, cotes, œuvres)
 vit dans `editor/state/PlanDeScene.js`, pure, testée par
-`scripts/test-plan-de-scene.mjs` (20 vérifications) ; `npm run
+`scripts/test-plan-de-scene.mjs` (25 vérifications) ; `npm run
 sonde:plan-de-scene` rejoue le parcours au navigateur sur le build auteur
 (import, postes, pictogrammes et équipement, glisser, export SVG,
-création, praticable, phase, annulation, inspecteur, portes — 28
+création, praticable, phase, annulation, inspecteur, portes — 29
 vérifications).
 
 **Supprimer et dupliquer une pièce.** La boîte de confirmation NOMME tout
@@ -5752,6 +5752,32 @@ liaison attendue pendant un rendu — toutes sont passées du rendu à la
 chauffe. Éprouvé au nœud (le paquet, le compte de lumières, la remise en
 place même si l'appel lève, les invités, l'attente, son délai et la
 liaison forcée).
+
+**Un audit des deux assistants, à deux relecteurs.** L'un a relu « Un
+plan de scène », l'autre « Une pièce depuis les sons » et les portes
+communes, chacun en lecture seule, avec ordre de ne rapporter que ce
+qu'il avait vérifié ligne à ligne ; cinquante-deux pistes, toutes
+revérifiées ici avant d'être prises. Le vrai bug : deux guitares sans
+nom donnaient « Guitare 0 » et « Guitare 0 », parce que le titre se
+numérotait par identité d'objet sur des copies. Les autres pistes
+tenaient de la cohérence : le batteur qui flottait à 40 cm quand on
+décochait l'équipement, le praticable projeté avec une autre règle que
+le musicien (il débordait du plateau), l'ampli qui traversait le mur du
+fond, la ligne du fond muette pour une scène profonde (la portée suit
+désormais la salle et la profondeur a sa borne), « Archives 2 » proposé
+deux fois parce que le compte dérivait de l'identifiant, le champ de nom
+que le clic détruisait en re-rendant les cartes, le plan qui ne
+redessinait pas l'équipement après un glisser, « Acoustic Piano » pris
+pour une guitare. Ce que les deux assistants avaient en double — la
+boîte, Escape depuis un champ, le clic sur le fond, l'import et ses
+refus, l'échappement, le poseur de pièce — vit maintenant dans
+`ui/assistant-commun.js` et `Editor._poserPiece` ; leurs libellés, dans
+un seul registre (`ui/assistants.js`) lu par le menu, le sélecteur de
+modèles et le panneau Sons. Le moteur, lui, prévient à la console quand
+une œuvre rejoint un groupe `sync` avec une boucle d'une autre longueur :
+elles se décaleraient à la première reprise. Non repris, à dessein : une
+confirmation avant Escape (les pistes restent dans la médiathèque et le
+plan se recompose seul), les listes d'entrées et de retours de mixage.
 
 **Un plan de scène pour les pistes séparées.** Deux morceaux en stems,
 et l'envie de les entendre comme sur scène : la batterie au fond, la

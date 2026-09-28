@@ -21,7 +21,7 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { INSTRUMENTS, SCENE, BUDGET_VOIX, EQUIPEMENT, devinerInstrument, ajouterSon, retirerSon,
   detacherSon, rattacherSon, deplacerPoste, changerInstrument, nommerPoste, basculerPraticable,
-  equipementDe, mobilierEquipement, placementClassique,
+  equipementDe, mobilierEquipement, porteeDansSalle, placementClassique,
   espacer, placeDeReference, normaliserScene, dimensionsSalle, positionDansSalle, titrePoste,
   musicienDepuisPoste, mobilierScene, pieceDepuisPlan, resumePlan, couleurLumiere }
   from '../engine/src/editor/state/PlanDeScene.js';
@@ -59,6 +59,17 @@ test('les noms usuels des stems sont reconnus', () => {
   for (const [nom, ins] of Object.entries(attendu)) {
     assert.equal(devinerInstrument(nom), ins, `« ${nom} » → ${devinerInstrument(nom)}, attendu ${ins}`);
   }
+});
+
+test('les faux amis ne trompent plus : Acoustic Piano, Backing Track, Harmonica, Claves, Sidekick', () => {
+  assert.equal(devinerInstrument('Acoustic Piano.wav'), 'claviers');
+  assert.equal(devinerInstrument('Backing Track.wav'), 'autre');
+  assert.equal(devinerInstrument('Harmonica.wav'), 'autre');
+  assert.equal(devinerInstrument('Claves.wav'), 'autre');
+  assert.equal(devinerInstrument('Clavinet.wav'), 'claviers');
+  assert.equal(devinerInstrument('Sidekick Vox.wav'), 'voix');
+  assert.equal(devinerInstrument('Vocal Harmony.wav'), 'choeurs');
+  assert.equal(devinerInstrument('Bass Synth.wav'), 'basse');
 });
 
 test('les ambiguïtés se tranchent : bass drum, backing vocals, lead guitar', () => {
@@ -165,6 +176,7 @@ titre('la salle et la scène');
 test('la scène est bornée, la salle grandit avec elle, l\'entrée fait face à la scène', () => {
   assert.deepEqual(normaliserScene({}), { largeur: 10, profondeur: 6, hauteur: 0.5 });
   assert.deepEqual(normaliserScene({ largeur: 60, profondeur: 1 }), { largeur: 24, profondeur: 4, hauteur: 0.5 });
+  assert.equal(normaliserScene({ profondeur: 24 }).profondeur, SCENE.maxProfondeur, 'la profondeur a sa propre borne');
   assert.deepEqual(normaliserScene({ largeur: 'abc', profondeur: '8' }), { largeur: 10, profondeur: 8, hauteur: 0.5 });
   const d = dimensionsSalle({ largeur: 10, profondeur: 6 });
   assert.equal(d.width, 16);
@@ -175,6 +187,18 @@ test('la scène est bornée, la salle grandit avec elle, l\'entrée fait face à
   const large = dimensionsSalle({ largeur: 24, profondeur: 12 });
   assert.equal(large.width, 30);
   assert.ok(large.depth > d.depth);
+});
+
+test('du parterre, le fond de scène s\'entend : la portée suit la salle', () => {
+  const petite = dimensionsSalle({ largeur: 10, profondeur: 6 });
+  assert.equal(porteeDansSalle(petite), 16, 'jamais moins que la portée de base');
+  const profonde = dimensionsSalle({ largeur: 10, profondeur: SCENE.maxProfondeur });
+  const portee = porteeDansSalle(profonde);
+  assert.ok(portee >= profonde.spawn[2] - profonde.scene.zFond, `l'entrée (${profonde.spawn[2]}) entend le fond (${profonde.scene.zFond}) : portée ${portee}`);
+  assert.ok(portee + 6 >= profonde.spawn[2] - profonde.scene.zFond, 'et le budget de voix garde le fond');
+  const r = pieceDepuisPlan({ postes: plan('kick.wav'), scene: { profondeur: SCENE.maxProfondeur } }, {});
+  assert.equal(r.oeuvres[0].stems[0].radius, portee);
+  assert.equal(r.portee, portee);
 });
 
 test('un poste se place sur le plateau, jamais hors de la scène', () => {
@@ -264,6 +288,44 @@ test('praticable sous la batterie, ampli derrière guitare et basse, retour deva
   assert.ok(r.y >= 0 && r.y < p[3].y, 'le retour est devant, jamais hors scène');
 });
 
+test('l\'équipement suit la projection du musicien et reste sur le plateau', () => {
+  const sc = { largeur: 10, profondeur: 6 };
+  const d = dimensionsSalle(sc);
+  let p = plan('kick.wav');
+  p = deplacerPoste(p, p[0].id, 1, 1);                       // la batterie dans le coin du fond, à cour
+  const [prat] = equipementDe(p, sc);
+  const [xm, , zm] = positionDansSalle(p[0], d);
+  assert.ok(prat.xm + prat.cotes[0] / 2 <= 5 + 1e-9 && prat.zm - prat.cotes[2] / 2 >= d.scene.zFond - 1e-9, `le praticable reste sur le plateau : ${JSON.stringify(prat)}`);
+  assert.ok(Math.abs(prat.xm - xm) <= prat.cotes[0] / 2 && Math.abs(prat.zm - zm) <= prat.cotes[2] / 2, 'et la batterie est dessus');
+  assert.ok(Math.abs(prat.x * 5 - prat.xm) < 0.02, 'le plan et la pièce disent la même place');
+  let b = plan('bass.wav');
+  b = deplacerPoste(b, b[0].id, 0, 1);                       // la basse collée au fond : l'ampli passe à côté
+  const [ampli] = equipementDe(b, sc);
+  const [bx, , bz] = positionDansSalle(b[0], d);
+  assert.ok(ampli.zm - ampli.cotes[2] / 2 >= d.scene.zFond, 'l\'ampli ne traverse pas le mur du fond');
+  assert.ok(Math.abs(ampli.zm - bz) < 0.01 && Math.abs(ampli.xm - bx) > 0.5, 'sans place derrière, il est à côté');
+  let v = plan('vox.wav');
+  v = deplacerPoste(v, v[0].id, 0, 0);                       // la voix au bord : le retour ne dépasse pas
+  const [retour] = equipementDe(v, sc);
+  assert.ok(retour.zm + retour.cotes[2] / 2 <= d.scene.zAvant, 'le retour reste sur le bord de scène');
+});
+
+test('sans équipement, le musicien redescend sur le plateau', () => {
+  const p = plan('kick.wav');
+  const d = dimensionsSalle({});
+  const avec = musicienDepuisPoste(p[0], p, d, { equipement: true });
+  const sans = musicienDepuisPoste(p[0], p, d, { equipement: false });
+  assert.ok(Math.abs(avec.position[1] - sans.position[1] - EQUIPEMENT.praticable.hauteur) < 0.01);
+  const r = pieceDepuisPlan({ postes: p, equipement: false }, {});
+  assert.ok(Math.abs(r.oeuvres[0].position[1] - sans.position[1]) < 0.01, 'la pièce sans équipement ne fait pas flotter le batteur');
+});
+
+test('deux guitares sans nom : « Guitare 1 » et « Guitare 2 », comme dans la boîte', () => {
+  const r = pieceDepuisPlan({ postes: placementClassique(plan('gtr1.wav', 'gtr2.wav')), nom: 'Duo' }, {});
+  assert.deepEqual(r.oeuvres.map((o) => o.title), ['Guitare 1', 'Guitare 2']);
+  assert.deepEqual(r.oeuvres.map((o) => o.id), ['duo-1-guitare-1', 'duo-1-guitare-2']);
+});
+
 test('l\'équipement en trois dimensions : décor sur le plateau, le musicien monte sur son praticable', () => {
   const p = placementClassique(plan('kick.wav', 'bass.wav', 'vox.wav'));
   const d = dimensionsSalle({ largeur: 10, profondeur: 6 });
@@ -287,7 +349,7 @@ test('la pièce complète : ids uniques contre le document, sync, entrée, gabar
   const rooms = [{ id: 'marees', title: 'Marées' }];
   const works = [{ id: 'marees-voix', title: 'Voix' }];
   const r = pieceDepuisPlan({ postes, scene: { largeur: 12, profondeur: 6 }, nom: 'Marées', gabarit: GABARIT }, { rooms, works });
-  assert.equal(r.piece.id, 'marees-1', '« marees » existe : le suffixe libre');
+  assert.equal(r.piece.id, 'marees-1', 'l\'identifiant est toujours suffixé, « marees » ou pas');
   assert.equal(r.piece.title, 'Marées');
   assert.equal(r.oeuvres.length, 4, 'un musicien par poste');
   assert.ok(r.oeuvres.every((o) => o.sync === 'marees-1'));

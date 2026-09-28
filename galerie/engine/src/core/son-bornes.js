@@ -81,7 +81,9 @@ export function positionDansBoucle(b, position) {
  * rester en phase. Elles reprennent toutes sur la même horloge : celle du
  * premier départ du groupe, retenue dans `horloges` (une Map de l'App).
  * Sans clé, l'œuvre garde son propre premier départ (`propre`), ou le
- * prend maintenant.
+ * prend maintenant. La Map vit autant que l'AudioContext (un seul par
+ * visite) : une entrée par clé, jamais vidée — c'est voulu, le groupe
+ * reprend en phase même après avoir quitté et retrouvé sa pièce.
  */
 export function departDe(horloges, cle, t0, propre = null) {
   if (cle === undefined || cle === null || cle === '') {

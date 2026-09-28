@@ -167,11 +167,11 @@ const verif = (ok, msg) => { console.log(`${ok ? '✓' : '✗'} ${msg}`); if (!o
   await page.evaluate(() => window.__galerie.editor.ui.choisirGabarit());
   await page.waitForTimeout(200);
   const portes = await page.evaluate(() => {
-    const carte = !!document.querySelector('[data-gab-sons]');
+    const carte = !!document.querySelector('[data-gab-assistant="sons"]');
     const archives = [...document.querySelectorAll('.ed-gab-carte b')].map((b) => b.textContent);
     document.querySelector('[data-dlg-annule]')?.click();
     window.__galerie.editor.ui.sons.toggle();
-    const bouton = !!document.querySelector('#sons-panel [data-son="piece"]');
+    const bouton = !!document.querySelector('#sons-panel [data-son-assistant="sons"]');
     window.__galerie.editor.ui.sons.hide();
     return { carte, archives, bouton };
   });
