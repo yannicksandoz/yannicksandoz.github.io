@@ -73,3 +73,21 @@ export function positionDansBoucle(b, position) {
   if (!Number.isFinite(position) || position <= 0 || longueur <= 0) return b.debut;
   return b.debut + (((position % longueur) + longueur) % longueur);
 }
+
+/**
+ * LE DÉPART PARTAGÉ. Les pistes d'une œuvre partent ensemble (Artwork) ;
+ * celles de PLUSIEURS œuvres qui portent la même clé `sync` — un groupe
+ * sur scène, où chaque musicien est une œuvre à sa place — doivent aussi
+ * rester en phase. Elles reprennent toutes sur la même horloge : celle du
+ * premier départ du groupe, retenue dans `horloges` (une Map de l'App).
+ * Sans clé, l'œuvre garde son propre premier départ (`propre`), ou le
+ * prend maintenant.
+ */
+export function departDe(horloges, cle, t0, propre = null) {
+  if (cle === undefined || cle === null || cle === '') {
+    return Number.isFinite(propre) ? propre : t0;
+  }
+  const k = String(cle);
+  if (!horloges.has(k)) horloges.set(k, t0);
+  return horloges.get(k);
+}

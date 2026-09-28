@@ -40,7 +40,7 @@ import { ajouterLigne, ajouterPolyligne, patcherArbreLignes, MAX_POINTS_POLYLIGN
  * paragraphe plutôt qu'une constante.
  */
 const HAUTEUR_FENTE = 0.5;
-import { lancerBoucle } from './son-bornes.js';
+import { lancerBoucle, departDe } from './son-bornes.js';
 import { creerCartel, tournerVersCamera, disposerCartel } from './cartels.js';
 
 // crossOrigin « anonymous » : indispensable pour les médias distants, dont
@@ -1470,7 +1470,10 @@ export class Artwork {
       // « rembobinait » à chaque retour — sur une nappe de cinq minutes, on
       // l'entendait. Le premier départ est retenu, et la reprise se place
       // comme si la piste n'avait jamais cessé (son-bornes.js).
-      this._premierDepart ??= t0;
+      // Les œuvres d'un même groupe (`sync`, le plan de scène : un musicien
+      // par œuvre) partagent l'horloge du groupe : en phase, toujours.
+      this._premierDepart = departDe(this.app._departsSync ??= new Map(),
+        this.config.sync, t0, this._premierDepart);
       const position = t0 - this._premierDepart;
       for (const s of this.stems) {
         // Le gain de la piste a été FONDU À ZÉRO à la suspension (voir

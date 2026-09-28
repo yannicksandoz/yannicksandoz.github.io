@@ -8,7 +8,7 @@
  * Lancer avec : npm test
  */
 import assert from 'node:assert/strict';
-import { secondes, bornesLecture, lancerBoucle, positionDansBoucle }
+import { secondes, bornesLecture, lancerBoucle, positionDansBoucle, departDe }
   from '../engine/src/core/son-bornes.js';
 import { sautRaccord, decalage, jugerFormat } from '../engine/src/core/boucle-regles.js';
 
@@ -165,6 +165,26 @@ test('le verdict : décalé ou qui claque, refusé ; sinon accepté', () => {
   assert.equal(jugerFormat({ lag: 1, rapportOriginal: 1.2, rapportFormat: 5 }).ok, true);   // sous 3× + 3
   assert.equal(jugerFormat({ lag: 0, rapportOriginal: 0, rapportFormat: 2.2 }).ok, true);   // un raccord presque muet : la marge absolue
   assert.match(jugerFormat({ lag: 5, rapportOriginal: 1, rapportFormat: 1 }).raisons[0], /décalé de 5/);
+});
+
+groupe('le départ partagé d\'un groupe (`sync`)');
+
+test('sans clé, l\'œuvre garde son premier départ, ou le prend maintenant', () => {
+  const h = new Map();
+  assert.equal(departDe(h, undefined, 10), 10);
+  assert.equal(departDe(h, '', 10, 4), 4);
+  assert.equal(departDe(h, null, 10, 4), 4);
+  assert.equal(h.size, 0);
+});
+
+test('avec une clé, toutes les œuvres du groupe reprennent la même horloge', () => {
+  const h = new Map();
+  assert.equal(departDe(h, 'scene-1', 10), 10);         // la batterie part à 10
+  assert.equal(departDe(h, 'scene-1', 13.5), 10);       // la basse, réveillée plus tard, se cale sur 10
+  assert.equal(departDe(h, 'scene-1', 40, null), 10);   // rechargée (premier départ oublié), toujours 10
+  assert.equal(departDe(h, 'scene-2', 40), 40);         // un autre groupe, une autre horloge
+  assert.equal(departDe(h, 7, 50), 50);                 // une clé numérique vaut sa chaîne
+  assert.equal(departDe(h, '7', 60), 50);
 });
 
 console.log(`\n${ok} ✓ / ${ko} ✗`);

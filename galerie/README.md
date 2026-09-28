@@ -2040,6 +2040,10 @@ au code du moteur** :
   ],
   // — surcharges spatiales de L'ŒUVRE (chaque piste peut surcharger) —
   "audio": { "largeur": 1.2, "poidsDistance": 1, "poidsDirection": 1 },
+  // — le GROUPE : les œuvres qui portent la même clé partagent l'horloge
+  // de leur premier départ et restent en phase — un musicien par œuvre,
+  // à sa place sur la scène (voir « Un plan de scène ») —
+  "sync": "scene-marees",
 
   // — comportements —
   "modules": [
@@ -4068,6 +4072,50 @@ mobilier) vit dans `editor/state/PieceDepuisSons.js`, pure, testée par
 sonde:piece-sons` rejoue tout le parcours au navigateur sur le build
 auteur, image et bibliothèque comprises (28 vérifications).
 
+**Un plan de scène.** Le geste du régisseur, pour un MORCEAU en pistes
+séparées (batterie, basse, voix…) : « ＋ Ajouter › Plan de scène… »
+(aussi la carte « Plan de scène… » du sélecteur de modèles, et le bouton
+du panneau Sons). La boîte montre la scène VUE DE DESSUS, le public en
+bas, jardin à gauche et cour à droite. Les pistes déposées (là, ou d'un
+glisser sur la fenêtre) montent sur scène d'elles-mêmes, chacune à la
+place classique de son instrument — deviné au nom du fichier : « kick »,
+« snare », « OH » font une batterie, « Bass DI » une basse, « Lead Vox »
+une voix, « gtr », « keys », « brass », « strings », « BVs »… — et les
+pistes d'un même ensemble (une batterie en cinq fichiers, des chœurs,
+une section de cuivres) font UN SEUL POSTE : une voix du budget pour
+plusieurs pistes. Les sons qui jouent déjà ailleurs dans la galerie
+attendent hors scène, repliés. Puis on compose : glisser un poste sur le
+plan (ou les flèches au clavier), corriger son instrument dans la liste,
+nommer le musicien (« Léa »), détacher une piste vers son propre poste
+ou la rattacher à un autre, « Placement classique » pour tout remettre en
+place (deux guitares de part et d'autre, une rangée pleine s'espace sans
+changer d'ordre), la scène en mètres (4 à 24), le nom de la pièce — le
+morceau —, finition et éclairage. L'en-tête compte « 3 voix sur 6 » et
+l'aperçu prévient au-delà du budget de voix : les postes les plus loin
+du visiteur se tairaient. « Créer la pièce » fabrique une SALLE DE
+CONCERT : le plateau (50 cm) au nord, reculé du mur, la salle taillée
+autour (trois mètres de chaque côté, douze de parterre, jamais moins de
+14 × 16 m, sans fenêtre, réverbération plus longue que les Archives), un
+musicien par poste — un corps à la couleur de son instrument, debout sur
+le plateau, ses pistes portées à 16 m, un cartel qui dit le morceau et
+la partie —, deux projecteurs de face, les corniches, et l'entrée au
+parterre, à sept mètres du bord de scène, le regard sur le plateau.
+Chaque musicien porte la clé **`sync`** de la pièce : le moteur leur
+donne la même horloge de premier départ (`departDe`, son-bornes.js), et
+les boucles restent EN PHASE même quand le budget de voix en suspend une
+puis la reprend — du parterre on entend le groupe, sur la scène on isole
+une voix à l'approche. Le champ « groupe en phase » de l'inspecteur
+(onglet Son, expert) règle la clé à la main sur n'importe quel objet. Le
+tout est un lot d'historique — « pièce « Marées » depuis un plan de
+scène (3 musiciens) » — que Ctrl+Z défait d'un bloc. Deux morceaux font
+deux pièces, chacune son plan ; un trait sur le plan de la galerie les
+relie. La logique (instruments, devinette, placement, cotes, œuvres)
+vit dans `editor/state/PlanDeScene.js`, pure, testée par
+`scripts/test-plan-de-scene.mjs` (17 vérifications) ; `npm run
+sonde:plan-de-scene` rejoue le parcours au navigateur sur le build auteur
+(import, postes, glisser, création, phase, annulation, inspecteur,
+portes — 22 vérifications).
+
 **Supprimer et dupliquer une pièce.** La boîte de confirmation NOMME tout
 ce qui part : œuvres (avec le choix « déplacer vers… »), portails entrants
 et leurs jumeaux, apparitions qui visent la pièce, jetons — et refuse si
@@ -4427,7 +4475,9 @@ endroit — la barre n'a plus une file de boutons d'import à parcourir :
   entier…**, **Média par URL…** ;
 - **Pièce…** (les modèles de pièce), **Pièce depuis les sons…** (une
   salle Archives à la taille du lot déposé — voir *Composer une
-  exposition*), **Portail vers ▸** (chaque pièce,
+  exposition*), **Plan de scène…** (une salle de concert depuis les
+  pistes séparées d'un morceau, chacune à sa place sur la scène, en
+  phase), **Portail vers ▸** (chaque pièce,
   la courante en Escher) ; **Importer une galerie…** (`galerie.zip`,
   `galerie.json`, `works.json` / `rooms.json`).
 
@@ -5693,6 +5743,24 @@ liaison attendue pendant un rendu — toutes sont passées du rendu à la
 chauffe. Éprouvé au nœud (le paquet, le compte de lumières, la remise en
 place même si l'appel lève, les invités, l'attente, son délai et la
 liaison forcée).
+
+**Un plan de scène pour les pistes séparées.** Deux morceaux en stems,
+et l'envie de les entendre comme sur scène : la batterie au fond, la
+basse à côté, le chant devant, et le visiteur au parterre. Plutôt qu'une
+grille de stèles, l'éditeur gagne le geste du régisseur — la scène vue de
+dessus, les postes à glisser, l'instrument deviné au nom du fichier, les
+pistes d'un même ensemble regroupées sur un poste — et « Créer la pièce »
+fabrique la salle de concert autour du plateau, l'entrée face à lui. Le
+point dur n'était pas le plan mais la PHASE : un musicien par œuvre,
+c'est autant d'horloges de premier départ, et le budget de voix suspend
+et reprend chacune à son heure ; un décalage d'une demi-seconde entre la
+grosse caisse et la basse aurait tout défait. D'où `sync` sur l'œuvre :
+les œuvres d'une même clé prennent l'horloge du groupe (une Map de
+l'App, `departDe`), et la reprise « comme si la piste n'avait jamais
+cessé » vaut alors pour le groupe entier. Mesuré à la sonde : trois
+musiciens actifs, un seul premier départ. Le budget de voix reste ce
+qu'il est — six — et l'assistant le dit avant qu'on ne l'apprenne à
+l'oreille. Voir « Un plan de scène » dans *Composer une exposition*.
 
 **Un micro-audit à deux relecteurs.** L'un a relu de façon contradictoire
 les deux derniers commits, l'autre a parcouru la visite comme un
