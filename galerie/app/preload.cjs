@@ -11,6 +11,15 @@
 'use strict';
 const { contextBridge, ipcRenderer } = require('electron');
 
+/**
+ * Une erreur levée par `ipcMain.handle` arrive préfixée « Error invoking
+ * remote method 'x': Error: … » : le panneau affiche le message tel quel,
+ * on lui rend sa phrase.
+ */
+const propre = (p) => p.catch((e) => {
+  throw new Error(String(e?.message ?? e).replace(/^Error invoking remote method '[^']+': (Error: )?/, ''));
+});
+
 const version = (process.argv.find((a) => a.startsWith('--galerie-version=')) ?? '').split('=')[1] ?? '';
 
 contextBridge.exposeInMainWorld('galerieApp', {
@@ -30,8 +39,8 @@ contextBridge.exposeInMainWorld('galerieApp', {
   },
   /** Le git de la machine, sur le dossier de contenu (voir app/git-local.cjs). */
   git: {
-    etat: () => ipcRenderer.invoke('git:etat'),
-    committer: (message) => ipcRenderer.invoke('git:committer', message),
-    pousser: () => ipcRenderer.invoke('git:pousser')
+    etat: () => propre(ipcRenderer.invoke('git:etat')),
+    committer: (message) => propre(ipcRenderer.invoke('git:committer', message)),
+    pousser: () => propre(ipcRenderer.invoke('git:pousser'))
   }
 });

@@ -60,6 +60,7 @@ export function cibleImages(hz) {
   return Math.max(50, Math.round(0.95 * (Number(hz) || 60)));
 }
 
+import { BUDGET } from './budget-salle.js';
 import { FINITION, SURVIE, ECONOME_CRANS, prochainCran, etatDe, densiteSuivante, ECONOME, lireEconome, ecrireEconome, lireGouverneur, lireProfil, lireRiche } from './crans.js';
 
 export class QualityManager {
@@ -133,7 +134,7 @@ export class QualityManager {
           // LE MÊME SON PARTOUT : six voix (une par œuvre, voir
           // Spatialisation), quatre en HRTF — la convolution est chère PAR
           // SOURCE, au-delà les voies retombent sur equalpower
-          maxStems: 6,
+          maxStems: BUDGET.stems,
           maxHRTF: 4,
           dustCount: 250,       // mesuré au banc : 450 coûtaient 1,1 ms sur iPhone
           maxTextureSize: 2048,

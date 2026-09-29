@@ -1,5 +1,7 @@
 import * as THREE from 'three';
 import { registry } from './ModuleRegistry.js';
+import { LUMINAIRES } from './charte-regles.js';
+import { RAYON_DEFAUT } from './budget-salle.js';
 import { buildPrimitive, isPrimitive } from './primitives.js';
 import { loadModel, fitModel, modelKind } from './modelLoaders.js';
 import { buildVoxelMesh, buildVoxelMeshMerged, buildVoxelCollider } from './voxel.js';
@@ -81,7 +83,7 @@ export const COUCHE_AUTO_ECLAIREE = 3;
  * une corniche, rais additifs pour un faisceau ou une gerbe) et ne veulent
  * pas d'accent en plus.
  */
-const LUMINAIRES = new Set(['corniche', 'faisceau', 'gerbe']);
+// LUMINAIRES : voir charte-regles.js — une seule liste pour le moteur, l'éditeur et le rapport
 
 /**
  * Le recul de l'ancienne ponctuelle d'accent, en mètres. Il sert d'ÉTALON :
@@ -1590,7 +1592,7 @@ export class Artwork {
   get maxAudibleRadius() {
     let r = 0;
     for (const s of this.config.stems ?? []) {
-      r = Math.max(r, s.radius ?? 12);
+      r = Math.max(r, s.radius ?? RAYON_DEFAUT);
       // une piste qui déclare SES distances spatiales porte loin
       const spa = s.spatial;
       if (spa && typeof spa === 'object'

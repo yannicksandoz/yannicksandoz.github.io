@@ -71,7 +71,7 @@ def gain_pour_cible(lufs, cible, base):
 
 def main():
     p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    p.add_argument('--cible', type=float, default=-18.0, help='sonie effective visée (LUFS)')
+    p.add_argument('--cible', type=float, default=-18.0,  # CIBLE_LUFS de engine/src/core/loudness.js (même valeur, à changer ensemble) help='sonie effective visée (LUFS)')
     p.add_argument('--json', action='store_true', help='sortie JSON plutôt que tableau')
     a = p.parse_args()
     ff = ffmpeg()

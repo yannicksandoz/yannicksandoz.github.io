@@ -52,18 +52,15 @@ import { loiSerpentin } from '../engine/src/core/serpentin.js';
 import { empriseAuSol,
   ACCROCHAGE, hauteurVisee, ecartAccrochage, reculDe, seuilsEncombres, encastrement, estPanneau,
   dimensionsSalle as dimensionsPartagees,
-  AIR_SEUIL as AIR_SEUIL_PARTAGE, GARDE_CORNICHE as GARDE_PARTAGEE }
+  AIR_SEUIL as AIR_SEUIL_PARTAGE, GARDE_CORNICHE as GARDE_PARTAGEE, EPAISSEUR_MUR }
   from '../engine/src/core/charte-regles.js';
 
 const ici = dirname(fileURLToPath(import.meta.url));
 const RACINE = join(ici, '..', 'content');
 
-/**
- * Formes qui SONT une lumière : elles portent la leur et ne reçoivent pas
- * d'accent. Doit rester identique à `LUMINAIRES` dans `core/Artwork.js` —
- * `test-charte.mjs` vérifie que les deux listes ne divergent pas.
- */
-export const LUMINAIRES = new Set(['corniche', 'faisceau', 'gerbe']);
+/** Formes qui SONT une lumière — la liste unique de `core/charte-regles.js`. */
+import { LUMINAIRES } from '../engine/src/core/charte-regles.js';
+export { LUMINAIRES };
 
 /** Salles à ciel ouvert : leur lumière est le ciel, pas une salle. */
 export const EXTERIEURS = new Set(['jardin', 'allee', 'annexe']);
@@ -872,7 +869,7 @@ export function auditLignes() {
  * l'épaisseur, est/ouest sur la profondeur MOINS — voir `planMur`.
  */
 export const GARDE_COURONNE = 0.4;      // mètres de dégagement exigés
-const WALL_T = 0.35;
+const WALL_T = EPAISSEUR_MUR;
 
 export function auditCouronnement() {
   setStyle('fluide');

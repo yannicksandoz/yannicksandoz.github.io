@@ -80,7 +80,8 @@ npm run assets       # régénère les textures/stems de démo
 npm run library      # régénère le mobilier de galerie (GLB + vignettes)
 npm run sonde:visuels   # sondes navigateur (Playwright, jamais en CI) : visuels,
                         # editeur, charge, basse-perf, piece-sons, poids-audio, lumiere, lisere
-npm run app          # l'application auteur (Electron) sur dist-auteur/ ; app:build l'empaquette, app:icone refait l'icône
+npm run app          # l'application auteur (Electron) sur dist-auteur/ — télécharge le binaire Electron
+                     # au premier lancement (npm install ne le fait plus) ; app:build l'empaquette, app:icone refait l'icône
 npm run wasm:audio   # recompile la console 7 en wasm (clang)
 ```
 
@@ -5002,7 +5003,7 @@ chemin) à moins de 2 % sur neuf glyphes ; la couverture calculée avec les
 seules courbes de la bande égale celle calculée avec toutes, sur 2 000
 échantillons aléatoires — c'est exactement le pari du shader ; le fichier
 généré est régénéré et comparé octet à octet. Au navigateur
-(`verif-lettrage.cjs`) : un « Og » est rendu par le GPU dans une cible hors
+(sonde d'alors, `verif-lettrage.cjs`, non conservée) : un « Og » est rendu par le GPU dans une cible hors
 écran et comparé pixel à pixel à la référence CPU — **16 384 pixels, écart
 moyen 0,0001, accord binaire 100,00 %**, avec 150 pixels d'anticrénelage au
 bord. GPU = CPU = géométrie. Deux écarts assumés à la référence, documentés
@@ -5032,7 +5033,7 @@ propre morceau, le morceau n'est demandé que si une cible dépasse deux mille
 triangles — un modèle importé, jamais une boîte — et la galerie
 d'aujourd'hui ne le télécharge pas. Vérifié des deux côtés : en A/B, le
 paquet principal passe de 1 201,78 à 1 202,00 ko (**+0,22 ko**), et
-`verif-cartels.cjs` repère le morceau sur le disque puis prouve qu'aucune des
+une sonde d'alors (`verif-cartels.cjs`, non conservée) repère le morceau sur le disque puis prouve qu'aucune des
 44 requêtes d'une visite complète ne le demande. La protection existe pour le
 jour où quelqu'un posera un modèle de deux cent mille triangles ; elle ne
 coûte rien avant.
@@ -5753,6 +5754,50 @@ chauffe. Éprouvé au nœud (le paquet, le compte de lumières, la remise en
 place même si l'appel lève, les invités, l'attente, son délai et la
 liaison forcée).
 
+**Avant la première session dans l'application : trois vérifications.**
+Trois relecteurs, chacun sa mission et l'ordre de ne rien construire.
+Le premier a tout remis au vert (sous-module, installation, les
+quatre-vingt-six suites sans une sautée, les deux builds, les
+garde-fous, l'application sous Xvfb) et trouvé le seul bloquant :
+depuis Electron 44, `npm install` ne télécharge plus le binaire — le
+paquet n'a plus de `postinstall`, seulement une commande
+`install-electron` — et `npm run app` aurait échoué sur un clone frais.
+`preapp` la lance désormais avant chaque `npm run app` (idempotente : une
+seconde quand le binaire est là). Le deuxième a joué un parcours réel
+dans l'application : nouvelle galerie, import, accrochage, fader, Ctrl+Z,
+publication, git, revenir, export et réimport du zip, le même en
+Chromium, le clavier suisse romand, le brouillon et le jeton à la
+relance. Trois choses cassées : la poussée sans distant répondait par
+la fin de l'aide de git (« and then push using the remote name… ») au
+lieu de sa première ligne, « fatal: No configured push destination » —
+la cause est maintenant en tête, avec le conseil, et le préfixe
+qu'Electron ajoute aux erreurs d'IPC est retiré ; après « Revenir »,
+l'éditeur proposait de reprendre le brouillon qu'on venait de rejeter
+(le minuteur du brouillon écrivait à la fermeture sans regarder si le
+document était modifié) ; et « ² » restait écrit en dur dans trois
+infobulles alors que les étiquettes suivent le clavier (« § » à gauche
+du 1 en Suisse romande) — on dit « la touche à gauche du 1 ». Le
+troisième a contrôlé la source unique des règles : la charte spatiale
+et le budget de salle la respectaient ; quatre constantes vivaient en
+double ou en triple — le budget de voix (6, dans Quality, budget-salle
+et le plan de scène), le rayon d'audibilité par défaut (12, dans
+budget-salle et deux fois dans le moteur), la cible de sonie (−18 LUFS,
+3 LU d'écart, dans la table d'écoute et le script de niveaux) et la
+liste des luminaires (quatre copies) — chacune n'a plus qu'un
+propriétaire (`budget-salle.js`, `loudness.js`, `charte-regles.js`) et
+la garde de `test-charte` vérifie que personne ne la redéfinit. La
+Charte et le Budget de l'inspecteur, qui se lisent sur les positions et
+les rayons, se relisent trois cents millisecondes après un glissement au
+gizmo ou un curseur de portée : ils restaient périmés tant qu'aucune
+autre mutation ne venait. Le passage « Qualité adaptative » du README
+disait 1,5 de densité, 1 024 px de textures et 24 voix sur ordinateur :
+c'est 1,25, 2 048 et 6 partout, comme le code. Restent, mineurs et
+notés : quatre dépendances de développement dépréciées et leurs
+vulnérabilités (Vite 5), deux modules importés à la fois statiquement
+et dynamiquement (Derive, Carte), les 404 volontaires des fichiers
+facultatifs en rouge dans la console, la table d'écoute qui se
+rafraîchit par sondage.
+
 **Un audit des deux assistants, à deux relecteurs.** L'un a relu « Un
 plan de scène », l'autre « Une pièce depuis les sons » et les portes
 communes, chacun en lecture seule, avec ordre de ne rapporter que ce
@@ -6321,9 +6366,10 @@ des deux profils :
 
 - **détection** : mobile vs desktop (pointer coarse + UA), lecture du GPU
   (`WEBGL_debug_renderer_info`) pour rétrograder les GPU faibles ;
-- **plafonds** : `pixelRatio` ≤ 2 (desktop) / 1,5 (mobile), bloom au quart de
-  résolution et textures ≤ 1024 px sur mobile, **6 voix audio simultanées
-  max sur mobile** (24 sur desktop, `maxStems`) avec *voice stealing* par
+- **plafonds** : `pixelRatio` ≤ 2 à la souris / 1,25 au doigt, bloom au quart
+  de résolution, textures ≤ 2048 px, **6 voix audio simultanées** — le même
+  son partout, `maxStems` vient de `BUDGET.stems` (`core/budget-salle.js`),
+  la même valeur que le budget de salle — avec *voice stealing* par
   distance — une voix par œuvre, quel que soit son nombre de pistes (voir
   « Sonorisation ») : les œuvres les plus proches jouent, les plus
   lointaines sont suspendues — et parmi les voies qui jouent, seules les

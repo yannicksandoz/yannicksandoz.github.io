@@ -107,10 +107,14 @@ class GitLocal {
     try {
       return await this._executer(['push'], d.racine);
     } catch (e) {
-      const detail = (e.stderr || e.message || '').trim().split('\n').slice(-3).join(' ');
+      // la cause est en TÊTE du stderr (« fatal: … ») ; la fin n'est que l'aide de git
+      const lignes = (e.stderr || e.message || '').trim().split('\n').map((l) => l.trim()).filter(Boolean);
+      const detail = lignes.find((l) => /^(fatal|error):/i.test(l)) ?? lignes[0] ?? '';
       const conseil = /Username|Password|Authentication|Permission denied|publickey|askpass/i.test(detail)
         ? ' — sans terminal, git ne peut rien demander : configurez un assistant d’identifiants (trousseau macOS, Git Credential Manager) ou une clé SSH chargée dans l’agent, puis réessayez.'
-        : e.killed ? ' — le distant n’a pas répondu dans les deux minutes.' : '';
+        : /No configured push destination|no upstream|does not appear to be a git repository|Could not read from remote/i.test(detail)
+          ? ' — ce dépôt n’a pas de distant : ajoutez-en un dans un terminal (git remote add origin …, puis git push -u origin <branche>) ; ensuite « Pousser » suffira.'
+          : e.killed ? ' — le distant n’a pas répondu dans les deux minutes.' : '';
       throw new Error(`git push a échoué : ${detail}${conseil}`);
     }
   }

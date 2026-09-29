@@ -184,14 +184,24 @@ test('la charte et le moteur s’accordent sur ce qu’est un luminaire', () => 
   // scène n'allume pas. C'est arrivé dans l'autre sens : quatorze corniches
   // recevaient du moteur une lampe ponctuelle de 4 que personne n'avait
   // demandée, et l'audit de hiérarchie l'a signalée — d'où cette garde.
-  const src = readFileSync(join(ici, '..', 'engine', 'src', 'core',
-    'Artwork.js'), 'utf8');
-  const m = src.match(/const LUMINAIRES = new Set\(\[([^\]]*)\]\)/);
-  assert.ok(m, 'LUMINAIRES introuvable dans Artwork.js');
-  const duMoteur = m[1].split(',').map((s) => s.trim().replace(/^['"]|['"]$/g, ''))
-    .filter(Boolean).sort();
-  assert.deepEqual(duMoteur, [...LUMINAIRES].sort(),
-    'les listes de luminaires du moteur et de la charte ont divergé');
+  // Depuis l'audit des assistants, la liste est UNIQUE (charte-regles.js) :
+  // la garde vérifie que personne ne la redéfinit en local, et que le
+  // moteur, l'éditeur et le rapport l'importent de là.
+  const lire = (...seg) => readFileSync(join(ici, '..', ...seg), 'utf8');
+  const src = lire('engine', 'src', 'core', 'Artwork.js');
+  assert.ok(/import \{[^}]*\bLUMINAIRES\b[^}]*\} from '\.\/charte-regles\.js'/.test(src),
+    'Artwork.js doit importer LUMINAIRES de charte-regles.js');
+  for (const [f, seg] of [
+    ['Artwork.js', ['engine', 'src', 'core', 'Artwork.js']],
+    ['Accrochage.js', ['engine', 'src', 'editor', 'tools', 'Accrochage.js']],
+    ['PanneauSauvegarde.js', ['engine', 'src', 'editor', 'ui', 'PanneauSauvegarde.js']],
+    ['charte.mjs', ['scripts', 'charte.mjs']]
+  ]) {
+    let texte;
+    try { texte = lire(...seg); } catch { continue; }   // l'éditeur peut manquer (CI publique)
+    assert.ok(!/const LUM(INAIRES)? = new Set\(/.test(texte), `${f} redéfinit la liste des luminaires`);
+  }
+  assert.deepEqual([...LUMINAIRES].sort(), ['corniche', 'faisceau', 'gerbe']);
   assert.ok(src.includes('LUMINAIRES.has(config.model?.shape) ? 0 : 4'),
     'le moteur doit refuser l’accent par défaut à un luminaire');
 });

@@ -1,5 +1,6 @@
 import { Module } from './Module.js';
 import { smoothstep } from '../core/utils.js';
+import { RAYON_DEFAUT } from '../core/budget-salle.js';
 
 /**
  * Mixe individuellement chaque stem de l'œuvre selon la distance : chaque
@@ -27,7 +28,7 @@ export class StemMixer extends Module {
     const poids = Math.max(0, this.app.spatial?.poidsDistanceDe(this.artwork) ?? 1);
     const t = this.app.audio.ctx.currentTime;
     for (const s of stems) {
-      const radius = s.cfg.radius ?? 12;
+      const radius = s.cfg.radius ?? RAYON_DEFAUT;
       const maxGain = s.cfg.gain ?? 1;
       const g = maxGain * Math.pow(smoothstep(radius, radius * innerRatio, ctx.distance), poids);
       // RÉANCRÉ CHAQUE FRAME, À DESSEIN — ne pas « optimiser » ceci par une

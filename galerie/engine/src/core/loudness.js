@@ -127,6 +127,10 @@ function finir(puissances, crete) {
  * Le niveau EFFECTIF d'une piste dans la galerie : sa sonie, plus les gains
  * du JSON (gain de piste × gain d'œuvre), en LUFS. Pure.
  */
+/** La cible de sonie d'une piste dans la galerie, et l'écart au-delà duquel l'œuvre détonne (LU). */
+export const CIBLE_LUFS = -18;
+export const ECART_LUFS = 3;
+
 export function niveauEffectif(lufs, gainPiste = 1, gainOeuvre = 1) {
   if (lufs == null) return null;
   const g = (gainPiste ?? 1) * (gainOeuvre ?? 1);

@@ -33,6 +33,7 @@
     "library": "node scripts/generate-library.mjs",
     "test": "node scripts/tests.mjs",
     "wasm:audio": "clang --target=wasm32 -O3 -nostdlib -Wl,--no-entry -Wl,--export-dynamic -o engine/assets/wasm/console7.wasm engine/src/audio/console7.c",
+    "preapp": "install-electron",
     "app": "electron .",
     "app:build": "npm run build:auteur && electron-builder",
     "app:icone": "node scripts/genere-icone-app.mjs"

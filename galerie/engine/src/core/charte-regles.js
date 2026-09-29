@@ -35,6 +35,14 @@ export const RETRAIT_MUR = 0.06;
  */
 export const EPAISSEUR_MUR = 0.35;
 
+/**
+ * Les formes qui SONT une lumière : elles portent la leur, ne reçoivent pas
+ * d'accent et ne se rangent pas comme un objet. Une seule liste, pour le
+ * moteur (Artwork), l'éditeur (Accrochage, publication) et le rapport
+ * (scripts/charte.mjs).
+ */
+export const LUMINAIRES = new Set(['corniche', 'faisceau', 'gerbe']);
+
 /** Air minimal entre un corps solide et un seuil de portail (m). */
 export const AIR_SEUIL = 0.7;
 

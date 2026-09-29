@@ -84,6 +84,15 @@ if (!version) {
     assert.match(m, /pas dans un dépôt/);
   });
 
+  await test('pousser sans dépôt distant : refusé en nommant la cause, avec le conseil', async () => {
+    await assert.rejects(git.pousser(contenu), (e) => {
+      assert.match(e.message, /^git push a échoué : (fatal|error):/, `la cause en tête : « ${e.message} »`);
+      assert.match(e.message, /distant|remote|destination|upstream/i, 'le message dit qu\'il manque un distant');
+      assert.ok(!/git push <name>/.test(e.message), 'pas l\'aide de git en guise de message');
+      return true;
+    });
+  });
+
   await test('une suppression se voit avant d\'être engagée', async () => {
     unlinkSync(join(contenu, 'works', 'a.json'));
     const c = await git.changements(contenu);
