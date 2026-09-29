@@ -5798,6 +5798,23 @@ et dynamiquement (Derive, Carte), les 404 volontaires des fichiers
 facultatifs en rouge dans la console, la table d'écoute qui se
 rafraîchit par sondage.
 
+**Le premier `.dmg`, en cinq tours.** Le workflow de l'application
+n'avait jamais tourné ; sa première Release (`app-v1.0.0-beta.1`, dépôt
+privé de l'éditeur) a demandé cinq passages. Un poste qui ne peut
+pousser qu'une branche déclenche désormais la construction et la
+Release par une branche `release/app-v*` (le workflow pose le tag
+lui-même), ou par « Run workflow » avec le tag saisi. Puis, un système
+après l'autre : sur macOS, git rend la racine du dépôt en chemin réel
+(`/private/var`) quand le dossier arrive par le lien (`/var`) — le bloc
+git résout les deux côtés avant le chemin relatif ; sur Linux,
+electron-builder 26 refusait la clé `desktopName` ; sur macOS encore, un
+secret de signature absent arrivait comme une variable vide, prise pour
+un certificat (« CSC_LINK not a file ») — le vide est retiré avant de
+construire ; sur Windows, `GALERIE_EDITOR=1 vite build` n'existe pas
+pour cmd.exe, par lequel `npm run` passe — `build:auteur` est un script
+Node qui pose la variable lui-même, portable partout. Chaque cause a
+laissé un test ou une ligne de workflow derrière elle.
+
 **Un audit des deux assistants, à deux relecteurs.** L'un a relu « Un
 plan de scène », l'autre « Une pièce depuis les sons » et les portes
 communes, chacun en lecture seule, avec ordre de ne rapporter que ce
