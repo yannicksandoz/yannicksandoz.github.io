@@ -14,7 +14,7 @@
     "dev": "GALERIE_EDITOR=1 vite",
     "dev:visiteur": "vite",
     "build": "vite build && node scripts/genere-liste.mjs dist",
-    "build:auteur": "GALERIE_EDITOR=1 vite build --outDir dist-auteur && node scripts/genere-liste.mjs dist-auteur",
+    "build:auteur": "node scripts/build-auteur.mjs",
     "preview": "vite preview",
     "preview:auteur": "vite preview --outDir dist-auteur",
     "check": "node scripts/check-visitor-build.mjs && node scripts/poids-build.mjs",
