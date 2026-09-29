@@ -4369,6 +4369,13 @@ terminal ouvert. L'application fait trois choses et rien de plus :
    souvient dans ses données d'utilisateur. Sans dossier, on édite une
    copie de la galerie du build, sans pouvoir la publier dans un dossier.
 
+**À la première ouverture, un assistant de démarrage.** Dossier servi,
+aucun compte GitHub prêt : une boîte « Bienvenue » demande le dépôt, le
+dossier de contenu dans le dépôt et le jeton, vérifie l'accès, puis
+propose de récupérer la version en ligne ou de continuer avec le dossier.
+« Plus tard » la ferme, elle revient à l'ouverture suivante tant que rien
+n'est configuré ; tout se retrouve dans ☁ Publier… › bloc 3.
+
 **Publier passe par l'application, sans boîte ni permission.** Dans un
 navigateur, « Publier » demande le dossier `content/` par la File System
 Access API et redemande la permission à chaque redémarrage. Dans
@@ -5835,6 +5842,21 @@ ne doivent pas être demandés), un orphelin local retiré, la sauvegarde
 qui le garde. Au passage, les réglages du bloc 3 s'écrivent l'un après
 l'autre : deux champs validés coup sur coup (Tab, Tab) se réécrivaient
 l'un l'autre.
+
+**Un assistant de démarrage.** Une invitation se ferme d'un clic et
+l'auteur se retrouve dans l'éditeur sans rien avoir configuré — pas
+terrible. À la première ouverture dans l'application (un dossier servi,
+aucun compte prêt), une boîte « Bienvenue » s'ouvre et tient jusqu'à ce
+qu'on ait répondu : 1 · Connecter GitHub — dépôt, dossier de contenu
+dans le dépôt, jeton, « Vérifier l'accès » qui dit qui l'on est et
+enregistre le compte sous ce nom ; 2 · Votre dossier — récupérer la
+version en ligne maintenant, ou continuer avec ce dossier (une galerie
+neuve, un dossier à jour). « Plus tard » est explicite, et la boîte
+revient à l'ouverture suivante tant que rien n'est configuré
+(`ui/AssistantDemarrage.js`, les mêmes réglages que le bloc 3). Rejoué
+sous Xvfb : la boîte, Plus tard, retour à la relance, vérification
+contre une API simulée, compte nommé, étape 2, récupération, page
+rechargée sur la nouvelle pièce, plus de boîte ensuite.
 
 **Des comptes GitHub, dans l'application.** La mise en ligne ne
 connaissait qu'un réglage et un jeton, rangés dans le profil de la page ;
