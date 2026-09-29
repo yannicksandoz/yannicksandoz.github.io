@@ -118,7 +118,6 @@
       "icon": "app/icone.png",
       "category": "Graphics",
       "artifactName": "${productName}-${version}-linux.${ext}",
-      "desktopName": "galerie-auteur.desktop",
       "syncDesktopName": true
     },
     "publish": null

@@ -7,7 +7,7 @@
  * Lancer avec : npm test
  */
 import assert from 'node:assert/strict';
-import { mkdtempSync, mkdirSync, writeFileSync, rmSync, unlinkSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, writeFileSync, rmSync, unlinkSync, symlinkSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { execFileSync } from 'node:child_process';
@@ -55,6 +55,18 @@ if (!version) {
     assert.equal(d.branche, 'main');
     assert.equal(d.relatif, 'galerie/content');
     assert.equal(await git.depot(tmpdir()), null);
+  });
+
+  await test('le dossier donné par un lien symbolique (macOS : /var → /private/var) est bien dans le dépôt', async () => {
+    const lien = join(tmpdir(), `galerie-git-lien-${process.pid}`);
+    try { symlinkSync(tmp, lien, 'dir'); } catch { return; }   // pas de liens ici (Windows sans droit) : rien à prouver
+    try {
+      const d = await git.depot(join(lien, 'galerie', 'content'));
+      assert.ok(d, 'le dépôt est trouvé à travers le lien');
+      assert.equal(d.relatif, 'galerie/content');
+      const c = await git.changements(join(lien, 'galerie', 'content'));
+      assert.ok(c && Array.isArray(c.ajoutes), 'git status accepte le chemin relatif');
+    } finally { unlinkSync(lien); }
   });
 
   await test('les changements DU DOSSIER seulement, et le commit limité à lui', async () => {

@@ -22,6 +22,7 @@
 'use strict';
 const { execFile } = require('node:child_process');
 const path = require('node:path');
+const fs = require('node:fs');
 
 /** `git status --porcelain=v1 -z`, en comptes et en listes courtes. */
 function analyserPorcelain(texte) {
@@ -73,7 +74,13 @@ class GitLocal {
       if (!racine) return null;
       let branche = '';
       try { branche = (await this._executer(['rev-parse', '--abbrev-ref', 'HEAD'], dossier)).trim(); } catch { branche = ''; }
-      const relatif = path.relative(racine, path.resolve(dossier)).split(path.sep).join('/');
+      // git rend le chemin RÉEL de la racine (sur macOS, /var est un lien vers
+      // /private/var ; le dossier choisi, lui, peut être donné par le lien) :
+      // les deux côtés se résolvent avant d'en tirer le chemin relatif,
+      // sans quoi git jugeait le dossier « outside repository »
+      const reel = (p) => { try { return fs.realpathSync.native(p); } catch { return p; } };
+      const relatif = path.relative(reel(racine), reel(path.resolve(dossier))).split(path.sep).join('/');
+      if (relatif.startsWith('..')) return null;
       return { racine, branche: branche === 'HEAD' ? '(détachée)' : branche, relatif: relatif || '.' };
     } catch { return null; }
   }
