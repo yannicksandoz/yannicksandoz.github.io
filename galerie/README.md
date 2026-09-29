@@ -5168,8 +5168,17 @@ l'arbre courant, commit, référence avancée. Cinq requêtes pour toute la
 galerie. Le site statique se reconstruit ensuite tout seul (GitHub Pages,
 une minute ou deux).
 
-**Chacun son compte.** Rien n'est câblé sur un dépôt particulier — quatre
-réglages, gardés dans le navigateur :
+**Chacun son compte — et plusieurs si l'on veut.** Rien n'est câblé sur un
+dépôt particulier. Le bloc 3 tient une liste de **comptes GitHub** : un
+menu en tête les nomme (« yannicksandoz — yannicksandoz/… », « Client —
+client/site »), le compte courant est celui qui publie, « ＋ Nouveau
+compte… » en ouvre un vide, ✕ retire le courant et son jeton. Chaque compte
+porte un nom (celui que GitHub reconnaît à la vérification, si l'on n'en
+donne pas), les quatre réglages ci-dessous, et **son propre jeton**, rangé
+à part sous sa propre clé — changer de compte change de jeton. Un réglage
+unique d'avant devient le premier compte tout seul. Dans l'application,
+un dossier de contenu servi sans compte prêt ouvre le panneau une fois sur
+ce bloc, avec la marche à suivre. Les quatre réglages :
 
 | Réglage | Exemple | À quoi il sert |
 |---|---|---|
@@ -5797,6 +5806,18 @@ vulnérabilités (Vite 5), deux modules importés à la fois statiquement
 et dynamiquement (Derive, Carte), les 404 volontaires des fichiers
 facultatifs en rouge dans la console, la table d'écoute qui se
 rafraîchit par sondage.
+
+**Des comptes GitHub, dans l'application.** La mise en ligne ne
+connaissait qu'un réglage et un jeton, rangés dans le profil de la page ;
+l'auteur, lui, publie sur son site aujourd'hui et sur celui d'un client
+demain. Le bloc 3 tient maintenant des comptes nommés, un jeton chacun,
+un menu pour en changer (`EnLigne.js` : l'état `{ courant, comptes }` en
+pur, testé ; l'ancien réglage promu en premier compte). Et l'application
+invite à connecter GitHub dès qu'elle sert un dossier sans compte prêt :
+le panneau s'ouvre une fois sur le bloc 3, le curseur dans « Dépôt ».
+Éprouvé sous Xvfb : invitation, premier compte nommé d'après le dépôt,
+second compte avec son jeton, retour au premier avec le sien, relance de
+l'application sans invitation et avec les deux, retrait.
 
 **Le premier `.dmg`, en cinq tours.** Le workflow de l'application
 n'avait jamais tourné ; sa première Release (`app-v1.0.0-beta.1`, dépôt

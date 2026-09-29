@@ -5,7 +5,9 @@
  * Lancer avec : npm test
  */
 import { normaliserConfig, normaliserChemin, siteParDefaut, manques,
-  entreesArbre, entreesRetirees, texteJson, jetonMasque, resumeEnvoi }
+  entreesArbre, entreesRetirees, texteJson, jetonMasque, resumeEnvoi,
+  COMPTES_VIDES, normaliserComptes, ajouterCompte, mettreAJourCompte, choisirCompte,
+  retirerCompte, compteCourant, nomDeCompte, idCompteLibre }
   from '../engine/src/editor/state/EnLigne.js';
 
 let passed = 0, failed = 0;
@@ -150,6 +152,29 @@ console.log('\nrésumé montré avant d’envoyer');
     texte.includes('a/b') && texte.includes('master'), true);
   check('…et nomme ce qui sera effacé',
     texte.includes('ancienne.json') && texte.includes('EFFACÉS'), true);
+}
+
+console.log('\nles comptes GitHub');
+{
+  let e = ajouterCompte(COMPTES_VIDES, { depot: 'https://github.com/yannicksandoz/yannicksandoz.github.io', chemin: 'galerie/content' });
+  check('le premier compte est courant, ses réglages normalisés',
+    [e.courant, e.comptes[0].depot, e.comptes[0].chemin], ['c1', 'yannicksandoz/yannicksandoz.github.io', 'galerie/content/']);
+  check('sans nom, le compte porte le propriétaire du dépôt', nomDeCompte(e.comptes[0], 1), 'yannicksandoz');
+  check('sans nom ni dépôt, « Compte n »', nomDeCompte(ajouterCompte(COMPTES_VIDES).comptes[0], 3), 'Compte 3');
+  e = ajouterCompte(e, { nom: ' Client ', depot: 'client/site' });
+  check('un second compte devient courant, nommé', [e.courant, e.comptes.length, e.comptes[1].nom], ['c2', 2, 'Client']);
+  check('choisir revient au premier ; un id inconnu ne change rien',
+    [choisirCompte(e, 'c1').courant, choisirCompte(e, 'zz').courant], ['c1', 'c2']);
+  check('mettre à jour ne touche que le compte visé',
+    mettreAJourCompte(e, 'c1', { branche: 'refs/heads/main', nom: 'Moi' }).comptes.map((c) => `${c.id}:${c.nom}:${c.branche}`),
+    ['c1:Moi:main', 'c2:Client:']);
+  check('retirer le courant passe au premier restant ; retirer tout laisse courant null',
+    [retirerCompte(e, 'c2').courant, retirerCompte(retirerCompte(e, 'c2'), 'c1').courant], ['c1', null]);
+  check('un id retiré se réattribue, jamais un id en place', [idCompteLibre(retirerCompte(e, 'c1')), idCompteLibre(e)], ['c1', 'c3']);
+  check('normaliser : doublons et entrées sans id écartés, courant inconnu ramené au premier',
+    normaliserComptes({ courant: 'x', comptes: [{ id: 'a', depot: 'u/v' }, { id: 'a' }, { nom: 'sans id' }] }),
+    { courant: 'a', comptes: [{ id: 'a', nom: '', depot: 'u/v', branche: '', chemin: 'content/', site: '' }] });
+  check('compteCourant rend le compte, ou null', [compteCourant(e)?.id, compteCourant(COMPTES_VIDES)], ['c2', null]);
 }
 
 console.log(`\n${passed} ✓ / ${failed} ✗`);
