@@ -9,7 +9,7 @@
 import assert from 'node:assert/strict';
 import { mkdtempSync, mkdirSync, writeFileSync, rmSync, unlinkSync, symlinkSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { join, basename } from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { createRequire } from 'node:module';
 
@@ -51,7 +51,8 @@ if (!version) {
 
   await test('le dépôt qui contient le dossier : racine, branche, chemin relatif', async () => {
     const d = await git.depot(contenu);
-    assert.ok(d.racine.endsWith(tmp.split('/').pop()));
+    // git rend la racine avec des barres obliques, même sur Windows ; le nom du dossier suffit
+    assert.ok(d.racine.replace(/\\/g, '/').endsWith(basename(tmp)), `racine ${d.racine} pour ${tmp}`);
     assert.equal(d.branche, 'main');
     assert.equal(d.relatif, 'galerie/content');
     assert.equal(await git.depot(tmpdir()), null);
