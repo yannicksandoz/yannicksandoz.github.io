@@ -5213,6 +5213,20 @@ pendant que vous composiez, l'envoi échoue au lieu d'écraser son travail.
 
 Une attribution incomplète refuse la mise en ligne, avant tout appel réseau.
 
+**⇩ Récupérer la version en ligne** — le chemin inverse, pour un dossier de
+contenu en retard sur le site (un clone pris trop tôt, un second
+ordinateur, une publication faite d'ailleurs). Avec le compte courant, il
+lit l'arbre de la branche sous le dossier de contenu, compare chaque
+fichier au fichier local par son **empreinte git** (le sha1 de « blob
+N\0… », celui que GitHub renvoie — un fichier identique ne se télécharge
+pas), montre le récapitulatif (ce qui s'écrit, ce qui est déjà identique,
+les `.json` de `works/`, `rooms/` et `gabarits/` que le dépôt n'a plus et
+qui seront retirés, le travail non publié qui sera perdu), prend une
+**sauvegarde** de l'état actuel, écrit, retire, puis recharge la page sur
+le dossier — ⟲ Revenir remet l'état d'avant. Un dépôt trop grand pour
+être listé en entier ne retire rien. Les sauvegardes du dépôt, s'il en a,
+ne descendent jamais.
+
 #### 4 · Les garde-fous de publication
 
 Tout ce qui part en ligne passe par la même chaîne, sur le RÉSULTAT du
@@ -5806,6 +5820,21 @@ vulnérabilités (Vite 5), deux modules importés à la fois statiquement
 et dynamiquement (Derive, Carte), les 404 volontaires des fichiers
 facultatifs en rouge dans la console, la table d'écoute qui se
 rafraîchit par sondage.
+
+**Récupérer la version en ligne.** Un clone pris avant les phares, et
+l'application qui les montre absents : « comment pull sans terminal ? ».
+Le bloc 3 gagne le chemin inverse de « Mettre en ligne » : lire l'arbre
+de la branche sous le dossier de contenu, comparer par empreinte git
+(`shaBlobGit`, vérifiée contre le sha de git sur « hello »), n'écrire que
+ce qui diffère, retirer les JSON orphelins, une sauvegarde d'abord, la
+page rechargée ensuite — le tout pur et testé (`fichiersSous`,
+`planRecuperation`, `resumeRecuperation`), et rejoué sous Xvfb contre une
+API GitHub simulée dans la page : une pièce de plus en ligne, un index
+modifié, deux fichiers identiques que la simulation REFUSE de servir (ils
+ne doivent pas être demandés), un orphelin local retiré, la sauvegarde
+qui le garde. Au passage, les réglages du bloc 3 s'écrivent l'un après
+l'autre : deux champs validés coup sur coup (Tab, Tab) se réécrivaient
+l'un l'autre.
 
 **Des comptes GitHub, dans l'application.** La mise en ligne ne
 connaissait qu'un réglage et un jeton, rangés dans le profil de la page ;

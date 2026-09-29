@@ -7,7 +7,8 @@
 import { normaliserConfig, normaliserChemin, siteParDefaut, manques,
   entreesArbre, entreesRetirees, texteJson, jetonMasque, resumeEnvoi,
   COMPTES_VIDES, normaliserComptes, ajouterCompte, mettreAJourCompte, choisirCompte,
-  retirerCompte, compteCourant, nomDeCompte, idCompteLibre }
+  retirerCompte, compteCourant, nomDeCompte, idCompteLibre,
+  fichiersSous, shaBlobGit, planRecuperation, resumeRecuperation }
   from '../engine/src/editor/state/EnLigne.js';
 
 let passed = 0, failed = 0;
@@ -176,6 +177,36 @@ console.log('\nles comptes GitHub');
     { courant: 'a', comptes: [{ id: 'a', nom: '', depot: 'u/v', branche: '', chemin: 'content/', site: '' }] });
   check('compteCourant rend le compte, ou null', [compteCourant(e)?.id, compteCourant(COMPTES_VIDES)], ['c2', null]);
 }
+
+console.log('\nrécupérer la version en ligne');
+{
+  const arbre = [
+    { path: 'galerie/content/works/a.json', type: 'blob', sha: 'A', size: 10 },
+    { path: 'galerie/content/rooms/e.json', type: 'blob', sha: 'E', size: 20 },
+    { path: 'galerie/content/assets/son.wav', type: 'blob', sha: 'S', size: 1000 },
+    { path: 'galerie/content/.sauvegardes/2026/works/x.json', type: 'blob', sha: 'X', size: 1 },
+    { path: 'galerie/content/works', type: 'tree', sha: 'T' },
+    { path: 'galerie/index.html', type: 'blob', sha: 'I', size: 5 },
+    { path: 'autre/content/works/z.json', type: 'blob', sha: 'Z', size: 5 }
+  ];
+  const f = fichiersSous(arbre, 'galerie/content');
+  check('seuls les blobs sous le dossier, en relatif, sans les sauvegardes',
+    f.map((x) => `${x.chemin}:${x.sha}`), ['works/a.json:A', 'rooms/e.json:E', 'assets/son.wav:S']);
+  check('sans dossier, tout le dépôt (sauvegardes exclues)', fichiersSous(arbre, '').length, 5);
+
+  const locaux = new Map([['works/a.json', 'A'], ['rooms/e.json', 'E-modifie'], ['works/vieux.json', 'V'], ['rooms/sous/x.json', ''], ['assets/autre.wav', 'W']]);
+  const plan = planRecuperation(f, locaux);
+  check('identique gardé, différent et absent écrits, JSON orphelin retiré, média local jamais retiré',
+    [plan.identiques, plan.aEcrire.map((x) => x.chemin), plan.aRetirer, plan.octets],
+    [['works/a.json'], ['rooms/e.json', 'assets/son.wav'], ['works/vieux.json'], 1020]);
+  const texte = resumeRecuperation({ config: { depot: 'a/b' }, branche: 'master', plan, tronque: true, modifie: true });
+  check('le résumé nomme les écritures, les retraits, la troncature et le travail perdu',
+    [/2 fichier\(s\) à écrire \(1 ko\), 1 déjà identique/.test(texte), /works\/vieux.json/.test(texte), /trop grand/.test(texte), /PERDUES/.test(texte)],
+    [true, true, true, true]);
+}
+
+const empreinte = await shaBlobGit(new TextEncoder().encode('hello\n'));
+check('l\'empreinte git d\'un blob est celle de git (« hello »)', empreinte, 'ce013625030ba8dba906f756967f9e9ca394464a');
 
 console.log(`\n${passed} ✓ / ${failed} ✗`);
 process.exit(failed ? 1 : 0);
