@@ -198,13 +198,28 @@ function ouvrirDossierDepose(chemin) {
  * de jeton, pas de Release à interroger. `silencieux` : au démarrage, on
  * ne dit rien si tout est à jour, ni si le réseau manque.
  */
+async function versionEnLigne() {
+  const r = await fetch(URL_VERSION, { headers: { 'Cache-Control': 'no-cache' }, signal: AbortSignal.timeout(8000) });
+  if (!r.ok) throw new Error(`HTTP ${r.status}`);
+  return String((await r.json()).version ?? '');
+}
+
+/**
+ * L'application face à sa version de référence, sans boîte : ce que la page
+ * montre dans « Comparer » (bloc 3). `enLigne` null : pas pu lire.
+ */
+async function etatVersion() {
+  const courante = app.getVersion();
+  let enLigne = null;
+  try { enLigne = await versionEnLigne(); } catch { enLigne = null; }
+  return { courante, enLigne, nouvelle: Boolean(enLigne && plusRecente(enLigne, courante)) };
+}
+
 async function verifierMisesAJour({ silencieux = false } = {}) {
   const courante = app.getVersion();
   let derniere = null;
   try {
-    const r = await fetch(URL_VERSION, { headers: { 'Cache-Control': 'no-cache' }, signal: AbortSignal.timeout(8000) });
-    if (!r.ok) throw new Error(`HTTP ${r.status}`);
-    derniere = String((await r.json()).version ?? '');
+    derniere = await versionEnLigne();
   } catch (e) {
     if (!silencieux) {
       dialog.showMessageBox(fenetre ?? undefined, { type: 'warning', message: 'Impossible de vérifier',
@@ -241,6 +256,7 @@ async function verifierMisesAJour({ silencieux = false } = {}) {
  */
 function brancherLePont() {
   ipcMain.handle('dossier:contenu', () => contenuPourLaPage());
+  ipcMain.handle('app:version', () => etatVersion());
   ipcMain.handle('dossier:choisir', (e, but) => choisirDossier(but === 'export' ? 'export' : 'contenu'));
   ipcMain.handle('fs:lister', (e, id, rel) => dossiers.lister(id, rel));
   ipcMain.handle('fs:existe', (e, id, rel) => dossiers.existe(id, rel));

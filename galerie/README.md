@@ -3937,7 +3937,7 @@ la salle et ses voisines directes par portail :
 |---|---|---|
 | Transfert | images, vidéos, modèles, scans et sons, chacun une fois ; une piste par fragments ne compte que ses 30 s résidentes | 25 Mo |
 | Son décodé | durée × 384 000 octets par seconde (48 kHz stéréo flottant), quel que soit le fichier — c'est la durée qui compte, d'où les fragments | 120 Mo |
-| Voix au pire point | les œuvres audibles depuis un même mètre carré du sol, une voix chacune, sous le plus grand rayon de leurs pistes (`radius`, sinon 12 m) | 6, le `maxStems` mobile |
+| Voix au pire point | les œuvres audibles depuis un même mètre carré du sol, une voix chacune, sous le plus grand rayon de leurs pistes (`radius`, sinon 12 m) | 8, le `maxStems` mobile |
 
 Dans l'éditeur, la section **Budget** de l'onglet Pièce suit la Charte :
 une barre par jauge (verte, ambre au-delà de 75 %, rouge au-delà), le pire
@@ -5234,7 +5234,16 @@ qui seront retirés, le travail non publié qui sera perdu), prend une
 **sauvegarde** de l'état actuel, écrit, retire, puis recharge la page sur
 le dossier — ⟲ Revenir remet l'état d'avant. Un dépôt trop grand pour
 être listé en entier ne retire rien. Les sauvegardes du dépôt, s'il en a,
-ne descendent jamais.
+ne descendent jamais. Un **anneau de progression**, discret en bas à
+droite, suit la lecture, la comparaison puis chaque fichier écrit.
+
+**⇄ Comparer** — la même lecture, sans rien écrire : le dossier face à la
+version en ligne (identiques, différents, seulement en ligne, seulement
+ici — les noms des premiers), et, dans l'application, sa version face à
+celle de référence (le `package.json` du dépôt public, la même que Aide ›
+Vérifier les mises à jour). La boîte « Bienvenue » fait cette comparaison
+d'elle-même à son étape 2 : elle dit ce qui diffère, et « Récupérer »
+n'est proposé que s'il y a quelque chose à récupérer.
 
 #### 4 · Les garde-fous de publication
 
@@ -5860,6 +5869,33 @@ sous Xvfb : la boîte, Plus tard, retour à la relance, vérification
 contre une API simulée, compte nommé, étape 2, récupération, page
 rechargée sur la nouvelle pièce, plus de boîte ensuite.
 
+**Comparer, un anneau, huit voix (beta.6).** Quatre retours de la première
+session. La boîte « Bienvenue » parlait d'un cas particulier (« un clone
+pris trop tôt ») : son texte redevient général, et l'étape 2 ne raconte
+plus, elle **compare** — `Editor.comparerEnLigne` lit l'arbre, prend les
+empreintes d'ici, et `EnLigne.comparerVersions` dit identiques,
+différents, seulement en ligne, seulement ici ; le même outil est dans le
+bloc 3 (**⇄ Comparer**), avec la version de l'application face à sa
+référence (`app:version`, main.cjs). La récupération n'avait pas de retour
+visible pendant le téléchargement : un **anneau de progression** discret
+(`EditorUI.progression`, en bas à droite) suit la lecture, la comparaison
+et chaque fichier écrit. Le budget de **voix passe de 6 à 8** — mesuré
+avant de prendre : rendu hors ligne de 30 s dans Chromium, quatre voies
+HRTF et le reste en equalpower, 6 voix 10,6 ‰ du temps réel, 8 voix
+11,5 ‰, 12 voix 15,0 ‰ ; ce qui coûte est la convolution HRTF, plafonnée
+à part, une voix equalpower de plus vaut moins d'un demi pour mille ; le
+son décodé garde sa jauge à lui. Et le **regroupement** de plusieurs
+pistes sur une voix, qui existait par un menu discret, se fait au geste :
+une piste glissée sur une autre carte la rejoint, la carte dit « 3 pistes
+· 1 voix », le compte dit « 3/8 voix ». En passant, deux défauts : la
+veille de la pré-écoute re-rendait les cartes chaque seconde, même au
+repos (un glisser en cours était coupé, un menu ouvert se refermait) —
+elle ne re-rend plus que quand la lecture change ; et une piste détachée
+d'un poste gardait l'instrument du poste quitté — elle reprend le sien.
+Rejoué : la sonde du plan de scène (mutations au repos, glisser, détacher),
+celle du démarrage (comparaison à l'étape 2, ⇄ Comparer après
+récupération, anneau effacé), les suites node.
+
 **La boîte reprend ce qui est enregistré (beta.5).** Un jeton collé dans
 le bloc 3 sans dépôt vérifié, puis la mise à jour de l'application : la
 boîte « Bienvenue » revenait avec ses trois champs vides, comme si le
@@ -6424,7 +6460,7 @@ sans ombres, sans occlusion ambiante, deux échantillons, deux sources
 étendues, douze lignes — plus ce qui ne coûte pas de pixels (anisotropie
 16, poussière 450, textures 2048, écrans ISF en 512), la densité seule
 suivant l'écran (1,25 au doigt, 2 à la souris, affûtée sous le natif), et
-le même son partout (6 voix, une par œuvre, 4 en HRTF). Ce que cette image
+le même son partout (8 voix, une par œuvre, 4 en HRTF). Ce que cette image
 a laissé — ombres, occlusion, quatre échantillons, huit sources étendues,
 reflets vivants, apparitions vivantes — est l'**image enrichie** (profil
 `riche`) : un CHOIX du visiteur, menu → Réglages → « Image enrichie »,
@@ -6468,7 +6504,7 @@ des deux profils :
 - **détection** : mobile vs desktop (pointer coarse + UA), lecture du GPU
   (`WEBGL_debug_renderer_info`) pour rétrograder les GPU faibles ;
 - **plafonds** : `pixelRatio` ≤ 2 à la souris / 1,25 au doigt, bloom au quart
-  de résolution, textures ≤ 2048 px, **6 voix audio simultanées** — le même
+  de résolution, textures ≤ 2048 px, **8 voix audio simultanées** — le même
   son partout, `maxStems` vient de `BUDGET.stems` (`core/budget-salle.js`),
   la même valeur que le budget de salle — avec *voice stealing* par
   distance — une voix par œuvre, quel que soit son nombre de pistes (voir

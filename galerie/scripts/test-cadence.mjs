@@ -259,7 +259,7 @@ test('par défaut, l\'image UNIQUE pour tous : la densité seule suit l\'écran'
   assert.equal(q.profile.msaa, 2);
   assert.equal(q.profile.isfResolution, 512); // ce qui ne coûte pas de pixels
   assert.equal(q.profile.anisotropy, 16);
-  assert.equal(q.profile.maxStems, 6);        // le même son partout
+  assert.equal(q.profile.maxStems, 8);        // le même son partout
   // un téléphone : la même image, à densité 1,25 affûtée
   globalThis.window.devicePixelRatio = 3;
   globalThis.window.matchMedia = (m) => ({ matches: m === '(pointer: coarse)' });
@@ -289,7 +289,7 @@ test('l\'image ENRICHIE : par la mémoire ou par l\'adresse, même son, même de
   assert.equal(r.profile.gtao, true);
   assert.equal(r.profile.msaa, 4);
   assert.equal(r.profile.sourcesEtendues, 8);
-  assert.equal(r.profile.maxStems, 6);
+  assert.equal(r.profile.maxStems, 8);
   assert.equal(r.profile.pixelRatio, 2);
   // l'adresse impose, quelle que soit la mémoire
   globalThis.location = { search: '?profil=unique' };

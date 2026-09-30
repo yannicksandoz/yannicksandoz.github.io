@@ -114,6 +114,12 @@ test('retirer vide un poste et le fait disparaître ; détacher ouvre un poste �
   assert.equal(detacherSon(p, 'assets/kick.wav'), p, 'un poste d\'une piste ne se détache pas de lui-même');
   const r = rattacherSon(p, 'assets/snare.wav', p[0].id);
   assert.equal(r.length, 1);
+  // une voix regroupée sur la batterie puis détachée redevient une voix, pas une batterie
+  let g = plan('kick.wav', 'lead-vox.wav');
+  g = rattacherSon(g, 'assets/lead-vox.wav', g.find((x) => x.instrument === 'batterie').id);
+  assert.equal(g.length, 1, 'regroupées : un poste, une voix');
+  g = detacherSon(g, 'assets/lead-vox.wav');
+  assert.equal(g[1].instrument, 'voix', 'détachée, la piste reprend son instrument');
   assert.equal(r[0].sons.length, 2);
   assert.equal(rattacherSon(p, 'assets/snare.wav', 'nulle-part'), p);
 });
@@ -379,8 +385,8 @@ test('un plan sans poste ne fabrique rien ; le résumé compte et alerte au-del�
   assert.equal(r.texte, '2 postes, 3 pistes — scène de 10 × 6 m, salle de 16 × 19.2 m');
   assert.equal(r.alerte, null);
   const trop = resumePlan(plan(...Array.from({ length: BUDGET_VOIX + 1 }, (_, i) => `vox${i}.wav`)), {});
-  assert.match(trop.alerte, /6 voix/);
-  assert.equal(trop.voix, 7);
+  assert.match(trop.alerte, /8 voix/);
+  assert.equal(trop.voix, BUDGET_VOIX + 1);
   assert.equal(SCENE.hauteur, 0.5);
 });
 

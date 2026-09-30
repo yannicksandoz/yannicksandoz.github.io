@@ -8,7 +8,7 @@ import { normaliserConfig, normaliserChemin, siteParDefaut, manques,
   entreesArbre, entreesRetirees, texteJson, jetonMasque, resumeEnvoi,
   COMPTES_VIDES, normaliserComptes, ajouterCompte, mettreAJourCompte, choisirCompte,
   retirerCompte, compteCourant, nomDeCompte, idCompteLibre,
-  fichiersSous, shaBlobGit, planRecuperation, resumeRecuperation }
+  fichiersSous, shaBlobGit, planRecuperation, resumeRecuperation, comparerVersions, texteComparaison }
   from '../engine/src/editor/state/EnLigne.js';
 
 let passed = 0, failed = 0;
@@ -203,6 +203,27 @@ console.log('\nrécupérer la version en ligne');
   check('le résumé nomme les écritures, les retraits, la troncature et le travail perdu',
     [/2 fichier\(s\) à écrire \(1 ko\), 1 déjà identique/.test(texte), /works\/vieux.json/.test(texte), /trop grand/.test(texte), /PERDUES/.test(texte)],
     [true, true, true, true]);
+}
+
+console.log('\ncomparer à la version en ligne');
+{
+  const f = [{ chemin: 'works/a.json', sha: 'A', taille: 10 }, { chemin: 'rooms/e.json', sha: 'E', taille: 20 }, { chemin: 'assets/son.wav', sha: 'S', taille: 1000 }];
+  const locaux = new Map([['works/a.json', 'A'], ['rooms/e.json', 'E-modifie'], ['works/vieux.json', 'V']]);
+  const c = comparerVersions(f, locaux);
+  check('identique, différent, seulement en ligne, seulement ici — et le plan qui en découle',
+    [c.identiques, c.differents, c.enLigneSeulement, c.iciSeulement, c.plan.aEcrire.map((x) => x.chemin), c.aJour],
+    [['works/a.json'], ['rooms/e.json'], ['assets/son.wav'], ['works/vieux.json'], ['rooms/e.json', 'assets/son.wav'], false]);
+  const texte = texteComparaison({ config: { depot: 'a/b' }, branche: 'master', commit: 'c0ffee1234567', comparaison: c, tronque: false,
+    application: { courante: '1.0.0-beta.5', enLigne: '1.0.0-beta.6', nouvelle: true } });
+  check('le texte compte chaque catégorie, nomme les fichiers et la version disponible',
+    [/1 différent, 1 seulement en ligne, 1 seulement ici ; 1 identique/.test(texte), /Seulement ici : works\/vieux.json/.test(texte),
+      /a\/b, master c0ffee1/.test(texte), /la 1.0.0-beta.6 est disponible/.test(texte)],
+    [true, true, true, true]);
+  const pareil = comparerVersions(f, new Map([['works/a.json', 'A'], ['rooms/e.json', 'E'], ['assets/son.wav', 'S']]));
+  const t2 = texteComparaison({ config: { depot: 'a/b' }, branche: 'master', comparaison: pareil, application: { courante: '1.0.0', enLigne: '1.0.0', nouvelle: false } });
+  check('identique : une ligne, et l’application à jour', [pareil.aJour, /identique à la version en ligne \(a\/b, master\) : 3 fichiers/.test(t2), /Application 1.0.0 : à jour/.test(t2)], [true, true, true]);
+  const t3 = texteComparaison({ config: { depot: 'a/b' }, comparaison: pareil, application: null });
+  check('hors application : pas de ligne sur la version', /Application/.test(t3), false);
 }
 
 const empreinte = await shaBlobGit(new TextEncoder().encode('hello\n'));

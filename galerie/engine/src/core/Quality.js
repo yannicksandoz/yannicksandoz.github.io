@@ -131,9 +131,10 @@ export class QualityManager {
           // à 1,25 pour une dalle à 3×, le grain agrandi puis affûté par la
           // sortie faisait une image « moche » — du bruit, pas un grain
           grain: !this.reducedMotion && !(densite < dpr),
-          // LE MÊME SON PARTOUT : six voix (une par œuvre, voir
-          // Spatialisation), quatre en HRTF — la convolution est chère PAR
-          // SOURCE, au-delà les voies retombent sur equalpower
+          // LE MÊME SON PARTOUT : huit voix (une par œuvre, voir
+          // Spatialisation ; mesure dans budget-salle.js), quatre en HRTF —
+          // la convolution est chère PAR SOURCE, au-delà les voies retombent
+          // sur equalpower
           maxStems: BUDGET.stems,
           maxHRTF: 4,
           dustCount: 250,       // mesuré au banc : 450 coûtaient 1,1 ms sur iPhone

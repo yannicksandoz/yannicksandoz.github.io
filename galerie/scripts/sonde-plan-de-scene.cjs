@@ -69,11 +69,41 @@ const verif = (ok, msg) => { console.log(`${ok ? '✓' : '✗'} ${msg}`); if (!o
   const y = (t) => Number(t.match(/translate\([\d.]+ ([\d.]+)\)/)[1]);
   const pVoix = etat.postes.find((p) => /Voix/.test(p.aria)); const pBatt = etat.postes.find((p) => /Batterie/.test(p.aria));
   verif(pVoix && pBatt && y(pVoix.t) > y(pBatt.t), `sur le plan, la voix (${y(pVoix.t)}) est plus bas — côté public — que la batterie (${y(pBatt.t)})`);
-  verif(/^3 · 4 pistes$/.test(etat.compte) && /^3 postes, 4 pistes — scène de 10 × 6 m, salle de 16 × 19.2 m\.$/.test(etat.apercu), `compte « ${etat.compte} », aperçu « ${etat.apercu} »`);
+  verif(/^3\/8 voix · 4 pistes$/.test(etat.compte) && /^3 postes, 4 pistes — scène de 10 × 6 m, salle de 16 × 19.2 m\.$/.test(etat.apercu), `compte « ${etat.compte} », aperçu « ${etat.apercu} »`);
   const horsScene = await page.evaluate(() => ({ cache: document.querySelector('[data-ps-hors-scene]').hidden, ecoute: [...document.querySelectorAll('[data-ps-ecouter]')].length }));
   verif(!horsScene.cache && horsScene.ecoute >= 4, `le bloc hors scène se montre (14 sons déjà posés), ${horsScene.ecoute} boutons de pré-écoute`);
   verif(etat.nom === 'Scène' && etat.creer && etat.public, `nom proposé « ${etat.nom} », bouton actif, le public est en bas`);
   if (process.env.CAPTURES) await page.screenshot({ path: `${process.env.CAPTURES}/plan-de-scene.png` });
+
+  // 2 bis. REGROUPER à la souris : la piste de voix glissée sur la carte de la batterie la rejoint
+  //        (une voix de moins) ; ⇱ la détache à nouveau
+  const cheminVoix = await page.evaluate(() => [...document.querySelectorAll('[data-ps-carte]')].find((c) => c.querySelector('[data-ps-instrument]').value === 'voix').querySelector('[data-ps-glisser]').dataset.psGlisser);
+  const idBatt = await page.evaluate(() => [...document.querySelectorAll('[data-ps-carte]')].find((c) => c.querySelector('[data-ps-instrument]').value === 'batterie').dataset.psCarte);
+  // au repos, la liste des cartes ne doit pas se re-rendre (un glisser en cours serait interrompu)
+  const mutations = await page.evaluate(() => new Promise((r) => { let n = 0; const o = new MutationObserver((m) => { n += m.length; }); o.observe(document.querySelector('[data-ps-postes]'), { childList: true }); setTimeout(() => { o.disconnect(); r(n); }, 1500); }));
+  verif(mutations === 0, `au repos, la liste des postes ne se re-rend pas (${mutations} mutation(s) en 1,5 s)`);
+  await page.evaluate(([chemin, id]) => {
+    const dt = new DataTransfer();
+    const source = document.querySelector(`[data-ps-glisser="${chemin}"]`);
+    const cible = document.querySelector(`[data-ps-carte="${id}"] .ed-ps-carte-tete`);
+    source.dispatchEvent(new DragEvent('dragstart', { bubbles: true, cancelable: true, dataTransfer: dt }));
+    cible.dispatchEvent(new DragEvent('dragover', { bubbles: true, cancelable: true, dataTransfer: dt }));
+    window.__cibleVue = document.querySelectorAll('.ed-ps-cible').length;
+    cible.dispatchEvent(new DragEvent('drop', { bubbles: true, cancelable: true, dataTransfer: dt }));
+    source.dispatchEvent(new DragEvent('dragend', { bubbles: true, cancelable: true, dataTransfer: dt }));
+  }, [cheminVoix, idBatt]);
+  await page.waitForTimeout(200);
+  const groupe = await page.evaluate((id) => ({ cartes: document.querySelectorAll('[data-ps-carte]').length, pistes: document.querySelectorAll(`[data-ps-carte="${id}"] .ed-ps-piste`).length,
+    badge: document.querySelector(`[data-ps-carte="${id}"] .ed-ps-groupe`)?.textContent ?? '', compte: document.querySelector('[data-ps-compte]').textContent, cible: document.querySelectorAll('.ed-ps-cible').length, cibleVue: window.__cibleVue }), idBatt);
+  verif(groupe.cartes === 2 && groupe.pistes === 3 && groupe.badge === '3 pistes · 1 voix' && groupe.compte === '2/8 voix · 4 pistes' && groupe.cible === 0 && groupe.cibleVue === 1,
+    `glissée sur la batterie (cible marquée au survol, démarquée après) : ${groupe.cartes} postes, la batterie en ${groupe.pistes} pistes « ${groupe.badge} », compte « ${groupe.compte} »`);
+  await page.click(`[data-ps-detacher="${cheminVoix}"]`);
+  await page.waitForTimeout(200);
+  const detache = await page.evaluate(() => ({ cartes: document.querySelectorAll('[data-ps-carte]').length, compte: document.querySelector('[data-ps-compte]').textContent }));
+  verif(detache.cartes === 3 && detache.compte === '3/8 voix · 4 pistes', `⇱ détachée : ${detache.cartes} postes, « ${detache.compte} »`);
+  // la piste détachée s'ouvre à côté du poste quitté : le placement classique remet chacun à sa place
+  await page.click('[data-ps-classique]');
+  await page.waitForTimeout(150);
 
   // 3. glisser la basse à cour (à droite), au fond ; élargir la scène ; corriger un instrument ; nommer
   const idBasse = await page.evaluate(() => [...document.querySelectorAll('[data-ps-poste]')].find((g) => /Basse/.test(g.getAttribute('aria-label'))).dataset.psPoste);

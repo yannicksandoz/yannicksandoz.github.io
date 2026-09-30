@@ -25,6 +25,8 @@ const version = (process.argv.find((a) => a.startsWith('--galerie-version=')) ??
 contextBridge.exposeInMainWorld('galerieApp', {
   version,
   plateforme: process.platform,
+  /** L'application face à sa version de référence : { courante, enLigne, nouvelle }. */
+  etatVersion: () => ipcRenderer.invoke('app:version'),
   dossier: {
     /** Le dossier de contenu : { id, nom } ou null. */
     contenu: () => ipcRenderer.invoke('dossier:contenu'),

@@ -25,9 +25,14 @@
  *   3. VOIX : les œuvres audibles au PIRE point de la salle — un
  *      quadrillage au mètre du sol, une œuvre audible sous le plus grand
  *      rayon de ses pistes, UNE voix par œuvre (ses pistes partagent leur
- *      voie, voir Spatialisation) — au plus 6 (maxStems du profil mobile).
+ *      voie, voir Spatialisation) — au plus 8 (maxStems du profil mobile).
  *      Au-delà, le budget de voix coupe les plus lointaines : la salle
- *      n'est plus ce qu'on a composé.
+ *      n'est plus ce qu'on a composé. Six d'abord ; huit depuis la mesure
+ *      (rendu hors ligne de 30 s dans Chromium, 4 voies HRTF, le reste en
+ *      equalpower) : 6 voix 10,6 ‰ du temps réel, 8 voix 11,5 ‰, 12 voix
+ *      15,0 ‰ — ce qui coûte est la convolution HRTF, plafonnée à part
+ *      (maxHRTF) ; une voix equalpower de plus vaut moins d'un demi pour
+ *      mille. Le son décodé (règle 2) tient toujours la mémoire.
  *
  * `mesures` dit ce qu'on sait des fichiers : `octets.get(chemin)` et
  * `durees.get(chemin)` (secondes). Ce qu'on ne sait pas est dit INCONNU
@@ -39,7 +44,7 @@
 export const BUDGET = Object.freeze({
   transfertMo: 25,
   pcmMo: 120,
-  stems: 6
+  stems: 8
 });
 
 /** Octets d'une seconde de son décodé : 48 000 × 2 canaux × 4 octets. */
