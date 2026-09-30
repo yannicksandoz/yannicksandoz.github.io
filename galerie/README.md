@@ -4369,6 +4369,16 @@ terminal ouvert. L'application fait trois choses et rien de plus :
    souvient dans ses données d'utilisateur. Sans dossier, on édite une
    copie de la galerie du build, sans pouvoir la publier dans un dossier.
 
+**L'accueil du mode auteur** (`?edit`, donc l'application ;
+`ui/AccueilAuteur.js`, markup dans le bloc editor d'`index.html`, absent
+du build Visiteur). Les deux visites, les jetons et la visite audio ne
+sont pas le travail de l'auteur : à leur place, « Galerie — Auteur », le
+**profil** (le compte GitHub courant, parmi ceux du bloc 3 ; le choisir
+ici le rend courant), puis **Éditer**, **Tester ici** (la visite depuis
+l'entrée, le son rendu, le bandeau d'essai, T ramène à l'édition) et sa
+flèche ▾ vers **Tester en ligne**. Le bouton de la visite libre reste
+dans la page, caché : la touche Entrée et les sondes passent par lui.
+
 **À la première ouverture, un assistant de démarrage.** Dossier servi,
 aucun compte GitHub prêt : une boîte « Bienvenue » demande le dépôt, le
 dossier de contenu dans le dépôt et le jeton, vérifie l'accès, puis
@@ -4680,11 +4690,18 @@ là où l'on était : position, regard, cible et réglages de l'orbite,
 champ, brouillard, plafond — tout est rendu. Dans une boîte de dialogue,
 Tab reste la navigation entre les champs.
 
-**« Tester ici »** (T, ou le bouton Tester de la barre ;
-`Editor.testerIci`). Le geste de Trackmania : on essaie, on revient, tout
-est là. L'essai quitte l'édition là où la caméra est — le sol la reprend
-à hauteur d'œil, les portails s'ouvrent, les fiches répondent, le son est
-celui de la visite — sous un bandeau discret. T ou ² ramènent à
+**« Tester ici »** (T, ou le bouton de la barre ; `Editor.testerIci`).
+Le geste de Trackmania : on essaie, on revient, tout est là. L'essai
+quitte l'édition là où la caméra est — le sol la reprend à hauteur d'œil,
+les portails s'ouvrent, les fiches répondent, le son revient — sous un
+bandeau discret. Car **la galerie se tait en édition** : le banc de
+l'entrée jouait sous chaque séance ; le son est celui de la visite et de
+l'essai, pas de la composition (`AudioEngine.silenceEdition`, un second
+motif du même gain maître, qui ne touche pas au choix du visiteur). Le
+bouton 🔇 de la barre le rend pendant qu'on compose — pour placer une
+source à l'oreille, régler un mixage — et s'en souvient. La flèche ▾ du
+bouton ouvre **Tester en ligne** : la version publiée du site du compte
+courant, dans le navigateur. T ou ² ramènent à
 l'édition, là où l'on est arrivé, avec la sélection, l'onglet et le
 sous-onglet de l'inspecteur, l'outil de gizmo et la vue de dessus d'avant
 l'essai. (Un essai lancé depuis le plan en redescend d'abord — on ne
@@ -5868,6 +5885,27 @@ revient à l'ouverture suivante tant que rien n'est configuré
 sous Xvfb : la boîte, Plus tard, retour à la relance, vérification
 contre une API simulée, compte nommé, étape 2, récupération, page
 rechargée sur la nouvelle pièce, plus de boîte ensuite.
+
+**Le silence d'édition, l'accueil de l'auteur, la flèche des sous-menus
+(beta.7).** Quatre retours de la seconde session. Le son du banc de
+l'entrée accompagnait chaque séance d'édition : la galerie se tait
+maintenant en édition et revient à l'essai et à la visite
+(`AudioEngine.silenceEdition`, second motif du gain maître à côté du
+choix du visiteur ; le bouton 🔇/🔈 de la barre rend le son en éditant,
+mémorisé). L'accueil, en `?edit`, devient celui de l'auteur : « Galerie —
+Auteur », le profil GitHub courant à choisir, Éditer, Tester ici ▾
+(`ui/AccueilAuteur.js`, markup dans le bloc editor d'`index.html`, le
+bouton de la visite libre gardé caché pour la touche Entrée et les
+sondes). « Tester » devient « Tester ici », et sa flèche ouvre le même
+menu qu'à l'accueil : Tester en ligne, la version publiée du site du
+compte courant (`EnLigne.adresseSite`). Enfin les sous-menus des menus ne
+se déplient plus au survol de toute la ligne — descendre la liste les
+ouvrait et refermait au passage — mais sur la flèche ▸ (survol ou clic),
+au clic de la ligne, ou à la touche → (`ui/Menu.js`). Rejoué sous Xvfb
+(sonde de l'accueil auteur) : titre, profil vide puis rempli, silence en
+édition (maître 0), 🔈 mémorisé, essai avec le son, T, menu Tester avec
+en ligne inactif puis actif, sous-menu fermé au survol de la ligne et
+ouvert sur la flèche.
 
 **Comparer, un anneau, huit voix (beta.6).** Quatre retours de la première
 session. La boîte « Bienvenue » parlait d'un cas particulier (« un clone

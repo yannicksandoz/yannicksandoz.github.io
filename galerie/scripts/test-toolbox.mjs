@@ -91,7 +91,7 @@ test('couperLeSon écrit le gain du bus maître (rampe, pas de clic)', () => {
     'couper n\'est pas suspendre : tout continue de jouer');
 });
 test('choisi avant le premier geste, l\'état survit à unlock()', () => {
-  assert.ok(audio.includes('this.master.gain.value = this.sonCoupe ? 0 : 1'));
+  assert.ok(audio.includes('this.master.gain.value = this._maitreVoulu()'));
 });
 
 titre('l’interrupteur silencieux de l’iPhone');

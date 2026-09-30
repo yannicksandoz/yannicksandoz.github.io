@@ -89,6 +89,25 @@
           <span class="enter-mode-sub" data-i18n="enter.libre.sub">Explorez · trouvez les jetons ◈</span>
         </button>
       </div>
+      <!-- editor:start — l'accueil du MODE AUTEUR (?edit), retiré du build
+           Visiteur : ui/AccueilAuteur.js le montre à la place des deux visites -->
+      <div id="enter-auteur" hidden>
+        <label class="auteur-profil">profil
+          <select id="auteur-profil" aria-label="Profil GitHub"></select></label>
+        <div class="enter-choix">
+          <button id="auteur-editer" class="enter-mode" disabled>
+            <span class="enter-mode-nom">Éditer</span>
+            <span class="enter-mode-sub">Entrer dans l'édition</span>
+          </button>
+          <button id="auteur-tester" class="enter-mode" disabled>
+            <span class="enter-mode-nom">Tester ici</span>
+            <span class="enter-mode-sub">La visite, depuis l'entrée</span>
+          </button>
+          <button id="auteur-tester-fleche" class="enter-mode enter-fleche" disabled aria-haspopup="menu"
+                  aria-label="Tester en ligne…" title="Tester en ligne : la version publiée du site">▾</button>
+        </div>
+      </div>
+      <!-- editor:end -->
       <!-- En DERNIER : un lecteur d'écran parcourt les deux boutons et
            s'arrête naturellement sur celui-ci. aria-disabled (retiré quand
            la config est prête) plutôt que disabled, qui le rendrait

@@ -101,7 +101,7 @@ export class AudioEngine {
       this.master = this.ctx.createGain();
       // le son a pu être coupé AVANT le déblocage (toolbox visible dès
       // l'entrée directe) : le choix survit à la naissance du contexte
-      this.master.gain.value = this.sonCoupe ? 0 : 1;
+      this.master.gain.value = this._maitreVoulu();
       this.master.connect(this.ctx.destination);
       this.unlocked = true;
 
@@ -193,11 +193,28 @@ export class AudioEngine {
    */
   couperLeSon(coupe) {
     this.sonCoupe = Boolean(coupe);
+    this._appliquerMaitre();
+  }
+
+  /**
+   * LE SILENCE D'ÉDITION : la galerie se tait pendant qu'on compose, et
+   * revient pour l'essai et la visite — sans toucher au choix du visiteur
+   * (couperLeSon, la toolbox). Deux raisons de taire, un seul gain : le
+   * maître vaut zéro dès que l'une des deux le veut.
+   */
+  silenceEdition(actif) {
+    this.enSilenceEdition = Boolean(actif);
+    this._appliquerMaitre();
+  }
+
+  _maitreVoulu() { return (this.sonCoupe || this.enSilenceEdition) ? 0 : 1; }
+
+  _appliquerMaitre() {
     if (!this.master || !this.ctx) return;
     const g = this.master.gain;
     const maintenant = this.ctx.currentTime;
     g.cancelScheduledValues(maintenant);
-    g.setTargetAtTime(this.sonCoupe ? 0 : 1, maintenant, 0.08);
+    g.setTargetAtTime(this._maitreVoulu(), maintenant, 0.08);
   }
 
   /** Buffer d'un échantillon muet : réveille la sortie audio d'iOS. */
