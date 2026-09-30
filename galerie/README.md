@@ -5886,6 +5886,26 @@ sous Xvfb : la boîte, Plus tard, retour à la relance, vérification
 contre une API simulée, compte nommé, étape 2, récupération, page
 rechargée sur la nouvelle pièce, plus de boîte ensuite.
 
+**Le voile violet du parterre (beta.9).** « Le sol glitchait d'entrée et
+tout le temps, à certains angles de la caméra. » Mesuré en salle de concert
+(profil enrichi, vue en plongée, couleur moyenne du parterre) : la sonde de
+reflets n'y était pour rien (même mesure à 0 et à 1), le studio non plus.
+Le violet venait de **cinq lampes que personne n'avait demandées** : chaque
+décor du plan (plateau, praticables, amplis, retours) naissait sans
+`lightIntensity`, et le moteur donne alors l'accent par défaut, une
+ponctuelle violette (`#7a6cff`) de portée 14 m posée 1,6 m devant l'objet
+(`Artwork.accentParDefaut`). Sur le plateau, mis à l'échelle de sa largeur,
+cet écart devenait 9,6 m : la lampe tombait au milieu du parterre, au ras
+du sol, et les retours ajoutaient la bande violette au bord de scène. Les
+décors du plan sont maintenant sans lampe (`lightIntensity: 0`, seuls les
+projecteurs de face éclairent), et le parterre est **mat** (`floor.mat`,
+RoomManager : pas de carte de rugosité, rugosité 1), pour que la sonde de
+reflets (128 px) ne s'y lise plus en blocs sous les angles rasants.
+Saturation du parterre en plongée : 0,68 avant, 0,48 après, et plus de
+composante violette. Une salle déjà créée garde ses lampes tant qu'elle
+n'est pas refaite : inspecteur › Gestion › **Modifier le plan de scène…**
+› Reconstruire.
+
 **Le plan de scène devient l'outil principal (beta.8).** Une séance de
 retours, en douze points. Dans l'assistant, deux onglets : **Son** — chaque
 piste a son nom (repris dans le cartel et le mixage), sa **forme d'onde**
@@ -5921,7 +5941,7 @@ réglage (un choix de pièce visée, portail porté ou params du module) ; et S
 cessait de reculer dès qu'un objet était sélectionné (le mode d'échelle
 reste sur 3 et le bouton). Le sol de la salle de concert vu en blocs sur le
 MacBook n'a pas été reproduit ici (captures en profil enrichi, rastériseur
-logiciel) : à revoir avec une capture rapprochée.
+logiciel) : à revoir avec une capture rapprochée — fait en beta.9.
 
 **Le silence d'édition, l'accueil de l'auteur, la flèche des sous-menus
 (beta.7).** Quatre retours de la seconde session. Le son du banc de

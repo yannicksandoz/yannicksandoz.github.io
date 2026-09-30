@@ -1618,11 +1618,14 @@ export function buildFloor(config) {
       // pas de clé du tout plutôt qu'`undefined` : setValues s'en plaint
       ...(matiere?.normalScale
         ? { normalScale: new THREE.Vector2(matiere.normalScale, matiere.normalScale) } : {}),
-      roughnessMap: matiere?.roughnessMap ?? null,
+      // `mat: true` : un sol sans reflet net — pas de carte de rugosité, la
+      // rugosité à 1. Un parterre vaste vu en rasant renvoyait la sonde de
+      // reflets (128 px) en blocs colorés ; matifié, il ne renvoie qu'un lavis.
+      roughnessMap: opt.mat ? null : (matiere?.roughnessMap ?? null),
       // avec une carte de rugosité, le scalaire est un MULTIPLICATEUR :
       // il part de un, la carte parle ; sans carte, la matière donne le sien
-      roughness: Number.isFinite(opt.roughness) ? opt.roughness
-        : (matiere ? matiere.roughness : 0.95),
+      roughness: opt.mat ? 1 : (Number.isFinite(opt.roughness) ? opt.roughness
+        : (matiere ? matiere.roughness : 0.95)),
       metalness: Number.isFinite(opt.metalness) ? opt.metalness : 0.05
     })
   );

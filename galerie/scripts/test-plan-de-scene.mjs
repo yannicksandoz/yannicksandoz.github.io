@@ -418,6 +418,13 @@ test('la pièce : groupes musicien + équipement, plan enregistré, vitesse, rec
   assert.equal(ampli.groupe, r.oeuvres.find((o) => /basse/i.test(o.title)).id, 'l\'ampli suit la basse');
   assert.ok(r.meubles.filter((m) => m.title === 'Scène').every((m) => !m.groupe), 'la scène n\'appartient à personne');
   assert.deepEqual(r.piece.deplacement, DEPLACEMENT_CONCERT);
+  assert.equal(r.piece.floor.mat, true, 'le parterre est mat (pas de reflet net de la sonde)');
+  // aucun décor du plan ne porte la lampe d'accent par défaut (violette, au
+  // ras du parterre) : seuls les projecteurs de face éclairent
+  const sansLampe = r.meubles.filter((m) => m.title !== 'Projecteur' && !/^Corniche/.test(m.title));
+  assert.ok(sansLampe.length >= 3, `scène, praticable, ampli… (${sansLampe.map((m) => m.title).join(', ')})`);
+  assert.ok(sansLampe.every((m) => m.lightIntensity === 0), `décor sans lampe : ${sansLampe.map((m) => `${m.title}=${m.lightIntensity}`).join(', ')}`);
+  assert.ok(r.meubles.filter((m) => m.title === 'Projecteur').every((m) => m.lightIntensity > 0 && m.selfLit));
   const pl = r.piece.planDeScene;
   assert.equal(pl.version, 1);
   assert.equal(pl.postes.length, 2);
