@@ -12,7 +12,7 @@ import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 import { mkdtempSync, writeFileSync, existsSync, readFileSync, readdirSync, utimesSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join, sep } from 'node:path';
+import { join, sep, delimiter } from 'node:path';
 
 const require = createRequire(import.meta.url);
 const F = require('../app/fragments-auto.cjs');
@@ -48,9 +48,12 @@ await test('les chemins et le manifeste : à côté de la source, le motif {i}',
 
 console.log('\ntrouver ffmpeg');
 await test('FFMPEG d’abord, puis le PATH, puis Homebrew — une application du Finder n’a pas le PATH du terminal', () => {
-  const existe = (p) => ['/opt/homebrew/bin/ffmpeg', '/usr/bin/tools/ffmpeg', '/x/ff'].includes(p);
-  assert.equal(F.trouverBinaire({ env: { FFMPEG: '/x/ff', PATH: '/usr/bin/tools' }, existe, plateforme: 'darwin' }), '/x/ff');
-  assert.equal(F.trouverBinaire({ env: { PATH: '/usr/bin/tools:/nulle/part' }, existe, plateforme: 'darwin' }), '/usr/bin/tools/ffmpeg');
+  // les candidats du PATH se composent avec le séparateur de la machine qui teste (Windows : « \\ » et « ; »)
+  const outils = join('/usr/bin', 'tools');
+  const dansOutils = join(outils, 'ffmpeg');
+  const existe = (p) => ['/opt/homebrew/bin/ffmpeg', dansOutils, '/x/ff'].includes(p);
+  assert.equal(F.trouverBinaire({ env: { FFMPEG: '/x/ff', PATH: outils }, existe, plateforme: 'darwin' }), '/x/ff');
+  assert.equal(F.trouverBinaire({ env: { PATH: [outils, '/nulle/part'].join(delimiter) }, existe, plateforme: 'darwin' }), dansOutils);
   assert.equal(F.trouverBinaire({ env: { PATH: '/nulle/part' }, existe, plateforme: 'darwin' }), '/opt/homebrew/bin/ffmpeg');
   assert.equal(F.trouverBinaire({ env: { PATH: '' }, existe: () => false, plateforme: 'linux' }), null);
   assert.match(F.CONSEIL, /brew install ffmpeg/);
