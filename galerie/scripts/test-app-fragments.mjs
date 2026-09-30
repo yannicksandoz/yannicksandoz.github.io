@@ -12,7 +12,7 @@ import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 import { mkdtempSync, writeFileSync, existsSync, readFileSync, readdirSync, utimesSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { join, sep } from 'node:path';
 
 const require = createRequire(import.meta.url);
 const F = require('../app/fragments-auto.cjs');
@@ -65,7 +65,8 @@ await test('segments et manifeste écrits, la piste renvoyée ; puis rien n’es
   mkdirSync(join(contenu, 'assets'));
   writeFileSync(join(contenu, 'assets', 'nappe.mp3'), Buffer.alloc(2 * 1048576));
   const appels = [];
-  const encoder = async (ff, source, debut, longueur, cible) => { appels.push({ debut, longueur, cible: cible.slice(contenu.length + 1) }); writeFileSync(cible, 'x'); };
+  // les chemins relatifs sont comparés avec des barres obliques : Windows sépare par des barres inverses
+  const encoder = async (ff, source, debut, longueur, cible) => { appels.push({ debut, longueur, cible: cible.slice(contenu.length + 1).split(sep).join('/') }); writeFileSync(cible, 'x'); };
   const progres = [];
   const r = await F.fragmenterLot({ contenu, pistes: [{ file: 'assets/nappe.mp3', duree: 25 }, { file: 'assets/court.mp3', duree: 3 }],
     ff: '/faux/ffmpeg', encoder, surProgres: (p) => progres.push(p) });
