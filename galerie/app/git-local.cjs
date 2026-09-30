@@ -51,8 +51,9 @@ class GitLocal {
     // attendre une saisie qui ne viendra jamais — d'où GIT_TERMINAL_PROMPT=0
     // et une limite de temps, pour un `push` sur un réseau qui ne répond pas
     const env = { ...process.env, GIT_TERMINAL_PROMPT: '0', SSH_ASKPASS_REQUIRE: 'never' };
-    this._executer = executer ?? ((args, cwd) => new Promise((resoudre, rejeter) => {
-      execFile(this._git, args, { cwd, env, maxBuffer: 16 * 1024 * 1024, windowsHide: true, timeout: 120000 }, (err, stdout, stderr) => {
+    // `options.env` : des variables de plus pour CET appel (le jeton d'un push)
+    this._executer = executer ?? ((args, cwd, options = {}) => new Promise((resoudre, rejeter) => {
+      execFile(this._git, args, { cwd, env: { ...env, ...(options.env ?? {}) }, maxBuffer: 16 * 1024 * 1024, windowsHide: true, timeout: 120000 }, (err, stdout, stderr) => {
         if (err) { err.stderr = String(stderr ?? ''); rejeter(err); } else resoudre(String(stdout ?? ''));
       });
     }));
@@ -107,21 +108,65 @@ class GitLocal {
     return { sha, branche: d.branche, total: etat.total };
   }
 
-  /** `git push` sur la branche courante. Rend la sortie de git. */
-  async pousser(dossier) {
+  /**
+   * L'adresse vers laquelle la branche courante pousse : celle de son
+   * distant de suivi, sinon `origin`. '' si le dépôt n'en a pas.
+   */
+  async adresseDePush(racine) {
+    let distant = 'origin';
+    try {
+      const suivi = (await this._executer(['rev-parse', '--abbrev-ref', '--symbolic-full-name', '@{u}'], racine)).trim();
+      if (suivi.includes('/')) distant = suivi.split('/')[0];
+    } catch { /* pas de suivi : origin */ }
+    try { return (await this._executer(['remote', 'get-url', '--push', distant], racine)).trim(); } catch { return ''; }
+  }
+
+  /**
+   * `git push` sur la branche courante. Rend { methode, sortie }.
+   *
+   * AVEC UN JETON (`options.jeton`, celui du compte GitHub du bloc 3) et un
+   * distant HTTPS sur github.com, le push se passe du trousseau de la
+   * machine : les assistants d'identifiants sont écartés pour cet appel
+   * (`-c credential.helper=` remet la liste à vide), et un assistant
+   * éphémère répond avec le jeton — lu dans une VARIABLE D'ENVIRONNEMENT
+   * de ce seul processus, jamais dans la ligne de commande ni sur le
+   * disque. C'est ce qui évite la boîte « saisissez le mot de passe du
+   * trousseau session » de macOS, et son refus quand on s'y trompe : un
+   * mot de passe erroné là ne laissait plus rien passer, sans le dire.
+   * Sans jeton, ou vers un autre distant (SSH, autre forge) : le git de la
+   * machine, avec ses clés, tel quel.
+   */
+  async pousser(dossier, { jeton = null } = {}) {
     const d = await this.depot(dossier);
     if (!d) throw new Error('Ce dossier n’est pas dans un dépôt git.');
+    const t = typeof jeton === 'string' ? jeton.trim() : '';
+    const adresse = t ? await this.adresseDePush(d.racine) : '';
+    const parJeton = Boolean(t) && /^https:\/\/(www\.)?github\.com\//i.test(adresse);
     try {
-      return await this._executer(['push'], d.racine);
+      if (parJeton) {
+        const sortie = await this._executer([
+          '-c', 'credential.helper=',
+          '-c', 'credential.helper=!f() { echo username=x-access-token; echo "password=$GALERIE_JETON"; }; f',
+          'push'
+        ], d.racine, { env: { GALERIE_JETON: t } });
+        return { methode: 'jeton', sortie };
+      }
+      return { methode: 'machine', sortie: await this._executer(['push'], d.racine) };
     } catch (e) {
       // la cause est en TÊTE du stderr (« fatal: … ») ; la fin n'est que l'aide de git
       const lignes = (e.stderr || e.message || '').trim().split('\n').map((l) => l.trim()).filter(Boolean);
       const detail = lignes.find((l) => /^(fatal|error):/i.test(l)) ?? lignes[0] ?? '';
-      const conseil = /Username|Password|Authentication|Permission denied|publickey|askpass/i.test(detail)
-        ? ' — sans terminal, git ne peut rien demander : configurez un assistant d’identifiants (trousseau macOS, Git Credential Manager) ou une clé SSH chargée dans l’agent, puis réessayez.'
-        : /No configured push destination|no upstream|does not appear to be a git repository|Could not read from remote/i.test(detail)
-          ? ' — ce dépôt n’a pas de distant : ajoutez-en un dans un terminal (git remote add origin …, puis git push -u origin <branche>) ; ensuite « Pousser » suffira.'
-          : e.killed ? ' — le distant n’a pas répondu dans les deux minutes.' : '';
+      let conseil = '';
+      if (/Username|Password|Authentication|Permission denied|publickey|askpass|terminal prompts/i.test(detail)) {
+        conseil = parJeton
+          ? ' — le jeton du compte (bloc 3) a été refusé par GitHub : vérifiez qu’il porte le droit « Contents : lecture et écriture » sur CE dépôt, ou collez-en un nouveau.'
+          : ' — sans terminal, git ne peut rien demander, et le trousseau de la machine n’a rien fourni (mot de passe du trousseau refusé, ou rien d’enregistré). '
+            + 'Le plus simple : un jeton GitHub dans le bloc 3 — « Pousser » l’utilise alors pour un dépôt github.com, sans trousseau. Sinon : un assistant d’identifiants ou une clé SSH chargée dans l’agent.';
+      } else if (/No configured push destination|no upstream|does not appear to be a git repository|Could not read from remote/i.test(detail)) {
+        conseil = ' — ce dépôt n’a pas de distant : ajoutez-en un dans un terminal (git remote add origin …, puis git push -u origin <branche>) ; ensuite « Pousser » suffira.';
+      } else if (e.killed) {
+        conseil = ' — le distant n’a pas répondu dans les deux minutes.';
+      }
       throw new Error(`git push a échoué : ${detail}${conseil}`);
     }
   }

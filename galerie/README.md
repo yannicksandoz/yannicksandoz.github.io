@@ -5886,6 +5886,35 @@ sous Xvfb : la boîte, Plus tard, retour à la relance, vérification
 contre une API simulée, compte nommé, étape 2, récupération, page
 rechargée sur la nouvelle pièce, plus de boîte ensuite.
 
+**Les salles déjà écrites, le push sans trousseau, la taille de la salle et
+des praticables (beta.10).** Trois retours. « Toujours glitché le sol » :
+la beta.9 ne corrigeait que les salles REFAITES par l'assistant, et la
+galerie en ligne lit les JSON publiés tels quels. La règle vit maintenant
+dans le moteur (`core/salle-de-concert.js`, appelé par SceneBuilder) : une
+pièce qui porte un `planDeScene` reçoit à la lecture un parterre mat et ses
+décors générés perdent la lampe d'accent par défaut — visiteur et auteur,
+sans rien reconstruire ; ce qu'un auteur a réglé lui-même (une intensité
+écrite, un `mat` posé) est respecté, et les projecteurs gardent la leur.
+Vérifié dans le navigateur : une salle ramenée à l'état beta.8 et rechargée
+n'a plus une lampe violette. « J'ai entré un mauvais mot de passe, on m'a
+demandé pour session, je ne peux plus pousser depuis le bloc 2 » : le
+« Pousser » du bloc 2 bis passait par le `git` de la machine, donc par le
+trousseau macOS (« session » est le trousseau de connexion), qui demande
+son mot de passe et ne laisse rien passer quand on s'y trompe, sans que
+l'application le dise. Avec le jeton du compte (bloc 3) et un distant HTTPS
+sur github.com, `git push` se passe désormais du trousseau : les assistants
+d'identifiants sont écartés pour cet appel, un assistant éphémère répond
+avec le jeton, lu dans une variable d'environnement du seul processus git —
+jamais dans la ligne de commande, jamais sur le disque (`app/git-local.cjs`,
+testé avec un git factice). Sans jeton ou vers un distant SSH : la machine,
+comme avant, et le message d'erreur nomme le trousseau et le bloc 3. Enfin,
+dans le plan de scène, la **salle** se taille à la main (largeur × profondeur,
+vide = taillée sur la scène, jamais moins que ce que la scène exige ; le
+placeholder dit la cote auto), et chaque **praticable** a ses cotes :
+largeur × profondeur × hauteur, vides = taillées sur le musicien, 40 cm de
+haut ; le plan le dessine, la pièce le construit, le musicien monte dessus,
+et tout voyage dans le plan enregistré (`salle`, `praticableCotes`).
+
 **Le voile violet du parterre (beta.9).** « Le sol glitchait d'entrée et
 tout le temps, à certains angles de la caméra. » Mesuré en salle de concert
 (profil enrichi, vue en plongée, couleur moyenne du parterre) : la sonde de

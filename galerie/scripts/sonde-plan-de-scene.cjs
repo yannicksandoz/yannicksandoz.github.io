@@ -144,6 +144,26 @@ const verif = (ok, msg) => { console.log(`${ok ? '✓' : '✗'} ${msg}`); if (!o
   // collée au fond, la basse n'a pas de place derrière elle : l'ampli est à côté, à moins d'un mètre
   verif(suivi.d < 60 && suivi.focus && suivi.selection, `l'ampli a suivi la basse (à ${suivi.d.toFixed(0)} px) ; le champ cliqué garde le focus, sa carte est sélectionnée`);
 
+  // 3 ter bis. la SALLE taillée par l'auteur, et les COTES du praticable de la batterie
+  const tailles = await page.evaluate(() => {
+    const salle = document.querySelector('[data-ps-salle="largeur"]');
+    const autoAvant = salle.placeholder;
+    salle.value = '30'; salle.dispatchEvent(new Event('input'));
+    const prof = document.querySelector('[data-ps-salle="profondeur"]'); prof.value = '40'; prof.dispatchEvent(new Event('input'));
+    const apercu = document.querySelector('[data-ps-apercu]').textContent;
+    const cote = document.querySelector('[data-ps-prat-cote="largeur"]');
+    const autoCote = cote?.placeholder;
+    if (cote) { cote.value = '4'; cote.dispatchEvent(new Event('change', { bubbles: true })); }
+    const h = document.querySelector('[data-ps-prat-cote="hauteur"]');
+    if (h) { h.focus(); h.value = '0.8'; h.dispatchEvent(new Event('change', { bubbles: true })); }
+    const rect = document.querySelector('[data-ps-equip="praticable"]');
+    return { autoAvant, apercu, autoCote, largeurPx: Number(rect?.getAttribute('width')), focus: document.activeElement?.dataset?.psPratCote ?? null,
+      hauteur: document.querySelector('[data-ps-prat-cote="hauteur"]')?.value };
+  });
+  verif(/^auto 18$/.test(tailles.autoAvant) && /salle de 30 × 40 m/.test(tailles.apercu), `la salle : « ${tailles.autoAvant} » puis taillée à 30 × 40 (« ${tailles.apercu.slice(0, 80)} »)`);
+  verif(Number(tailles.autoCote) > 0 && tailles.largeurPx > 0 && tailles.hauteur === '0.8' && tailles.focus === 'hauteur',
+    `le praticable : auto ${tailles.autoCote} m, réglé à 4 m (${tailles.largeurPx.toFixed(0)} px sur le plan), 0,8 m de haut, le champ garde le focus`);
+
   // 3 quater. NOMMER une piste, la forme d'onde et sa tête de lecture ; l'onglet VISUEL ; les OPTIONS
   await page.evaluate(() => {
     const nom = document.querySelector('[data-ps-piste-nom="assets/lead-vox.wav"]'); nom.value = 'refrain'; nom.dispatchEvent(new Event('input', { bubbles: true }));
@@ -262,8 +282,8 @@ const verif = (ok, msg) => { console.log(`${ok ? '✓' : '✗'} ${msg}`); if (!o
   const sc = piece.scene;
   verif(sc && sc.scale[0] === 12 && sc.scale[2] === 6 && piece.musiciens.every((m) => m.y > sc.scale[1] && Math.abs(m.z - sc.position[2]) <= 3), `le plateau fait ${sc?.scale.join(' × ')} m et les musiciens sont dessus`);
   const pied = (m, h) => Math.round((m.y - h / 2) * 100) / 100;   // le bas du corps : ce sur quoi il repose
-  verif(Math.abs(pied(batterie, 0.95) - 0.9) < 0.02 && Math.abs(pied(basse, 1.75) - 0.5) < 0.02, `la batterie repose à ${pied(batterie, 0.95)} m (praticable), la basse à ${pied(basse, 1.75)} m (plateau)`);
-  verif(piece.shell[0] === 18 && piece.spawn[2] > sc.position[2] + 3 && piece.regard && piece.regard[2] === sc.position[2], `salle ${piece.shell.join(' × ')} m, entrée z ${piece.spawn[2]} face à la scène (regard z ${piece.regard?.[2]})`);
+  verif(Math.abs(pied(batterie, 0.95) - 1.3) < 0.02 && Math.abs(pied(basse, 1.75) - 0.5) < 0.02, `la batterie repose à ${pied(batterie, 0.95)} m (praticable réglé à 0,8 m), la basse à ${pied(basse, 1.75)} m (plateau)`);
+  verif(piece.shell[0] === 30 && piece.shell[1] === 40 && piece.spawn[2] > sc.position[2] + 3 && piece.regard && piece.regard[2] === sc.position[2], `salle ${piece.shell.join(' × ')} m, entrée z ${piece.spawn[2]} face à la scène (regard z ${piece.regard?.[2]})`);
   verif(Math.abs(piece.cam[2] - piece.spawn[2]) < 0.5 && piece.artworks === piece.n && piece.rouges.length === 0, `la caméra est à l'entrée (z ${piece.cam[2].toFixed(1)}), ${piece.artworks} objets construits, ${piece.rouges.length} en erreur`);
   verif(/pièce « Marées » depuis un plan de scène \(3 musiciens\)/.test(piece.annule), `l'historique nomme le lot : « ${piece.annule} »`);
   const toast = await page.evaluate(() => window.__toasts.join(' | '));

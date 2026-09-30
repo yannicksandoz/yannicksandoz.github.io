@@ -1,4 +1,5 @@
 import { Artwork } from './Artwork.js';
+import { assainirSallesDeConcert } from './salle-de-concert.js';
 
 /**
  * Construit (ou reconstruit) la scène complète à partir des configurations :
@@ -9,6 +10,13 @@ import { Artwork } from './Artwork.js';
  * Utilisé au démarrage (main.js) et par l'éditeur lors d'un ré-import JSON.
  */
 export function buildScene(app, works, roomConfigs) {
+  // les salles de concert écrites avant la beta.9 : sol mat, décors sans
+  // lampe — dans les configurations elles-mêmes, que l'éditeur republiera
+  const assaini = assainirSallesDeConcert(roomConfigs, works);
+  if (assaini.salles) {
+    console.info(`[galerie] ${assaini.salles} salle(s) de concert assainie(s) : `
+      + `${assaini.lampes} lampe(s) de décor éteinte(s), ${assaini.sols} parterre(s) mat(s).`);
+  }
   app.worksConfigs = works;
 
   let rooms = roomConfigs;

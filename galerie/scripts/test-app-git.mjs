@@ -33,6 +33,65 @@ await test('le porcelain : ajoutés, modifiés, supprimés, renommés, conflits'
   assert.equal(analyserPorcelain('').total, 0);
 });
 
+console.log('\npousser avec le jeton du compte, sans trousseau');
+// un git factice : ce qu'il reçoit (arguments, environnement) est ce qui compte
+function gitFactice(adresse) {
+  const appels = [];
+  const racine = tmpdir();
+  const executer = async (args, cwd, options = {}) => {
+    appels.push({ args, cwd, env: options.env ?? null });
+    const a = args.join(' ');
+    if (a === 'rev-parse --show-toplevel') return `${racine}\n`;
+    if (a === 'rev-parse --abbrev-ref HEAD') return 'main\n';
+    if (a === 'rev-parse --abbrev-ref --symbolic-full-name @{u}') return 'origin/main\n';
+    if (a === 'remote get-url --push origin') return `${adresse}\n`;
+    if (args.at(-1) === 'push') return '';
+    throw new Error(`inattendu : git ${a}`);
+  };
+  return { git: new GitLocal({ executer }), appels, contenu: join(racine, 'galerie', 'content') };
+}
+
+await test('distant HTTPS github.com + jeton : assistants écartés, jeton dans l’environnement seulement', async () => {
+  const { git, appels, contenu } = gitFactice('https://github.com/yannick/site.git');
+  const r = await git.pousser(contenu, { jeton: 'ghp_secret123' });
+  assert.equal(r.methode, 'jeton');
+  const push = appels.find((a) => a.args.at(-1) === 'push');
+  assert.ok(push, 'un push a eu lieu');
+  assert.deepEqual(push.args.slice(0, 2), ['-c', 'credential.helper='], 'la liste des assistants est remise à vide d’abord');
+  assert.match(push.args[3], /^credential\.helper=!f\(\) \{ .*\$GALERIE_JETON.*\}; f$/, 'un assistant éphémère qui lit la variable');
+  assert.equal(push.env?.GALERIE_JETON, 'ghp_secret123');
+  assert.ok(!push.args.some((x) => x.includes('ghp_secret123')), 'le jeton n’est jamais dans la ligne de commande');
+});
+
+await test('distant SSH, ou pas de jeton : le git de la machine, tel quel', async () => {
+  const ssh = gitFactice('git@github.com:yannick/site.git');
+  const r1 = await ssh.git.pousser(ssh.contenu, { jeton: 'ghp_x' });
+  assert.equal(r1.methode, 'machine');
+  assert.deepEqual(ssh.appels.find((a) => a.args.at(-1) === 'push').args, ['push']);
+  const sans = gitFactice('https://github.com/yannick/site.git');
+  const r2 = await sans.git.pousser(sans.contenu, {});
+  assert.equal(r2.methode, 'machine');
+  assert.ok(!sans.appels.some((a) => a.args.includes('remote')), 'sans jeton, on ne demande même pas l’adresse');
+});
+
+await test('refus d’identifiants : le conseil nomme le trousseau et le jeton du bloc 3', async () => {
+  const racine = tmpdir();
+  const executer = async (args) => {
+    const a = args.join(' ');
+    if (a === 'rev-parse --show-toplevel') return `${racine}\n`;
+    if (a === 'rev-parse --abbrev-ref HEAD') return 'main\n';
+    if (args.at(-1) === 'push') { const e = new Error('git'); e.stderr = 'fatal: could not read Username for \'https://github.com\': terminal prompts disabled\n'; throw e; }
+    throw new Error(`inattendu : git ${a}`);
+  };
+  const g = new GitLocal({ executer });
+  await assert.rejects(g.pousser(join(racine, 'galerie', 'content')), (e) => {
+    assert.match(e.message, /^git push a échoué : fatal: could not read Username/);
+    assert.match(e.message, /trousseau/);
+    assert.match(e.message, /jeton GitHub dans le bloc 3/);
+    return true;
+  });
+});
+
 const git = new GitLocal();
 const version = await git.version();
 if (!version) {

@@ -3,7 +3,7 @@
   "private": true,
   "license": "SEE LICENSE IN engine/LICENSE",
   "author": "Yannick Sandoz",
-  "version": "1.0.0-beta.9",
+  "version": "1.0.0-beta.10",
   "type": "module",
   "engines": {
     "node": ">=22"

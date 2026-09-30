@@ -48,6 +48,7 @@ contextBridge.exposeInMainWorld('galerieApp', {
   git: {
     etat: () => propre(ipcRenderer.invoke('git:etat')),
     committer: (message) => propre(ipcRenderer.invoke('git:committer', message)),
-    pousser: () => propre(ipcRenderer.invoke('git:pousser'))
+    // { jeton } : le jeton du compte GitHub courant — un push sans trousseau vers github.com
+    pousser: (options) => propre(ipcRenderer.invoke('git:pousser', { jeton: options?.jeton ?? null }))
   }
 });

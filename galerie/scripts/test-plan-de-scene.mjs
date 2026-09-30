@@ -24,7 +24,8 @@ import { INSTRUMENTS, SCENE, BUDGET_VOIX, EQUIPEMENT, devinerInstrument, ajouter
   equipementDe, mobilierEquipement, porteeDansSalle, placementClassique,
   espacer, placeDeReference, normaliserScene, dimensionsSalle, positionDansSalle, titrePoste,
   musicienDepuisPoste, mobilierScene, pieceDepuisPlan, resumePlan, couleurLumiere,
-  nommerSon, visuelPoste, normaliserVisuel, normaliserOptions, planDepuisPiece, FORMES, LUMIERES, DEPLACEMENT_CONCERT }
+  nommerSon, visuelPoste, normaliserVisuel, normaliserOptions, planDepuisPiece, FORMES, LUMIERES, DEPLACEMENT_CONCERT,
+  SALLE_MAX, PRATICABLE, salleAuto, normaliserPraticable, reglerPraticable, hauteurPraticable }
   from '../engine/src/editor/state/PlanDeScene.js';
 import { validerGabarit } from '../engine/src/editor/state/Gabarits.js';
 import { estOeuvre } from '../engine/src/core/catalogue.js';
@@ -181,10 +182,10 @@ test('trois voix devant, trois chœurs au fond : deux rangées, chacune espacée
 titre('la salle et la scène');
 
 test('la scène est bornée, la salle grandit avec elle, l\'entrée fait face à la scène', () => {
-  assert.deepEqual(normaliserScene({}), { largeur: 10, profondeur: 6, hauteur: 0.5 });
-  assert.deepEqual(normaliserScene({ largeur: 60, profondeur: 1 }), { largeur: 24, profondeur: 4, hauteur: 0.5 });
+  assert.deepEqual(normaliserScene({}), { largeur: 10, profondeur: 6, hauteur: 0.5, salle: { largeur: 0, profondeur: 0 } });
+  assert.deepEqual(normaliserScene({ largeur: 60, profondeur: 1 }), { largeur: 24, profondeur: 4, hauteur: 0.5, salle: { largeur: 0, profondeur: 0 } });
   assert.equal(normaliserScene({ profondeur: 24 }).profondeur, SCENE.maxProfondeur, 'la profondeur a sa propre borne');
-  assert.deepEqual(normaliserScene({ largeur: 'abc', profondeur: '8' }), { largeur: 10, profondeur: 8, hauteur: 0.5 });
+  assert.deepEqual(normaliserScene({ largeur: 'abc', profondeur: '8' }), { largeur: 10, profondeur: 8, hauteur: 0.5, salle: { largeur: 0, profondeur: 0 } });
   const d = dimensionsSalle({ largeur: 10, profondeur: 6 });
   assert.equal(d.width, 16);
   assert.equal(d.depth, 19.2);
@@ -194,6 +195,51 @@ test('la scène est bornée, la salle grandit avec elle, l\'entrée fait face à
   const large = dimensionsSalle({ largeur: 24, profondeur: 12 });
   assert.equal(large.width, 30);
   assert.ok(large.depth > d.depth);
+});
+
+test('la salle taillée par l\'auteur : jamais moins que la scène n\'exige, l\'entrée reste face à la scène', () => {
+  assert.deepEqual(normaliserScene({}).salle, { largeur: 0, profondeur: 0 }, 'sans consigne : auto');
+  assert.deepEqual(normaliserScene({ salle: { largeur: '30', profondeur: 999 } }).salle, { largeur: 30, profondeur: SALLE_MAX.profondeur });
+  assert.deepEqual(normaliserScene({ salle: { largeur: -3, profondeur: 'abc' } }).salle, { largeur: 0, profondeur: 0 });
+  assert.deepEqual(salleAuto({ largeur: 10, profondeur: 6 }), { width: 16, depth: 19.2 });
+  const grande = dimensionsSalle({ largeur: 10, profondeur: 6, salle: { largeur: 30, profondeur: 40 } });
+  assert.equal(grande.width, 30);
+  assert.equal(grande.depth, 40);
+  assert.equal(grande.floorSize, 44, 'le sol suit');
+  const d = dimensionsSalle({ largeur: 10, profondeur: 6 });
+  assert.ok(Math.abs((grande.spawn[2] - grande.scene.zAvant) - (d.spawn[2] - d.scene.zAvant)) < 0.01, 'l\'entrée garde sa distance au bord de scène');
+  assert.ok(grande.scene.zFond < d.scene.zFond, 'la scène recule avec le mur du fond');
+  const petite = dimensionsSalle({ largeur: 10, profondeur: 6, salle: { largeur: 8, profondeur: 5 } });
+  assert.deepEqual([petite.width, petite.depth], [16, 19.2], 'trop petite : ce que la scène exige');
+  assert.match(resumePlan(plan('kick.wav'), { salle: { largeur: 30, profondeur: 40 } }).texte, /salle de 30 × 40 m/);
+  const r = pieceDepuisPlan({ postes: plan('kick.wav'), scene: { salle: { largeur: 30, profondeur: 40 } } }, {});
+  assert.deepEqual([r.piece.shell.width, r.piece.shell.depth], [30, 40]);
+  assert.deepEqual(planDepuisPiece(r.piece).scene.salle, { largeur: 30, profondeur: 40 }, 'la salle voyage dans le plan enregistré');
+});
+
+test('les cotes d\'un praticable : taillées sur le corps, ou celles de l\'auteur, bornées au plateau ; la hauteur porte le musicien', () => {
+  assert.deepEqual(normaliserPraticable({}), { largeur: 0, profondeur: 0, hauteur: PRATICABLE.hauteur });
+  assert.deepEqual(normaliserPraticable({ largeur: 3, profondeur: '2.5', hauteur: 0.6 }), { largeur: 3, profondeur: 2.5, hauteur: 0.6 });
+  assert.deepEqual(normaliserPraticable({ largeur: 99, profondeur: 0.2, hauteur: 9 }), { largeur: PRATICABLE.max, profondeur: PRATICABLE.min, hauteur: PRATICABLE.maxHauteur });
+  const sc = { largeur: 10, profondeur: 6 };
+  let p = plan('kick.wav');
+  const [auto] = equipementDe(p, sc);
+  assert.equal(auto.cotes[1], PRATICABLE.hauteur);
+  p = reglerPraticable(p, p[0].id, { largeur: 4, profondeur: 3, hauteur: 0.8 });
+  const [regle] = equipementDe(p, sc);
+  assert.deepEqual(regle.cotes, [4, 0.8, 3]);
+  assert.ok(regle.largeur > auto.largeur, 'le plan le dessine plus large');
+  p = reglerPraticable(p, p[0].id, { largeur: 12, profondeur: 12 });
+  const [borne] = equipementDe(p, sc);
+  assert.deepEqual([borne.cotes[0], borne.cotes[2]], [10, 6], 'jamais plus que le plateau');
+  const d = dimensionsSalle(sc);
+  const m = musicienDepuisPoste(p[0], p, d, { equipement: true });
+  assert.ok(Math.abs((m.position[1] - INSTRUMENTS.batterie.corps.cotes[1] / 2) - (d.scene.hauteur + 0.8)) < 0.01, 'la batterie repose sur son praticable de 80 cm');
+  assert.equal(hauteurPraticable(p[0], false), 0, 'sans équipement : le plateau');
+  const r = pieceDepuisPlan({ postes: p, scene: sc }, {});
+  const prat = r.meubles.find((x) => x.title === 'Praticable');
+  assert.deepEqual(prat.scale, [10, 0.8, 6]);
+  assert.deepEqual(planDepuisPiece(r.piece).postes[0].praticableCotes, { largeur: 12, profondeur: 12, hauteur: 0.8 }, 'les cotes voyagent dans le plan enregistré');
 });
 
 test('du parterre, le fond de scène s\'entend : la portée suit la salle', () => {

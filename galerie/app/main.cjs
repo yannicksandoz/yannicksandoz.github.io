@@ -283,9 +283,11 @@ function brancherLePont() {
     if (!reglages.contenu) throw new Error('Aucun dossier de contenu.');
     return git.committer(reglages.contenu, String(message ?? ''));
   });
-  ipcMain.handle('git:pousser', () => {
+  // le jeton du compte courant voyage avec l'appel, et n'est gardé nulle part ici
+  ipcMain.handle('git:pousser', (e, options) => {
     if (!reglages.contenu) throw new Error('Aucun dossier de contenu.');
-    return git.pousser(reglages.contenu);
+    const jeton = typeof options?.jeton === 'string' ? options.jeton : null;
+    return git.pousser(reglages.contenu, { jeton });
   });
 }
 
