@@ -4374,7 +4374,9 @@ aucun compte GitHub prêt : une boîte « Bienvenue » demande le dépôt, le
 dossier de contenu dans le dépôt et le jeton, vérifie l'accès, puis
 propose de récupérer la version en ligne ou de continuer avec le dossier.
 « Plus tard » la ferme, elle revient à l'ouverture suivante tant que rien
-n'est configuré ; tout se retrouve dans ☁ Publier… › bloc 3.
+n'est configuré ; tout se retrouve dans ☁ Publier… › bloc 3, et
+réciproquement : un dépôt ou un jeton déjà enregistrés reviennent dans la
+boîte (le jeton masqué, « enregistré ····1234 » ; le champ vide le garde).
 
 **Publier passe par l'application, sans boîte ni permission.** Dans un
 navigateur, « Publier » demande le dossier `content/` par la File System
@@ -5857,6 +5859,16 @@ revient à l'ouverture suivante tant que rien n'est configuré
 sous Xvfb : la boîte, Plus tard, retour à la relance, vérification
 contre une API simulée, compte nommé, étape 2, récupération, page
 rechargée sur la nouvelle pièce, plus de boîte ensuite.
+
+**La boîte reprend ce qui est enregistré (beta.5).** Un jeton collé dans
+le bloc 3 sans dépôt vérifié, puis la mise à jour de l'application : la
+boîte « Bienvenue » revenait avec ses trois champs vides, comme si le
+jeton avait disparu — il était là, dans le profil, mais la boîte ne le
+lisait pas. Elle part maintenant des réglages du compte courant (dépôt,
+dossier) et montre le jeton enregistré, masqué ; « Vérifier l'accès »
+l'emploie si le champ reste vide. Le cas est rejoué sous Xvfb : jeton
+seul dans le bloc 3, relance, la boîte l'affiche, vérification sans le
+retaper, compte nommé.
 
 **Des comptes GitHub, dans l'application.** La mise en ligne ne
 connaissait qu'un réglage et un jeton, rangés dans le profil de la page ;
