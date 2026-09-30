@@ -407,7 +407,14 @@ export class Controls {
     if (!this.locked) {
       // — pivot Q/E : tourner sur place —
       const yawInput = (this._keys.has('KeyQ') ? 1 : 0) - (this._keys.has('KeyE') ? 1 : 0);
-      this._yawVel = damp(this._yawVel, yawInput * YAW_SPEED, 12, dt);
+      // LA VITESSE DE LA PIÈCE : `deplacement: { vitesse, pivot }` (facteurs,
+      // 1 = la galerie) — une salle de concert se parcourt plus lentement,
+      // et l'on y pivote plus doucement : c'est là qu'on écoute.
+      const regle = this.app.rooms?.current?.config?.deplacement;
+      const fVitesse = Number(regle?.vitesse) > 0 ? Number(regle.vitesse) : 1;
+      const fPivot = Number(regle?.pivot) > 0 ? Number(regle.pivot) : 1;
+      if (this.orbit.rotateSpeed !== fPivot) this.orbit.rotateSpeed = fPivot;
+      this._yawVel = damp(this._yawVel, yawInput * YAW_SPEED * fPivot, 12, dt);
       if (Math.abs(this._yawVel) > 0.001) {
         const cam = this.app.camera.position;
         _pivot.copy(this.orbit.target).sub(cam);
@@ -441,7 +448,7 @@ export class Controls {
           .addScaledVector(fwd, z)
           .addScaledVector(right, x)
           .normalize()
-          .multiplyScalar(this.speed * boost * dt);
+          .multiplyScalar(this.speed * boost * fVitesse * dt);
         cam.position.add(move);
         this.orbit.target.add(move);
       }

@@ -93,9 +93,9 @@ console.log('\npatch — portée audio (le son se règle sans se couper)');
   check('gain d’ambiance → ambienceGainOnly',
     patch(doc, ['rooms', 0, 'ambience', 0, 'gain'], 0.4).scope,
     { ambienceGainOnly: true, rooms: ['hall'] });
-  check('fichier d’ambiance → structurel',
+  check('fichier d’ambiance → ambienceOnly (la pièce refait ses sources en place)',
     patch(doc, ['rooms', 0, 'ambience', 0, 'file'], 'y.mp3').scope,
-    { structural: true });
+    { ambienceOnly: true, rooms: ['hall'] });
   check('titre de pièce → uiOnly (rien à reconstruire)',
     patch(doc, ['rooms', 0, 'title'], 'x').scope, { uiOnly: true });
   check('ciel de pièce → roomSkyOnly (uniforms en place, pas de rebuild)',

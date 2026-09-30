@@ -39,6 +39,11 @@ contextBridge.exposeInMainWorld('galerieApp', {
     creerDossier: (id, rel) => ipcRenderer.invoke('fs:creerDossier', id, rel),
     supprimer: (id, rel, recursive) => ipcRenderer.invoke('fs:supprimer', id, rel, recursive)
   },
+  /** Les sons longs, fragmentés dans le dossier de contenu (voir app/fragments-auto.cjs). */
+  sons: {
+    fragmenter: (pistes) => propre(ipcRenderer.invoke('sons:fragmenter', pistes)),
+    surProgres: (fn) => { const h = (_, p) => fn(p); ipcRenderer.on('sons:progres', h); return () => ipcRenderer.removeListener('sons:progres', h); }
+  },
   /** Le git de la machine, sur le dossier de contenu (voir app/git-local.cjs). */
   git: {
     etat: () => propre(ipcRenderer.invoke('git:etat')),

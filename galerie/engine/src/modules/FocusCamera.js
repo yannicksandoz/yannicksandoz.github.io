@@ -75,6 +75,7 @@ export class FocusCamera extends Module {
 
   release() {
     if (this.state !== 'focused' && this.state !== 'in') return;
+    this.app.solo?.(null);   // le solo cesse dès qu'on relâche, pas à la fin du recul
     this._from.pos.copy(this.app.camera.position);
     this._from.target.copy(this.app.controls.orbit.target);
     this._to.pos.copy(this._saved.pos);

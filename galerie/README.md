@@ -5886,6 +5886,43 @@ sous Xvfb : la boîte, Plus tard, retour à la relance, vérification
 contre une API simulée, compte nommé, étape 2, récupération, page
 rechargée sur la nouvelle pièce, plus de boîte ensuite.
 
+**Le plan de scène devient l'outil principal (beta.8).** Une séance de
+retours, en douze points. Dans l'assistant, deux onglets : **Son** — chaque
+piste a son nom (repris dans le cartel et le mixage), sa **forme d'onde**
+et une tête de lecture, cliquer l'onde s'y place ; **Visuel** — par poste,
+la forme (cube, cylindre, sphère, cône, tore, galet, ruban), la couleur, la
+texture ou une image de la médiathèque à la place du corps, et la
+**lumière intérieure** : fixe, ou qui suit le niveau de la piste comme un
+vu-mètre (le module AudioReactive, sans pulsation). Les options de la
+pièce : cartels ou non, **silence au début** (le premier départ du groupe
+attend, `son-bornes.enveloppe`), **fondus** d'entrée et de sortie sur
+chaque piste. La pièce garde son plan (`planDeScene`, avec les identifiants
+générés) : inspecteur › Gestion › **Modifier le plan de scène…** le rouvre,
+et « Reconstruire » refait la pièce sous le même identifiant, en un lot
+annulable, sans toucher aux portails ni à ce qu'on y a ajouté. Chaque
+musicien et son équipement partagent un **groupe** : cliquer l'un les
+sélectionne tous, le gizmo les déplace ensemble, Alt+clic prend l'objet
+seul ; Ctrl+G groupe une sélection multiple, Ctrl+Maj+G la dégroupe.
+En visite, approcher un musicien met les autres du groupe `sync` en
+**sourdine** — on entend sa partie seule — et les rend quand on relâche
+(`Artwork.sourdine`, un fondu). La salle de concert se visite plus
+lentement (`deplacement` : vitesse 0,7, pivot 0,75 ; Controls). Dans
+l'inspecteur, une primitive change de **forme** après coup, et de lumière
+intérieure. Et les **sons longs se fragmentent tout seuls** : dans
+l'application, après « Publier », chaque piste d'au moins un mégaoctet ou
+une minute est découpée par ffmpeg dans le dossier de contenu
+(`app/fragments-auto.cjs`, la règle de `fragmente-sons.py`), le JSON reçoit
+son manifeste et se réécrit ; sans ffmpeg, un mot le dit une fois avec la
+commande d'installation. Trois défauts en passant : le son de pièce choisi
+parmi les sons existants n'était joué qu'en quittant et retrouvant la pièce
+(la liste des ambiances a maintenant son chemin, `ambienceOnly`, qui refait
+les sources en place) ; « porte vers une autre pièce » n'ouvrait aucun
+réglage (un choix de pièce visée, portail porté ou params du module) ; et S
+cessait de reculer dès qu'un objet était sélectionné (le mode d'échelle
+reste sur 3 et le bouton). Le sol de la salle de concert vu en blocs sur le
+MacBook n'a pas été reproduit ici (captures en profil enrichi, rastériseur
+logiciel) : à revoir avec une capture rapprochée.
+
 **Le silence d'édition, l'accueil de l'auteur, la flèche des sous-menus
 (beta.7).** Quatre retours de la seconde session. Le son du banc de
 l'entrée accompagnait chaque séance d'édition : la galerie se tait

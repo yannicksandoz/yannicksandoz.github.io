@@ -872,6 +872,20 @@ export class App {
     this.activeFocus = module;
     // approcher une œuvre, c'est la découvrir — sans attendre le palier
     if (module?.artwork) this.progression?.marquer(module.artwork);
+    this.solo(module?.artwork ?? null);
+  }
+
+  /**
+   * LE SOLO : approcher un musicien d'un groupe (`sync`, le plan de scène)
+   * tait les autres le temps de la fiche — on entend sa partie seule ;
+   * relâcher les rend (Artwork.sourdine, un fondu). `art` null : plus de solo.
+   * FocusCamera l'appelle dès le relâchement, sans attendre la fin du
+   * travelling de retour.
+   */
+  solo(art) {
+    const cle = art?.config?.sync;
+    const enGroupe = cle !== undefined && cle !== null && cle !== '';
+    for (const a of this.artworks) a.sourdine?.(enGroupe && a !== art && a.config?.sync === cle);
   }
 
   /** Ajoute une œuvre, dans une pièce si le système de rooms est actif. */

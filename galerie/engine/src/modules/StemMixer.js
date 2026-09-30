@@ -38,7 +38,7 @@ export class StemMixer extends Module {
       // à PLEIN volume en comptant sur lui ; avec une déduplication, la
       // distance n'ayant pas bougé, le réancrage était sauté et toutes les
       // œuvres de la pièce jouaient comme si l'on était collé à chacune.
-      s.gain.gain.setTargetAtTime(g, t, 0.1);
+      s.gain.gain.setTargetAtTime(g * (this.artwork._sourdine ? 0 : 1), t, 0.1);   // la sourdine (solo) passe devant
     }
   }
 }

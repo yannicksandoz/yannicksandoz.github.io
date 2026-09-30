@@ -62,6 +62,22 @@ export function lancerBoucle(src, cfg, quand, position = null) {
 }
 
 /**
+ * LE SILENCE ET LES FONDUS d'une piste, trois champs du JSON, en secondes :
+ *
+ *   "stems": [{ "file": "…", "silence": 2, "fonduEntree": 1.5, "fonduSortie": 3 }]
+ *
+ * `silence` repousse le PREMIER départ (celui du groupe `sync`, quand il y
+ * en a un : la scène entière attend ensemble) ; `fonduEntree` monte le gain
+ * depuis zéro à ce premier départ ; `fonduSortie` remplace le court fondu
+ * d'extinction quand la piste se suspend (budget de voix, pièce quittée).
+ * Tolérants comme les bornes : illisible ou négatif vaut zéro, une minute au plus.
+ */
+export function enveloppe(cfg) {
+  const s = (v) => { const n = Number(v); return Number.isFinite(n) && n > 0 ? Math.min(n, 60) : 0; };
+  return { silence: s(cfg?.silence), fonduEntree: s(cfg?.fonduEntree), fonduSortie: s(cfg?.fonduSortie) };
+}
+
+/**
  * Où reprendre dans la boucle : `position` en secondes depuis le début de
  * la boucle, ramenée dans [debut, fin) — ou le début si elle n'est pas
  * donnée. C'est ce qui permet à une piste suspendue (budget de voix, pièce

@@ -23,7 +23,8 @@ import { INSTRUMENTS, SCENE, BUDGET_VOIX, EQUIPEMENT, devinerInstrument, ajouter
   detacherSon, rattacherSon, deplacerPoste, changerInstrument, nommerPoste, basculerPraticable,
   equipementDe, mobilierEquipement, porteeDansSalle, placementClassique,
   espacer, placeDeReference, normaliserScene, dimensionsSalle, positionDansSalle, titrePoste,
-  musicienDepuisPoste, mobilierScene, pieceDepuisPlan, resumePlan, couleurLumiere }
+  musicienDepuisPoste, mobilierScene, pieceDepuisPlan, resumePlan, couleurLumiere,
+  nommerSon, visuelPoste, normaliserVisuel, normaliserOptions, planDepuisPiece, FORMES, LUMIERES, DEPLACEMENT_CONCERT }
   from '../engine/src/editor/state/PlanDeScene.js';
 import { validerGabarit } from '../engine/src/editor/state/Gabarits.js';
 import { estOeuvre } from '../engine/src/core/catalogue.js';
@@ -376,6 +377,64 @@ test('la pièce complète : ids uniques contre le document, sync, entrée, gabar
   const { id, title, works: w, portals, ...atmosphere } = r.piece;
   const v = validerGabarit({ nom: 'x', piece: atmosphere, meubles: [...r.oeuvres, ...r.meubles].map(({ id: _i, ...m }) => m) });
   assert.deepEqual(v, [], `gabarit valide : ${JSON.stringify(v)}`);
+});
+
+test('nommer une piste, régler le visuel : noms, forme, couleur, lumière, image', () => {
+  let p = plan('kick.wav', 'lead-vox.wav');
+  p = nommerSon(p, 'assets/lead-vox.wav', '  Léa, refrain ');
+  const voix = p.find((x) => x.instrument === 'voix');
+  assert.equal(voix.sons[0].nom, 'Léa, refrain');
+  assert.deepEqual(normaliserVisuel({ forme: 'sphere', couleur: '#FFAA00', texture: 'poli', lumiere: 'suit', image: '' }),
+    { forme: 'sphere', couleur: '#ffaa00', texture: 'poli', image: '', lumiere: 'suit' });
+  assert.deepEqual(normaliserVisuel({ forme: 'faisceau', couleur: 'rouge', lumiere: 'x' }), { forme: '', couleur: '', texture: '', image: '', lumiere: 'aucune' });
+  assert.ok(FORMES.cylinder && !FORMES.plane, 'les formes simples, sans le plan');
+  p = visuelPoste(p, voix.id, { forme: 'sphere', couleur: '#ffaa00', lumiere: 'suit' });
+  const dims = dimensionsSalle({ largeur: 10, profondeur: 6 });
+  const o = musicienDepuisPoste(p.find((x) => x.id === voix.id), p, dims, { morceau: 'M', sync: 'm' });
+  assert.equal(o.model.shape, 'sphere');
+  assert.equal(o.model.color, '#ffaa00');
+  assert.equal(o.model.emissive, LUMIERES.suit.emissive);
+  assert.equal(o.modules[0]?.type, 'FocusCamera', 'approcher au clic : le solo en visite');
+  assert.ok(o.modules.some((m) => m.type === 'AudioReactive'), 'la lumière qui suit la piste : le module réactif');
+  assert.equal(o.stems[0].nom, 'Léa, refrain', 'le nom de la piste voyage dans le stem');
+  assert.match(o.description, /Léa, refrain|la partie de voix/);
+  const img = musicienDepuisPoste({ ...voix, visuel: { image: 'assets/lea.jpg' } }, p, dims, {});
+  assert.equal(img.image, 'assets/lea.jpg');
+  assert.ok(!img.model && Array.isArray(img.size), 'une image : un panneau, plus de corps');
+  const sans = musicienDepuisPoste(voix, p, dims, { options: { cartels: false, silence: 2, fonduEntree: 1, fonduSortie: 3 } });
+  assert.equal(sans.cartel, false);
+  assert.deepEqual([sans.stems[0].silence, sans.stems[0].fonduEntree, sans.stems[0].fonduSortie], [2, 1, 3]);
+  assert.equal(musicienDepuisPoste(voix, p, dims, {}).cartel, undefined, 'cartels par défaut');
+  assert.deepEqual(normaliserOptions({ cartels: 0, silence: '2.5', fonduEntree: -1, fonduSortie: 999 }), { cartels: false, silence: 2.5, fonduEntree: 0, fonduSortie: 60 });
+});
+
+test('la pièce : groupes musicien + équipement, plan enregistré, vitesse, reconstruction sous le même id', () => {
+  const r = pieceDepuisPlan({ postes: plan('kick.wav', 'bass-di.wav'), scene: {}, nom: 'Marées', options: { cartels: false, silence: 1 } }, { rooms: [], works: [] });
+  const batt = r.oeuvres.find((o) => /batterie/i.test(o.title));
+  assert.equal(batt.groupe, batt.id, 'le musicien nomme son groupe');
+  const prat = r.meubles.find((m) => m.title === 'Praticable');
+  assert.equal(prat.groupe, batt.id, 'son praticable est du même groupe');
+  const ampli = r.meubles.find((m) => m.title === 'Ampli');
+  assert.equal(ampli.groupe, r.oeuvres.find((o) => /basse/i.test(o.title)).id, 'l\'ampli suit la basse');
+  assert.ok(r.meubles.filter((m) => m.title === 'Scène').every((m) => !m.groupe), 'la scène n\'appartient à personne');
+  assert.deepEqual(r.piece.deplacement, DEPLACEMENT_CONCERT);
+  const pl = r.piece.planDeScene;
+  assert.equal(pl.version, 1);
+  assert.equal(pl.postes.length, 2);
+  assert.deepEqual(pl.options, { cartels: false, silence: 1, fonduEntree: 0, fonduSortie: 0 });
+  assert.deepEqual(pl.generes, r.piece.works, 'la pièce sait ce qu\'elle a généré');
+  const relu = planDepuisPiece(r.piece);
+  assert.equal(relu.nom, 'Marées');
+  assert.equal(relu.postes[0].sons[0].path, 'assets/kick.wav');
+  assert.equal(relu.options.cartels, false);
+  assert.equal(planDepuisPiece({ id: 'x', title: 'y' }), null);
+  // reconstruire sous le même identifiant, en ignorant l'ancienne pièce et ses œuvres générées
+  const r2 = pieceDepuisPlan({ ...relu, id: r.piece.id, postes: nommerPoste(relu.postes, relu.postes[0].id, 'Box') },
+    { rooms: [], works: [] });
+  assert.equal(r2.piece.id, r.piece.id);
+  assert.ok(r2.oeuvres.some((o) => o.title === 'Box'));
+  const r3 = pieceDepuisPlan({ ...relu, id: r.piece.id }, { rooms: [r.piece], works: [] });
+  assert.notEqual(r3.piece.id, r.piece.id, 'un id encore pris ne se réutilise pas');
 });
 
 test('un plan sans poste ne fabrique rien ; le résumé compte et alerte au-delà du budget', () => {

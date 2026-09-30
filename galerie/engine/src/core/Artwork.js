@@ -42,7 +42,7 @@ import { ajouterLigne, ajouterPolyligne, patcherArbreLignes, MAX_POINTS_POLYLIGN
  * paragraphe plutôt qu'une constante.
  */
 const HAUTEUR_FENTE = 0.5;
-import { lancerBoucle, departDe, bornesLecture } from './son-bornes.js';
+import { lancerBoucle, departDe, bornesLecture, enveloppe } from './son-bornes.js';
 import { creerCartel, tournerVersCamera, disposerCartel } from './cartels.js';
 
 // crossOrigin « anonymous » : indispensable pour les médias distants, dont
@@ -1467,6 +1467,10 @@ export class Artwork {
 
     if (active) {
       const t0 = ctx.currentTime + 0.05;
+      // LE SILENCE D'AMORCE (son-bornes.enveloppe) : le premier départ est
+      // repoussé d'autant — et c'est le départ du groupe qui l'est, la scène
+      // entière attend ensemble. Une reprise (position > 0) ne l'attend plus.
+      const env0 = enveloppe(this.stems[0]?.cfg);
       // REPRENDRE OÙ L'ON EN SERAIT. Le budget de voix suspend et rétablit
       // les œuvres au fil des pas ; une piste relancée de sa première mesure
       // « rembobinait » à chaque retour — sur une nappe de cinq minutes, on
@@ -1475,8 +1479,10 @@ export class Artwork {
       // Les œuvres d'un même groupe (`sync`, le plan de scène : un musicien
       // par œuvre) partagent l'horloge du groupe : en phase, toujours.
       this._premierDepart = departDe(this.app._departsSync ??= new Map(),
-        this.config.sync, t0, this._premierDepart);
-      const position = t0 - this._premierDepart;
+        this.config.sync, t0 + env0.silence, this._premierDepart);
+      const position = t0 - this._premierDepart;   // négative pendant le silence d'amorce
+      const quand = position < 0 ? this._premierDepart : t0;
+      const facteur = this._sourdine ? 0 : 1;
       // Un groupe ne reste en phase que si ses boucles ont la MÊME longueur :
       // la reprise se place modulo la boucle de chaque piste. Une prise plus
       // longue d'une seconde se décale à la première suspension — on le dit
@@ -1502,14 +1508,22 @@ export class Artwork {
         // monolithe qui « ne revient pas » : seul un mélangeur de couches,
         // qui reconduit les gains chaque frame, masquait le défaut.
         s.gain.gain.cancelScheduledValues(t0);
-        s.gain.gain.setTargetAtTime(s.cfg.gain ?? 1, t0, 0.12);
-        if (s.lecteur) { s.lecteur.demarrer(t0, position); continue; }
+        const cible = (s.cfg.gain ?? 1) * facteur;
+        const env = enveloppe(s.cfg);
+        if (position <= 0 && env.fonduEntree > 0) {
+          // le FONDU D'ENTRÉE, au premier départ seulement : de zéro au gain
+          s.gain.gain.setValueAtTime(0, t0);
+          s.gain.gain.linearRampToValueAtTime(cible, quand + env.fonduEntree);
+        } else {
+          s.gain.gain.setTargetAtTime(cible, t0, 0.12);
+        }
+        if (s.lecteur) { s.lecteur.demarrer(quand, Math.max(0, position)); continue; }
         const src = ctx.createBufferSource();
         src.buffer = s.buffer;
         src.connect(s.gain);
         // « debut » / « fin » : la part du fichier qui est l'œuvre — un
         // silence d'amorce ne se réécoute pas à chaque tour de boucle
-        lancerBoucle(src, s.cfg, t0, position);
+        lancerBoucle(src, s.cfg, quand, Math.max(0, position));
         s.source = src;
       }
     } else {
@@ -1518,19 +1532,42 @@ export class Artwork {
       // arrête toutes les demi-secondes, dès qu'une œuvre plus proche
       // réclame sa place — le visiteur entendait la mécanique.
       const t = ctx.currentTime;
-      this._arretA = t;   // la spatialisation attend la fin du fondu avant de retirer l'HRTF
+      // le FONDU DE SORTIE d'une piste (son-bornes.enveloppe) remplace le
+      // court fondu d'extinction ; la spatialisation attend la fin du plus
+      // long avant de retirer l'HRTF
+      const sorties = this.stems.map((s) => enveloppe(s.cfg).fonduSortie || EXTINCTION);
+      this._arretA = t + Math.max(0, Math.max(...sorties, EXTINCTION) - EXTINCTION);
       for (const s of this.stems) {
+        const duree = enveloppe(s.cfg).fonduSortie || EXTINCTION;
         s.gain.gain.cancelScheduledValues(t);
-        s.gain.gain.setTargetAtTime(0, t, EXTINCTION / 3);
+        s.gain.gain.setTargetAtTime(0, t, duree / 3);
         // le lecteur par fragments s'arrête au bout du même fondu
-        if (s.lecteur) { s.lecteur.arreter(t + EXTINCTION); continue; }
+        if (s.lecteur) { s.lecteur.arreter(t + duree); continue; }
         const src = s.source;
         s.source = null;
         if (!src) continue;
-        try { src.stop(t + EXTINCTION); } catch { /* déjà arrêtée */ }
+        try { src.stop(t + duree); } catch { /* déjà arrêtée */ }
         // la déconnexion attend la fin du fondu, sinon elle le coupe
         src.onended = () => { try { src.disconnect(); } catch { /* déjà */ } };
       }
+    }
+  }
+
+  /**
+   * LA SOURDINE (le solo) : approcher un musicien d'un groupe `sync` tait
+   * les autres le temps de la fiche (App.setActiveFocus) ; relâcher les
+   * rend. Un fondu, jamais une coupure ; le mélangeur de couches reconduit
+   * le facteur lui-même (StemMixer).
+   */
+  sourdine(actif) {
+    const v = Boolean(actif);
+    if (this._sourdine === v) return;
+    this._sourdine = v;
+    if (!this.audioReady || !this._stemsActive) return;
+    const t = this.app.audio.ctx.currentTime;
+    for (const s of this.stems) {
+      s.gain.gain.cancelScheduledValues(t);
+      s.gain.gain.setTargetAtTime(v ? 0 : (s.cfg.gain ?? 1), t, 0.25);
     }
   }
 

@@ -29,6 +29,7 @@ const { Dossiers } = require('./dossiers.cjs');
 const { noterRecent, plusRecente, estUneGalerie, lienExterneSur, portPrefere } = require('./reglages-regles.cjs');
 const { creerGalerie, dossierVide } = require('./galerie-neuve.cjs');
 const { GitLocal } = require('./git-local.cjs');
+const { fragmenterLot } = require('./fragments-auto.cjs');
 
 // Empaqueté, le build auteur est sorti de l'archive asar (package.json,
 // build.asarUnpack) : le serveur le lit par flux et « Nouvelle galerie… »
@@ -257,6 +258,13 @@ async function verifierMisesAJour({ silencieux = false } = {}) {
 function brancherLePont() {
   ipcMain.handle('dossier:contenu', () => contenuPourLaPage());
   ipcMain.handle('app:version', () => etatVersion());
+  // LES SONS LONGS, fragmentés par l'application à la publication (voir
+  // fragments-auto.cjs) : la page envoie ses pistes, reçoit les manifestes
+  ipcMain.handle('sons:fragmenter', async (e, pistes) => {
+    if (!reglages.contenu) return { faits: [], ignorees: 0, erreurs: [], ffmpeg: false };
+    return fragmenterLot({ contenu: reglages.contenu, pistes: Array.isArray(pistes) ? pistes : [],
+      surProgres: (p) => { try { e.sender.send('sons:progres', p); } catch { /* fenêtre fermée */ } } });
+  });
   ipcMain.handle('dossier:choisir', (e, but) => choisirDossier(but === 'export' ? 'export' : 'contenu'));
   ipcMain.handle('fs:lister', (e, id, rel) => dossiers.lister(id, rel));
   ipcMain.handle('fs:existe', (e, id, rel) => dossiers.existe(id, rel));

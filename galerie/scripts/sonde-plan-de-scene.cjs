@@ -49,7 +49,7 @@ const verif = (ok, msg) => { console.log(`${ok ? '✓' : '✗'} ${msg}`); if (!o
   await page.waitForSelector('.ed-assistant-scene', { state: 'attached' });
   const etat = await page.evaluate(() => ({
     postes: [...document.querySelectorAll('[data-ps-poste]')].map((g) => ({ id: g.dataset.psPoste, aria: g.getAttribute('aria-label'), t: g.getAttribute('transform') })),
-    cartes: [...document.querySelectorAll('[data-ps-carte]')].map((c) => ({ ins: c.querySelector('[data-ps-instrument]').value, pistes: [...c.querySelectorAll('.ed-ps-piste .ed-as-son-nom')].map((e) => e.textContent) })),
+    cartes: [...document.querySelectorAll('[data-ps-carte]')].map((c) => ({ ins: c.querySelector('[data-ps-instrument]').value, pistes: [...c.querySelectorAll('.ed-ps-piste .ed-ps-piste-nom')].map((e) => e.placeholder) })),
     ecartes: [...document.querySelectorAll('[data-ps-ecartes] > .ed-ps-piste')].length,
     poses: document.querySelector('.ed-ps-poses')?.open === false ? [...document.querySelectorAll('.ed-ps-poses [data-ps-monter]')].length : -1,
     compte: document.querySelector('[data-ps-compte]').textContent,
@@ -144,6 +144,32 @@ const verif = (ok, msg) => { console.log(`${ok ? '✓' : '✗'} ${msg}`); if (!o
   // collée au fond, la basse n'a pas de place derrière elle : l'ampli est à côté, à moins d'un mètre
   verif(suivi.d < 60 && suivi.focus && suivi.selection, `l'ampli a suivi la basse (à ${suivi.d.toFixed(0)} px) ; le champ cliqué garde le focus, sa carte est sélectionnée`);
 
+  // 3 quater. NOMMER une piste, la forme d'onde et sa tête de lecture ; l'onglet VISUEL ; les OPTIONS
+  await page.evaluate(() => {
+    const nom = document.querySelector('[data-ps-piste-nom="assets/lead-vox.wav"]'); nom.value = 'refrain'; nom.dispatchEvent(new Event('input', { bubbles: true }));
+  });
+  await page.waitForFunction(() => { const c = document.querySelector('canvas[data-ps-onde="assets/kick.wav"]'); return c && c.getContext('2d').getImageData(0, 0, c.width, c.height).data.some((v, i) => i % 4 === 3 && v > 0); }, null, { timeout: 15000 }).catch(() => {});
+  const onde = await page.evaluate(() => { const c = document.querySelector('canvas[data-ps-onde="assets/kick.wav"]'); const d = c.getContext('2d').getImageData(0, 0, c.width, c.height).data; let n = 0; for (let i = 3; i < d.length; i += 4) if (d[i] > 0) n++; return { pixels: n, largeur: c.width }; });
+  verif(onde.pixels > 200, `la forme d'onde de kick.wav est dessinée (${onde.pixels} pixels peints)`);
+  await page.click('canvas[data-ps-onde="assets/kick.wav"]', { position: { x: 60, y: 9 } });
+  await page.waitForFunction(() => (window.__galerie.editor.ui.sons.etatPreEcoute()?.duree ?? 0) > 0, null, { timeout: 5000 }).catch(() => {});
+  const lecture = await page.evaluate(() => { const s = window.__galerie.editor.ui.sons; const e = s.etatPreEcoute(); return { lecture: s.enLecture, position: e?.position ?? null, duree: e?.duree ?? null, bouton: document.querySelector('[data-ps-ecouter="assets/kick.wav"]')?.textContent }; });
+  verif(lecture.lecture === 'assets/kick.wav' && lecture.position !== null && lecture.bouton === '■', `cliquer l'onde lance la pré-écoute (${lecture.position?.toFixed(2)} s sur ${lecture.duree?.toFixed(2)} s, bouton ■)`);
+  await page.evaluate(() => window.__galerie.editor.ui.sons.arreterPreEcoute());
+  await page.click('[data-ps-onglet="visuel"]');
+  const visuel = await page.evaluate(() => ({ cartes: document.querySelectorAll('.ed-ps-visuel').length, formes: document.querySelector('[data-ps-forme]')?.options.length, lumieres: [...document.querySelector('[data-ps-lumiere]').options].map((o) => o.value).join(','), onglet: document.querySelector('[data-ps-onglet="visuel"]').getAttribute('aria-selected') }));
+  verif(visuel.cartes === 3 && visuel.formes >= 7 && visuel.lumieres === 'aucune,fixe,suit' && visuel.onglet === 'true', `onglet Visuel : ${visuel.cartes} cartes, ${visuel.formes} formes, lumières ${visuel.lumieres}`);
+  await page.evaluate(() => {
+    const idVoix = [...document.querySelectorAll('.ed-ps-visuel')].find((c) => /Léa/.test(c.textContent)).dataset.psCarte;
+    const poser = (sel, v) => { const el = document.querySelector(sel); el.value = v; el.dispatchEvent(new Event('change', { bubbles: true })); };
+    poser(`[data-ps-forme="${idVoix}"]`, 'cylinder'); poser(`[data-ps-lumiere="${idVoix}"]`, 'suit');
+    const c = document.querySelector('[data-ps-option="cartels"]'); c.checked = false; c.dispatchEvent(new Event('change', { bubbles: true }));
+    poser('[data-ps-option="silence"]', '1.5');
+  });
+  await page.click('[data-ps-onglet="son"]');
+  const retour = await page.evaluate(() => ({ nom: document.querySelector('[data-ps-piste-nom="assets/lead-vox.wav"]')?.value, pistes: document.querySelectorAll('.ed-ps-piste .ed-ps-onde').length }));
+  verif(retour.nom === 'refrain' && retour.pistes === 4, `retour à l'onglet Son : le nom de piste tient (« ${retour.nom} »), ${retour.pistes} ondes`);
+
   // 3 bis. le plan exporté : un SVG autonome, noir sur blanc, titré du morceau
   const svg = await page.evaluate(() => new Promise((resoudre) => {
     const clic = HTMLAnchorElement.prototype.click;
@@ -158,13 +184,15 @@ const verif = (ok, msg) => { console.log(`${ok ? '✓' : '✗'} ${msg}`); if (!o
     `plan exporté « ${svg.nom }» : ${svg.texte.length} car., titré, trois pictogrammes, noir sur blanc`);
 
   // 4. créer
+  const annuleAvant = await page.evaluate(() => ({ rooms: window.__galerie.editor.doc.rooms.length, works: window.__galerie.editor.doc.works.length }));
   await page.evaluate(() => {
     window.__toasts = [];
     new MutationObserver((ms) => { for (const m of ms) for (const n of m.addedNodes) if (n.classList?.contains('ed-toast')) window.__toasts.push(n.textContent); }).observe(document.body, { childList: true });
     document.querySelector('[data-ps-creer]').click();
   });
   // « Marées » existe déjà dans la galerie : l'identifiant prend un suffixe libre
-  await page.waitForFunction(() => window.__galerie.rooms.current?.config?.title === 'Marées' && /^marees-\d+$/.test(window.__galerie.rooms.current.config.id), null, { timeout: 30000 });
+  await page.waitForFunction(() => /^marees-\d+$/.test(window.__galerie.rooms.current?.config?.id ?? ''), null, { timeout: 60000, polling: 500 })
+    .catch(async () => { console.log('DEBUG création :', await page.evaluate(() => ({ toasts: window.__toasts, piece: window.__galerie.rooms.current?.config?.id, titre: window.__galerie.rooms.current?.config?.title })), bruit.slice(0, 3)); throw new Error('pièce non créée'); });
   await page.waitForTimeout(1500);
   await page.evaluate(() => { document.querySelector('.ed-toast')?.remove(); });
   if (process.env.CAPTURES) await page.screenshot({ path: `${process.env.CAPTURES}/scene-creee.png` });
@@ -176,7 +204,9 @@ const verif = (ok, msg) => { console.log(`${ok ? '✓' : '✗'} ${msg}`); if (!o
     const cam = app.camera.position;
     return {
       id: cfg.id, title: cfg.title, shell: [cfg.shell.width, cfg.shell.depth, cfg.shell.height], spawn: cfg.spawn, regard: cfg.regard,
-      n: works.length, musiciens: musiciens.map((w) => ({ id: w.id, title: w.title, sync: w.sync, stems: w.stems.map((s) => s.file), x: w.position[0], y: w.position[1], z: w.position[2], shape: w.model?.shape })),
+      n: works.length, musiciens: musiciens.map((w) => ({ id: w.id, title: w.title, sync: w.sync, stems: w.stems.map((s) => s.file), noms: w.stems.map((s) => s.nom ?? ''), silences: w.stems.map((s) => s.silence ?? 0), x: w.position[0], y: w.position[1], z: w.position[2], shape: w.model?.shape, emissive: w.model?.emissive, modules: (w.modules ?? []).map((m) => m.type), cartel: w.cartel, groupe: w.groupe })),
+      groupesDecor: works.filter((w) => w.role === 'decor').map((w) => `${w.title}:${w.groupe ?? ''}`),
+      deplacement: cfg.deplacement, plan: cfg.planDeScene ? { postes: cfg.planDeScene.postes.length, generes: cfg.planDeScene.generes.length, options: cfg.planDeScene.options } : null,
       decor: works.filter((w) => w.role === 'decor').map((w) => w.title),
       scene: works.find((w) => w.title === 'Scène'),
       artworks: room.artworks.length, rouges: room.artworks.filter((a) => a.mediaError).map((a) => a.config.id),
@@ -189,6 +219,45 @@ const verif = (ok, msg) => { console.log(`${ok ? '✓' : '✗'} ${msg}`); if (!o
   const ID = piece.id;
   const lea = piece.musiciens.find((m) => m.title === 'Léa'); const basse = piece.musiciens.find((m) => /Basse/.test(m.title)); const batterie = piece.musiciens.find((m) => /Batterie/.test(m.title));
   verif(lea && lea.stems.length === 1 && batterie && batterie.stems.length === 2 && batterie.shape === 'box', `Léa (${lea?.stems.join(', ')}), batterie ${batterie?.shape} en ${batterie?.stems.length} pistes`);
+  verif(lea?.shape === 'cylinder' && lea.modules.includes('AudioReactive') && lea.emissive > 0.2 && lea.noms[0] === 'refrain', `Léa : forme ${lea?.shape}, lumière qui suit (${lea?.modules.join(',')}, émissif ${lea?.emissive}), piste nommée « ${lea?.noms[0]} »`);
+  verif(piece.musiciens.every((m) => m.cartel === false && m.silences.every((s) => s === 1.5)), `cartels retirés, silence d'amorce 1,5 s sur chaque piste`);
+  verif(batterie?.groupe === batterie?.id && piece.groupesDecor.includes(`Praticable:${batterie?.id}`) && piece.groupesDecor.includes(`Ampli:${basse?.id}`), `groupes : le praticable suit la batterie, l'ampli suit la basse`);
+  verif(piece.deplacement?.vitesse === 0.7 && piece.plan?.postes === 3 && piece.plan.generes === piece.n && piece.plan.options.cartels === false, `la pièce se visite à ${piece.deplacement?.vitesse} de la vitesse, et garde son plan (${piece.plan?.postes} postes, ${piece.plan?.generes} générés)`);
+
+  // 4 bis. cliquer le praticable prend le groupe (batterie + praticable) ; Alt+clic, lui seul
+  const grp = await page.evaluate((idBatt) => {
+    const ed = window.__galerie.editor;
+    const prat = ed.doc.works.find((w) => w.title === 'Praticable' && w.groupe === idBatt);
+    ed.select({ type: 'artwork', id: prat.id });
+    const tous = [...ed.selIds];
+    ed.select({ type: 'artwork', id: prat.id }, { seul: true });
+    const seul = [...ed.selIds];
+    ed.select(null);
+    return { tous, seul, prat: prat.id };
+  }, batterie?.id);
+  verif(grp.tous.length === 2 && grp.tous.includes(batterie?.id) && grp.seul.length === 1 && grp.seul[0] === grp.prat, `cliquer le praticable sélectionne le groupe (${grp.tous.length} objets) ; seul : ${grp.seul.length}`);
+
+  // 4 ter. ROUVRIR le plan de la pièce, la renommer, la reconstruire sous le même identifiant
+  // (la boîte rend une promesse qui ne se résout qu'à sa fermeture : on ne l'attend pas)
+  await page.evaluate(() => { window.__galerie.editor.ui.modifierPlanDeScene(window.__galerie.rooms.current.config.id); });
+  await page.waitForSelector('.ed-assistant-scene', { timeout: 8000, state: 'attached' }).catch(async () => {
+    console.log('DEBUG réouverture :', await page.evaluate(() => { const b = document.querySelector('.ed-assistant-scene'); const f = document.querySelector('.ed-dialogue-fond'); return { fond: !!f, boite: !!b, fondStyle: f ? getComputedStyle(f).display : null, rect: b ? JSON.stringify(b.getBoundingClientRect()) : null, plan: !!window.__galerie.editor.doc.rooms.find((r) => r.id === window.__galerie.rooms.current.config.id)?.planDeScene, piece: window.__galerie.rooms.current.config.id }; }), bruit.slice(0, 4));
+  });
+  const rouvert = await page.evaluate(() => ({ postes: document.querySelectorAll('[data-ps-poste]').length, bouton: document.querySelector('[data-ps-creer]').textContent.trim(), nom: document.querySelector('[data-ps-nom]').value, cartels: document.querySelector('[data-ps-option="cartels"]').checked, silence: document.querySelector('[data-ps-option="silence"]').value, hors: document.querySelector('[data-ps-hors-scene]').hidden }));
+  verif(rouvert.postes === 3 && rouvert.bouton === 'Reconstruire la pièce' && rouvert.nom === 'Marées' && rouvert.cartels === false && rouvert.silence === '1.5', `plan rouvert : ${rouvert.postes} postes, « ${rouvert.bouton} », options gardées (cartels ${rouvert.cartels}, silence ${rouvert.silence})`);
+  await page.evaluate(() => { const n = document.querySelector('[data-ps-nom]'); n.value = 'Marées bis'; n.dispatchEvent(new Event('input')); document.querySelector('[data-ps-creer]').click(); });
+  await page.waitForFunction((id) => window.__galerie.rooms.current?.config?.id === id && window.__galerie.rooms.current.config.title === 'Marées bis', ID, { timeout: 60000, polling: 500 });
+  await page.waitForTimeout(1200);
+  const refaite = await page.evaluate((id) => { const doc = window.__galerie.editor.doc; const cfg = doc.rooms.find((r) => r.id === id); return { works: cfg.works.length, titres: cfg.works.map((w) => doc.work(w)?.title).filter(Boolean).length, total: doc.works.length, annule: doc.history.prochainAnnule }; }, ID);
+  verif(refaite.works === piece.n && refaite.titres === piece.n && refaite.total === annuleAvant.works + piece.n && /plan de scène de « Marées bis » modifié/.test(refaite.annule), `reconstruite sous « ${ID} » : ${refaite.works} objets (tous vivants), ${refaite.total} œuvres au total, historique « ${refaite.annule} »`);
+  await page.evaluate(() => window.__galerie.editor.annuler());
+  await page.waitForTimeout(800);
+  verif(await page.evaluate((id) => window.__galerie.editor.doc.rooms.find((r) => r.id === id)?.title === 'Marées', ID), 'Ctrl+Z : la pièce d’avant la reconstruction');
+  await page.evaluate(() => window.__galerie.editor.retablir());
+  await page.waitForTimeout(800);
+  await page.evaluate(() => window.__galerie.editor.annuler());
+  await page.waitForTimeout(800);
+
   verif(basse && basse.x > 2 && basse.z < batterie.z + 1, `la basse est à cour, au fond : x ${basse?.x}, z ${basse?.z} (batterie z ${batterie?.z})`);
   const sc = piece.scene;
   verif(sc && sc.scale[0] === 12 && sc.scale[2] === 6 && piece.musiciens.every((m) => m.y > sc.scale[1] && Math.abs(m.z - sc.position[2]) <= 3), `le plateau fait ${sc?.scale.join(' × ')} m et les musiciens sont dessus`);
