@@ -7,7 +7,7 @@
  * Lancer avec : npm test
  */
 import assert from 'node:assert/strict';
-import { mkdtempSync, mkdirSync, writeFileSync, rmSync, unlinkSync, symlinkSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, writeFileSync, rmSync, unlinkSync, symlinkSync, realpathSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, basename } from 'node:path';
 import { execFileSync } from 'node:child_process';
@@ -34,10 +34,13 @@ await test('le porcelain : ajoutés, modifiés, supprimés, renommés, conflits'
 });
 
 console.log('\npousser avec le jeton du compte, sans trousseau');
-// un git factice : ce qu'il reçoit (arguments, environnement) est ce qui compte
+// un git factice : ce qu'il reçoit (arguments, environnement) est ce qui compte.
+// La racine est un chemin RÉEL (macOS : /var est un lien vers /private/var ;
+// Windows : un nom court) — depot() résout les deux côtés avant de comparer
+const RACINE = realpathSync.native(tmpdir());
 function gitFactice(adresse) {
   const appels = [];
-  const racine = tmpdir();
+  const racine = RACINE;
   const executer = async (args, cwd, options = {}) => {
     appels.push({ args, cwd, env: options.env ?? null });
     const a = args.join(' ');
@@ -75,7 +78,7 @@ await test('distant SSH, ou pas de jeton : le git de la machine, tel quel', asyn
 });
 
 await test('refus d’identifiants : le conseil nomme le trousseau et le jeton du bloc 3', async () => {
-  const racine = tmpdir();
+  const racine = RACINE;
   const executer = async (args) => {
     const a = args.join(' ');
     if (a === 'rev-parse --show-toplevel') return `${racine}\n`;
