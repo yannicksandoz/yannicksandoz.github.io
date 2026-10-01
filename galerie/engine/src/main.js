@@ -43,6 +43,7 @@ import { AudioReactive } from './modules/AudioReactive.js';
 import { FocusCamera } from './modules/FocusCamera.js';
 import { TipJar } from './modules/TipJar.js';
 import { Portail } from './modules/Portail.js';
+import { Trajet } from './modules/Trajet.js';
 
 registry.register('SpatialCrossfade', SpatialCrossfade);
 registry.register('StemMixer', StemMixer);
@@ -51,6 +52,7 @@ registry.register('AudioReactive', AudioReactive);
 registry.register('FocusCamera', FocusCamera);
 registry.register('TipJar', TipJar);
 registry.register('Portail', Portail);
+registry.register('Trajet', Trajet);
 
 /** WebGL2 est requis par le rendu : message clair plutôt qu'écran noir. */
 function hasWebGL2() {

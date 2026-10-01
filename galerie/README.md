@@ -5312,6 +5312,8 @@ interdit de grossir sans le savoir.
 | `AudioReactive` | AnalyserNode → pulsation, émission, uniform `uAudio`, lumière | `band`, `pulseScale`, `emissiveBoost`, `lightBoost`, `smoothing`, `gate` |
 | `FocusCamera` | Travelling doux vers l'œuvre au clic + fiche (titre, cartel année/technique, description, lien, vue détail de l'image) | `distance`, `height`, `duration` |
 | `TipJar` | Chapeau de fin d'expérience (voir ci-dessous) | `enabled`, `message`, `buttonLabel`, `url`, `minutes`, `delay` |
+| `Portail` | L'œuvre est une porte vers une autre pièce (voir « L'œuvre-porte ») | `to` (ou le portail `via` de la pièce) |
+| `Trajet` | L'œuvre, et sa source sonore, se déplace en boucle sur un chemin qui part d'elle (voir ci-dessous) | `forme`, `points`, `rayon`, `plan`, `duree`, `allerRetour`, `fermee`, `orienter`, `phase` |
 
 Les trois œuvres de démo illustrent trois recettes : *Nébuleuse*
 (`SpatialCrossfade` + `AudioReactive`), *Triptyque des marées* (`StemMixer`,
@@ -5349,6 +5351,36 @@ La scène de démo pointe sur `https://ko-fi.com/yannicksandoz` (dans
 contenu, c'est l'une des trois choses à remplacer, avec le dossier `content/`
 et le contact de licence commerciale — sans quoi vous enverriez vos visiteurs
 soutenir quelqu'un d'autre.
+
+### Le trajet (Trajet)
+
+Une œuvre — un instrument de la salle de concert, une stèle, n'importe quel
+objet sonore — se déplace en boucle sur un chemin, et le visiteur entend sa
+source bouger : la spatialisation lit la position de l'objet à chaque image,
+le panner suit. Le chemin **part de l'objet**, là où l'auteur l'a posé ; ses
+points sont des décalages en mètres. Trois formes :
+
+- **ligne** : de l'objet à une arrivée (`points[0]`), et retour ;
+- **cercle** : un cercle de `rayon` qui passe par l'objet, dans un `plan`
+  (`horizontal`, `face`, `cote`) ;
+- **courbe** : une courbe douce par l'objet puis chaque point de `points` ;
+  `fermee`, elle revient à l'objet en boucle ; ouverte, c'est l'aller et le
+  retour.
+
+`duree` est le temps d'un cycle (un tour, ou un aller-retour) ; la vitesse
+est constante le long du chemin (parcours par longueur d'arc), et un
+aller-retour ralentit aux extrémités pour que le son ne rebondisse pas.
+`orienter` fait tourner l'œuvre vers sa direction ; `phase` (0…1) décale le
+départ, pour que deux œuvres de même durée se suivent sur un même chemin.
+Dans l'éditeur, l'objet **reste à sa place écrite** (le gizmo et l'inspecteur
+raisonnent sur elle) et le chemin se trace en jaune tant qu'il est
+sélectionné ; le mouvement se voit à l'essai et en visite. Les règles sont
+pures et testées (`core/trajet-regles.js`, `scripts/test-trajet.mjs`) ; la
+sonde `npm run sonde:trajet` éprouve l'inspecteur et le mouvement.
+
+```json
+{ "type": "Trajet", "params": { "forme": "courbe", "points": [[4, 0, 0], [4, 1, 4], [0, 0, 4]], "fermee": true, "duree": 30, "orienter": true } }
+```
 
 ## Créer un nouveau module
 
@@ -5885,6 +5917,26 @@ revient à l'ouverture suivante tant que rien n'est configuré
 sous Xvfb : la boîte, Plus tard, retour à la relance, vérification
 contre une API simulée, compte nommé, étape 2, récupération, page
 rechargée sur la nouvelle pièce, plus de boîte ensuite.
+
+**Le trajet d'une œuvre (en préparation, après la beta.10).** Un nouveau
+module, `Trajet` : une œuvre ou un instrument se déplace en boucle sur un
+chemin qui part de l'endroit où l'auteur l'a posé — une ligne et retour, un
+cercle qui passe par l'objet (au sol, de face ou de côté), ou une courbe
+douce par des points, fermée en boucle ou ouverte en aller-retour. La source
+sonore suit (la spatialisation lit la position du groupe à chaque image,
+rien à faire de plus). Vitesse constante par longueur d'arc, allers-retours
+adoucis aux bouts, horloge de l'application (deux œuvres de même durée
+restent en phase, `phase` les décale), « regarde où elle va » en option.
+Dans l'éditeur l'objet reste à sa place écrite et le chemin se trace en
+jaune quand il est sélectionné ; le mouvement se voit à l'essai et en
+visite, et les ombres se redessinent dès qu'il a bougé d'un centimètre.
+Inspecteur › Modules › « se déplace sur un chemin » : forme, arrivée ou
+points (＋ / ✕), rayon et plan, durée d'un cycle, fermée, orientation, et en
+expert le départ décalé. Règles pures testées (`core/trajet-regles.js`, cinq
+suites), sonde `npm run sonde:trajet` : case, tracé, objet immobile en
+édition, mouvement sur son cercle à l'essai, retour à sa place, courbe
+éditée point par point. Préparé sans publication : la prochaine beta
+l'emportera.
 
 **Les salles déjà écrites, le push sans trousseau, la taille de la salle et
 des praticables (beta.10).** Trois retours. « Toujours glitché le sol » :
