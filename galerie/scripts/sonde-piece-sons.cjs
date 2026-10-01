@@ -66,7 +66,7 @@ const verif = (ok, msg) => { console.log(`${ok ? '✓' : '✗'} ${msg}`); if (!o
   verif(etat.formes.join(',') === 'boite,monolithe,sphere,modele', `formes proposées : ${etat.formes.join(', ')}`);
   verif(etat.coches === 6 && etat.neufs === 6 && etat.replies === etat.total - 6, `assistant : ${etat.coches} cochés, ${etat.neufs} jamais posés en tête, ${etat.replies} déjà posés repliés (${etat.total} en tout)`);
   verif(etat.mode === 'grille' && etat.grille === '3x2', `disposition proposée : ${etat.mode} ${etat.grille}`);
-  verif(/^6 stèles en grille 3 × 2 — salle de [\d.]+ × [\d.]+ m$/.test(etat.apercu), `aperçu : « ${etat.apercu} »`);
+  verif(/^6 stèles en grille 3 × 2 — espace de [\d.]+ × [\d.]+ m$/.test(etat.apercu), `aperçu : « ${etat.apercu} »`);
   verif(etat.nom === 'Archives 2', `nom proposé : « ${etat.nom} » (Archives existe déjà)`);
   verif(etat.creer, 'le bouton « Créer la pièce » est actif');
 
@@ -126,9 +126,9 @@ const verif = (ok, msg) => { console.log(`${ok ? '✓' : '✗'} ${msg}`); if (!o
   verif(new Set(zs).size === 2 && Math.abs(xs[1] - xs[0] - 6) < 1e-6, `grille 3 × 2 au pas large : x ${xs.join('/')} z ${zs.join('/')}`);
   verif(piece.shell[0] >= 22 && piece.shell[1] >= 20, `salle ${piece.shell.join(' × ')} m, sol ${piece.texture[0]}, murs ${piece.texture[1]}`);
   verif(piece.artworks === 12 && piece.rouges.length === 0, `${piece.artworks} objets construits dans la scène, ${piece.rouges.length} en erreur`);
-  verif(/pièce « Mes archives » depuis 6 sons/.test(piece.annule), `l'historique nomme le lot : « ${piece.annule} »`);
+  verif(/espace « Mes archives » depuis 6 sons/.test(piece.annule), `l'historique nomme le lot : « ${piece.annule} »`);
   const toast = await page.evaluate(() => window.__toasts.join(' | '));
-  verif(/Pièce « Mes archives » créée : 6 stèles dont 1 avec image/.test(toast), `toast : « ${toast.slice(0, 110)} »`);
+  verif(/Espace « Mes archives » créé : 6 stèles dont 1 avec image/.test(toast), `toast : « ${toast.slice(0, 110)} »`);
 
   // 5. les stèles jouent ? au moins leurs pistes sont chargées
   await page.waitForTimeout(2500);

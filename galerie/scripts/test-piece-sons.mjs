@@ -264,7 +264,7 @@ test('sans son : refus explicite', () => {
   assert.throws(() => pieceDepuisSons({ sons: [] }, doc()), /aucun son/);
 });
 test('un résumé lisible pour l\'aperçu', () => {
-  assert.match(resumePiece(6, dispositionAuto(6)), /^6 stèles en grille 3 × 2 — salle de \d+(\.\d+)? × \d+(\.\d+)? m$/);
+  assert.match(resumePiece(6, dispositionAuto(6)), /^6 stèles en grille 3 × 2 — espace de \d+(\.\d+)? × \d+(\.\d+)? m$/);
   assert.match(resumePiece(5, { mode: 'grille', cols: 3, rangs: 2 }), /1 place\(s\) libre/);
   assert.match(resumePiece(7, { mode: 'grille', cols: 3, rangs: 4 }), /3 × 4, 5 place\(s\) libre/);
   assert.match(resumePiece(6, { mode: 'grille', cols: 2, rangs: 2 }), /^6 stèles en grille 2 × 3 — /);
@@ -281,7 +281,7 @@ test('un titre libre se compte sur les TITRES : Archives, Archives 2, Archives 3
   assert.equal(titreLibre([{ id: 'scene-1', title: 'Scène' }], 'Scène'), 'Scène 2');
   assert.equal(titreLibre([{ id: 'x', title: 'archives' }], 'Archives'), 'Archives 2', 'la casse ne compte pas');
   assert.equal(titreLibre([{ id: 'archives' }], 'Archives'), 'Archives 2', 'sans titre, l\'id parle');
-  assert.equal(titreLibre(null, ''), 'Pièce');
+  assert.equal(titreLibre(null, ''), 'Espace');
 });
 
 test('deux longs noms qui ne diffèrent qu\'à la fin gardent chacun leur image', () => {

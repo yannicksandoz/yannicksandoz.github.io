@@ -5302,6 +5302,22 @@ interdit de grossir sans le savoir.
 | JavaScript total | 2 012 ko | 2 215 ko |
 | site hors médias | 2 435 ko | 2 680 ko |
 
+## Nomenclature de l'application auteur
+
+Les mots de l'écran, fixés avec l'auteur (questionnaire, octobre 2026),
+et ce qu'ils nomment dans le JSON. Le JSON, lui, ne change pas : ce sont
+les libellés de l'éditeur qui parlent cette langue.
+
+| À l'écran | Ce que c'est | Dans le JSON |
+|---|---|---|
+| **Espace** | Ce que le visiteur parcourt — l'espace d'entrée, un espace de concert, un nouvel espace | `rooms/*.json` |
+| **Œuvre** | Tout ce qui est posé dans un espace et qu'on sélectionne, sonore ou non | `works/*.json` |
+| **Source** | Une œuvre qui joue au moins un son — partout, plan de scène compris (une source « batterie », une source « voix ») ; l'instrument reste le genre de la source | une œuvre avec `stems` ; dans le plan, `postes` |
+| **Son** | Un fichier audio joué par une source | `stems[i]` |
+| **Image** | Une image plate, au mur ou debout | `image` |
+| **Décor** | Ce qui habille sans compter dans la visite : plateau, praticables, amplis, lanternes, corniches | `role: "decor"` |
+| **Animation** | Ce qui met une œuvre en mouvement — aujourd'hui « animation : chemin » (le module `Trajet`) | `modules[]` |
+
 ## Modules fournis
 
 | Module | Rôle | Paramètres principaux |
@@ -5917,6 +5933,20 @@ revient à l'ouverture suivante tant que rien n'est configuré
 sous Xvfb : la boîte, Plus tard, retour à la relance, vérification
 contre une API simulée, compte nommé, étape 2, récupération, page
 rechargée sur la nouvelle pièce, plus de boîte ensuite.
+
+**Les mots de l'écran (en préparation, après la beta.10).** Un questionnaire
+avec l'auteur a fixé la nomenclature de l'application : **espace** pour ce
+que le visiteur parcourt (l'éditeur disait pièce ici, salle là), **œuvre**
+pour tout ce qui est posé, **source** pour ce qui joue du son, partout, plan
+de scène compris (postes et musiciens n'existent plus à l'écran, l'instrument
+reste le genre de la source), **son** pour un fichier audio (plus de piste),
+**image**, **décor** pour tout ce qui habille (mobilier et équipement se
+fondent), **animation** pour ce qui met une œuvre en mouvement
+(« animation : chemin »). Une passe sur les textes de l'éditeur — chaînes et
+gabarits seulement, jamais le code, les clés du JSON, les attributs ni les
+classes — puis les accords relus un à un (espace est masculin, source
+féminin). Tests et sondes suivent les nouveaux libellés ; la table
+« Nomenclature de l'application auteur » du README dit chaque mot et sa clé.
 
 **Le trajet d'une œuvre (en préparation, après la beta.10).** Un nouveau
 module, `Trajet` : une œuvre ou un instrument se déplace en boucle sur un

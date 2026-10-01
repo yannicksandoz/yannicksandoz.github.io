@@ -69,7 +69,7 @@ const verif = (ok, msg) => { console.log(`${ok ? '✓' : '✗'} ${msg}`); if (!o
   const y = (t) => Number(t.match(/translate\([\d.]+ ([\d.]+)\)/)[1]);
   const pVoix = etat.postes.find((p) => /Voix/.test(p.aria)); const pBatt = etat.postes.find((p) => /Batterie/.test(p.aria));
   verif(pVoix && pBatt && y(pVoix.t) > y(pBatt.t), `sur le plan, la voix (${y(pVoix.t)}) est plus bas — côté public — que la batterie (${y(pBatt.t)})`);
-  verif(/^3\/8 voix · 4 pistes$/.test(etat.compte) && /^3 postes, 4 pistes — scène de 10 × 6 m, salle de 16 × 19.2 m\.$/.test(etat.apercu), `compte « ${etat.compte} », aperçu « ${etat.apercu} »`);
+  verif(/^3\/8 voix · 4 sons$/.test(etat.compte) && /^3 sources, 4 sons — scène de 10 × 6 m, espace de 16 × 19.2 m\.$/.test(etat.apercu), `compte « ${etat.compte} », aperçu « ${etat.apercu} »`);
   const horsScene = await page.evaluate(() => ({ cache: document.querySelector('[data-ps-hors-scene]').hidden, ecoute: [...document.querySelectorAll('[data-ps-ecouter]')].length }));
   verif(!horsScene.cache && horsScene.ecoute >= 4, `le bloc hors scène se montre (14 sons déjà posés), ${horsScene.ecoute} boutons de pré-écoute`);
   verif(etat.nom === 'Scène' && etat.creer && etat.public, `nom proposé « ${etat.nom} », bouton actif, le public est en bas`);
@@ -95,12 +95,12 @@ const verif = (ok, msg) => { console.log(`${ok ? '✓' : '✗'} ${msg}`); if (!o
   await page.waitForTimeout(200);
   const groupe = await page.evaluate((id) => ({ cartes: document.querySelectorAll('[data-ps-carte]').length, pistes: document.querySelectorAll(`[data-ps-carte="${id}"] .ed-ps-piste`).length,
     badge: document.querySelector(`[data-ps-carte="${id}"] .ed-ps-groupe`)?.textContent ?? '', compte: document.querySelector('[data-ps-compte]').textContent, cible: document.querySelectorAll('.ed-ps-cible').length, cibleVue: window.__cibleVue }), idBatt);
-  verif(groupe.cartes === 2 && groupe.pistes === 3 && groupe.badge === '3 pistes · 1 voix' && groupe.compte === '2/8 voix · 4 pistes' && groupe.cible === 0 && groupe.cibleVue === 1,
+  verif(groupe.cartes === 2 && groupe.pistes === 3 && groupe.badge === '3 sons · 1 voix' && groupe.compte === '2/8 voix · 4 sons' && groupe.cible === 0 && groupe.cibleVue === 1,
     `glissée sur la batterie (cible marquée au survol, démarquée après) : ${groupe.cartes} postes, la batterie en ${groupe.pistes} pistes « ${groupe.badge} », compte « ${groupe.compte} »`);
   await page.click(`[data-ps-detacher="${cheminVoix}"]`);
   await page.waitForTimeout(200);
   const detache = await page.evaluate(() => ({ cartes: document.querySelectorAll('[data-ps-carte]').length, compte: document.querySelector('[data-ps-compte]').textContent }));
-  verif(detache.cartes === 3 && detache.compte === '3/8 voix · 4 pistes', `⇱ détachée : ${detache.cartes} postes, « ${detache.compte} »`);
+  verif(detache.cartes === 3 && detache.compte === '3/8 voix · 4 sons', `⇱ détachée : ${detache.cartes} postes, « ${detache.compte} »`);
   // la piste détachée s'ouvre à côté du poste quitté : le placement classique remet chacun à sa place
   await page.click('[data-ps-classique]');
   await page.waitForTimeout(150);
@@ -130,7 +130,7 @@ const verif = (ok, msg) => { console.log(`${ok ? '✓' : '✗'} ${msg}`); if (!o
   }, idBasse);
   const [, bx, by] = bouge.t.match(/translate\(([\d.]+) ([\d.]+)\)/).map(Number);
   verif(bx > 400 && by < 120, `la basse glissée à cour, au fond : (${bx}, ${by})`);
-  verif(/scène de 12 × 6 m, salle de 18 × 19.2 m/.test(bouge.apercu) && bouge.lea.includes('Léa'), `scène élargie et voix nommée : « ${bouge.apercu} », ${bouge.lea.join(' / ')}`);
+  verif(/scène de 12 × 6 m, espace de 18 × 19.2 m/.test(bouge.apercu) && bouge.lea.includes('Léa'), `scène élargie et voix nommée : « ${bouge.apercu} », ${bouge.lea.join(' / ')}`);
 
   // 3 ter. l'équipement suit le poste glissé ; cliquer le nom d'une carte n'efface pas le champ
   const suivi = await page.evaluate((id) => {
@@ -160,7 +160,7 @@ const verif = (ok, msg) => { console.log(`${ok ? '✓' : '✗'} ${msg}`); if (!o
     return { autoAvant, apercu, autoCote, largeurPx: Number(rect?.getAttribute('width')), focus: document.activeElement?.dataset?.psPratCote ?? null,
       hauteur: document.querySelector('[data-ps-prat-cote="hauteur"]')?.value };
   });
-  verif(/^auto 18$/.test(tailles.autoAvant) && /salle de 30 × 40 m/.test(tailles.apercu), `la salle : « ${tailles.autoAvant} » puis taillée à 30 × 40 (« ${tailles.apercu.slice(0, 80)} »)`);
+  verif(/^auto 18$/.test(tailles.autoAvant) && /espace de 30 × 40 m/.test(tailles.apercu), `la salle : « ${tailles.autoAvant} » puis taillée à 30 × 40 (« ${tailles.apercu.slice(0, 80)} »)`);
   verif(Number(tailles.autoCote) > 0 && tailles.largeurPx > 0 && tailles.hauteur === '0.8' && tailles.focus === 'hauteur',
     `le praticable : auto ${tailles.autoCote} m, réglé à 4 m (${tailles.largeurPx.toFixed(0)} px sur le plan), 0,8 m de haut, le champ garde le focus`);
 
@@ -264,7 +264,7 @@ const verif = (ok, msg) => { console.log(`${ok ? '✓' : '✗'} ${msg}`); if (!o
     console.log('DEBUG réouverture :', await page.evaluate(() => { const b = document.querySelector('.ed-assistant-scene'); const f = document.querySelector('.ed-dialogue-fond'); return { fond: !!f, boite: !!b, fondStyle: f ? getComputedStyle(f).display : null, rect: b ? JSON.stringify(b.getBoundingClientRect()) : null, plan: !!window.__galerie.editor.doc.rooms.find((r) => r.id === window.__galerie.rooms.current.config.id)?.planDeScene, piece: window.__galerie.rooms.current.config.id }; }), bruit.slice(0, 4));
   });
   const rouvert = await page.evaluate(() => ({ postes: document.querySelectorAll('[data-ps-poste]').length, bouton: document.querySelector('[data-ps-creer]').textContent.trim(), nom: document.querySelector('[data-ps-nom]').value, cartels: document.querySelector('[data-ps-option="cartels"]').checked, silence: document.querySelector('[data-ps-option="silence"]').value, hors: document.querySelector('[data-ps-hors-scene]').hidden }));
-  verif(rouvert.postes === 3 && rouvert.bouton === 'Reconstruire la pièce' && rouvert.nom === 'Marées' && rouvert.cartels === false && rouvert.silence === '1.5', `plan rouvert : ${rouvert.postes} postes, « ${rouvert.bouton} », options gardées (cartels ${rouvert.cartels}, silence ${rouvert.silence})`);
+  verif(rouvert.postes === 3 && rouvert.bouton === 'Reconstruire l\'espace' && rouvert.nom === 'Marées' && rouvert.cartels === false && rouvert.silence === '1.5', `plan rouvert : ${rouvert.postes} postes, « ${rouvert.bouton} », options gardées (cartels ${rouvert.cartels}, silence ${rouvert.silence})`);
   await page.evaluate(() => { const n = document.querySelector('[data-ps-nom]'); n.value = 'Marées bis'; n.dispatchEvent(new Event('input')); document.querySelector('[data-ps-creer]').click(); });
   await page.waitForFunction((id) => window.__galerie.rooms.current?.config?.id === id && window.__galerie.rooms.current.config.title === 'Marées bis', ID, { timeout: 60000, polling: 500 });
   await page.waitForTimeout(1200);
@@ -285,12 +285,17 @@ const verif = (ok, msg) => { console.log(`${ok ? '✓' : '✗'} ${msg}`); if (!o
   verif(Math.abs(pied(batterie, 0.95) - 1.3) < 0.02 && Math.abs(pied(basse, 1.75) - 0.5) < 0.02, `la batterie repose à ${pied(batterie, 0.95)} m (praticable réglé à 0,8 m), la basse à ${pied(basse, 1.75)} m (plateau)`);
   verif(piece.shell[0] === 30 && piece.shell[1] === 40 && piece.spawn[2] > sc.position[2] + 3 && piece.regard && piece.regard[2] === sc.position[2], `salle ${piece.shell.join(' × ')} m, entrée z ${piece.spawn[2]} face à la scène (regard z ${piece.regard?.[2]})`);
   verif(Math.abs(piece.cam[2] - piece.spawn[2]) < 0.5 && piece.artworks === piece.n && piece.rouges.length === 0, `la caméra est à l'entrée (z ${piece.cam[2].toFixed(1)}), ${piece.artworks} objets construits, ${piece.rouges.length} en erreur`);
-  verif(/pièce « Marées » depuis un plan de scène \(3 musiciens\)/.test(piece.annule), `l'historique nomme le lot : « ${piece.annule} »`);
+  verif(/espace « Marées » depuis un plan de scène \(3 sources\)/.test(piece.annule), `l'historique nomme le lot : « ${piece.annule} »`);
   const toast = await page.evaluate(() => window.__toasts.join(' | '));
-  verif(/Pièce « Marées » créée : 3 musiciens sur une scène de 12 × 6 m/.test(toast), `toast : « ${toast.slice(0, 110)} »`);
+  verif(/Espace « Marées » créé : 3 sources sur une scène de 12 × 6 m/.test(toast), `toast : « ${toast.slice(0, 110)} »`);
 
-  // 5. les pistes jouent en phase : même premier départ pour les trois
-  await page.waitForTimeout(3000);
+  // 5. les sons jouent en phase : même premier départ pour les trois — une
+  // fois les trois sources actives (le décodage prend son temps sous charge)
+  await page.waitForFunction(() => {
+    const arts = window.__galerie.rooms.current.artworks.filter((a) => a.config.role !== 'decor');
+    return arts.length === 3 && arts.every((a) => a._stemsActive);
+  }, null, { timeout: 30000, polling: 500 }).catch(() => {});
+  await page.waitForTimeout(1500);
   const phase = await page.evaluate(() => {
     const room = window.__galerie.rooms.current;
     return room.artworks.filter((a) => a.config.role !== 'decor').map((a) => ({ id: a.config.id, actif: a._stemsActive, depart: a._premierDepart }));

@@ -211,7 +211,7 @@ test('la salle taillée par l\'auteur : jamais moins que la scène n\'exige, l\'
   assert.ok(grande.scene.zFond < d.scene.zFond, 'la scène recule avec le mur du fond');
   const petite = dimensionsSalle({ largeur: 10, profondeur: 6, salle: { largeur: 8, profondeur: 5 } });
   assert.deepEqual([petite.width, petite.depth], [16, 19.2], 'trop petite : ce que la scène exige');
-  assert.match(resumePlan(plan('kick.wav'), { salle: { largeur: 30, profondeur: 40 } }).texte, /salle de 30 × 40 m/);
+  assert.match(resumePlan(plan('kick.wav'), { salle: { largeur: 30, profondeur: 40 } }).texte, /espace de 30 × 40 m/);
   const r = pieceDepuisPlan({ postes: plan('kick.wav'), scene: { salle: { largeur: 30, profondeur: 40 } } }, {});
   assert.deepEqual([r.piece.shell.width, r.piece.shell.depth], [30, 40]);
   assert.deepEqual(planDepuisPiece(r.piece).scene.salle, { largeur: 30, profondeur: 40 }, 'la salle voyage dans le plan enregistré');
@@ -273,7 +273,7 @@ test('un poste devient une œuvre debout sur la scène, à sa couleur, ses piste
   const o = musicienDepuisPoste(p[0], p, d, { morceau: 'Marées', sync: 'marees' });
   assert.equal(o.title, 'Batterie');
   assert.match(o.description, /« Marées » — la partie de batterie/);
-  assert.match(o.description, /2 pistes : kick\.wav, snare\.wav/);
+  assert.match(o.description, /2 sons : kick\.wav, snare\.wav/);
   assert.equal(o.model.shape, 'box');
   assert.equal(o.model.color, INSTRUMENTS.batterie.couleur);
   assert.ok(Math.abs(o.position[1] - (0.5 + EQUIPEMENT.praticable.hauteur + 0.95 / 2)) < 0.01, 'la batterie repose sur son praticable');
@@ -491,10 +491,10 @@ test('la pièce : groupes musicien + équipement, plan enregistré, vitesse, rec
 });
 
 test('un plan sans poste ne fabrique rien ; le résumé compte et alerte au-delà du budget', () => {
-  assert.throws(() => pieceDepuisPlan({ postes: [] }), /aucun poste/);
-  assert.throws(() => pieceDepuisPlan({ postes: [{ id: 'a', instrument: 'voix', sons: [], x: 0, y: 0 }] }), /aucun poste/);
+  assert.throws(() => pieceDepuisPlan({ postes: [] }), /aucune source/);
+  assert.throws(() => pieceDepuisPlan({ postes: [{ id: 'a', instrument: 'voix', sons: [], x: 0, y: 0 }] }), /aucune source/);
   const r = resumePlan(plan('kick.wav', 'snare.wav', 'bass.wav'), { largeur: 10, profondeur: 6 });
-  assert.equal(r.texte, '2 postes, 3 pistes — scène de 10 × 6 m, salle de 16 × 19.2 m');
+  assert.equal(r.texte, '2 sources, 3 sons — scène de 10 × 6 m, espace de 16 × 19.2 m');
   assert.equal(r.alerte, null);
   const trop = resumePlan(plan(...Array.from({ length: BUDGET_VOIX + 1 }, (_, i) => `vox${i}.wav`)), {});
   assert.match(trop.alerte, /8 voix/);

@@ -168,8 +168,8 @@ test('une suppression qui isole une pièce est REFUSÉE par les règles', () => 
   const data = galerie();
   const apres = simulerSuppression(data, 'salle-b', { nouvelleEntree: null });
   const erreurs = validerPortails(apres.rooms);
-  assert.ok(erreurs.some((e) => e.includes('isolée')),
-    `attendu une pièce isolée, obtenu : ${erreurs.join(' ; ') || '(rien)'}`);
+  assert.ok(erreurs.some((e) => e.includes('isolé')),
+    `attendu un espace isolé, obtenu : ${erreurs.join(' ; ') || '(rien)'}`);
 });
 test('les trois règles elles-mêmes : orphelin, sens unique, îlot', () => {
   assert.ok(validerPortails([
@@ -180,7 +180,7 @@ test('les trois règles elles-mêmes : orphelin, sens unique, îlot', () => {
   ]).some((e) => e.includes('sens unique')));
   assert.ok(validerPortails([
     { id: 'a', portals: [] }, { id: 'b', portals: [] }
-  ]).some((e) => e.includes('isolée')));
+  ]).some((e) => e.includes('isolé')));
   // Escher : une pièce vers elle-même est son propre retour
   assert.deepEqual(validerPortails([
     { id: 'a', portals: [{ to: 'a', plane: 'nord' }] }
