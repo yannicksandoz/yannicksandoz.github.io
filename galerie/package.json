@@ -25,6 +25,7 @@
     "sonde:piece-sons": "node scripts/sonde-piece-sons.cjs",
     "sonde:plan-de-scene": "node scripts/sonde-plan-de-scene.cjs",
     "sonde:trajet": "node scripts/sonde-trajet.cjs",
+    "sonde:barre": "node scripts/sonde-barre.cjs",
     "sonde:poids-audio": "node scripts/sonde-poids-audio.cjs",
     "sonde:lumiere": "node scripts/sonde-lumiere.cjs",
     "sonde:lisere": "node scripts/sonde-lisere.cjs",

@@ -5934,6 +5934,34 @@ sous Xvfb : la boîte, Plus tard, retour à la relance, vérification
 contre une API simulée, compte nommé, étape 2, récupération, page
 rechargée sur la nouvelle pièce, plus de boîte ensuite.
 
+**La barre de l'éditeur, repensée (en préparation, beta.11).** « Il sert à
+quoi le bouton entre rotation et aimant ? Il ne fonctionne pas. » C'était
+l'**Échelle** : elle marchait sur une œuvre, mais sur un portail l'éditeur
+repassait en Déplacer sans un mot — un clic qui ne faisait rien. Elle se
+grise maintenant quand la sélection ne se redimensionne pas, et dit
+pourquoi ; la touche 3 sur un portail le dit aussi. Puis, avec l'auteur
+(questionnaire), la barre entière : **trois zones** — *Créer* (Objets,
+Voxel, Découpe, Ajouter, Photo), *Manipuler* (Déplacer, Tourner, Échelle,
+aimant · Dupliquer, Supprimer · Annuler, Rétablir), *Voir et sortir*
+(Mixage, vue de dessus, plan, son en édition · Tester ici ▾, Publier ▾,
+aide ▾, quitter). Le texte reste sur l'essentiel (les modes, Ajouter,
+Mixage, Tester ici, Publier), le reste est une icône à info-bulle.
+**Exporter** quitte la barre pour la flèche de **Publier ▾**, avec
+« Comparer avec la version en ligne » et « Récupérer la version en ligne » ;
+**Premiers pas** rejoint **? ▾** avec les Raccourcis et une table « Les
+mots de l'écran » (la nomenclature) ; le menu « ⧉ vers… » disparaît (il
+était déjà dans le menu … de l'œuvre, « Dupliquer vers… »). Le tiroir
+brut « Glissez des fichiers… ou collez des URLs », aux boutons gris du
+navigateur et qui restait ouvert, se sépare en deux : une vraie boîte
+**Média par URL** (Ajouter › Média par URL : Entrée ajoute, vide elle
+refuse, Échap la referme, la frappe n'atteint plus les raccourcis), et une
+**ligne d'état** compacte, avec sa croix, qui se range seule une fois le
+message lu. Dans l'inspecteur, **Simple / Expert** devient un interrupteur
+— deux moitiés dans une pilule — qu'on ne prend plus pour un quatrième
+onglet. Sonde `npm run sonde:barre` : zones, Échelle sur œuvre et sur
+portail, les deux menus, la boîte, la ligne d'état, l'interrupteur, et la
+barre qui tient sans défiler à 1500 px.
+
 **Espace, côté visiteur aussi (en préparation, après la beta.10).** La
 galerie visitée parle la même langue que l'éditeur : « espace » partout où
 elle disait pièce ou salle — l'accueil (« à découvrir dans n espaces »), la
