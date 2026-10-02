@@ -144,7 +144,7 @@ export class AudioTour {
              l'explication (aria-describedby) — jamais une œuvre en premier.
              Échap depuis la liste y ramène (l'explication est relue). -->
         <h2 id="at-title" tabindex="-1" aria-describedby="at-help">${t('tour.title')}</h2>
-        <!-- Repère de la pièce courante. Après un changement gauche/droite,
+        <!-- Repère de l'espace courant. Après un changement gauche/droite,
              c'est LUI qui reçoit le focus : le lecteur d'écran lit d'abord
              « Annexe — 1 œuvre » (le focus passe toujours avant la zone
              d'annonces), puis l'annonce donne la première œuvre. -->
@@ -154,12 +154,12 @@ export class AudioTour {
         <p id="at-help">${t('tour.help')}</p>
         <ul id="at-works" role="list" aria-label="${t('tour.works')}"></ul>
         <!-- Les jetons ◈ sont des octaèdres SILENCIEUX cachés dans les
-             pièces : rien, à l'oreille, ne permet de les chercher. Les
+             espaces : rien, à l'oreille, ne permet de les chercher. Les
              annoncer est le seul équivalent honnête de les voir briller —
              sans quoi la visite guidée qu'ils débloquent serait fermée. -->
         <ul id="at-tokens" role="list" aria-label="${t('tour.tokens')}"></ul>
         <!-- Les passages font partie de la MÊME liste verticale que les
-             œuvres : on descend des œuvres vers les sorties. Une pièce sans
+             œuvres : on descend des œuvres vers les sorties. Un espace sans
              œuvre n'est donc jamais une impasse — ses portes sont là, à une
              flèche. C'est aussi la seule navigation praticable dans un
              carrefour comme le Belvédère (treize passages). -->

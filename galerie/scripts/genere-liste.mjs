@@ -147,7 +147,7 @@ const sallesListe = habitees.map(({ room, oeuvres }) =>
 
 const seuil = page({
   titre: "Galerie — ce qu'il y a à visiter",
-  description: "Une galerie d'art sonore : les pièces à visiter, en 3D ou "
+  description: "Une galerie d'art sonore : les espaces à visiter, en 3D ou "
     + "à l'oreille. Les œuvres se découvrent sur place.",
   corps: `  <h1>Galerie</h1>
   <p>Une galerie d'art sonore : en 3D, vos déplacements composent le mixage.
@@ -155,7 +155,7 @@ const seuil = page({
   <a class="retour" href="./">← Entrer dans la galerie (casque recommandé)</a>
   <main>
     <section aria-labelledby="salles">
-      <h2 id="salles">${habitees.length} pièces habitées sur ${rooms.length}, ${compte(toutes.length)}</h2>
+      <h2 id="salles">${habitees.length} espaces habités sur ${rooms.length}, ${compte(toutes.length)}</h2>
       <ul class="salles">
 ${sallesListe}
       </ul>
@@ -336,4 +336,4 @@ await writeFile(join(SORTIE, 'capacites.html'), capacites);
 await writeFile(join(SORTIE, 'liste.html'), seuil);
 await writeFile(join(SORTIE, 'catalogue.html'), catalogue);
 console.log(`liste.html (seuil) + catalogue.html + capacites.html : ${toutes.length} œuvres, `
-  + `${habitees.length} pièces habitées sur ${rooms.length} → ${SORTIE}`);
+  + `${habitees.length} espaces habités sur ${rooms.length} → ${SORTIE}`);

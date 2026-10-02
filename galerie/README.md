@@ -5934,6 +5934,15 @@ sous Xvfb : la boîte, Plus tard, retour à la relance, vérification
 contre une API simulée, compte nommé, étape 2, récupération, page
 rechargée sur la nouvelle pièce, plus de boîte ensuite.
 
+**Espace, côté visiteur aussi (en préparation, après la beta.10).** La
+galerie visitée parle la même langue que l'éditeur : « espace » partout où
+elle disait pièce ou salle — l'accueil (« à découvrir dans n espaces »), la
+carte (« n espaces parcourus »), le menu (« Espaces »), la progression, la
+visite guidée, la fiche d'une œuvre-porte (« Entrer dans … »), les pages
+liste et catalogue, et la description de la page. Les clés d'interpolation
+(`{salle}`, `{salles}`) et les clés du JSON ne bougent pas ; l'anglais garde
+« room ».
+
 **Les mots de l'écran (en préparation, après la beta.10).** Un questionnaire
 avec l'auteur a fixé la nomenclature de l'application : **espace** pour ce
 que le visiteur parcourt (l'éditeur disait pièce ici, salle là), **œuvre**
