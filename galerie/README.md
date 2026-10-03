@@ -5934,6 +5934,49 @@ sous Xvfb : la boîte, Plus tard, retour à la relance, vérification
 contre une API simulée, compte nommé, étape 2, récupération, page
 rechargée sur la nouvelle pièce, plus de boîte ensuite.
 
+**Épurer l'éditeur (en préparation, beta.11).** « Encore étudier
+l'ergonomie : Créer peut être un menu déroulant avec Voxel dans la liste ;
+épurer, réduire la friction, améliorer la clarté. Méthode simple. » La
+méthode : un **inventaire** de chaque contrôle visible, mesuré dans le
+navigateur à 1440 × 900 (sans sélection, puis une œuvre sélectionnée),
+puis **trois questions** à chacun — sert-il souvent ? se comprend-il sans
+info-bulle ? fait-il doublon ? — et une **mesure** avant / après.
+Ce qui en sort :
+
+- **Un seul « ＋ Créer ▾ »** remplace Objets, Voxel, Découpe et Ajouter :
+  « Construire en voxels » (V) et « Percer une baie » (C) sont des entrées
+  du menu, qui se range par famille (Forme ▸, Shader ISF ▸, Lumière ▸,
+  Bibliothèques ▸, Autres imports ▸) et garde au premier niveau ce qui
+  sert souvent (Fichiers…, Sons du projet…, Espace…, Plan de scène…). Le
+  mode en cours se **dit** par une pastille « Voxel · Terminer ✕ » ; Échap
+  le termine aussi. Objets est le repos, il n'a plus de bouton.
+- **Photo** rejoint Publier ▾ (c'est une sortie, pas un geste de travail).
+- **Dupliquer et Supprimer se grisent** sans sélection.
+- **Le HUD du visiteur se range en édition** : compteur d'œuvres, boussole,
+  boîte à outils, dérive, chapeau, crédits, indice et mot de survol
+  chevauchaient la barre et l'inspecteur ; « Tester ici » les rend.
+- **Les onglets de l'inspecteur redeviennent des onglets** : la règle
+  générale `#editor-panel button` (un id) l'emportait sur leurs classes,
+  d'où de gros boutons et un interrupteur Simple / Expert qui sortait du
+  volet, coupé à « Simpl ». « 🎧 Mixage » devient « Mixage ».
+- **Un « … » par ligne, au survol seulement** : la règle de l'en-tête
+  d'espace (`.h-room.current .h-menu`) allumait aussi celui de toutes les
+  lignes de l'espace courant.
+- **Les mots** : « Transform » devient « Placement » ; la case du module
+  dit « animation : chemin » (un retour en arrière l'avait remise à « se
+  déplace sur un chemin ») ; Premiers pas, les raccourcis et l'aide disent
+  « Créer ».
+
+| mesure, 1440 × 900 | avant | après |
+|---|---|---|
+| contrôles visibles dans la barre | 23 | 19 |
+| largeur de la barre | 1246 px | 954 px |
+| entrées au premier niveau du menu Créer | 17 | 13 |
+| « … » visibles dans la liste (espace courant) | 13 | 1 |
+| éléments du HUD visiteur sur l'éditeur | 8 | 0 |
+
+La sonde `npm run sonde:barre` éprouve chacun de ces points (25 vérifications).
+
 **La barre de l'éditeur, repensée (en préparation, beta.11).** « Il sert à
 quoi le bouton entre rotation et aimant ? Il ne fonctionne pas. » C'était
 l'**Échelle** : elle marchait sur une œuvre, mais sur un portail l'éditeur

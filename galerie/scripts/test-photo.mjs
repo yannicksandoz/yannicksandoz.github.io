@@ -32,10 +32,10 @@ const PHOTO = join(ici, '..', 'engine', 'src', 'editor', 'photo', 'Photo.js');
 const src = readFileSync(PHOTO, 'utf8');
 
 titre('le module vit à sa place, et s’importe à la demande');
-test('EditorUI porte le bouton, et charge le module au clic', () => {
+test('EditorUI porte l’entrée (Publier ▾ › Photo de la vue), et charge le module au clic', () => {
   const ui = readFileSync(join(ici, '..', 'engine', 'src', 'editor',
     'EditorUI.js'), 'utf8');
-  assert.ok(ui.includes('data-a="photo"'), 'pas de bouton photo');
+  assert.ok(ui.includes('Photo de la vue (PNG)') && ui.includes('this._acts.photo()'), 'pas d’entrée photo dans Publier ▾');
   assert.ok(ui.includes("import('./photo/Photo.js')"),
     'l’import doit rester dynamique — la bibliothèque dans son morceau');
 });

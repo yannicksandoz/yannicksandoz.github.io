@@ -1,4 +1,4 @@
-// LA BARRE DE L'ÉDITEUR (beta.11) : trois zones, l'Échelle grisée sur un
+// LA BARRE DE L'ÉDITEUR (beta.11) : trois zones, un seul bouton Créer et sa pastille de mode, l'Échelle grisée sur un
 // portail (et la touche 3 qui le dit), Publier ▾ qui range l'export, ? ▾
 // qui réunit l'aide, la boîte « Média par URL », la ligne d'état qui se
 // range seule, et l'interrupteur Simple / Expert de l'inspecteur.
@@ -32,10 +32,36 @@ const verif = (ok, msg) => { console.log(`${ok ? '✓' : '✗'} ${msg}`); if (!o
       largeur: bar.scrollWidth, visible: bar.clientWidth };
   });
   verif(zones.z.map((x) => x.zone).join(',') === 'creer,manipuler,voir', `trois zones : ${zones.z.map((x) => `${x.zone}(${x.boutons.length})`).join(' · ')}`);
+  verif(zones.z[0].boutons.join(',') === 'ajouter,fin-mode', `créer : un seul bouton, et la pastille de mode (${zones.z[0].boutons.join(' ')})`);
   verif(zones.z[1].boutons.slice(0, 4).join(',') === 'translate,rotate,scale,snap', `manipuler : ${zones.z[1].boutons.join(' ')}`);
-  verif(!zones.exporter && !zones.dupVers && !zones.premiers, 'Exporter, « vers… » et Premiers pas ont quitté la barre');
-  verif(zones.photo === '' && zones.ajouter === 'Ajouter' && zones.mixage === 'Mixage' && /Publier/.test(zones.publier), `texte sur l'essentiel : Ajouter, Mixage, Publier ; Photo en icône`);
+  verif(!zones.exporter && !zones.dupVers && !zones.premiers && zones.photo === null, 'Exporter, Photo, « vers… » et Premiers pas ont quitté la barre');
+  verif(zones.ajouter === 'Créer' && zones.mixage === 'Mixage' && /Publier/.test(zones.publier), `texte sur l'essentiel : Créer, Mixage, Publier`);
   verif(zones.largeur <= zones.visible + 1, `la barre tient sans défiler à 1500 px (${zones.largeur} / ${zones.visible})`);
+
+  // 1 bis. le menu Créer, la pastille de mode, Échap ; Dupliquer / Supprimer sans sélection
+  const creer = await page.evaluate(async () => {
+    const ed = window.__galerie.editor;
+    ed.select(null);
+    await new Promise((r) => setTimeout(r, 150));
+    const grises = ['dup', 'del'].every((a) => document.querySelector(`#editor-bar [data-a="${a}"]`).disabled);
+    document.querySelector('[data-a="ajouter"]').click();
+    await new Promise((r) => setTimeout(r, 150));
+    const items = [...document.querySelectorAll('.ed-menu > [role="menuitem"], .ed-menu [role="menuitem"]')].filter((e) => e.closest('.ed-menu') === document.querySelector('.ed-menu')).map((e) => e.textContent.replace(/\s+/g, ' ').trim());
+    const baie = [...document.querySelectorAll('.ed-menu [role="menuitem"]')].find((e) => /Percer une baie/.test(e.textContent));
+    baie?.click();
+    await new Promise((r) => setTimeout(r, 200));
+    const pastille = document.querySelector('[data-a="fin-mode"]');
+    const pendant = { mode: ed.mode, visible: !pastille.hidden, texte: pastille.textContent.trim() };
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', code: 'Escape', bubbles: true }));
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', code: 'Escape', bubbles: true }));
+    await new Promise((r) => setTimeout(r, 200));
+    const apres = { mode: ed.mode, cachee: pastille.hidden };
+    return { grises, items, pendant, apres };
+  });
+  verif(creer.grises, 'sans sélection, Dupliquer et Supprimer sont grisés');
+  verif(creer.items.some((t) => /Construire en voxels/.test(t)) && creer.items.some((t) => /Percer une baie/.test(t)) && creer.items.length <= 16, `menu Créer (${creer.items.length} entrées) : ${creer.items.slice(0, 8).join(' · ')}…`);
+  verif(creer.pendant.mode === 'decoupe' && creer.pendant.visible && /Découpe · Terminer/.test(creer.pendant.texte), `en Découpe, la pastille le dit : « ${creer.pendant.texte} »`);
+  verif(creer.apres.mode === 'objects' && creer.apres.cachee, `Échap termine le mode (${creer.apres.mode}), la pastille se range`);
 
   // 2. l'Échelle : active sur une œuvre, grisée sur un portail, la touche 3 le dit
   const echelle = await page.evaluate(async () => {
@@ -85,7 +111,7 @@ const verif = (ok, msg) => { console.log(`${ok ? '✓' : '✗'} ${msg}`); if (!o
     await new Promise((r) => setTimeout(r, 100));
     return { publier, aide, table, ouverte: !!document.querySelector('.ed-dialogue-fond') };
   });
-  verif(menus.publier.some((t) => /Exporter galerie\.zip/.test(t)) && menus.publier.some((t) => /Comparer/.test(t)) && menus.publier.some((t) => /Récupérer/.test(t)), `Publier ▾ : ${menus.publier.join(' · ')}`);
+  verif(menus.publier.some((t) => /Photo de la vue/.test(t)) && menus.publier.some((t) => /Exporter galerie\.zip/.test(t)) && menus.publier.some((t) => /Comparer/.test(t)) && menus.publier.some((t) => /Récupérer/.test(t)), `Publier ▾ : ${menus.publier.join(' · ')}`);
   verif(menus.aide.length === 3 && /Raccourcis/.test(menus.aide[0]) && /Premiers pas/.test(menus.aide[1]), `? ▾ : ${menus.aide.join(' · ')}`);
   verif(menus.table.join(',') === 'Espace,Œuvre,Source,Son,Image,Décor,Animation' && !menus.ouverte, `les mots de l'écran : ${menus.table.join(', ')}`);
 
@@ -136,7 +162,36 @@ const verif = (ok, msg) => { console.log(`${ok ? '✓' : '✗'} ${msg}`); if (!o
   verif(niveau.avant.role === 'switch' && niveau.avant.on === 'Simple' && niveau.apres.on === 'Expert' && niveau.apres.coche === 'true' && niveau.apres.niveau === 'expert',
     `Simple / Expert : un interrupteur (${niveau.avant.on} → ${niveau.apres.on})`);
 
+  // 7. l'inspecteur : les onglets tiennent dans le volet ; la liste : un … par ligne seulement au survol ;
+  //    le HUD du visiteur rangé en édition, rendu à l'essai
+  const epure = await page.evaluate(async () => {
+    const app = window.__galerie; const ed = app.editor;
+    const art = app.rooms.current.artworks.find((a) => a.config.role !== 'decor');
+    ed.select({ type: 'artwork', id: art.config.id }, { seul: true });
+    await new Promise((r) => setTimeout(r, 300));
+    const volet = document.querySelector('#editor-panel').getBoundingClientRect();
+    const inter = document.querySelector('#editor-panel .ins-niveau').getBoundingClientRect();
+    const bordureHaute = getComputedStyle(document.querySelector('#editor-panel .ins-onglets button[role="tab"]')).borderTopWidth;
+    const lignes = [...document.querySelectorAll('#editor-hierarchy .h-row')];
+    const visibles = lignes.filter((r) => getComputedStyle(r.querySelector('.h-menu') ?? r).opacity !== '0' && r.querySelector('.h-menu')).length;
+    const hud = ['progress-badge', 'boussole', 'toolbox'].map((id) => document.getElementById(id)).filter(Boolean);
+    const cacheEdition = hud.every((e) => getComputedStyle(e).display === 'none');
+    const placement = [...document.querySelectorAll('#editor-panel summary')].some((e) => /Placement/.test(e.textContent));
+    const animation = [...document.querySelectorAll('#editor-panel label')].some((e) => /animation : chemin/.test(e.textContent));
+    ed.testerIci();
+    await new Promise((r) => setTimeout(r, 1200));
+    const renduEssai = hud.some((e) => getComputedStyle(e).display !== 'none');
+    ed.testerIci();
+    await new Promise((r) => setTimeout(r, 800));
+    return { dedans: inter.right <= volet.right + 0.5, bordure: bordureHaute, lignes: lignes.length, visibles, cacheEdition, renduEssai, placement, animation, hud: hud.length };
+  });
+  verif(epure.dedans && epure.bordure === '0px', `onglets de l'inspecteur : à plat (bordure haute ${epure.bordure}), l'interrupteur dans le volet (${epure.dedans})`);
+  verif(epure.visibles <= 1, `la liste : ${epure.visibles} « … » visible sur ${epure.lignes} lignes (la ligne sélectionnée)`);
+  verif(epure.hud > 0 && epure.cacheEdition && epure.renduEssai, `HUD visiteur (${epure.hud} éléments) rangé en édition, rendu à l'essai`);
+  verif(epure.placement && epure.animation, '« Placement » et « animation : chemin » dans l’inspecteur');
+
   if (process.env.CAPTURES) await page.screenshot({ path: `${process.env.CAPTURES}/barre.png`, clip: { x: 0, y: 0, width: 1500, height: 70 } });
+  if (process.env.CAPTURES) await page.screenshot({ path: `${process.env.CAPTURES}/editeur.png` });
   console.log(bruit.length ? `✗ bruit : ${bruit.slice(0, 4).join(' | ')}` : '✓ aucune erreur de page');
   if (bruit.length) echecs++;
   console.log(echecs ? `\n${echecs} échec(s)` : '\ntout est passé');
