@@ -77,7 +77,7 @@ await test('distant SSH, ou pas de jeton : le git de la machine, tel quel', asyn
   assert.ok(!sans.appels.some((a) => a.args.includes('remote')), 'sans jeton, on ne demande même pas l’adresse');
 });
 
-await test('refus d’identifiants : le conseil nomme le trousseau et le jeton du bloc 3', async () => {
+await test('refus d’identifiants : le conseil nomme le trousseau et le jeton de « Mettre en ligne »', async () => {
   const racine = RACINE;
   const executer = async (args) => {
     const a = args.join(' ');
@@ -90,7 +90,7 @@ await test('refus d’identifiants : le conseil nomme le trousseau et le jeton d
   await assert.rejects(g.pousser(join(racine, 'galerie', 'content')), (e) => {
     assert.match(e.message, /^git push a échoué : fatal: could not read Username/);
     assert.match(e.message, /trousseau/);
-    assert.match(e.message, /jeton GitHub dans le bloc 3/);
+    assert.match(e.message, /jeton GitHub dans Publier › Mettre en ligne/);
     return true;
   });
 });

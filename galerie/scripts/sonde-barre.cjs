@@ -190,6 +190,80 @@ const verif = (ok, msg) => { console.log(`${ok ? '✓' : '✗'} ${msg}`); if (!o
   verif(epure.hud > 0 && epure.cacheEdition && epure.renduEssai, `HUD visiteur (${epure.hud} éléments) rangé en édition, rendu à l'essai`);
   verif(epure.placement && epure.animation, '« Placement » et « animation : chemin » dans l’inspecteur');
 
+  // 8. second passage (beta.11) : onglet Galerie, ✎ rangé, ligne discrète, décor replié,
+  //    identifiant en Expert, panneau Publier, bandeau d'essai hors de la boîte à outils
+  const second = await page.evaluate(async () => {
+    const app = window.__galerie; const ed = app.editor; const ins = ed.ui.inspector;
+    const r = {};
+    ins.poserNiveau('simple');
+    ed.select(null);
+    ins.ouvrirOnglet('galerie');
+    await new Promise((x) => setTimeout(x, 250));
+    r.onglets = [...document.querySelectorAll('#editor-panel .ins-onglets [role="tab"]')].map((b) => b.textContent.trim());
+    r.galerie = [...document.querySelectorAll('#editor-panel summary')].map((e) => e.textContent.trim());
+    const volet = document.querySelector('#editor-panel').getBoundingClientRect();
+    r.interDedans = document.querySelector('#editor-panel .ins-niveau').getBoundingClientRect().right <= volet.right + 0.5;
+    ins.ouvrirOnglet('piece');
+    await new Promise((x) => setTimeout(x, 250));
+    r.espace = [...document.querySelectorAll('#editor-panel summary')].map((e) => e.textContent.trim());
+    r.idEspaceSimple = document.querySelector('#editor-panel .ins-id')?.textContent.trim();
+    r.ranges = document.querySelector('#editor-panel .ins-ranges')?.textContent.replace(/\s+/g, ' ').trim() ?? null;
+    r.rangesLien = !!document.querySelector('#editor-panel .ins-ranges button.ins-lien');
+    r.crayon = getComputedStyle(document.getElementById('edit-toggle')).display;
+    // le décor replié, puis déplié au clic
+    const salle = document.querySelector('#editor-hierarchy .h-room.current');
+    const pli = salle?.querySelector('[data-decor-pli]');
+    r.decorAvant = salle ? salle.querySelectorAll('.h-row.decor').length : -1;
+    r.pli = pli?.textContent.replace(/\s+/g, ' ').trim() ?? null;
+    pli?.click();
+    await new Promise((x) => setTimeout(x, 150));
+    r.decorApres = document.querySelector('#editor-hierarchy .h-room.current').querySelectorAll('.h-row.decor').length;
+    document.querySelector('#editor-hierarchy .h-room.current [data-decor-pli]')?.click();
+    // l'identifiant d'une œuvre : en Expert seulement
+    const art = app.rooms.current.artworks.find((a) => a.config.role !== 'decor');
+    ed.select({ type: 'artwork', id: art.config.id }, { seul: true });
+    await new Promise((x) => setTimeout(x, 250));
+    r.idSimple = document.querySelector('#editor-panel .ins-id')?.textContent.trim();
+    ins.poserNiveau('expert');
+    await new Promise((x) => setTimeout(x, 200));
+    r.idExpert = document.querySelector('#editor-panel .ins-id')?.textContent.trim();
+    r.artId = art.config.id;
+    ins.poserNiveau('simple');
+    // le panneau Publier
+    await ed.ui.sauvegarde.ouvrir();
+    await new Promise((x) => setTimeout(x, 300));
+    const panneau = ed.ui.sauvegarde.root;
+    r.titre = panneau.querySelector('.sv-tete strong')?.textContent;
+    r.blocs = [...panneau.querySelectorAll('.sv-bloc h4')].map((h) => h.textContent.trim());
+    // un compte prêt (dépôt et jeton fictifs, le temps d'un rendu, rien d'enregistré)
+    const sv = ed.ui.sauvegarde; const avant = { depot: sv.config.depot, jeton: sv.jeton };
+    sv.config.depot = 'auteur/depot'; sv.jeton = 'ghp_fictif';
+    sv.render();
+    r.pret = { premier: [...panneau.querySelectorAll('.sv-bloc:not(.sv-verifs) h4')][0]?.textContent.trim(), replie: !!panneau.querySelector('details.sv-replie:not([open])'),
+      dedans: [...panneau.querySelectorAll('details.sv-replie .sv-bloc h4')].map((h) => h.textContent.trim()) };
+    sv.config.depot = avant.depot; sv.jeton = avant.jeton; sv.render();
+    ed.ui.sauvegarde.hide();
+    // le bandeau d'essai sous la boîte à outils
+    ed.testerIci();
+    await new Promise((x) => setTimeout(x, 1300));
+    const ban = document.getElementById('ed-essai')?.getBoundingClientRect();
+    const tb = document.getElementById('toolbox')?.getBoundingClientRect();
+    r.essai = ban && tb ? { recouvre: ban.bottom > tb.top && ban.top < tb.bottom && ban.right > tb.left && ban.left < tb.right, crayon: getComputedStyle(document.getElementById('edit-toggle')).display } : null;
+    ed.testerIci();
+    await new Promise((x) => setTimeout(x, 800));
+    return r;
+  });
+  verif(second.onglets.join(',') === 'Espace,Œuvre,Mixage,Galerie' && second.interDedans, `quatre onglets, l'interrupteur dans le volet : ${second.onglets.join(' · ')}`);
+  verif(second.galerie.some((t) => /Réglages généraux/.test(t)) && second.galerie.some((t) => /Préférences/.test(t)) && !second.espace.some((t) => /Réglages généraux|Préférences/.test(t)),
+    `Galerie : ${second.galerie.join(' · ')} ; Espace n'en parle plus`);
+  verif(second.rangesLien && /tout voir$/.test(second.ranges ?? ''), `ligne discrète : « ${second.ranges} »`);
+  verif(second.crayon === 'none', `le ✎ du visiteur se range en édition (${second.crayon})${second.essai ? `, revient à l'essai (${second.essai.crayon})` : ''}`);
+  verif(second.decorAvant === 0 && /Décor\s*\d+/.test(second.pli ?? '') && second.decorApres > 0, `décor replié : « ${second.pli} », ${second.decorApres} lignes au clic`);
+  verif(!second.idSimple?.includes(second.artId) && second.idExpert?.includes(second.artId), `identifiant en Expert seulement : « ${second.idSimple} » / « ${second.idExpert} »`);
+  verif(second.titre === 'Publier' && second.blocs.length >= 3 && second.blocs.every((h) => !/^\d/.test(h)), `panneau « ${second.titre} » : ${second.blocs.join(' · ')}`);
+  verif(second.pret.premier === 'Mettre en ligne' && second.pret.replie && second.pret.dedans.includes('Garder un fichier'), `compte prêt : « ${second.pret.premier} » en tête, replié dessous : ${second.pret.dedans.join(' · ')}`);
+  verif(second.essai && !second.essai.recouvre, 'en essai, le bandeau ne couvre plus la boîte à outils du visiteur');
+
   if (process.env.CAPTURES) await page.screenshot({ path: `${process.env.CAPTURES}/barre.png`, clip: { x: 0, y: 0, width: 1500, height: 70 } });
   if (process.env.CAPTURES) await page.screenshot({ path: `${process.env.CAPTURES}/editeur.png` });
   console.log(bruit.length ? `✗ bruit : ${bruit.slice(0, 4).join(' | ')}` : '✓ aucune erreur de page');

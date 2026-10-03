@@ -5934,6 +5934,34 @@ sous Xvfb : la boîte, Plus tard, retour à la relance, vérification
 contre une API simulée, compte nommé, étape 2, récupération, page
 rechargée sur la nouvelle pièce, plus de boîte ensuite.
 
+**Épurer l'éditeur, second passage (en préparation, beta.11).** Un tour
+complet en captures (espace, œuvre et ses quatre sous-onglets, mixage,
+Publier, Voxel, essai, fenêtre étroite), puis un questionnaire à l'auteur
+pour chaque choix. Ce qui en sort :
+
+- **Un onglet Galerie** : « Réglages généraux » et « Préférences de
+  l'éditeur » quittent le bas de l'onglet Espace, qui ne parle plus que de
+  l'espace — sa charte et son budget, mesurés sur lui, y restent.
+- **Le ✎ du visiteur se range en édition** : il faisait la même chose que
+  le ✕ de la barre ; l'essai le rend.
+- **« n réglages rangés · tout voir »** devient une ligne discrète, avec un
+  lien ; le gros bouton doublait l'interrupteur Simple / Expert.
+- **Le décor se replie dans la liste** : une ligne « ▸ Décor 8 » sous les
+  œuvres, qui se déplie au clic ; il s'ouvre seul à la recherche, ou quand
+  la sélection est l'un de ses objets.
+- **L'identifiant technique** (« banc-entree ») ne s'affiche qu'en Expert ;
+  en Simple, le titre et l'espace suffisent.
+- **Le panneau Publier** s'appelle Publier (il s'appelait Sauvegarde), ses
+  blocs ont un nom et plus de numéro — chaque « bloc 3 » de l'éditeur, de
+  l'assistant et de l'application dit maintenant « Publier › Mettre en
+  ligne » ; avec un compte prêt, **Mettre en ligne vient en tête**, et
+  « Garder un fichier · dépôt local » se replie dessous.
+- **En essai, le bandeau « Retour à l'édition »** ne couvre plus la boîte à
+  outils du visiteur, qu'il cachait exactement.
+
+Le sous-onglet de l'œuvre reste le dernier utilisé (choix de l'auteur). La
+sonde `npm run sonde:barre` passe à 34 vérifications.
+
 **Épurer l'éditeur (en préparation, beta.11).** « Encore étudier
 l'ergonomie : Créer peut être un menu déroulant avec Voxel dans la liste ;
 épurer, réduire la friction, améliorer la clarté. Méthode simple. » La

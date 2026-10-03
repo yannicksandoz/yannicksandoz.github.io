@@ -159,9 +159,9 @@ class GitLocal {
       let conseil = '';
       if (/Username|Password|Authentication|Permission denied|publickey|askpass|terminal prompts/i.test(detail)) {
         conseil = parJeton
-          ? ' — le jeton du compte (bloc 3) a été refusé par GitHub : vérifiez qu’il porte le droit « Contents : lecture et écriture » sur CE dépôt, ou collez-en un nouveau.'
+          ? ' — le jeton du compte (Publier › Mettre en ligne) a été refusé par GitHub : vérifiez qu’il porte le droit « Contents : lecture et écriture » sur CE dépôt, ou collez-en un nouveau.'
           : ' — sans terminal, git ne peut rien demander, et le trousseau de la machine n’a rien fourni (mot de passe du trousseau refusé, ou rien d’enregistré). '
-            + 'Le plus simple : un jeton GitHub dans le bloc 3 — « Pousser » l’utilise alors pour un dépôt github.com, sans trousseau. Sinon : un assistant d’identifiants ou une clé SSH chargée dans l’agent.';
+            + 'Le plus simple : un jeton GitHub dans Publier › Mettre en ligne — « Pousser » l’utilise alors pour un dépôt github.com, sans trousseau. Sinon : un assistant d’identifiants ou une clé SSH chargée dans l’agent.';
       } else if (/No configured push destination|no upstream|does not appear to be a git repository|Could not read from remote/i.test(detail)) {
         conseil = ' — ce dépôt n’a pas de distant : ajoutez-en un dans un terminal (git remote add origin …, puis git push -u origin <branche>) ; ensuite « Pousser » suffira.';
       } else if (e.killed) {
