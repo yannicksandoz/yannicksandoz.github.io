@@ -7,7 +7,7 @@
  * Lancer avec : npm test
  */
 import assert from 'node:assert/strict';
-import { suivreMurs, tailleSol, planRedimension, SEUIL_MUR } from '../engine/src/editor/state/murs-regles.js';
+import { suivreMurs, tailleSol, planRedimension, planSommet, SEUIL_MUR } from '../engine/src/editor/state/murs-regles.js';
 
 let ok = 0; let ko = 0;
 function test(nom, fn) {
@@ -54,6 +54,30 @@ test('le plan complet : coque, sol, œuvres et portails qui suivent', () => {
   const h = planRedimension(piece, oeuvres, { height: 8 });
   assert.equal(h.oeuvres.length + h.portails.length, 0, 'la hauteur n’entraîne rien');
   assert.equal(h.floor, null, 'ni le sol');
+});
+
+test('le sommet entraîne ce qui est près du haut ; une corniche ne suit que la hauteur', () => {
+  const coque = { width: 20, depth: 16, height: 6 };
+  const oeuvres = [
+    { id: 'lampe-haute', position: [0, 5.4, -7.9] },              // contre le nord, près du haut
+    { id: 'tableau', position: [-3, 1.6, -7.9] },                 // contre le nord, bas : ne bouge pas
+    { id: 'stele', position: [0, 5.5, 0] },                       // au milieu de la pièce : ne bouge pas
+    { id: 'corniche', position: [2, 5.6, -7.9], model: { shape: 'corniche' } }
+  ];
+  // le nord monte en arche de 2 m au milieu
+  const arche = { ...coque, courbe: { profondeur: 0, couronne: { forme: 'arche', sens: 'haut', hauteur: 2, ondes: 1 } } };
+  const r = planSommet(coque, arche, oeuvres);
+  assert.deepEqual(r.map((o) => o.id), ['lampe-haute'], 'seule la lampe près du haut suit');
+  assert.ok(Math.abs(r[0].position[1] - (5.4 + 2)) < 0.01, `au milieu, +2 : ${r[0].position[1]}`);
+  // l'angle nord-est descend de 3 : la lampe (au milieu du mur) descend de 1,5
+  const angle = { ...coque, courbe: { profondeur: 0, angles: { ne: -3 } } };
+  const r2 = planSommet(coque, angle, oeuvres);
+  assert.ok(Math.abs(r2[0].position[1] - (5.4 - 1.5)) < 0.02, `angle : ${r2[0]?.position[1]}`);
+  // la hauteur : la corniche suit aussi
+  const p = planRedimension({ shell: coque }, oeuvres, { height: 8 });
+  assert.deepEqual(p.oeuvres.map((o) => [o.id, o.position[1]]), [['lampe-haute', 7.4], ['corniche', 7.6]]);
+  // un mur absent n'entraîne rien
+  assert.deepEqual(planSommet({ ...coque, walls: ['sud'] }, { ...arche, walls: ['sud'] }, oeuvres), []);
 });
 
 console.log(`\n${ok} ✓ / ${ko} ✗`);

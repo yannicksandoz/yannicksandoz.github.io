@@ -10,7 +10,7 @@ import { styleTexture, scaleBoxUV, scalePlaneUV, scaleWorldUV, scaleObjetUV,
 import { styleMatiere, jeuDeSurface } from './matieres.js';
 import { estFluide, materiauFluide, dessinerCouronne, courberParoi, loiParoi,
   loiCouronne } from './style.js';
-import { normaliserCourbe, courbeDuMur, loiVoileReglee, loiCouronneReglee, debordCoque } from './courbe-murs.js';
+import { normaliserCourbe, courbeDuMur, loiVoileReglee, loiSommet, sommetModele, loiPlafond, debordCoque, MURS } from './courbe-murs.js';
 import { aDesSourcesEtendues } from './primitives.js';
 import { patcherArbreLignes, segmentsMonde } from './lignes-lumiere.js';
 import { compilerRacines, attendreProgrammes, invitesMasque } from './chauffe.js';
@@ -2077,8 +2077,18 @@ export function buildShell(config) {
     const reglage = courbe ? courbeDuMur(courbe, wall) : null;
     const loiReglee = reglage
       ? loiVoileReglee({ length, height: h, sink: SINK, zones, plafonne: !!opt.ceiling, reglage }) : null;
-    const couronneReglee = reglage && !opt.ceiling && reglage.couronne
-      ? loiCouronneReglee({ length, couronne: reglage.couronne }) : null;
+    // LE HAUT DU MUR (courbe-murs.loiSommet) : la droite entre ses angles et
+    // sa silhouette, qui monte ou descend — avec ou sans plafond, celui-ci
+    // suit (plus bas). Il ne coupe jamais le linteau d'une baie.
+    const plancher = (x) => {
+      let p = 0;
+      for (const b of ouvertures) if (Math.abs(x - b.c) <= b.wl / 2 + FT + 0.15) p = Math.max(p, b.top + FT + 0.25);
+      return p;
+    };
+    const sommet = reglage && sommetModele(courbe, wall)
+      ? loiSommet({ length, height: h, mur: wall, reglage, angles: courbe.angles, plancher }) : null;
+    // le moteur parle en COURONNEMENT : de combien le sommet descend (négatif : il monte)
+    const couronneReglee = sommet ? (x) => 0 - sommet(x) || 0 : null;
     const geo = murPerce(length, h, ouvertures, SINK, reglage ? {
       couronne: couronneReglee,
       // une courbe libre a des détails plus fins qu'une ondulation : une arête plus courte
@@ -2149,8 +2159,11 @@ export function buildShell(config) {
     // un mur creusé vers l'extérieur s'écarte du bord du plafond : celui-ci
     // déborde d'autant, sans quoi le ciel passerait par la fente
     const deb = courbe ? 2 * debordCoque(courbe) : 0;
-    const plafond = box(w + WALL_T + deb, WALL_T, d + WALL_T + deb, 0, h + WALL_T / 2, 0,
-      matFor('plafond'));
+    const suit = courbe && (courbe.voute > 0 || MURS.some((m) => sommetModele(courbe, m)));
+    const plafond = suit
+      ? plafondQuiSuit(courbe, { w, d, h, deb, walls: opt.walls, mat: matFor('plafond'), habille: Boolean(wallMap || wallMatiere), repMur })
+      : box(w + WALL_T + deb, WALL_T, d + WALL_T + deb, 0, h + WALL_T / 2, 0, matFor('plafond'));
+    if (suit) group.add(plafond);
     // LE PLAFOND EST UNE VERRIÈRE, pas un couvercle. S'il projetait, la
     // coque fermée bloquerait toute la lumière clé : au belvédère (cube de
     // 50 m couvert), PLUS RIEN à l'intérieur ne portait d'ombre — marches
@@ -2164,6 +2177,31 @@ export function buildShell(config) {
     plafond.name = 'plafond';
   }
   return group;
+}
+
+/**
+ * LE PLAFOND QUI SUIT les murs (beta.11) : une nappe tournée vers le bas
+ * qui passe par le haut de chaque mur et bombe en voûte au milieu
+ * (courbe-murs.loiPlafond). Un maillage d'un demi-mètre environ : la voûte
+ * se lit lisse sans peser sur une grande salle.
+ */
+function plafondQuiSuit(courbe, { w, d, h, deb, walls, mat, habille, repMur }) {
+  const W = w + WALL_T + deb, D = d + WALL_T + deb;
+  const nx = Math.min(160, Math.max(8, Math.ceil(W / 0.5)));
+  const nz = Math.min(160, Math.max(8, Math.ceil(D / 0.5)));
+  const geo = new THREE.PlaneGeometry(W, D, nx, nz);
+  geo.rotateX(Math.PI / 2);          // la face regarde vers le bas : on la voit de l'intérieur
+  const loi = loiPlafond(courbe, { width: w, depth: d, height: h, epaisseur: WALL_T, walls });
+  const pos = geo.attributes.position;
+  for (let i = 0; i < pos.count; i++) pos.setY(i, h + loi(pos.getX(i), pos.getZ(i)));
+  pos.needsUpdate = true;
+  geo.computeVertexNormals();
+  if (habille) scaleWorldUV(geo, TILE / repMur);
+  const m = new THREE.Mesh(geo, mat);
+  m.receiveShadow = true;
+  m.castShadow = false;
+  m.userData.ignoreRaycast = true;
+  return m;
 }
 
 function disposeShell(group) {

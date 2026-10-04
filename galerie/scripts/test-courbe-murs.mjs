@@ -10,7 +10,7 @@
 import assert from 'node:assert/strict';
 import { normaliserCourbe, courbeDuMur, normaliserPoints, profilVectoriel, loiVoileReglee,
   loiCouronneReglee, debordExterieur, debordCoque, geometrieMur, ajouterAncre, retirerAncre,
-  deplacerPoint, COURBE_DEFAUT, BORNES_COURBE } from '../engine/src/core/courbe-murs.js';
+  deplacerPoint, COURBE_DEFAUT, BORNES_COURBE, loiSilhouette, loiSommet, loiPlafond, sommetModele, SOMMET_MIN } from '../engine/src/core/courbe-murs.js';
 
 let ok = 0; let ko = 0;
 function test(nom, fn) {
@@ -29,7 +29,7 @@ test('les réglages : absent = rien ; défauts ; bornes ; mur par mur partiel', 
   assert.equal(c.ondes, 1);
   assert.equal(c.sens, 'bombe');
   assert.equal(c.profil, 'voile');
-  assert.deepEqual(c.couronne, { hauteur: BORNES_COURBE.couronne, ondes: 3 });
+  assert.deepEqual(c.couronne, { forme: 'irreguliere', sens: 'bas', hauteur: BORNES_COURBE.couronne, ondes: 3 }, 'l’ancienne écriture : des vagues irrégulières qui descendent');
   assert.deepEqual(c.murs, { nord: { profondeur: 2 } }, 'un mur ne garde que ce qu’il écrit');
   const nord = courbeDuMur(c, 'nord');
   assert.equal(nord.profondeur, 2);
@@ -93,7 +93,7 @@ test('éditer la courbe libre : ajouter sur la courbe, déplacer, poignée en mi
   assert.equal(retirerAncre(r.points, 0).length, 1);
 });
 
-test('couronnement réglé : zéro aux extrémités, jamais au-dessus du sommet, la hauteur demandée', () => {
+test('couronnement réglé (ancienne écriture) : zéro aux extrémités, il descend, la hauteur demandée', () => {
   const L = 30;
   const c = loiCouronneReglee({ length: L, couronne: { hauteur: 1.5, ondes: 4 } });
   assert.ok(proche(c(L / 2), 0) && proche(c(-L / 2), 0));
@@ -102,6 +102,62 @@ test('couronnement réglé : zéro aux extrémités, jamais au-dessus du sommet,
   assert.ok(proche(max, 1.5, 0.02), `creux maximal ${max}`);
   assert.ok(min >= 0, 'le sommet ne monte jamais au-dessus du nominal');
   assert.equal(loiCouronneReglee({ length: L, couronne: null })(0), 0);
+});
+
+test('la silhouette : trois formes, vers le haut ou le bas, zéro aux angles', () => {
+  const L = 24;
+  const maxi = (f) => { let a = -Infinity, b = Infinity; for (let i = 0; i <= 480; i++) { const v = f(-L / 2 + (i / 480) * L); a = Math.max(a, v); b = Math.min(b, v); } return [a, b]; };
+  for (const forme of ['arche', 'vagues', 'irreguliere']) {
+    const haut = loiSilhouette({ length: L, couronne: { forme, sens: 'haut', hauteur: 2, ondes: 3 } });
+    const bas = loiSilhouette({ length: L, couronne: { forme, sens: 'bas', hauteur: 2, ondes: 3 } });
+    assert.ok(proche(haut(-L / 2), 0) && proche(haut(L / 2), 0, 1e-6), `${forme} : les angles restent à la hauteur`);
+    const [hMax, hMin] = maxi(haut);
+    assert.ok(proche(hMax, 2, 0.03) && hMin >= -1e-9, `${forme} vers le haut : jusqu’à +2 (${hMax.toFixed(2)}), jamais dessous`);
+    const [bMax, bMin] = maxi(bas);
+    assert.ok(proche(bMin, -2, 0.03) && bMax <= 1e-9, `${forme} vers le bas : jusqu’à −2`);
+  }
+  // des arches : elles se touchent en pointe entre deux (zéro au tiers et aux deux tiers)
+  const arches = loiSilhouette({ length: L, couronne: { forme: 'arche', sens: 'haut', hauteur: 2, ondes: 3 } });
+  assert.ok(proche(arches(-L / 2 + L / 3), 0, 1e-6) && proche(arches(-L / 2 + L / 6), 2, 1e-6));
+  // dessinée à la main : l’ancre est sur la silhouette
+  const libre = loiSilhouette({ length: L, couronne: { points: [{ t: 0.5, d: 3 }] } });
+  assert.ok(proche(libre(0), 3, 0.05));
+  // le couronnement du moteur est l’opposé (de combien le sommet DESCEND)
+  assert.ok(proche(loiCouronneReglee({ length: L, couronne: { forme: 'vagues', sens: 'haut', hauteur: 1, ondes: 1 } })(0), -1, 1e-6));
+});
+
+test('le haut d’un mur : la droite entre ses angles, la silhouette, jamais trop bas', () => {
+  const c = normaliserCourbe({ profondeur: 0, couronne: { forme: 'vagues', sens: 'haut', hauteur: 1, ondes: 1 }, angles: { no: 0, ne: 4, se: -2, so: 0 } });
+  const L = 20;
+  const nord = loiSommet({ length: L, height: 6, mur: 'nord', reglage: courbeDuMur(c, 'nord'), angles: c.angles });
+  assert.ok(proche(nord(-10), 0) && proche(nord(10), 4) && proche(nord(0), 2 + 1), `nord : no 0 → ne 4, +1 au milieu (${nord(0)})`);
+  const est = loiSommet({ length: L, height: 6, mur: 'est', reglage: courbeDuMur(c, 'est'), angles: c.angles });
+  assert.ok(proche(est(-10), -2) && proche(est(10), 4), 'est : de se (t=0) à ne (t=1) — un angle partagé par deux murs');
+  const bas = loiSommet({ length: L, height: 3, mur: 'sud', reglage: { couronne: { forme: 'vagues', sens: 'bas', hauteur: 8, ondes: 1 } } });
+  assert.ok(proche(3 + bas(0), SOMMET_MIN), 'le haut ne descend pas sous SOMMET_MIN');
+  const baie = loiSommet({ length: L, height: 6, mur: 'sud', reglage: { couronne: { forme: 'vagues', sens: 'bas', hauteur: 4, ondes: 1 } }, plancher: (x) => (Math.abs(x) < 2 ? 4.5 : 0) });
+  assert.ok(6 + baie(0) >= 4.5 - 1e-9, 'ni sous le linteau d’une baie');
+  assert.equal(sommetModele(c, 'nord'), true);
+  assert.equal(sommetModele({ profondeur: 1 }, 'nord'), false);
+  // une silhouette de mur complète celle de l’espace ; null l’éteint pour ce mur
+  const m = normaliserCourbe({ couronne: { forme: 'arche', sens: 'haut', hauteur: 2 }, murs: { est: { couronne: { hauteur: 3 } }, ouest: { couronne: false } } });
+  assert.deepEqual(courbeDuMur(m, 'est').couronne, { forme: 'arche', sens: 'haut', hauteur: 3, ondes: 3 });
+  assert.equal(courbeDuMur(m, 'ouest').couronne, null);
+  assert.equal(normaliserCourbe({ couronne: { points: [{ t: 0.5, d: 1 }] } }).couronne.points, undefined, 'à main levée : mur par mur seulement');
+});
+
+test('le plafond suit : le haut de chaque mur sur son bord, la voûte au milieu', () => {
+  const c = { profondeur: 0, couronne: { forme: 'arche', sens: 'haut', hauteur: 1.5, ondes: 1 }, angles: { ne: 3 }, voute: 2 };
+  const dims = { width: 20, depth: 16, height: 6, epaisseur: 0 };
+  const p = loiPlafond(c, dims);
+  const sommet = (mur, x) => loiSommet({ length: mur === 'nord' || mur === 'sud' ? 20 : 16, height: 6, mur, reglage: courbeDuMur(c, mur), angles: normaliserCourbe(c).angles })(x);
+  for (const x of [-8, -3, 0, 5, 9]) assert.ok(proche(p(x, -8), sommet('nord', x), 1e-6), `bord nord en x=${x}`);
+  for (const z of [-6, 0, 4]) assert.ok(proche(p(10, z), sommet('est', -z), 1e-6), `bord est en z=${z}`);
+  assert.ok(proche(p(10, -8), 3, 1e-6), 'l’angle nord-est à +3');
+  const sansVoute = loiPlafond({ ...c, voute: 0 }, dims);
+  assert.ok(proche(p(0, 0) - sansVoute(0, 0), 2, 1e-6), 'la voûte : +2 au centre');
+  assert.ok(proche(p(14, 0), p(10, 0), 1e-9), 'hors du rectangle : le bord le plus proche');
+  assert.equal(loiPlafond(null, dims)(0, 0), 0);
 });
 
 test('débord vers l’extérieur : pour le sol et le plafond', () => {

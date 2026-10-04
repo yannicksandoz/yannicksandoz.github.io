@@ -5934,6 +5934,39 @@ sous Xvfb : la boîte, Plus tard, retour à la relance, vérification
 contre une API simulée, compte nommé, étape 2, récupération, page
 rechargée sur la nouvelle pièce, plus de boîte ensuite.
 
+**Le haut des murs (en préparation, beta.11).** « On peut courber les
+murs dans leur chemin au sol ; peut-on aussi courber la silhouette en
+hauteur, le haut du mur plus haut ou plus bas ? » Avant : un « sommet en
+vagues » qui ne faisait que descendre, et seulement sans plafond. Les
+réponses de l'auteur, et ce qui en sort :
+
+- **Les deux sens, au choix** : la silhouette monte ou descend, en
+  arches, en vagues régulières ou en vagues irrégulières, avec sa hauteur
+  et son nombre ; pour tout l'espace ou mur par mur.
+- **La hauteur des angles** : chaque angle de l'espace a la sienne,
+  partagée par les deux murs qui s'y rejoignent ; le haut d'un mur va
+  d'un angle à l'autre en droite, et la silhouette s'y ajoute. Un espace
+  peut monter d'un côté et descendre de l'autre.
+- **À poignées, en vue de face** : « Silhouette libre, vue de face… » place
+  la caméra devant le mur (le mur d'en face est coupé, le plafond caché) ;
+  mêmes ancres et mêmes gestes qu'au sol, et les deux angles du mur se
+  tirent à la souris, au dixième de mètre. Échap rend la caméra
+  (`editor/tools/VueFace.js`).
+- **Le plafond suit, en voûte** : il passe par le haut de chaque mur et se
+  courbe entre eux, plus une voûte réglable qui le bombe au milieu.
+- **Ce qui est près du haut le suit** : une œuvre ou une lampe contre un
+  mur, à moins de 1,5 m sous son haut, monte ou descend avec lui (la
+  hauteur de l'espace aussi). Les corniches épousent la silhouette en se
+  bâtissant.
+- **Garde-fous** : le haut ne descend jamais sous 1,2 m, ni sous le
+  linteau d'une baie ; les angles restent jointifs.
+
+La section de l'inspecteur s'appelle maintenant « Forme des murs » : au
+sol, en haut. Règles pures dans `core/courbe-murs.js` (`loiSilhouette`,
+`loiSommet`, `loiPlafond`) et `editor/state/murs-regles.js`
+(`planSommet`), testées au nœud ; `npm run sonde:murs` couvre le haut
+des murs, la vue de face à la souris et la voûte.
+
 **La taille et la courbe des murs (en préparation, beta.11).** « Est-ce
 facile de changer la taille d'une pièce ? Et la courbe des murs ? » Avant :
 les curseurs de la coque rebâtissaient les murs, mais rien ne les suivait,

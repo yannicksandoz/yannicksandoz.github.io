@@ -5,7 +5,11 @@
 //      sommet en vagues, puis un mur réglé à part ;
 //   3. la courbe libre en vue de dessus : ancres posées, une ancre et une
 //      poignée tirées À LA SOURIS (la jumelle suit en miroir), Échap termine ;
-//   4. la poignée de taille d'un mur, tirée à la souris.
+//   4. la poignée de taille d'un mur, tirée à la souris ;
+//   5. le HAUT des murs : silhouette qui monte puis descend, angle relevé,
+//      une œuvre près du haut qui suit, la silhouette libre en vue de face
+//      (ancre et angle tirés à la souris, Échap rend la caméra), et le
+//      plafond qui suit en voûte.
 //
 //   npm run build:auteur && npx http-server dist-auteur -p 8124 -s
 //   PORT=8124 node scripts/sonde-murs.cjs
@@ -271,6 +275,125 @@ const attendre = (page, ms) => page.waitForTimeout(ms);
   await attendre(page, 300);
   const sortie = await page.evaluate(() => window.__galerie.editor.poignees.groupe === null);
   verif(sortie, 'hors de la vue de dessus, plus aucune poignée');
+
+  // 5. le haut des murs
+  const hautMur = (mur) => page.evaluate((m) => {
+    let max = -Infinity;
+    window.__galerie.rooms.current.shell.traverse((o) => { if (o.userData.mur === m) { o.geometry.computeBoundingBox(); max = o.geometry.boundingBox.max.y; } });
+    return +max.toFixed(2);
+  }, mur);
+  const r5 = await page.evaluate(async () => {
+    const app = window.__galerie; const ed = app.editor; const ins = ed.ui.inspector;
+    const pause = (ms) => new Promise((r) => setTimeout(r, ms));
+    const regler = (sel, v, ev = 'input') => { const e = document.querySelector(sel); e.value = String(v); e.dispatchEvent(new Event(ev, { bubbles: true })); if (ev === 'input') e.dispatchEvent(new Event('change', { bubbles: true })); };
+    ed.select(null);
+    ins._cibleCourbe = 'espace';
+    ins.ouvrirOnglet('piece');
+    ins.render();
+    await pause(400);
+    const sh = app.rooms.current.config.shell;
+    // une lampe contre le mur nord, à 40 cm sous son haut d'aujourd'hui (au milieu)
+    const hautIci = () => { const H = ed.poignees._hautDe(ed.poignees._coque(app.rooms.current), 'nord'); return H.H + H.sommet(0); };
+    const haut0 = hautIci();
+    ed.addPrimitive('box');
+    await pause(400);
+    const id = ed.selectedArtwork?.config.id ?? app.rooms.current.config.works.at(-1);
+    ed.enMain?.lacher();   // posé d'abord : la pose réécrit sa position
+    const w = ed.doc.works.find((x) => x.id === id);
+    // contre le nu du mur, courbe au sol comprise (le nord recule de f vers −z)
+    const f = app.rooms.current.shell.userData.courbures?.nord?.loi?.(0, sh.height) ?? 0;
+    w.position = [0, haut0 - 0.4, -sh.depth / 2 - f + 0.5];
+    ed.doc._rebuildWork?.(id);
+    ed.doc.seal();
+    ed.select(null);
+    ins.render();
+    await pause(400);
+    const cour = document.querySelector('input[data-cm-cour-on]');
+    if (!cour.checked) { cour.click(); await pause(500); }
+    regler('select[data-cm-cour-sel="forme"]', 'vagues', 'change');
+    await pause(400);
+    regler('select[data-cm-cour-sel="sens"]', 'haut', 'change');
+    await pause(400);
+    regler('input[type="range"][data-cm-cour="ondes"]', 1);
+    await pause(300);
+    regler('input[type="range"][data-cm-cour="hauteur"]', 2.5);
+    await pause(500);
+    const lampeHaut = ed.doc.works.find((x) => x.id === id).position[1];
+    return { h: sh.height, id, couronne: app.rooms.current.config.shell.courbe.couronne, lampeHaut, attendu: haut0 - 0.4 + (hautIci() - haut0), haut0 };
+  });
+  verif(r5.couronne?.forme === 'vagues' && r5.couronne.sens === 'haut' && r5.couronne.hauteur === 2.5, `silhouette écrite : ${JSON.stringify(r5.couronne)}`);
+  const hautNord = await hautMur('nord');
+  verif(Math.abs(hautNord - (r5.h + 2.5)) < 0.15, `le mur nord monte : haut ${hautNord} m pour ${r5.h} + 2,5`);
+  verif(Math.abs(r5.lampeHaut - r5.attendu) < 0.05 && r5.lampeHaut > r5.haut0, `la lampe près du haut monte avec lui : y ${(r5.haut0 - 0.4).toFixed(2)} → ${r5.lampeHaut}`);
+  await page.evaluate(async () => {
+    const e = document.querySelector('select[data-cm-cour-sel="sens"]'); e.value = 'bas'; e.dispatchEvent(new Event('change', { bubbles: true }));
+    await new Promise((r) => setTimeout(r, 600));
+  });
+  const basNord = await hautMur('nord');
+  const lampeBas = await page.evaluate((id) => window.__galerie.editor.doc.works.find((x) => x.id === id).position[1], r5.id);
+  verif(Math.abs(basNord - r5.h) < 0.15 && Math.abs(lampeBas - (r5.lampeHaut - 5)) < 0.05,
+    `vers le bas : le haut des angles reste à ${basNord} m, la lampe descend à ${lampeBas}`);
+  const r5b = await page.evaluate(async () => {
+    const e = document.querySelector('input[type="range"][data-cm-angle="ne"]');
+    e.value = '3'; e.dispatchEvent(new Event('input', { bubbles: true })); e.dispatchEvent(new Event('change', { bubbles: true }));
+    await new Promise((r) => setTimeout(r, 600));
+    return window.__galerie.rooms.current.config.shell.courbe.angles;
+  });
+  verif(r5b?.ne === 3, `l'angle nord-est relevé de 3 m : ${JSON.stringify(r5b)}`);
+  const estHaut = await hautMur('est');
+  verif(estHaut >= r5.h + 2.9, `le mur est, qui partage cet angle, monte aussi : ${estHaut} m`);
+
+  // la silhouette libre du nord, en vue de face
+  const camAvant = await page.evaluate(async () => {
+    const ins = window.__galerie.editor.ui.inspector;
+    ins._cibleCourbe = 'nord'; ins.render();
+    await new Promise((r) => setTimeout(r, 400));
+    const cam = window.__galerie.camera.position.toArray();
+    document.querySelector('button[data-cm-sil-libre]').click();
+    await new Promise((r) => setTimeout(r, 1500));
+    return cam;
+  });
+  const f0 = await page.evaluate(() => {
+    const ed = window.__galerie.editor; ed.poignees.update();
+    return { face: ed.vueFace.actif, mode: ed.poignees.mode, points: window.__galerie.rooms.current.config.shell.courbe.murs?.nord?.couronne?.points ?? null,
+      types: ed.poignees.groupe?.children.filter((o) => o.userData.poignee).map((o) => o.userData.poignee.type) ?? [] };
+  });
+  verif(f0.face && f0.mode === 'sommet' && f0.points?.length === 3, `vue de face sur le nord, trois ancres posées sur la silhouette : ${JSON.stringify(f0.points?.map((p) => [p.t, p.d]))}`);
+  verif(f0.types.filter((t) => t === 'angle').length === 2 && f0.types.filter((t) => t === 'ancre').length === 3, `poignées : ${f0.types.join(' ')}`);
+  const a5 = await ecran({ type: 'ancre', i: 1 });
+  await tirer(a5, [a5[0], a5[1] - 50]);
+  const f1 = await page.evaluate(() => window.__galerie.rooms.current.config.shell.courbe.murs.nord.couronne.points);
+  verif(f1[1].d > f0.points[1].d + 0.5 && Math.abs(f1[1].t - f0.points[1].t) < 0.02,
+    `l'ancre du milieu, tirée vers le haut : ${f0.points[1].d} → ${f1[1].d}`);
+  const hautLibre = await hautMur('nord');
+  verif(hautLibre > basNord, `le mur se rebâtit avec la silhouette dessinée (haut ${hautLibre} m)`);
+  const an = await ecran({ type: 'angle', cle: 'no' });
+  await tirer(an, [an[0], an[1] - 40]);
+  const f2 = await page.evaluate(() => window.__galerie.rooms.current.config.shell.courbe.angles);
+  verif(f2.no > 0.5 && Math.abs(f2.no * 10 - Math.round(f2.no * 10)) < 1e-9, `l'angle nord-ouest tiré vers le haut, au dixième : ${f2.no} m`);
+  await page.keyboard.press('Escape');
+  await attendre(page, 500);
+  const f3 = await page.evaluate(() => ({ face: window.__galerie.editor.vueFace.actif, cam: window.__galerie.camera.position.toArray(), near: window.__galerie.camera.near }));
+  verif(!f3.face && f3.cam.every((v, i) => Math.abs(v - camAvant[i]) < 1e-6) && f3.near < 1,
+    `Échap quitte la vue de face, la caméra revient (plan proche ${f3.near})`);
+
+  // le plafond suit, en voûte
+  const r5c = await page.evaluate(async () => {
+    const app = window.__galerie; const ins = app.editor.ui.inspector;
+    ins._cibleCourbe = 'espace'; ins.render();
+    await new Promise((r) => setTimeout(r, 300));
+    const plafond = document.querySelector('input[data-sh-ceiling]');
+    if (!plafond.checked) { plafond.click(); await new Promise((r) => setTimeout(r, 800)); }
+    const v = document.querySelector('input[type="range"][data-cm-voute]');
+    if (!v) return { erreur: 'curseur voûte absent' };
+    v.value = '2'; v.dispatchEvent(new Event('input', { bubbles: true })); v.dispatchEvent(new Event('change', { bubbles: true }));
+    await new Promise((r) => setTimeout(r, 800));
+    const pl = app.rooms.current.shell.getObjectByName('plafond');
+    pl.geometry.computeBoundingBox();
+    return { voute: app.rooms.current.config.shell.courbe.voute, type: pl.geometry.type, max: +pl.geometry.boundingBox.max.y.toFixed(2), h: app.rooms.current.config.shell.height };
+  });
+  verif(!r5c.erreur && r5c.voute === 2 && r5c.type === 'PlaneGeometry' && r5c.max > r5c.h + 2.5,
+    `le plafond suit le haut des murs et bombe : ${JSON.stringify(r5c)}`);
 
   console.log(bruit.length ? `✗ bruit : ${bruit.slice(0, 4).join(' | ')}` : '✓ aucune erreur de page');
   if (bruit.length) echecs++;

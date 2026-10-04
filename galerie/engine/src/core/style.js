@@ -367,7 +367,8 @@ export function dessinerCouronne(forme, length, height, segments = 48, creuxDonn
   // ondulent différemment, le même mur ondule pareil à chaque build.
   // `creuxDonne` : le couronnement réglé d'un espace (courbe-murs.js)
   const creux = creuxDonne ?? loiCouronne({ length, height });
-  forme.lineTo(length / 2, height);
+  // l'angle a sa propre hauteur quand l'espace en règle une (courbe-murs) ; 0 sinon
+  forme.lineTo(length / 2, height - creux(length / 2));
   for (let i = 1; i <= segments; i++) {
     const x = length / 2 - (i / segments) * length;
     forme.lineTo(x, height - creux(x));

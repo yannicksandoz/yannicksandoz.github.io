@@ -10,7 +10,13 @@
  *       "ondes": 1,                 // 1 = une seule grande courbe ; n = n bosses alternées
  *       "sens": "creuse",           // "creuse" : vers l'extérieur ; "bombe" : vers l'intérieur
  *       "profil": "droit",          // "droit" : le mur entier suit ; "voile" : pied droit, haut cintré
- *       "couronne": { "hauteur": 1.2, "ondes": 3 },   // le haut ondule (mur sans plafond)
+ *       "couronne": {               // LA SILHOUETTE DU HAUT
+ *         "forme": "vagues",        // "irreguliere" | "vagues" | "arche"
+ *         "sens": "haut",           // "haut" : le sommet monte ; "bas" : il descend
+ *         "hauteur": 1.2, "ondes": 3,
+ *         "points": [ … ] },        // (mur par mur) dessinée à la main, comme au sol
+ *       "angles": { "no": 0, "ne": 2, "se": 0, "so": -1 },  // hauteur de chaque angle (m)
+ *       "voute": 2,                 // le plafond, s'il y en a un, bombe au milieu (m)
  *       "murs": {                   // mur par mur : ce qui est écrit remplace l'espace
  *         "nord": { "profondeur": 1.5, "points": [
  *           { "t": 0.3, "d": 1.2, "avant": [-0.1, 0], "apres": [0.1, 0.4] } ] } } } }
@@ -24,6 +30,13 @@
  *     bornées pour que la courbe avance toujours le long du mur (une
  *     courbe qui reviendrait sur ses pas n'a pas de sens pour un mur).
  *
+ * Le HAUT du mur se règle de même (beta.11, second temps) : la ligne entre
+ * ses deux angles — chaque angle a sa hauteur, partagée par les deux murs
+ * qui s'y rejoignent — plus une silhouette qui monte ou descend, en
+ * arches, en vagues régulières ou irrégulières, ou dessinée à poignées en
+ * vue de face. Un plafond SUIT : il passe par le haut de chaque mur
+ * (carreau de Coons) et peut, en plus, bomber en voûte.
+ *
  * Sans `courbe`, rien ne change : le style fluide garde sa loi d'origine.
  *
  * Tout ici est pur — aucun three, aucun DOM : la loi que le moteur pose
@@ -34,8 +47,14 @@
 
 export const MURS = ['nord', 'sud', 'est', 'ouest'];
 export const COURBE_DEFAUT = Object.freeze({ profondeur: 0.6, ondes: 1, sens: 'creuse', profil: 'droit', couronne: null });
-export const COURONNE_DEFAUT = Object.freeze({ hauteur: 1.2, ondes: 3 });
-export const BORNES_COURBE = Object.freeze({ profondeur: 6, ondes: 12, couronne: 4, couronneOndes: 12, points: 16 });
+export const COURONNE_DEFAUT = Object.freeze({ forme: 'irreguliere', sens: 'bas', hauteur: 1.2, ondes: 3 });
+export const FORMES_SOMMET = ['arche', 'vagues', 'irreguliere'];
+export const ANGLES = ['no', 'ne', 'se', 'so'];
+/** Les deux angles d'un mur, à t = 0 puis à t = 1 (même pose que geometrieMur). */
+export const ANGLES_DU_MUR = Object.freeze({ nord: ['no', 'ne'], sud: ['so', 'se'], est: ['se', 'ne'], ouest: ['so', 'no'] });
+export const BORNES_COURBE = Object.freeze({ profondeur: 6, ondes: 12, couronne: 8, couronneOndes: 12, points: 16, angle: 12, voute: 12 });
+/** Le haut d'un mur ne descend jamais plus bas que ceci (m), ni sous le linteau d'une baie. */
+export const SOMMET_MIN = 1.2;
 
 const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
 const arrondi = (v, p = 1000) => Math.round(v * p) / p;
@@ -43,12 +62,32 @@ const nombre = (v, repli) => { const n = Number(v); return Number.isFinite(n) ? 
 
 /* ------------------------------------------------------------ réglages --- */
 
-function normaliserCouronne(c) {
+/**
+ * La silhouette du haut, bornée. `partiel` : celle d'un mur, qui ne garde
+ * que ce qu'il écrit (le reste vient de l'espace). Ancienne écriture
+ * { hauteur, ondes } : des vagues irrégulières qui descendent.
+ */
+function normaliserCouronne(c, { partiel = false } = {}) {
   if (!c || typeof c !== 'object') return null;
-  return {
-    hauteur: arrondi(clamp(nombre(c.hauteur, COURONNE_DEFAUT.hauteur), 0, BORNES_COURBE.couronne)),
-    ondes: Math.round(clamp(nombre(c.ondes, COURONNE_DEFAUT.ondes), 1, BORNES_COURBE.couronneOndes))
-  };
+  const r = {};
+  const pose = (cle, valeur) => { if (!partiel || c[cle] !== undefined) r[cle] = valeur; };
+  pose('forme', FORMES_SOMMET.includes(c.forme) ? c.forme : COURONNE_DEFAUT.forme);
+  pose('sens', c.sens === 'haut' ? 'haut' : 'bas');
+  pose('hauteur', arrondi(clamp(nombre(c.hauteur, COURONNE_DEFAUT.hauteur), 0, BORNES_COURBE.couronne)));
+  pose('ondes', Math.round(clamp(nombre(c.ondes, COURONNE_DEFAUT.ondes), 1, BORNES_COURBE.couronneOndes)));
+  if (c.points !== undefined) {
+    const pts = normaliserPoints(c.points, BORNES_COURBE.couronne);
+    if (pts && pts.length) r.points = pts;
+  }
+  return r;
+}
+
+/** Les hauteurs des angles (m, signées) ; null si toutes sont nulles. */
+function normaliserAngles(a) {
+  if (!a || typeof a !== 'object') return null;
+  const r = {};
+  for (const k of ANGLES) r[k] = arrondi(clamp(nombre(a[k], 0), -BORNES_COURBE.angle, BORNES_COURBE.angle));
+  return ANGLES.some((k) => r[k] !== 0) ? r : null;
 }
 
 /**
@@ -57,9 +96,9 @@ function normaliserCouronne(c) {
  * (la courbe avance toujours le long du mur). Poignée absente : lisse,
  * horizontale, au tiers de l'intervalle.
  */
-export function normaliserPoints(points) {
+export function normaliserPoints(points, borne = BORNES_COURBE.profondeur) {
   if (!Array.isArray(points)) return null;
-  const P = BORNES_COURBE.profondeur;
+  const P = borne;
   const ancres = points
     .filter((p) => p && typeof p === 'object')
     .map((p) => ({ t: clamp(nombre(p.t, NaN), 0.001, 0.999), d: clamp(nombre(p.d, 0), -P, P), avant: p.avant, apres: p.apres }))
@@ -93,7 +132,11 @@ function normaliserReglage(brut, { partiel = false } = {}) {
   pose('ondes', Math.round(clamp(nombre(a.ondes, COURBE_DEFAUT.ondes), 1, BORNES_COURBE.ondes)));
   pose('sens', a.sens === 'bombe' ? 'bombe' : 'creuse');
   pose('profil', a.profil === 'voile' ? 'voile' : 'droit');
-  if (!partiel || a.couronne !== undefined) r.couronne = a.couronne === false ? null : normaliserCouronne(a.couronne);
+  if (!partiel || a.couronne !== undefined) {
+    r.couronne = a.couronne === false || a.couronne === null ? null : normaliserCouronne(a.couronne, { partiel });
+    // la silhouette dessinée à la main n'a de sens que pour UN mur
+    if (!partiel) delete r.couronne?.points;
+  }
   if (a.points !== undefined) {
     const pts = normaliserPoints(a.points);
     if (pts && pts.length) r.points = pts;
@@ -108,6 +151,10 @@ function normaliserReglage(brut, { partiel = false } = {}) {
 export function normaliserCourbe(brut) {
   if (!brut || typeof brut !== 'object') return null;
   const base = normaliserReglage(brut);
+  const angles = normaliserAngles(brut.angles);
+  if (angles) base.angles = angles;
+  const voute = arrondi(clamp(nombre(brut.voute, 0), 0, BORNES_COURBE.voute));
+  if (voute > 0) base.voute = voute;
   const murs = {};
   for (const m of MURS) {
     const r = brut.murs?.[m];
@@ -128,7 +175,17 @@ export function courbeDuMur(courbe, mur) {
   const propre = murs?.[mur] ?? {};
   const r = { ...base, ...propre };
   if (!propre.points) delete r.points;
+  // la silhouette d'un mur COMPLÈTE celle de l'espace (null : ce mur n'en a pas)
+  if (propre.couronne !== undefined) {
+    r.couronne = propre.couronne === null ? null
+      : { ...(base.couronne ?? COURONNE_DEFAUT), ...propre.couronne };
+  }
   return r;
+}
+
+/** La silhouette effective d'un mur, ou null s'il n'en a pas. */
+function couronneDe(reglage) {
+  return reglage?.couronne ? normaliserCouronne(reglage.couronne) : null;
 }
 
 /* ---------------------------------------------------------------- lois --- */
@@ -216,25 +273,115 @@ export function loiVoileReglee({ length, height, sink = 0, zones = [], plafonne 
 }
 
 /**
- * LA LOI DU COURONNEMENT réglée : x → de combien le sommet DESCEND à cet
- * endroit (0 aux extrémités, jamais négatif : le sommet ne dépasse pas la
- * hauteur nominale, où les angles voisins l'attendent). Même forme que
- * style.loiCouronne — une porteuse de `ondes` périodes et une harmonique —
- * avec la hauteur et le nombre de vagues de l'auteur.
+ * LA SILHOUETTE réglée, seule : x → de combien le sommet MONTE à cet endroit
+ * (négatif : il descend), 0 aux extrémités pour que les angles voisins se
+ * rejoignent. Trois formes paramétriques — des ARCHES (|sin πnt|, des
+ * arcades qui se touchent en pointe), des VAGUES régulières (des bosses
+ * lisses), des vagues IRRÉGULIÈRES (une porteuse et une harmonique, la
+ * phase semée par la longueur du mur) — ou les ancres d'une silhouette
+ * dessinée à la main. t va de 0 à 1 le long du mur, comme au sol.
+ */
+export function loiSilhouette({ length, couronne }) {
+  const c = normaliserCouronne(couronne);
+  if (!c) return () => 0;
+  const tDe = (x) => clamp((x + length / 2) / length, 0, 1);
+  if (c.points?.length) {
+    const profil = profilVectoriel(c.points);
+    return (x) => lireProfil(profil, tDe(x));
+  }
+  if (c.hauteur <= 0) return () => 0;
+  const signe = c.sens === 'haut' ? 1 : -1;
+  const n = c.ondes;
+  let forme;
+  if (c.forme === 'arche') forme = (t) => Math.abs(Math.sin(Math.PI * n * t));
+  else if (c.forme === 'vagues') forme = (t) => (1 - Math.cos(2 * Math.PI * n * t)) / 2;
+  else {
+    const phase = (length * 7.13) % (Math.PI * 2);
+    const brute = (t) => Math.max(0, Math.sin(Math.PI * t) * (
+      0.62 + 0.38 * Math.sin(Math.PI * 2 * n * t + phase)
+      + 0.18 * Math.sin(Math.PI * 2 * n * 1.8 * t + 1.4 * phase)));
+    let crete = 0;
+    for (let i = 0; i <= 240; i++) crete = Math.max(crete, brute(i / 240));
+    forme = crete > 1e-6 ? (t) => brute(t) / crete : () => 0;
+  }
+  return (x) => signe * c.hauteur * forme(tDe(x));
+}
+
+/**
+ * Le COURONNEMENT au sens du moteur (style.dessinerCouronne, Artwork) :
+ * x → de combien le sommet DESCEND sous la hauteur nominale — négatif
+ * quand il monte. Silhouette seule, sans les angles.
  */
 export function loiCouronneReglee({ length, couronne }) {
-  const c = normaliserCouronne(couronne);
-  if (!c || c.hauteur <= 0) return () => 0;
-  const phase = (length * 7.13) % (Math.PI * 2);
-  const forme = (t) => Math.sin(Math.PI * t) * (
-    0.62 + 0.38 * Math.sin(Math.PI * 2 * c.ondes * t + phase)
-    + 0.18 * Math.sin(Math.PI * 2 * c.ondes * 1.8 * t + 1.4 * phase));
-  let crete = 0;
-  for (let i = 0; i <= 240; i++) crete = Math.max(crete, forme(i / 240));
-  const g = crete > 1e-6 ? c.hauteur / crete : 0;
+  const s = loiSilhouette({ length, couronne });
+  return (x) => 0 - s(x) || 0;
+}
+
+/**
+ * LE HAUT D'UN MUR : x → l'écart à la hauteur nominale (m, positif vers
+ * le haut) — la ligne droite d'un angle à l'autre, plus la silhouette. Le
+ * sommet ne descend jamais sous SOMMET_MIN, ni sous `plancher(x)` (le
+ * linteau d'une baie, que le haut du mur ne doit pas couper).
+ */
+export function loiSommet({ length, height, mur, reglage, angles = null, plancher = null }) {
+  const [a0, a1] = (ANGLES_DU_MUR[mur] ?? ['no', 'ne']).map((k) => nombre(angles?.[k], 0));
+  const silhouette = loiSilhouette({ length, couronne: couronneDe(reglage) });
   return (x) => {
-    const t = clamp((length / 2 - x) / length, 0, 1);
-    return Math.max(0, g * forme(t));
+    const t = clamp((x + length / 2) / length, 0, 1);
+    let e = a0 + (a1 - a0) * t + silhouette(x);
+    const bas = Math.max(SOMMET_MIN, plancher ? plancher(x) : 0);
+    if (height + e < bas) e = bas - height;
+    return e;
+  };
+}
+
+/** Le mur a-t-il un haut qui n'est pas droit (silhouette ou angles) ? */
+export function sommetModele(courbe, mur) {
+  const c = normaliserCourbe(courbe);
+  if (!c) return false;
+  const r = courbeDuMur(c, mur);
+  const s = couronneDe(r);
+  const [a0, a1] = ANGLES_DU_MUR[mur].map((k) => c.angles?.[k] ?? 0);
+  return Boolean(a0 || a1 || (s && (s.points?.length || s.hauteur > 0)));
+}
+
+/**
+ * LE PLAFOND QUI SUIT : (x, z) du plan de l'espace → l'écart à la hauteur
+ * nominale du dessous du plafond. Le carreau de COONS des quatre hauts de
+ * murs — exactement le haut de chaque mur sur son bord, une surface douce
+ * entre eux — plus la VOÛTE, qui bombe au milieu et vaut zéro aux murs.
+ * Un mur absent : la ligne droite entre ses angles. Hors du rectangle (un
+ * mur creusé vers l'extérieur), le bord le plus proche.
+ */
+export function loiPlafond(courbe, { width, depth, height, epaisseur = 0, walls = null }) {
+  const c = normaliserCourbe(courbe);
+  if (!c) return () => 0;
+  const w = Number(width), d = Number(depth);
+  const presents = Array.isArray(walls) ? walls : MURS;
+  const bord = {};
+  for (const m of MURS) {
+    const geo = geometrieMur(m, { width: w, depth: d, epaisseur });
+    const loi = loiSommet({ length: geo.longueur, height, mur: m, reglage: presents.includes(m) ? courbeDuMur(c, m) : { couronne: null }, angles: c.angles });
+    bord[m] = (x, z) => {
+      const [t] = geo.depuisPlan(x, z);
+      return loi(-geo.longueur / 2 + clamp(t, 0, 1) * geo.longueur);
+    };
+  }
+  const voute = c.voute ?? 0;
+  return (x, z) => {
+    const u = clamp((x + w / 2) / w, 0, 1);
+    const v = clamp((z + d / 2) / d, 0, 1);
+    const X = -w / 2 + u * w, Z = -d / 2 + v * d;
+    const N = bord.nord(X, -d / 2), S = bord.sud(X, d / 2);
+    const W = bord.ouest(-w / 2, Z), E = bord.est(w / 2, Z);
+    // les quatre coins : la moyenne des deux murs qui s'y rejoignent
+    const c00 = (bord.nord(-w / 2, -d / 2) + bord.ouest(-w / 2, -d / 2)) / 2;
+    const c10 = (bord.nord(w / 2, -d / 2) + bord.est(w / 2, -d / 2)) / 2;
+    const c01 = (bord.sud(-w / 2, d / 2) + bord.ouest(-w / 2, d / 2)) / 2;
+    const c11 = (bord.sud(w / 2, d / 2) + bord.est(w / 2, d / 2)) / 2;
+    const coons = (1 - v) * N + v * S + (1 - u) * W + u * E
+      - ((1 - u) * (1 - v) * c00 + u * (1 - v) * c10 + (1 - u) * v * c01 + u * v * c11);
+    return coons + voute * Math.sin(Math.PI * u) * Math.sin(Math.PI * v);
   };
 }
 
@@ -293,9 +440,9 @@ export function ajouterAncre(reglage, t, { longueur = 10, height = 4 } = {}) {
   return normaliserPoints(points);
 }
 
-/** Retire l'ancre d'indice i. */
-export function retirerAncre(points, i) {
-  return normaliserPoints((points ?? []).filter((_, k) => k !== i));
+/** Retire l'ancre d'indice i. `borne` : l'écart permis (la silhouette va plus loin que le sol). */
+export function retirerAncre(points, i, { borne = BORNES_COURBE.profondeur } = {}) {
+  return normaliserPoints((points ?? []).filter((_, k) => k !== i), borne);
 }
 
 /**
@@ -305,8 +452,8 @@ export function retirerAncre(points, i) {
  * `{ casse: true }` — l'Alt de GIMP. La jumelle garde sa longueur EN
  * MÈTRES sur le plan : `longueur` est celle du mur (t en est la fraction).
  */
-export function deplacerPoint(points, i, quoi, t, d, { casse = false, longueur = 1 } = {}) {
-  const pts = (normaliserPoints(points) ?? []).map((p) => ({ ...p, avant: [...p.avant], apres: [...p.apres] }));
+export function deplacerPoint(points, i, quoi, t, d, { casse = false, longueur = 1, borne = BORNES_COURBE.profondeur } = {}) {
+  const pts = (normaliserPoints(points, borne) ?? []).map((p) => ({ ...p, avant: [...p.avant], apres: [...p.apres] }));
   const p = pts[i];
   if (!p) return pts;
   if (quoi === 'ancre') {
@@ -326,5 +473,5 @@ export function deplacerPoint(points, i, quoi, t, d, { casse = false, longueur =
       p[autre] = [-v[0] / n * garde, -v[1] / n * garde];
     }
   }
-  return normaliserPoints(pts);
+  return normaliserPoints(pts, borne);
 }
