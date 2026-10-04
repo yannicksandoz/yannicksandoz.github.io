@@ -236,10 +236,12 @@ export function tesseler(geometry, arete = 1.4) {
  */
 export function courberParoi(geometry, {
   length, height, sink = 0, zones = [], plafonne = false, sens = 1,
-  amplitude = null, arete = 1.4
+  amplitude = null, arete = 1.4, loi: loiDonnee = null
 } = {}) {
   const g = tesseler(geometry, arete);
-  const loi = loiParoi({ length, height, sink, zones, plafonne, amplitude });
+  // `loi` : une loi déjà réglée (la courbe d'un espace, courbe-murs.js) ;
+  // sinon celle du style fluide
+  const loi = loiDonnee ?? loiParoi({ length, height, sink, zones, plafonne, amplitude });
   const pos = g.attributes.position;
   for (let i = 0; i < pos.count; i++) {
     const f = loi(pos.getX(i), pos.getY(i));
@@ -351,7 +353,7 @@ export function loiCouronne({ length, height }) {
   };
 }
 
-export function dessinerCouronne(forme, length, height, segments = 48) {
+export function dessinerCouronne(forme, length, height, segments = 48, creuxDonne = null) {
   // L'ONDULATION, pas l'affaissement. La première version était UNE arche
   // en creux : de loin, elle se relisait comme une droite qui plonge un
   // peu. La ligne des références ne repose jamais — elle ondule. D'où une
@@ -363,7 +365,8 @@ export function dessinerCouronne(forme, length, height, segments = 48) {
   //
   // La phase est SEMÉE PAR LA LONGUEUR du mur : deux murs différents
   // ondulent différemment, le même mur ondule pareil à chaque build.
-  const creux = loiCouronne({ length, height });
+  // `creuxDonne` : le couronnement réglé d'un espace (courbe-murs.js)
+  const creux = creuxDonne ?? loiCouronne({ length, height });
   forme.lineTo(length / 2, height);
   for (let i = 1; i <= segments; i++) {
     const x = length / 2 - (i / segments) * length;

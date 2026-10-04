@@ -10,6 +10,7 @@ import { styleTexture, scaleBoxUV, scalePlaneUV, scaleWorldUV, scaleObjetUV,
 import { styleMatiere, jeuDeSurface } from './matieres.js';
 import { estFluide, materiauFluide, dessinerCouronne, courberParoi, loiParoi,
   loiCouronne } from './style.js';
+import { normaliserCourbe, courbeDuMur, loiVoileReglee, loiCouronneReglee, debordCoque } from './courbe-murs.js';
 import { aDesSourcesEtendues } from './primitives.js';
 import { patcherArbreLignes, segmentsMonde } from './lignes-lumiere.js';
 import { compilerRacines, attendreProgrammes, invitesMasque } from './chauffe.js';
@@ -1884,11 +1885,15 @@ export function silhouetteOuverture(o, length, height) {
  * grésillent, et le pied de mur clignotait sur toute sa longueur.
  */
 function murPerce(length, height, ouvertures, sink,
-  { couronneFluide = false, courbe = null } = {}) {
+  { couronneFluide = false, courbe = null, couronne = null } = {}) {
   const forme = new THREE.Shape();
   forme.moveTo(-length / 2, -sink);
   forme.lineTo(length / 2, -sink);
-  if (couronneFluide) {
+  if (couronne) {
+    // le couronnement RÉGLÉ de l'espace (courbe-murs.js) : sa hauteur et
+    // son nombre de vagues sont ceux de l'auteur
+    dessinerCouronne(forme, length, height, Math.max(48, Math.ceil(length * 3)), couronne);
+  } else if (couronneFluide) {
     // le couronnement fluide (mode Hadid) vit dans style.js — fonction
     // pure, conduite par la suite de tests sans WebGL
     dessinerCouronne(forme, length, height);
@@ -2046,6 +2051,10 @@ export function buildShell(config) {
   // sous le sol — personne ne les voit, et le pied redevient net.
   const SINK = 0.08;
 
+  // LA COURBE DE L'ESPACE (beta.11) : quand la coque porte `courbe`, chaque
+  // mur suit SA loi (courbe-murs.js), en direct et quel que soit le style ;
+  // sans elle, le style fluide garde sa loi d'origine
+  const courbe = normaliserCourbe(opt.courbe);
   const has = (wall) => !Array.isArray(opt.walls) || opt.walls.includes(wall);
   const winsOf = (wall) => (opt.windows ?? []).filter((f) => f.wall === wall);
   const FT = 0.12;              // débord du cadre autour de la baie
@@ -2065,13 +2074,25 @@ export function buildShell(config) {
     // le voile bombe vers l'EXTÉRIEUR de la pièce : il agrandit le volume
     // au lieu de venir mordre sur les œuvres accrochées près des murs
     const sens = (wall === 'sud' || wall === 'est') ? 1 : -1;
-    const geo = murPerce(length, h, ouvertures, SINK, {
+    const reglage = courbe ? courbeDuMur(courbe, wall) : null;
+    const loiReglee = reglage
+      ? loiVoileReglee({ length, height: h, sink: SINK, zones, plafonne: !!opt.ceiling, reglage }) : null;
+    const couronneReglee = reglage && !opt.ceiling && reglage.couronne
+      ? loiCouronneReglee({ length, couronne: reglage.couronne }) : null;
+    const geo = murPerce(length, h, ouvertures, SINK, reglage ? {
+      couronne: couronneReglee,
+      // une courbe libre a des détails plus fins qu'une ondulation : une arête plus courte
+      courbe: { plafonne: !!opt.ceiling, sens, zones, loi: loiReglee, arete: reglage.points ? 0.7 : 1.1 }
+    } : {
       couronneFluide: estFluide() && !opt.ceiling,
       courbe: estFluide()
         ? { plafonne: !!opt.ceiling, sens, zones }
         : null
     });
-    if (estFluide()) {
+    if (reglage) {
+      group.userData.courbures ??= {};
+      group.userData.courbures[wall] = { loi: loiReglee, couronne: couronneReglee, sens, rotY, x, z };
+    } else if (estFluide()) {
       // la loi du voile, consultable par les œuvres accrochées au mur
       // (Artwork courbe ses corniches avec) — coordonnées LOCALES du mur :
       // x le long (centré), y la hauteur ; `rotY` et `sens` disent comment
@@ -2125,7 +2146,10 @@ export function buildShell(config) {
   if (has('est')) mur('est', d - WALL_T, w / 2, 0, Math.PI / 2);
 
   if (opt.ceiling) {
-    const plafond = box(w + WALL_T, WALL_T, d + WALL_T, 0, h + WALL_T / 2, 0,
+    // un mur creusé vers l'extérieur s'écarte du bord du plafond : celui-ci
+    // déborde d'autant, sans quoi le ciel passerait par la fente
+    const deb = courbe ? 2 * debordCoque(courbe) : 0;
+    const plafond = box(w + WALL_T + deb, WALL_T, d + WALL_T + deb, 0, h + WALL_T / 2, 0,
       matFor('plafond'));
     // LE PLAFOND EST UNE VERRIÈRE, pas un couvercle. S'il projetait, la
     // coque fermée bloquerait toute la lumière clé : au belvédère (cube de

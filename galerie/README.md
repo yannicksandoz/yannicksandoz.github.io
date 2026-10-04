@@ -5934,6 +5934,50 @@ sous Xvfb : la boîte, Plus tard, retour à la relance, vérification
 contre une API simulée, compte nommé, étape 2, récupération, page
 rechargée sur la nouvelle pièce, plus de boîte ensuite.
 
+**La taille et la courbe des murs (en préparation, beta.11).** « Est-ce
+facile de changer la taille d'une pièce ? Et la courbe des murs ? » Avant :
+les curseurs de la coque rebâtissaient les murs, mais rien ne les suivait,
+et la courbure n'existait qu'à travers le style fluide de toute la galerie,
+au rechargement. Les réponses de l'auteur au questionnaire, et ce qui en
+sort :
+
+- **Ce qui est contre un mur le suit** (« suivre leur mur ») : une œuvre ou
+  un portail à moins de 1,5 m d'un mur existant se déplace avec lui, un
+  angle suit les deux murs ; le reste ne bouge pas
+  (`editor/state/murs-regles.js`, testé au nœud).
+- **Le sol suit, sauf réglage** : il garde sa marge et couvre un mur
+  creusé ; un sol voulu plus vaste (marge de plus de 4,5 m) reste tel
+  quel. Son curseur passe en Expert.
+- **Une seule annulation** défait une redimension entière : coque, sol,
+  œuvres et portails (une portée de commande `roomResizeOnly`).
+- **La coque reste centrée** : tirer un mur écarte le mur opposé d'autant.
+- **Courbe des murs, par espace, en direct** (inspecteur › Espace) :
+  profondeur, nombre d'ondulations, sens creusé ou bombé, au choix ; profil
+  droit ou voile en Expert ; sommet en vagues (hauteur, nombre) pour un
+  espace sans plafond ; **mur par mur** (« régler : mur est »), un mur
+  réglé à part marqué •, « ↺ comme l'espace » pour revenir. Les angles
+  restent jointifs, une baie reste plane, et les corniches suivent leur
+  mur courbé.
+- **Courbe libre, à poignées, comme un chemin de GIMP** : pour un mur, la
+  vue de dessus s'ouvre, resserrée sur ce mur, avec ses ancres (jaunes)
+  et leurs poignées de tangente (blanches), posées sur la courbe actuelle. Glisser une ancre la
+  déplace ; glisser une poignée tourne la tangente, sa jumelle suit en
+  miroir et garde sa longueur ; Alt la casse ; double-clic près de la
+  courbe ajoute une ancre ; Suppr retire l'ancre choisie ; Échap termine
+  (`editor/tools/PoigneesMurs.js`).
+- **Poignées de taille en vue de dessus** : une au milieu de chaque mur,
+  au demi-mètre, 4 m au moins.
+- **La vue de dessus se cadre dans la part visible** de l'écran : la sonde
+  a trouvé le mur est et ses poignées sous l'inspecteur ; le plan se centre
+  maintenant entre la liste des espaces, la barre et le panneau.
+
+Les règles de la courbe (`core/courbe-murs.js`) sont partagées par le
+moteur et l'éditeur, testées au nœud ; elles s'écrivent dans
+`shell.courbe`, que le visiteur bâtit tel quel. Nouvelle sonde
+`npm run sonde:murs` : redimension et annulation, courbe par
+l'inspecteur, mur à part, courbe libre et poignée de taille tirées à la
+souris.
+
 **Épurer l'éditeur, second passage (en préparation, beta.11).** Un tour
 complet en captures (espace, œuvre et ses quatre sous-onglets, mixage,
 Publier, Voxel, essai, fenêtre étroite), puis un questionnaire à l'auteur

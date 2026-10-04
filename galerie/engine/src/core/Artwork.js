@@ -14,7 +14,6 @@ import { choisirSource, supportAudio, chargerAvecRepli } from './formats-audio.j
 import { LecteurFragments, chargerManifeste } from './fragments.js';
 import { liensDuModele, resoudreLienSuivi } from './liens.js';
 import { importerChunk } from './chunks.js';
-import { estFluide } from './style.js';
 import { ajouterLigne, ajouterPolyligne, patcherArbreLignes, MAX_POINTS_POLYLIGNE } from './lignes-lumiere.js';
 
 /**
@@ -1125,7 +1124,8 @@ export class Artwork {
    * mur doucement bombé reste juste à l'œil.
    */
   _courberCorniche(groupe) {
-    if (!estFluide()) return;
+    // la coque n'a de loi que si ses murs sont courbes : style fluide, ou
+    // courbe réglée de l'espace (courbe-murs.js, beta.11)
     const c = this.room?.shell?.userData?.courbures?.[this.config.model?.mur];
     const bandeau = groupe.userData?.bandeau;
     if (!c || !bandeau) return;
