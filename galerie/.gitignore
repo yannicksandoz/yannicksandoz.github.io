@@ -13,8 +13,10 @@ content/.sauvegardes/
 # GALERIE_SOURCES). Ce qui part en ligne est une copie d'écoute encodée.
 sources/
 
-# Les paquets de l’application auteur (electron-builder)
+# Les paquets de l’application auteur (electron-builder), et l'information
+# de build (commit, branche, date) que scripts/app-local.mjs écrit avant
 app-dist/
+app/build-info.json
 
 # bancs éphémères (un _x.mjs à la racine ne se versionne pas)
 /_*.mjs

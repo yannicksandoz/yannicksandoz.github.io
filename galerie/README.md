@@ -27,6 +27,7 @@ la plus récente en premier), qui dit pourquoi chaque chose est comme elle est.
 - [Deux modes](#deux-modes)
 - [Démarrage](#démarrage)
 - [Déploiement](#déploiement)
+- [Quand reconstruire l'application](#quand-reconstruire-lapplication)
 - [Utiliser le moteur avec VOTRE contenu](#utiliser-le-moteur-avec-votre-contenu)
 - [Plan de la galerie](#plan-de-la-galerie)
 - [Composer une exposition](#composer-une-exposition)
@@ -81,7 +82,8 @@ npm run library      # régénère le mobilier de galerie (GLB + vignettes)
 npm run sonde:visuels   # sondes navigateur (Playwright, jamais en CI) : visuels,
                         # editeur, charge, basse-perf, piece-sons, poids-audio, lumiere, lisere
 npm run app          # l'application auteur (Electron) sur dist-auteur/ — télécharge le binaire Electron
-                     # au premier lancement (npm install ne le fait plus) ; app:build l'empaquette, app:icone refait l'icône
+                     # au premier lancement (npm install ne le fait plus) ; app:icone refait l'icône
+npm run app:mac      # le .dmg pour CE Mac, en local, sans GitHub Actions — voir « Quand reconstruire l'application »
 npm run wasm:audio   # recompile la console 7 en wasm (clang)
 ```
 
@@ -241,6 +243,67 @@ galerie.exemple.org {
 
 `base: './'` est configuré dans Vite : le build fonctionne à la racine d'un
 domaine comme dans n'importe quel sous-dossier, sans réglage.
+
+## Quand reconstruire l'application
+
+L'application auteur (`app/`, Electron) se construit **en local, sur le
+Mac**, par une seule commande — jamais par GitHub Actions par défaut : le
+dépôt de l'éditeur est privé, chaque minute d'Actions y compte (macOS ×10),
+et les dix-sept runs de la bêta ont suffi à épuiser le quota du mois.
+
+```bash
+npm run app:mac                  # dans galerie/ : le .dmg pour ce Mac (arm64 ou x64, détecté)
+npm run app:mac -- --universel   # arm64 + x64 dans un seul .dmg, deux fois plus long
+npm run app:win                  # sur un poste Windows ; npm run app:linux sur Linux
+```
+
+La commande (`scripts/app-local.mjs`) enchaîne et s'arrête au premier
+accroc, en le disant : le dépôt est propre et le sous-module éditeur est au
+commit que le site référence (sinon arrêt : le build embarque un commit, il
+doit correspondre à ce qu'il contient ; `--forcer` pour un essai qu'on ne
+distribue pas) ; `npm test` ; le build auteur ; puis electron-builder pour
+ce poste seulement. **La version (`package.json`) n'est pas touchée** : le
+build embarque le commit du site (SHA court), celui de l'éditeur, la
+branche et la date (`app/build-info.json`, hors dépôt), visibles dans
+**Aide › À propos**. À la fin, le chemin du `.dmg` et la marche à suivre :
+quitter l'ancienne application, ouvrir le `.dmg`, glisser « Galerie
+auteur » dans Applications. Un build local n'a pas de quarantaine, il
+s'ouvre directement ; transféré sur un autre Mac, il s'ouvre par Réglages ›
+Confidentialité et sécurité › « Ouvrir quand même ».
+
+Trois gestes, à ne pas confondre :
+
+| Ce qui a changé | Le geste | Ce que ça coûte |
+|---|---|---|
+| `engine/` (le moteur), `app/` (Electron), le sous-module éditeur, les partagés du build (`content/library`, `content/shaders`, `content/textures`), Electron ou les dépendances (`package.json`, `package-lock.json`) | **Reconstruire l'app** : `npm run app:mac`, puis remplacer l'application | Quelques minutes de Mac, zéro minute GitHub |
+| Un contenu que le public doit voir : œuvres, pièces, sons, images, réglages publiés dans le dossier | **Republier le site** : `git push` (le déploiement Pages du dépôt public est gratuit) | Rien |
+| Composer, publier dans le dossier, régler : l'application sert le dossier de contenu en direct | **Rien** | Rien |
+
+**L'application le sait.** Aide › Vérifier les mises à jour ne cherche plus
+de Release : elle compare le commit qu'elle embarque aux derniers commits
+de `master` du dépôt public (API publique, sans jeton) qui touchent
+`engine/`, `app/`, le pointeur du sous-module, les dépendances ou les
+partagés, et dit « Le code a avancé depuis ton build (N commits concernés)
+— relance `npm run app:mac` », avec un bouton qui copie la commande. Au
+démarrage, la même vérification sans bruit ; hors ligne, silence ; un
+retard écarté ne revient pas à chaque ouverture. La règle est pure et
+testée (`app/mises-a-jour-regles.cjs`), le même texte sort dans ⇄ Comparer.
+
+**La roue de secours payante.** Le workflow privé « Application auteur »
+(`.github/workflows/application.yml` de l'éditeur) ne se déclenche que par
+« Run workflow », avec UN SEUL système choisi et le mot `je-paie` saisi
+dans le champ « confirmation » : sans lui, chaque job est sauté et rien
+n'est facturé. Il sert pour un `.exe` Windows, une AppImage, ou un `.dmg`
+quand le Mac n'est pas là ; un tag `app-v*` saisi en fait une Release
+privée. Coût d'un run, mesuré : macOS ≈ 1,5 min ≈ 0,10 $ (15 min de
+quota), Windows ≈ 2,3 min ≈ 0,03 $, Linux ≈ 1,6 min ≈ 0,01 $. Le
+garde-fou `scripts/test-workflows-cout.mjs` (dans `npm test`) lit les
+workflows des deux dépôts et échoue si un job macOS ou Windows redevient
+déclenchable autrement ; sans le sous-module (déploiement public), il se
+saute en le disant. Les règles de conduite sont dans les `CLAUDE.md` des
+deux dépôts : rien qui coûte sans demande explicite, le coût annoncé avant
+d'agir, et à la fin de chaque session de code, dire si l'application est à
+reconstruire.
 
 ## L'expérience visiteur
 
@@ -4444,29 +4507,22 @@ courante cochée) : un clic et l'application change de galerie ; un
 dossier disparu quitte la liste en le disant. Un dossier de galerie
 déposé sur l'icône (macOS, « Ouvrir avec ») ou passé en argument est
 adopté s'il porte un index d'œuvres ou de pièces, rien d'autre n'est
-pris pour une galerie. Aide › Vérifier les mises à jour compare la
-version de l'application à celle du `package.json` du dépôt public,
-lisible sans jeton (les binaires, eux, vivent dans la Release privée) ;
-une version plus récente propose la page des Releases, et la vérification
-se fait aussi sans bruit au démarrage, une version écartée ne revenant
-pas à chaque ouverture. Règles pures et testées au nœud
-(`app/reglages-regles.cjs` : récents sans doublon, comparaison semver
-avec pré-versions, reconnaissance d'une galerie). Pas de mise à jour
-automatique : elle exigerait un jeton dans l'application pour lire une
-Release privée. Pas de clé d'API dans l'application. `npm run app` la lance en
-développement (après `npm run build:auteur`), `npm run app:build` fabrique
-les paquets dans `app-dist/` (electron-builder : `.dmg` universel pour
-macOS, `.exe` NSIS pour Windows, `AppImage` pour Linux), `npm run
-app:icone` redessine l'icône (`scripts/genere-icone-app.mjs`, un PNG
-encodé à la main, sans bibliothèque). **Les binaires sont privés** : ils
-embarquent l'éditeur, et les Releases d'un dépôt public sont publiques. Le
-workflow qui les construit vit donc dans le dépôt privé de l'éditeur
-(`.github/workflows/application.yml`) : il clone le site, y place
-l'éditeur comme sous-module, construit sur macOS, Windows et Linux, et
-range les paquets dans une Release privée sur un tag `app-v*`. La
-signature macOS et Windows est facultative et vient des secrets d'Actions
-s'ils existent ; sans elle, macOS demande un clic droit › Ouvrir à la
-première ouverture. Vérifié sous Xvfb (Playwright pilote Electron) :
+pris pour une galerie. Aide › Vérifier les mises à jour compare le commit
+que l'application embarque aux derniers commits du dépôt public qui la
+concernent (voir « Quand reconstruire l'application » : plus de Release,
+le build est local), sans bruit au démarrage, un retard écarté ne revenant
+pas à chaque ouverture ; Aide › À propos montre le commit, la branche et
+la date du build. Règles pures et testées au nœud (`app/reglages-regles.cjs`
+: récents sans doublon, reconnaissance d'une galerie ;
+`app/mises-a-jour-regles.cjs` : les commits concernés). Pas de clé d'API
+dans l'application. `npm run app` la lance en développement (après `npm
+run build:auteur`), `npm run app:mac` fabrique le `.dmg` de ce Mac dans
+`app-dist/`, `npm run app:icone` redessine l'icône
+(`scripts/genere-icone-app.mjs`, un PNG encodé à la main, sans
+bibliothèque). **Les binaires sont privés** : ils embarquent l'éditeur, et
+les Releases d'un dépôt public sont publiques ; la roue de secours payante
+(le workflow du dépôt privé, à la demande, gardé par `je-paie`) est
+décrite plus haut. Vérifié sous Xvfb (Playwright pilote Electron) :
 l'application démarre, sert le dossier de l'auteur devant le build,
 entre en édition, expose l'API de publication, sert les plages, relaie
 les proxys, ouvre les liens dehors, et son menu est en français.
@@ -5256,9 +5312,9 @@ droite, suit la lecture, la comparaison puis chaque fichier écrit.
 
 **⇄ Comparer** — la même lecture, sans rien écrire : le dossier face à la
 version en ligne (identiques, différents, seulement en ligne, seulement
-ici — les noms des premiers), et, dans l'application, sa version face à
-celle de référence (le `package.json` du dépôt public, la même que Aide ›
-Vérifier les mises à jour). La boîte « Bienvenue » fait cette comparaison
+ici — les noms des premiers), et, dans l'application, son build face aux
+derniers commits du dépôt qui la concernent (la même lecture qu'Aide ›
+Vérifier les mises à jour : « le code a avancé depuis ton build »). La boîte « Bienvenue » fait cette comparaison
 d'elle-même à son étape 2 : elle dit ce qui diffère, et « Récupérer »
 n'est proposé que s'il y a quelque chose à récupérer.
 
@@ -5933,6 +5989,29 @@ revient à l'ouverture suivante tant que rien n'est configuré
 sous Xvfb : la boîte, Plus tard, retour à la relance, vérification
 contre une API simulée, compte nommé, étape 2, récupération, page
 rechargée sur la nouvelle pièce, plus de boîte ensuite.
+
+**Zéro minute GitHub Actions par défaut : l'application se construit
+en local (beta.11).** Dix-sept runs du workflow « Application auteur »
+entre le 29 et le 30 septembre — une matrice macOS, Windows, Linux à
+chaque branche `release/app-v*` poussée, 22 minutes de quota par run, le
+job macOS comptant ×10 — ont épuisé le quota du dépôt privé. La règle
+devient : l'application se construit sur le Mac, par `npm run app:mac`
+(`scripts/app-local.mjs` : dépôt propre et sous-module au commit
+référencé, sinon arrêt clair ; tests ; build auteur ; le commit, la
+branche et la date embarqués ; electron-builder pour ce poste seulement ;
+le chemin du `.dmg` et la marche à suivre). La version n'est pas touchée.
+Le workflow privé ne se déclenche plus que par « Run workflow », un seul
+système par run, gardé par le mot `je-paie` sur chaque job coûteux, avec
+timeout et concurrence ; une CI de tests Linux à la demande le rejoint
+(≈ 1,5 min par run, 0,01 $ s'il était facturé). Aide › Vérifier les mises
+à jour ne cherche plus de Release : l'application compare son commit aux
+derniers commits du dépôt public qui la concernent (API publique, sans
+jeton) et dit de relancer `npm run app:mac` ; Aide › À propos montre le
+build. Un garde-fou dans `npm test` lit les workflows des deux dépôts et
+échoue si un job macOS ou Windows redevient déclenchable sans
+`workflow_dispatch` et `je-paie` ; il se saute sans le sous-module. Les
+`CLAUDE.md` des deux dépôts portent les règles de conduite. Voir « Quand
+reconstruire l'application ».
 
 **La forme des murs, relue avant publication (en préparation, beta.11).**
 « Avant de publier, y a-t-il des améliorations de design et d'ergonomie

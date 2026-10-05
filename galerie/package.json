@@ -27,6 +27,7 @@
     "sonde:trajet": "node scripts/sonde-trajet.cjs",
     "sonde:barre": "node scripts/sonde-barre.cjs",
     "sonde:murs": "node scripts/sonde-murs.cjs",
+    "sonde:app-build": "xvfb-run -a node scripts/sonde-app-build.cjs",
     "sonde:poids-audio": "node scripts/sonde-poids-audio.cjs",
     "sonde:lumiere": "node scripts/sonde-lumiere.cjs",
     "sonde:lisere": "node scripts/sonde-lisere.cjs",
@@ -38,7 +39,9 @@
     "wasm:audio": "clang --target=wasm32 -O3 -nostdlib -Wl,--no-entry -Wl,--export-dynamic -o engine/assets/wasm/console7.wasm engine/src/audio/console7.c",
     "preapp": "install-electron",
     "app": "electron .",
-    "app:build": "npm run build:auteur && electron-builder",
+    "app:mac": "node scripts/app-local.mjs --mac",
+    "app:win": "node scripts/app-local.mjs --win",
+    "app:linux": "node scripts/app-local.mjs --linux",
     "app:icone": "node scripts/genere-icone-app.mjs"
   },
   "dependencies": {

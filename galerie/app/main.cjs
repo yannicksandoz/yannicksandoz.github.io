@@ -21,12 +21,13 @@
  * liens vers le dehors s'ouvrent dans le navigateur du système.
  */
 'use strict';
-const { app, BrowserWindow, Menu, dialog, shell, session, ipcMain, screen } = require('electron');
+const { app, BrowserWindow, Menu, dialog, shell, session, ipcMain, screen, clipboard } = require('electron');
 const path = require('node:path');
 const fs = require('node:fs');
 const { demarrerServeur } = require('./serveur.cjs');
 const { Dossiers } = require('./dossiers.cjs');
-const { noterRecent, plusRecente, estUneGalerie, lienExterneSur, portPrefere } = require('./reglages-regles.cjs');
+const { noterRecent, estUneGalerie, lienExterneSur, portPrefere } = require('./reglages-regles.cjs');
+const { COMMANDE_BUILD, normaliserInfoBuild, urlsCommits, commitsConcernes, texteMiseAJour, texteAPropos } = require('./mises-a-jour-regles.cjs');
 const { creerGalerie, dossierVide } = require('./galerie-neuve.cjs');
 const { GitLocal } = require('./git-local.cjs');
 const { fragmenterLot } = require('./fragments-auto.cjs');
@@ -35,11 +36,14 @@ const { fragmenterLot } = require('./fragments-auto.cjs');
 // build.asarUnpack) : le serveur le lit par flux et « Nouvelle galerie… »
 // en copie les partagés, deux choses que l'archive ne sait pas faire
 const DIST = path.join(__dirname, '..', 'dist-auteur').replace(`${path.sep}app.asar${path.sep}`, `${path.sep}app.asar.unpacked${path.sep}`);
-const PAGE_RELEASES = 'https://github.com/yannicksandoz/yr0-editor/releases';
-// la version de référence : celle du dépôt PUBLIC du site, lisible sans jeton
-// (les binaires, eux, vivent dans une Release privée)
-const URL_VERSION = process.env.GALERIE_URL_VERSION
-  || 'https://raw.githubusercontent.com/yannicksandoz/yannicksandoz.github.io/master/galerie/package.json';
+// L'application se construit en local (npm run app:mac) et embarque le
+// commit, la branche et la date de son build (app/build-info.json, écrit par
+// scripts/app-local.mjs). Lancée par `npm run app` sans build : null.
+const INFO_BUILD = (() => {
+  try { return normaliserInfoBuild(JSON.parse(fs.readFileSync(path.join(__dirname, 'build-info.json'), 'utf8'))); } catch { return null; }
+})();
+// l'API publique de GitHub, sans jeton : les commits du dépôt du site
+const API_GITHUB = process.env.GALERIE_API_GITHUB || 'https://api.github.com';
 
 /* ------------------------------------------------------------ réglages --- */
 
@@ -195,57 +199,76 @@ function ouvrirDossierDepose(chemin) {
 /* ------------------------------------------------------ mises à jour --- */
 
 /**
- * La version de référence est celle du package.json du dépôt public : pas
- * de jeton, pas de Release à interroger. `silencieux` : au démarrage, on
- * ne dit rien si tout est à jour, ni si le réseau manque.
+ * Plus de Release construite par CI : l'application compare le commit
+ * qu'elle embarque aux commits de master du dépôt public (API publique,
+ * sans jeton) qui touchent ce dont elle est faite — engine/, app/, le
+ * pointeur du sous-module, les dépendances, les partagés du build
+ * (app/mises-a-jour-regles.cjs). Le contenu, lui, est servi en direct.
  */
-async function versionEnLigne() {
-  const r = await fetch(URL_VERSION, { headers: { 'Cache-Control': 'no-cache' }, signal: AbortSignal.timeout(8000) });
-  if (!r.ok) throw new Error(`HTTP ${r.status}`);
-  return String((await r.json()).version ?? '');
+async function commitsDepuisLeBuild() {
+  if (!INFO_BUILD) return null;
+  const listes = await Promise.all(urlsCommits({ base: API_GITHUB, depuis: INFO_BUILD.date }).map(async (url) => {
+    const r = await fetch(url, { headers: { Accept: 'application/vnd.github+json', 'Cache-Control': 'no-cache' }, signal: AbortSignal.timeout(8000) });
+    if (!r.ok) throw new Error(`HTTP ${r.status}`);
+    return r.json();
+  }));
+  return commitsConcernes(listes, INFO_BUILD);
 }
 
 /**
- * L'application face à sa version de référence, sans boîte : ce que la page
- * montre dans « Comparer » (bloc 3). `enLigne` null : pas pu lire.
+ * L'application face au dépôt, sans boîte : ce que la page montre dans
+ * « Comparer » (Publier › Mettre en ligne). `commits` null : pas pu lire,
+ * ou build de développement.
  */
 async function etatVersion() {
   const courante = app.getVersion();
-  let enLigne = null;
-  try { enLigne = await versionEnLigne(); } catch { enLigne = null; }
-  return { courante, enLigne, nouvelle: Boolean(enLigne && plusRecente(enLigne, courante)) };
+  let commits = null;
+  try { commits = await commitsDepuisLeBuild(); } catch { commits = null; }
+  return { courante, build: INFO_BUILD, commits: commits ? commits.length : null, nouvelle: Boolean(commits?.length), commande: COMMANDE_BUILD };
 }
 
+/** `silencieux` : au démarrage, on ne dit rien si tout est à jour, ni hors ligne. */
 async function verifierMisesAJour({ silencieux = false } = {}) {
-  const courante = app.getVersion();
-  let derniere = null;
-  try {
-    derniere = await versionEnLigne();
-  } catch (e) {
+  const version = app.getVersion();
+  if (!INFO_BUILD) {
     if (!silencieux) {
-      dialog.showMessageBox(fenetre ?? undefined, { type: 'warning', message: 'Impossible de vérifier',
-        detail: `La version de référence n’a pas pu être lue (${e?.message ?? e}). Réessayez plus tard, ou ouvrez la page des Releases.` });
+      dialog.showMessageBox(fenetre ?? undefined, { type: 'info', message: 'Build de développement',
+        detail: `Lancée par npm run app : aucun commit embarqué à comparer. ${COMMANDE_BUILD} fabrique l’application avec le sien.` });
     }
     return null;
   }
-  const nouvelle = plusRecente(derniere, courante);
-  if (!nouvelle) {
+  let commits;
+  try {
+    commits = await commitsDepuisLeBuild();
+  } catch (e) {
     if (!silencieux) {
-      dialog.showMessageBox(fenetre ?? undefined, { type: 'info', message: 'Vous êtes à jour',
-        detail: `Version ${courante} — c’est la plus récente.` });
+      dialog.showMessageBox(fenetre ?? undefined, { type: 'warning', message: 'Impossible de vérifier',
+        detail: `Les derniers commits du dépôt public n’ont pas pu être lus (${e?.message ?? e}). Hors ligne ? Réessayez plus tard.` });
     }
-    return { courante, derniere, nouvelle: false };
+    return null;
   }
-  // au démarrage, une version déjà écartée ne revient pas à chaque ouverture
-  if (silencieux && reglages.versionEcartee === derniere) return { courante, derniere, nouvelle: true };
+  const detail = texteMiseAJour({ version, build: INFO_BUILD, commits });
+  if (!commits.length) {
+    if (!silencieux) dialog.showMessageBox(fenetre ?? undefined, { type: 'info', message: 'Vous êtes à jour', detail });
+    return { courante: version, commits: 0, nouvelle: false };
+  }
+  // au démarrage, un retard déjà écarté ne revient pas à chaque ouverture
+  const dernier = commits[0].sha;
+  if (silencieux && reglages.commitEcarte === dernier) return { courante: version, commits: commits.length, nouvelle: true };
   const r = await dialog.showMessageBox(fenetre ?? undefined, {
-    type: 'info', buttons: ['Voir la Release', 'Plus tard'], defaultId: 0, cancelId: 1,
-    message: `Une version ${derniere} est disponible`,
-    detail: `Vous avez la ${courante}. Les paquets se téléchargent depuis la page des Releases (dépôt privé de l’éditeur, votre compte GitHub).`
+    type: 'info', buttons: ['Copier la commande', 'Plus tard'], defaultId: 0, cancelId: 1,
+    message: `Le code a avancé depuis ton build (${commits.length} commit${commits.length > 1 ? 's' : ''} concerné${commits.length > 1 ? 's' : ''})`,
+    detail
   });
-  if (r.response === 0) shell.openExternal(PAGE_RELEASES);
-  else if (silencieux) { reglages.versionEcartee = derniere; ecrireReglages(reglages); }
-  return { courante, derniere, nouvelle: true };
+  if (r.response === 0) clipboard.writeText(COMMANDE_BUILD);
+  else if (silencieux) { reglages.commitEcarte = dernier; ecrireReglages(reglages); }
+  return { courante: version, commits: commits.length, nouvelle: true };
+}
+
+/** Aide › À propos : la version, le commit, la branche et la date du build. */
+function aPropos() {
+  dialog.showMessageBox(fenetre ?? undefined, { type: 'info', message: `Galerie auteur ${app.getVersion()}`,
+    detail: texteAPropos({ version: app.getVersion(), build: INFO_BUILD, versions: process.versions }) });
 }
 
 /* ---------------------------------------------------------------- pont --- */
@@ -439,8 +462,8 @@ function construireMenu() {
       role: 'help',
       submenu: [
         { label: 'Vérifier les mises à jour…', click: () => verifierMisesAJour() },
-        { label: 'Page des Releases', click: () => shell.openExternal(PAGE_RELEASES) },
-        { label: `Version ${app.getVersion()}`, enabled: false }
+        { label: 'À propos…', click: () => aPropos() },
+        { label: `Version ${app.getVersion()}${INFO_BUILD ? ` · build ${INFO_BUILD.commit}` : ' · développement'}`, enabled: false }
       ]
     }
   ];
