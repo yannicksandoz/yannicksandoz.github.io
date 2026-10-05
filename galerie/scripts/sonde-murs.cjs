@@ -105,7 +105,7 @@ const attendre = (page, ms) => page.waitForTimeout(ms);
     regler('input[type="range"][data-cm="ondes"]', 3);
     await pause(300);
     const solCreuse = app.rooms.current.config.floor?.size;
-    regler('select[data-cm-sens]', 'bombe', 'change');
+    document.querySelector('.ins-choix[data-cm-choix="sens"] button[data-v="bombe"]').click();
     await pause(300);
     const solBombe = app.rooms.current.config.floor?.size;
     let couronne = null;
@@ -124,7 +124,7 @@ const attendre = (page, ms) => page.waitForTimeout(ms);
     // un mur à part : l'est, plus creusé
     regler('select[data-cm-cible]', 'est', 'change');
     await pause(400);
-    regler('select[data-cm-sens]', 'creuse', 'change');
+    document.querySelector('.ins-choix[data-cm-choix="sens"] button[data-v="creuse"]').click();
     await pause(300);
     regler('input[type="range"][data-cm="profondeur"]', 3);
     await pause(400);
@@ -247,7 +247,17 @@ const attendre = (page, ms) => page.waitForTimeout(ms);
   const p5 = await lire();
   verif(p5.points?.length === 3, `annuler la rend : ${p5.points?.length} ancres`);
 
-  // Échap termine la courbe libre (la vue de dessus reste)
+  // le bandeau en vue de dessus, puis Échap termine la courbe libre (la vue de dessus reste)
+  const bandeauSol = await page.evaluate(() => { const el = document.getElementById('ed-poignees'); return el && !el.hidden ? el.querySelector('[data-p="titre"]')?.textContent : null; });
+  verif(bandeauSol === 'Courbe du mur est', `le bandeau en vue de dessus : « ${bandeauSol} »`);
+  // l'étiquette d'une poignée de taille
+  const tEt = await ecran({ type: 'taille', mur: 'est' });
+  await page.mouse.move(tEt[0], tEt[1]); await page.mouse.down();
+  await page.mouse.move(tEt[0] + 30, tEt[1]); await attendre(page, 200);
+  const etTaille = await page.evaluate(() => { const el = document.getElementById('ed-poignee-valeur'); return el && !el.hidden ? el.textContent : null; });
+  await page.mouse.up(); await attendre(page, 300);
+  await page.evaluate(() => window.__galerie.editor.doc.undo()); await attendre(page, 300);
+  verif(/^largeur [\d,]+ m$/.test(etTaille ?? ''), `l'étiquette d'une poignée de taille : « ${etTaille} »`);
   await page.keyboard.press('Escape');
   await attendre(page, 300);
   const fin = await page.evaluate(() => ({ mur: window.__galerie.editor.poignees.mur, vue: window.__galerie.editor.vueDessus.actif,
@@ -310,9 +320,9 @@ const attendre = (page, ms) => page.waitForTimeout(ms);
     await pause(400);
     const cour = document.querySelector('input[data-cm-cour-on]');
     if (!cour.checked) { cour.click(); await pause(500); }
-    regler('select[data-cm-cour-sel="forme"]', 'vagues', 'change');
+    document.querySelector('.ins-choix[data-cm-cour-choix="forme"] button[data-v="vagues"]').click();
     await pause(400);
-    regler('select[data-cm-cour-sel="sens"]', 'haut', 'change');
+    document.querySelector('.ins-choix[data-cm-cour-choix="sens"] button[data-v="haut"]').click();
     await pause(400);
     regler('input[type="range"][data-cm-cour="ondes"]', 1);
     await pause(300);
@@ -326,7 +336,7 @@ const attendre = (page, ms) => page.waitForTimeout(ms);
   verif(Math.abs(hautNord - (r5.h + 2.5)) < 0.15, `le mur nord monte : haut ${hautNord} m pour ${r5.h} + 2,5`);
   verif(Math.abs(r5.lampeHaut - r5.attendu) < 0.05 && r5.lampeHaut > r5.haut0, `la lampe près du haut monte avec lui : y ${(r5.haut0 - 0.4).toFixed(2)} → ${r5.lampeHaut}`);
   await page.evaluate(async () => {
-    const e = document.querySelector('select[data-cm-cour-sel="sens"]'); e.value = 'bas'; e.dispatchEvent(new Event('change', { bubbles: true }));
+    document.querySelector('.ins-choix[data-cm-cour-choix="sens"] button[data-v="bas"]').click();
     await new Promise((r) => setTimeout(r, 600));
   });
   const basNord = await hautMur('nord');
@@ -360,8 +370,27 @@ const attendre = (page, ms) => page.waitForTimeout(ms);
   });
   verif(f0.face && f0.mode === 'sommet' && f0.points?.length === 3, `vue de face sur le nord, trois ancres posées sur la silhouette : ${JSON.stringify(f0.points?.map((p) => [p.t, p.d]))}`);
   verif(f0.types.filter((t) => t === 'angle').length === 2 && f0.types.filter((t) => t === 'ancre').length === 3, `poignées : ${f0.types.join(' ')}`);
+  const bandeau = await page.evaluate(() => {
+    const el = document.getElementById('ed-poignees');
+    const barre = document.querySelector('#editor-bar button[data-a="dessus"]');
+    return { visible: !!el && !el.hidden && getComputedStyle(el).display !== 'none', titre: el?.querySelector('[data-p="titre"]')?.textContent, barre: barre?.classList.contains('active') };
+  });
+  verif(bandeau.visible && bandeau.titre === 'Haut du mur nord' && bandeau.barre, `le bandeau de mode : « ${bandeau.titre} », le bouton de la barre allumé`);
+  await page.click('#ed-poignees button[data-p="ancre"]');
+  await attendre(page, 500);
+  const plusUne = await page.evaluate(() => window.__galerie.rooms.current.config.shell.courbe.murs.nord.couronne.points.length);
+  verif(plusUne === 4, `« + ancre » du bandeau : ${plusUne} ancres`);
+  await page.evaluate(() => window.__galerie.editor.doc.undo());
+  await attendre(page, 400);
   const a5 = await ecran({ type: 'ancre', i: 1 });
-  await tirer(a5, [a5[0], a5[1] - 50]);
+  // l'étiquette pendant le geste : on tient le bouton enfoncé pour la lire
+  await page.mouse.move(a5[0], a5[1]); await page.mouse.down();
+  await page.mouse.move(a5[0], a5[1] - 25); await attendre(page, 120);
+  await page.mouse.move(a5[0], a5[1] - 50); await attendre(page, 200);
+  const etiquette = await page.evaluate(() => { const el = document.getElementById('ed-poignee-valeur'); return el && !el.hidden ? el.textContent : null; });
+  await page.mouse.up(); await attendre(page, 400);
+  const etiquetteApres = await page.evaluate(() => { const el = document.getElementById('ed-poignee-valeur'); return el && !el.hidden ? el.textContent : null; });
+  verif(/^\+?-?[\d,]+ m · [\d,]+ m$/.test(etiquette ?? '') && etiquetteApres === null, `l'étiquette pendant le geste (« ${etiquette} »), partie au relâchement`);
   const f1 = await page.evaluate(() => window.__galerie.rooms.current.config.shell.courbe.murs.nord.couronne.points);
   verif(f1[1].d > f0.points[1].d + 0.5 && Math.abs(f1[1].t - f0.points[1].t) < 0.02,
     `l'ancre du milieu, tirée vers le haut : ${f0.points[1].d} → ${f1[1].d}`);
@@ -376,6 +405,8 @@ const attendre = (page, ms) => page.waitForTimeout(ms);
   const f3 = await page.evaluate(() => ({ face: window.__galerie.editor.vueFace.actif, cam: window.__galerie.camera.position.toArray(), near: window.__galerie.camera.near }));
   verif(!f3.face && f3.cam.every((v, i) => Math.abs(v - camAvant[i]) < 1e-6) && f3.near < 1,
     `Échap quitte la vue de face, la caméra revient (plan proche ${f3.near})`);
+  const bandeauParti = await page.evaluate(() => document.getElementById('ed-poignees')?.hidden);
+  verif(bandeauParti === true, 'le bandeau de mode se range avec la vue');
 
   // le plafond suit, en voûte
   const r5c = await page.evaluate(async () => {

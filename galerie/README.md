@@ -5934,6 +5934,29 @@ sous Xvfb : la boîte, Plus tard, retour à la relance, vérification
 contre une API simulée, compte nommé, étape 2, récupération, page
 rechargée sur la nouvelle pièce, plus de boîte ensuite.
 
+**La forme des murs, relue avant publication (en préparation, beta.11).**
+« Avant de publier, y a-t-il des améliorations de design et d'ergonomie
+possibles ? » Un tour en captures de la section, de la vue de face et de
+la vue de dessus, un questionnaire, et ce qui en sort :
+
+- **Des boutons plutôt que des menus** : « creusé / bombé », « plus haut /
+  plus bas », « arches / vagues / irrégulières » sont des rangées à un seul
+  choix, sur le modèle de la pilule Simple / Expert ; tout se lit d'un
+  coup, un clic règle.
+- **Un bandeau de mode** pendant l'édition à poignées, en bas de l'écran :
+  « Haut du mur nord », ‹ › pour passer au mur voisin, « + ancre » qui pose
+  une ancre au milieu du plus grand vide, le rappel des gestes, et
+  Terminer. Il remplace la notification qui se fermait. Le bouton de la
+  barre « vue de dessus » s'allume aussi en vue de face, et en sort.
+- **La valeur pendant le geste** : une étiquette près du pointeur, « largeur
+  40 m », « angle +1,5 m · 9,5 m », « +1,2 m vers l'extérieur ».
+- **Le dessous du plafond s'éclaire un peu** : il partageait le matériau
+  des murs et ne recevait rien de la clé ; il a le sien, qui s'éclaire de
+  sa couleur comme un plafond lumineux de musée. Une voûte se lit en
+  relief ; le plafond plat en profite.
+- Les deux boutons « Retoucher… » et « Effacer » tiennent sur une ligne ;
+  les textes d'aide font une ligne.
+
 **Le haut des murs (en préparation, beta.11).** « On peut courber les
 murs dans leur chemin au sol ; peut-on aussi courber la silhouette en
 hauteur, le haut du mur plus haut ou plus bas ? » Avant : un « sommet en

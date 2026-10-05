@@ -2160,9 +2160,17 @@ export function buildShell(config) {
     // déborde d'autant, sans quoi le ciel passerait par la fente
     const deb = courbe ? 2 * debordCoque(courbe) : 0;
     const suit = courbe && (courbe.voute > 0 || MURS.some((m) => sommetModele(courbe, m)));
+    // UN LÉGER ÉCLAIRAGE DU DESSOUS : la clé vient d'en haut, le dessous du
+    // plafond ne recevait rien et se lisait noir — une voûte n'y montrait que
+    // son bord. Le plafond a son propre matériau (il partageait celui des
+    // murs de même couleur), qui s'éclaire un peu de sa couleur, comme un
+    // plafond lumineux de musée. Coût nul, le plat en profite aussi.
+    const matPlafond = matFor('plafond').clone();
+    matPlafond.emissive = matPlafond.color.clone();
+    matPlafond.emissiveIntensity = 0.16;
     const plafond = suit
-      ? plafondQuiSuit(courbe, { w, d, h, deb, walls: opt.walls, mat: matFor('plafond'), habille: Boolean(wallMap || wallMatiere), repMur })
-      : box(w + WALL_T + deb, WALL_T, d + WALL_T + deb, 0, h + WALL_T / 2, 0, matFor('plafond'));
+      ? plafondQuiSuit(courbe, { w, d, h, deb, walls: opt.walls, mat: matPlafond, habille: Boolean(wallMap || wallMatiere), repMur })
+      : box(w + WALL_T + deb, WALL_T, d + WALL_T + deb, 0, h + WALL_T / 2, 0, matPlafond);
     if (suit) group.add(plafond);
     // LE PLAFOND EST UNE VERRIÈRE, pas un couvercle. S'il projetait, la
     // coque fermée bloquerait toute la lumière clé : au belvédère (cube de
