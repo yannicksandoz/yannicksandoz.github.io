@@ -354,7 +354,7 @@ function adressePage() {
 
 function ouvrirPage() {
   if (!fenetre || !serveur) return;
-  fenetre.loadURL(adressePage());
+  fenetre.loadURL(adressePage()).catch(() => { /* un chargement remplacé par le suivant (ERR_ABORTED) */ });
 }
 
 /* ------------------------------------------------------------- fenêtre --- */
@@ -427,7 +427,7 @@ function construireMenu() {
         { label: 'Ouvrir le dossier de contenu', enabled: Boolean(reglages.contenu),
           click: () => { if (reglages.contenu) shell.openPath(reglages.contenu); } },
         { label: 'Galeries récentes', submenu: [
-          ...(reglages.recents ?? []).map((chemin) => ({
+          ...(reglages.recents ?? []).filter((c) => typeof c === 'string' && c).map((chemin) => ({
             label: `${path.basename(chemin)}  —  ${path.dirname(chemin)}`,
             type: 'checkbox', checked: chemin === reglages.contenu,
             click: () => ouvrirRecente(chemin)
@@ -543,6 +543,8 @@ app.whenReady().then(async () => {
   construireMenu();
   creerFenetre();
   ouvrirPage();
+  // (ce bloc est attrapé plus bas : un réglage corrompu ne laisse pas
+  // l'application sans fenêtre ni message)
   // premier lancement : sans dossier de contenu, la galerie du build sert de
   // départ, et l'on propose d'en choisir un — sans bloquer l'ouverture
   if (!reglages.contenu && !process.env.GALERIE_SANS_DIALOGUE) {
@@ -558,6 +560,10 @@ app.whenReady().then(async () => {
   // une version plus récente ? Demandé sans bruit, une fois la galerie ouverte
   if (!process.env.GALERIE_SANS_DIALOGUE) setTimeout(() => verifierMisesAJour({ silencieux: true }), 6000);
   app.on('activate', () => { if (!fenetre) { creerFenetre(); ouvrirPage(); } });
+}).catch((e) => {
+  // un réglage corrompu, un dossier illisible : le dire, et sortir proprement
+  dialog.showErrorBox('Galerie auteur', `L’application n’a pas pu démarrer : ${e?.message ?? e}`);
+  app.quit();
 });
 
 app.on('window-all-closed', () => { if (process.platform !== 'darwin') app.quit(); });

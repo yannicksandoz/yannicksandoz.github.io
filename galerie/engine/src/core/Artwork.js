@@ -136,8 +136,11 @@ function disposeObject3D(root) {
     o.geometry?.dispose();
     if (o.material) {
       (Array.isArray(o.material) ? o.material : [o.material]).forEach((m) => {
-        m.map?.dispose();
-        m.emissiveMap?.dispose();
+        // les tuiles de textures.js et les cartes de matieres.js sont
+        // partagées par toute la galerie (`userData.partagee`) : seule une
+        // texture propre à l'œuvre (image, vidéo, écran) se rend ici
+        if (m.map && !m.map.userData?.partagee) m.map.dispose();
+        if (m.emissiveMap && !m.emissiveMap.userData?.partagee) m.emissiveMap.dispose();
         m.dispose();
       });
     }
@@ -778,6 +781,12 @@ export class Artwork {
     }
     this.group.remove(this.mesh);
     disposeObject3D(this.mesh);
+    // l'ombre de contact est posée avec le maillage : elle part avec lui
+    if (this._contact) {
+      this.group.remove(this._contact);
+      disposeObject3D(this._contact);
+      this._contact = null;
+    }
     this._mixer?.stopAllAction();
     this._mixer = null;
     this.modelAnimations = 0;
@@ -1308,7 +1317,7 @@ export class Artwork {
    * force pour un cas que la règle rate.
    */
   _poserContact(mesh) {
-    if (this._contact) { this.group.remove(this._contact); this._contact = null; }
+    if (this._contact) { this.group.remove(this._contact); disposeObject3D(this._contact); this._contact = null; }
     const cfg = this.config;
     if (cfg.contact === false) return;
     const forme = cfg.model?.shape;
@@ -1409,6 +1418,18 @@ export class Artwork {
           else if (this._urlsStems[i]) engine.release(this._urlsStems[i]);
         });
         throw rate.reason;
+      }
+      // L'ŒUVRE A ÉTÉ DÉTRUITE PENDANT LE TÉLÉCHARGEMENT (scène rebâtie par
+      // l'éditeur, œuvre supprimée) : `dispose()` n'avait rien à libérer,
+      // `audioReady` étant faux. Brancher maintenant ferait une voie, une
+      // tranche et des tampons que plus personne ne rendrait.
+      if (this._detruite) {
+        resultats.forEach((r, i) => {
+          if (r.status !== 'fulfilled') return;
+          if (lecteurs[i]) lecteurs[i].liberer();
+          else if (this._urlsStems[i]) engine.release(this._urlsStems[i]);
+        });
+        return;
       }
       const buffers = resultats.map((r) => r.value);
       const ctx = engine.ctx;
@@ -1517,6 +1538,11 @@ export class Artwork {
         } else {
           s.gain.gain.setTargetAtTime(cible, t0, 0.12);
         }
+        // une source encore en FONDU DE SORTIE (réactivée avant la fin de
+        // son fondu, budget de voix) s'arrête maintenant : sinon deux
+        // sources jouaient la même boucle, +6 dB, puis l'ancienne coupait
+        // net à pleine amplitude au bout de son `stop`
+        if (s.sortante) { try { s.sortante.stop(t0); } catch { /* déjà */ } s.sortante = null; }
         if (s.lecteur) { s.lecteur.demarrer(quand, Math.max(0, position)); continue; }
         const src = ctx.createBufferSource();
         src.buffer = s.buffer;
@@ -1547,8 +1573,9 @@ export class Artwork {
         s.source = null;
         if (!src) continue;
         try { src.stop(t + duree); } catch { /* déjà arrêtée */ }
+        s.sortante = src;
         // la déconnexion attend la fin du fondu, sinon elle le coupe
-        src.onended = () => { try { src.disconnect(); } catch { /* déjà */ } };
+        src.onended = () => { if (s.sortante === src) s.sortante = null; try { src.disconnect(); } catch { /* déjà */ } };
       }
     }
   }
@@ -1599,7 +1626,10 @@ export class Artwork {
         bus.disconnect();
       }
     };
-    setTimeout(trancher, (EXTINCTION + 0.1) * 1000);
+    // …après le PLUS LONG des fondus de sortie, pas seulement l'extinction :
+    // une piste à `fonduSortie: 3` était tranchée à 220 ms, à 80 % du niveau
+    const plusLong = Math.max(EXTINCTION, ...stems.map((s) => enveloppe(s.cfg).fonduSortie || 0));
+    setTimeout(trancher, (plusLong + 0.1) * 1000);
     this.bus = null;
     this.entreeSon = null;
     this.stems = [];
@@ -1838,6 +1868,7 @@ export class Artwork {
   }
 
   dispose() {
+    this._detruite = true;   // un chargement audio encore en vol rendra ce qu'il a pris
     for (const m of this.modules) m.dispose();
     // la plaque d'abord : ses lettres partagent leurs ressources avec les
     // autres cartels — c'est disposerCartel qui sait quoi rendre à qui

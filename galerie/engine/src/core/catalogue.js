@@ -60,7 +60,7 @@ export function carteHtml(w, labels = {}) {
         ${audio ? `<audio controls preload="none" src="${esc(audio)}"></audio>` : ''}
         <p class="liens">
           <a href="./?work=${encodeURIComponent(w.id)}">${esc(labels.voir3d ?? '')}</a>
-          ${w.link ? ` · <a href="${esc(w.link)}" target="_blank" rel="noopener noreferrer">${esc(labels.enSavoirPlus ?? '')}</a>` : ''}
+          ${/^https?:\/\//i.test(String(w.link ?? '')) ? ` · <a href="${esc(w.link)}" target="_blank" rel="noopener noreferrer">${esc(labels.enSavoirPlus ?? '')}</a>` : ''}
         </p>
       </article>`;
 }

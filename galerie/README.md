@@ -5990,6 +5990,73 @@ sous Xvfb : la boîte, Plus tard, retour à la relance, vérification
 contre une API simulée, compte nommé, étape 2, récupération, page
 rechargée sur la nouvelle pièce, plus de boîte ensuite.
 
+**Un audit du code visiteur et éditeur, à quatre relecteurs (beta.11).**
+Quatre relectures en lecture seule — la scène et l'interface du visiteur,
+la chaîne audio, l'éditeur, l'application et sa sécurité — avec ordre de
+ne rapporter que ce qui avait été vérifié ligne à ligne : cinquante et une
+pistes, quarante-sept revérifiées ici et retenues. Ce qui est corrigé :
+
+- **Sécurité.** La fragmentation des sons longs (application) acceptait
+  un `file` en `../` venu d'un `works/*.json` reçu d'ailleurs : elle lisait
+  et écrivait hors du dossier de contenu — c'était la seule porte qui ne
+  passait pas par `dossiers.cjs` ; bornée, testée. Le proxy local relayait
+  n'importe quel chemin des sites tiers, en HTML, à l'origine de
+  l'application (où vivent le jeton et les clés) ; toute réponse relayée et
+  tout `.html` servi depuis le dossier de contenu portent maintenant
+  `Content-Security-Policy: sandbox`. L'assistant d'identifiants git ne
+  répond qu'à github.com. La vignette d'un gabarit, le statut de la
+  bibliothèque, l'id de pièce du cartouche `?perf=1`, deux couleurs de
+  l'inspecteur sont échappés ; le lien du chapeau et celui du catalogue
+  n'acceptent que `http(s)`.
+- **Bugs.** « ＋ Jeton ici », « ＋ Passage ici » et « ＋ apparition »
+  jetaient sur tout espace sans la liste correspondante (la plupart) ; la
+  liste est créée dans le même lot. Supprimer un espace vers une pièce
+  sans `works` laissait le document muté sans annulation. Le gain d'une
+  ambiance et la lumière ambiante partageaient `data-amb` : glisser l'un
+  écrivait l'autre. Un lien profond (`?room=`) enchaînait deux arrivées et
+  pouvait laisser l'entrée visible par-dessus la pièce visée, ou éteindre
+  la pièce courante ; une arrivée dépassée s'arrête, et les apparitions
+  restaurent la pièce courante. En visite guidée par lien, la pièce était
+  écrite dans la mémoire de la visite libre. Le nom du compte poussé
+  disait toujours « Compte 1 ». La sélection d'un objet du décor ne
+  dépliait pas sa ligne.
+- **Audio.** Une œuvre détruite pendant le téléchargement de ses pistes
+  finissait de se brancher (voie, tranche, tampons à vie) ; elle rend tout.
+  Le fondu de sortie d'une piste (`fonduSortie: 3`) était tranché à
+  220 ms ; une réactivation pendant le fondu doublait la source puis
+  coupait net. L'audiodescription rallumait une galerie coupée. Changer
+  de plafond (Pressure4 ↔ 5) contournait l'écoute de contrôle ; le
+  limiteur a une sortie fixe, et une bascule aller-retour ne laisse plus
+  le mauvais plafond éteint. Les premières réflexions finissent de
+  résonner sans entrée ; `sombre` s'arrête à 0,99 (à 1, les filtres
+  gelaient) ; l'analyseur des liens se détache du bus. Verbity créait une
+  vingtaine de fermetures et tableaux PAR ÉCHANTILLON (≈ 900 000
+  allocations par seconde sur le fil audio, même sur silence), Galactic,
+  la bande et le casque aussi à moindre échelle : tout est en méthodes et
+  tampons préalloués, sortie identique au bit près (empreinte avant/après).
+- **Performance.** Le parcours (le catalogue trié) était refait à chaque
+  image par la boussole, le chapeau et la dérive : mémorisé, invalidé quand
+  les œuvres changent. Décharger une œuvre disposait les textures PARTAGÉES
+  (tuiles de surface, cartes de matière), que toute la salle renvoyait au
+  GPU à l'image suivante ; elles sont marquées et sautées. Le clone adouci
+  du grain était une texture GPU de plus par matériau voxel, jamais
+  rendue : un seul par tuile. L'ombre de contact fuyait à chaque décharge.
+  En Découpe, la baie sélectionnée refaisait sa géométrie à chaque image ;
+  en vue de face, un pan refaisait toutes les poignées ; la charte en
+  direct se repeignait à chaque image d'un glissement ; le rayon d'un
+  passage rebâtissait la galerie à chaque pixel. Tous cadencés ou signés.
+- **Robustesse de l'application.** Un flux de fichier ou de proxy en
+  erreur remontait au processus principal ; `recents` corrompu laissait
+  l'application sans fenêtre ; `loadURL` et le démarrage sont attrapés.
+- Code mort retiré : `cleEffective`, `budgetLignes`, `WALL_NAMES`,
+  `canalCoupe`.
+
+Non repris, à dessein : le raccord de boucle des fragments (un choix
+figé par son test), le premier commit d'un dépôt vide (à faire), deux
+entrées d'historique à la suppression d'un espace avec nouvelle entrée,
+les gabarits obsolètes non listés par « Vérifier ». Les quatre rapports
+complets sont dans la session.
+
 **Zéro minute GitHub Actions par défaut : l'application se construit
 en local (beta.11).** Dix-sept runs du workflow « Application auteur »
 entre le 29 et le 30 septembre — une matrice macOS, Windows, Linux à

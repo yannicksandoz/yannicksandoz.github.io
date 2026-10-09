@@ -50,6 +50,10 @@ const BASE = {
 };
 const LIGNES = ['I', 'J', 'K', 'L', 'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'];
 
+const ETAGE_1 = ['I', 'J', 'K', 'L'];
+const ETAGE_2 = ['A', 'B', 'C', 'D'];
+const ETAGE_3 = ['E', 'F', 'G', 'H'];
+
 export class Verbity {
   constructor(taux) {
     this.echelle = taux / 44100.0;
@@ -91,7 +95,66 @@ export class Verbity {
    * C = sombre (l'amortissement des aigus). Le mélange n'est pas ici : ce
    * worklet ne rend que la queue.
    */
+  /** L'entrée d'une ligne du premier étage : le signal plus sa contre-réaction. */
+  _entrer(nom, k, tonnerre, g, d, regen) {
+    const l = this.ligne[nom];
+    l.g[l.compteur] = g + ((this.retour.g[k] + (tonnerre ? this.tonnerre[0] : 0)) * regen);
+    l.d[l.compteur] = d + ((this.retour.d[k] + (tonnerre ? this.tonnerre[1] : 0)) * regen);
+  }
+
+  /** Avance les quatre lignes d'un étage d'un pas ; leurs sorties dans `sg`, `sd`. */
+  _avancer(noms, sg, sd) {
+    for (let k = 0; k < 4; k++) {
+      const l = this.ligne[noms[k]];
+      l.compteur++;
+      if (l.compteur < 0 || l.compteur > l.retard) l.compteur = 0;
+      sg[k] = l.g[l.compteur]; sd[k] = l.d[l.compteur];
+    }
+  }
+
+  /** Householder : chaque ligne de l'étage suivant reçoit sa source moins les trois autres. */
+  _disperser(sg, sd, noms) {
+    for (let k = 0; k < 4; k++) {
+      const l = this.ligne[noms[k]];
+      let g = sg[k];
+      let d = sd[k];
+      for (let j = 0; j < 4; j++) {
+        if (j === k) continue;
+        g -= sg[j]; d -= sd[j];
+      }
+      l.g[l.compteur] = g; l.d[l.compteur] = d;
+    }
+  }
+
+  /** Les échantillons manquants d'un cycle long, reconstruits entre deux valeurs. */
+  _ref(memoire, valeur, cycleFin) {
+    if (cycleFin === 4) {
+      memoire[0] = memoire[4];
+      memoire[2] = (memoire[0] + valeur) / 2;
+      memoire[1] = (memoire[0] + memoire[2]) / 2;
+      memoire[3] = (memoire[2] + valeur) / 2;
+      memoire[4] = valeur;
+    } else if (cycleFin === 3) {
+      memoire[0] = memoire[3];
+      memoire[2] = (memoire[0] + memoire[0] + valeur) / 3;
+      memoire[1] = (memoire[0] + valeur + valeur) / 3;
+      memoire[3] = valeur;
+    } else if (cycleFin === 2) {
+      memoire[0] = memoire[2];
+      memoire[1] = (memoire[0] + valeur) / 2;
+      memoire[2] = valeur;
+    } else {
+      memoire[0] = valeur;
+    }
+  }
+
   traiter(gauche, droite, A, B, C) {
+    // les tampons des trois étages, une fois pour toutes
+    if (!this._s1g) {
+      this._s1g = new Float64Array(4); this._s1d = new Float64Array(4);
+      this._s2g = new Float64Array(4); this._s2d = new Float64Array(4);
+      this._s3g = new Float64Array(4); this._s3d = new Float64Array(4);
+    }
     const taille = (A * 1.77) + 0.1;
     const regen = 0.0625 + (B * 0.03125);
     const passeBas = (1.0 - (C * C)) / Math.sqrt(this.echelle);
@@ -102,7 +165,6 @@ export class Verbity {
       const r = Math.floor(BASE[nom] * taille);
       this.ligne[nom].retard = Math.max(1, Math.min(TAILLES[nom] - 1, r));
     }
-    const L = this.ligne;
     const cycleFin = this.cycleFin;
 
     for (let i = 0; i < gauche.length; i++) {
@@ -130,83 +192,40 @@ export class Verbity {
         this.tonnerre[1] = (this.tonnerre[1] * 0.99)
           - (this.retour.d[0] * tonnerreQuantite);
 
-        // premier bloc : l'entrée plus la contre-réaction
-        const entrer = (nom, k, tonnerre) => {
-          const l = L[nom];
-          l.g[l.compteur] = g + ((this.retour.g[k] + (tonnerre ? this.tonnerre[0] : 0)) * regen);
-          l.d[l.compteur] = d + ((this.retour.d[k] + (tonnerre ? this.tonnerre[1] : 0)) * regen);
-        };
-        entrer('I', 0, true); entrer('J', 1, false);
-        entrer('K', 2, false); entrer('L', 3, false);
+        // premier bloc : l'entrée plus la contre-réaction. Tout ce qui suit
+        // est en MÉTHODES et tampons préalloués : ce cycle tourne jusqu'à
+        // 48 000 fois par seconde, et les fermetures et tableaux qu'il
+        // créait (une vingtaine par échantillon) occupaient le ramasse-miettes
+        // sur le fil audio — en permanence, même sur silence.
+        this._entrer('I', 0, true, g, d, regen); this._entrer('J', 1, false, g, d, regen);
+        this._entrer('K', 2, false, g, d, regen); this._entrer('L', 3, false, g, d, regen);
 
-        const avancer = (noms) => {
-          const sorties = [];
-          for (const nom of noms) {
-            const l = L[nom];
-            l.compteur++;
-            if (l.compteur < 0 || l.compteur > l.retard) l.compteur = 0;
-            sorties.push([l.g[l.compteur], l.d[l.compteur]]);
-          }
-          return sorties;
-        };
-        const s1 = avancer(['I', 'J', 'K', 'L']);
-
+        const s1g = this._s1g, s1d = this._s1d, s2g = this._s2g, s2d = this._s2d, s3g = this._s3g, s3d = this._s3d;
+        this._avancer(ETAGE_1, s1g, s1d);
         // Householder : chaque ligne moins la somme des trois autres. C'est
         // ce qui disperse une impulsion en nuage.
-        const disperser = (source, noms) => {
-          for (let k = 0; k < 4; k++) {
-            const l = L[noms[k]];
-            let sg = source[k][0];
-            let sd = source[k][1];
-            for (let j = 0; j < 4; j++) {
-              if (j === k) continue;
-              sg -= source[j][0]; sd -= source[j][1];
-            }
-            l.g[l.compteur] = sg; l.d[l.compteur] = sd;
-          }
-        };
-        disperser(s1, ['A', 'B', 'C', 'D']);
-        const s2 = avancer(['A', 'B', 'C', 'D']);
-        disperser(s2, ['E', 'F', 'G', 'H']);
-        const s3 = avancer(['E', 'F', 'G', 'H']);
+        this._disperser(s1g, s1d, ETAGE_2);
+        this._avancer(ETAGE_2, s2g, s2d);
+        this._disperser(s2g, s2d, ETAGE_3);
+        this._avancer(ETAGE_3, s3g, s3d);
 
         for (let k = 0; k < 4; k++) {
-          let rg = s3[k][0];
-          let rd = s3[k][1];
+          let rg = s3g[k];
+          let rd = s3d[k];
           for (let j = 0; j < 4; j++) {
             if (j === k) continue;
-            rg -= s3[j][0]; rd -= s3[j][1];
+            rg -= s3g[j]; rd -= s3d[j];
           }
           this.retour.g[k] = rg; this.retour.d[k] = rd;
         }
 
-        g = (s3[0][0] + s3[1][0] + s3[2][0] + s3[3][0]) / 8;
-        d = (s3[0][1] + s3[1][1] + s3[2][1] + s3[3][1]) / 8;
+        g = (s3g[0] + s3g[1] + s3g[2] + s3g[3]) / 8;
+        d = (s3d[0] + s3d[1] + s3d[2] + s3d[3]) / 8;
 
         // Interpolation quand on calcule la réverbe moins souvent que le
         // son : les échantillons manquants sont reconstruits, pas répétés.
-        const ref = (memoire, valeur) => {
-          if (cycleFin === 4) {
-            memoire[0] = memoire[4];
-            memoire[2] = (memoire[0] + valeur) / 2;
-            memoire[1] = (memoire[0] + memoire[2]) / 2;
-            memoire[3] = (memoire[2] + valeur) / 2;
-            memoire[4] = valeur;
-          } else if (cycleFin === 3) {
-            memoire[0] = memoire[3];
-            memoire[2] = (memoire[0] + memoire[0] + valeur) / 3;
-            memoire[1] = (memoire[0] + valeur + valeur) / 3;
-            memoire[3] = valeur;
-          } else if (cycleFin === 2) {
-            memoire[0] = memoire[2];
-            memoire[1] = (memoire[0] + valeur) / 2;
-            memoire[2] = valeur;
-          } else {
-            memoire[0] = valeur;
-          }
-        };
-        ref(this.dernier.g, g);
-        ref(this.dernier.d, d);
+        this._ref(this.dernier.g, g, cycleFin);
+        this._ref(this.dernier.d, d, cycleFin);
         this.cycle = 0;
       }
       g = this.dernier.g[this.cycle];

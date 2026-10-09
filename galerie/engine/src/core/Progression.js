@@ -45,20 +45,33 @@ export class Progression {
     app.onUpdate((dt) => this._tick(dt));
   }
 
-  /** Toutes les œuvres au sens fort — ni décor, ni membre d'un ensemble. */
+  /**
+   * Toutes les œuvres au sens fort — ni décor, ni membre d'un ensemble.
+   * MÉMORISÉ : la boussole, le chapeau et la dérive lisent `parcours` à
+   * chaque image, et le trier à chaque fois (une Map, deux tableaux, un
+   * localeCompare par paire) pesait sur chaque image. Le cache se refait
+   * quand la liste des œuvres ou des pièces change (App.artworksVersion).
+   */
   get oeuvres() {
-    return this.app.artworks.filter((a) => estOeuvre(a.config));
+    const cle = `${this.app.artworksVersion ?? 0}:${this.app.artworks.length}:${this.app.rooms?.rooms?.size ?? 0}`;
+    if (this._cacheCle !== cle) {
+      this._cacheCle = cle;
+      this._oeuvres = this.app.artworks.filter((a) => estOeuvre(a.config));
+      const ordre = [...(this.app.rooms?.rooms?.values() ?? [])];
+      const rang = new Map(ordre.map((r, i) => [r.config.id, i]));
+      this._parcours = this._oeuvres.slice().sort((a, b) => {
+        const ra = rang.get(a.room?.config.id) ?? 99;
+        const rb = rang.get(b.room?.config.id) ?? 99;
+        return ra - rb || a.config.id.localeCompare(b.config.id);
+      });
+    }
+    return this._oeuvres;
   }
 
   /** Les œuvres dans l'ordre de la galerie (pièce par pièce). */
   get parcours() {
-    const ordre = [...(this.app.rooms?.rooms?.values() ?? [])];
-    const rang = new Map(ordre.map((r, i) => [r.config.id, i]));
-    return this.oeuvres.slice().sort((a, b) => {
-      const ra = rang.get(a.room?.config.id) ?? 99;
-      const rb = rang.get(b.room?.config.id) ?? 99;
-      return ra - rb || a.config.id.localeCompare(b.config.id);
-    });
+    this.oeuvres;   // rafraîchit le cache si besoin
+    return this._parcours;
   }
 
   /** Celles que le visiteur a rencontrées — la visite guidée les rejoue. */

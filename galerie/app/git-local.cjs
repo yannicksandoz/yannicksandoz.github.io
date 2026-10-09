@@ -146,7 +146,9 @@ class GitLocal {
       if (parJeton) {
         const sortie = await this._executer([
           '-c', 'credential.helper=',
-          '-c', 'credential.helper=!f() { echo username=x-access-token; echo "password=$GALERIE_JETON"; }; f',
+          // git soumet `host=…` sur l'entrée standard : le jeton ne part que
+          // pour github.com, même si un suivi de redirection changeait d'hôte
+          '-c', 'credential.helper=!f() { h=; while read -r l; do case "$l" in host=github.com|host=www.github.com) h=1;; esac; done; [ -n "$h" ] || exit 0; echo username=x-access-token; echo "password=$GALERIE_JETON"; }; f',
           'push'
         ], d.racine, { env: { GALERIE_JETON: t } });
         return { methode: 'jeton', sortie };

@@ -54,6 +54,11 @@ export class Limiteur {
     this.ctx = ctx;
     this.source = source;
     this.destination = destination;
+    // LA SORTIE FIXE : les plafonds s'y branchent tour à tour, et ce qui
+    // vient après (l'écoute de contrôle, Ecoute.js) s'y pose une fois pour
+    // toutes — rebrancher le plafond ne la contourne plus
+    this.sortie = ctx.createGain();
+    this.sortie.connect(destination);
 
     try {
       if (!ctx.audioWorklet) throw new Error('pas d’AudioWorklet');
@@ -204,7 +209,10 @@ export class Limiteur {
   _basculer(moteur) {
     const cible = MOTEURS_LIMITEUR[moteur] ? moteur : LIMITEUR_DEFAUTS.moteur;
     const nouveau = this.moteurs?.[cible];
-    if (!nouveau || nouveau === this.noeud) return;
+    // la cible EN COURS de bascule compte, pas seulement le plafond branché :
+    // un aller-retour en moins de 80 ms laissait le mauvais plafond, éteint
+    if (!nouveau || nouveau === (this._cibleBascule ?? this.noeud)) return;
+    this._cibleBascule = nouveau;
     const ancien = this.noeud;
     const t = this.ctx.currentTime;
     this.marge?.gain.cancelScheduledValues(t);
@@ -216,10 +224,11 @@ export class Limiteur {
       try { ancien.disconnect(); } catch { /* déjà */ }
       try { ancien.port.postMessage({ vider: true }); } catch { /* déjà */ }
       this.marge.connect(nouveau);
-      nouveau.connect(this.destination);
+      nouveau.connect(this.sortie ?? this.destination);
       this.noeud = nouveau;
+      this._cibleBascule = null;
       this._entree = nouveau;
-      this._sortie = nouveau;
+      this._sortie = this.sortie ?? nouveau;
       const t2 = this.ctx.currentTime;
       this.marge.gain.cancelScheduledValues(t2);
       this.marge.gain.setValueAtTime(0, t2);

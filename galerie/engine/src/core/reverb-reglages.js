@@ -75,7 +75,9 @@ export function normaliserReverb(brut) {
     moteur: MOTEURS[c.moteur] ? c.moteur : REVERB_DEFAUTS.moteur,
     taille: borne(c.taille, 0, 1, REVERB_DEFAUTS.taille),
     duree: borne(c.duree, 0, 1, REVERB_DEFAUTS.duree),
-    sombre: borne(c.sombre, 0, 1, REVERB_DEFAUTS.sombre),
+    // à 1 exactement, le passe-bas d'entrée vaut 0 : les filtres gèlent et
+    // la queue répète son dernier échantillon — on s'arrête juste avant
+    sombre: Math.min(0.99, borne(c.sombre, 0, 1, REVERB_DEFAUTS.sombre)),
     // Le départ est le seul réglage qui touche au NIVEAU : on le borne bas.
     // Au-delà de la moitié, une galerie où quinze sources envoient dans la
     // même pièce devient une soupe, et le limiteur passe son temps à tenir

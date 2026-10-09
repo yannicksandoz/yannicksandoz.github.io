@@ -207,7 +207,18 @@ export class AudioEngine {
     this._appliquerMaitre();
   }
 
-  _maitreVoulu() { return (this.sonCoupe || this.enSilenceEdition) ? 0 : 1; }
+  _maitreVoulu() { return (this.sonCoupe || this.enSilenceEdition) ? 0 : (this.attenuation ?? 1); }
+
+  /**
+   * La galerie baisse la voix (l'audiodescription parle) — puis la
+   * retrouve. Passe par la même règle que la coupure : une galerie coupée
+   * reste coupée, et à la fin, la coupure reste.
+   */
+  attenuer(facteur = 1) {
+    const f = Number(facteur);
+    this.attenuation = Number.isFinite(f) ? Math.min(1, Math.max(0, f)) : 1;
+    this._appliquerMaitre();
+  }
 
   _appliquerMaitre() {
     if (!this.master || !this.ctx) return;
@@ -353,7 +364,6 @@ export class AudioEngine {
   /** Muet de travail : couper / rétablir une tranche sans rien écrire. */
   couperCanal(bus) { this.console.couper(bus); }
   retablirCanal(bus) { this.console.retablir(bus); }
-  canalCoupe(bus) { return this.console.estCoupe(bus); }
 
   /** Réglages de la console, poussés seulement s'ils ont changé. */
   appliquerConsole(reglages) {
@@ -403,8 +413,10 @@ export class AudioEngine {
         .then((buf) => this.ctx.decodeAudioData(buf))
         .then((buf) => {
           // ce que le tampon décodé pèse en mémoire (flottants), pour le
-          // cartouche de mesure (ui/Perf.js) — voir `bilan`
-          this._octets.set(url, buf.length * buf.numberOfChannels * 4);
+          // cartouche de mesure (ui/Perf.js) — voir `bilan`. Seulement si
+          // la tenue est encore la nôtre : rendue pendant le vol, l'entrée
+          // resterait sinon comptée sans personne pour la retirer.
+          if (this._cache.get(url) === p) this._octets.set(url, buf.length * buf.numberOfChannels * 4);
           return buf;
         });
       // un échec ne doit rester ni en cache ni au compteur

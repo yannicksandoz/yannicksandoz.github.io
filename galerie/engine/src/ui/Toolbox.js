@@ -45,6 +45,7 @@ export class Toolbox {
     const el = document.createElement('div');
     el.id = 'toolbox';
     el.setAttribute('role', 'toolbar');
+    el.setAttribute('aria-label', t('tb.label'));
     const pleinEcranDispo = Boolean(document.fullscreenEnabled);
     // Chaque bouton porte un aria-label ET un title : le premier pour les
     // lecteurs d'écran, le second pour la souris qui hésite sur une icône.

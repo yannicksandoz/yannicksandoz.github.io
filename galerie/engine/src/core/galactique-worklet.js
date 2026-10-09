@@ -130,6 +130,13 @@ export class Galactic2 {
    * Chris). `duree` : combien la queue s'installe. `sombre` : le nombre
    * d'étages de lissage allumés. Rend la part traitée seule.
    */
+  /** Un passe-haut par gain : il ôte le continu que la boucle accumulerait sans fin. */
+  _passeHaut(gainIdx, retours, cible, iirIdx) {
+    const dose = ((this.gains[gainIdx] - 1.0) * -0.00007) + 0.00001;
+    this.iir[iirIdx] = (this.iir[iirIdx] * (1.0 - dose)) + (retours[cible] * dose);
+    retours[cible] -= this.iir[iirIdx];
+  }
+
   traiter(gauche, droite, poussee, duree, sombre) {
     const mono = droite === gauche;
     const gain = Math.min(1, Math.max(0, poussee)) ** 4;
@@ -178,19 +185,16 @@ export class Galactic2 {
         }
         // les passe-haut, un par gain : ils ôtent le continu que la boucle
         // accumulerait sans fin
-        const passeHaut = (gainIdx, retours, cible, iirIdx) => {
-          const dose = ((this.gains[gainIdx] - 1.0) * -0.00007) + 0.00001;
-          this.iir[iirIdx] = (this.iir[iirIdx] * (1.0 - dose)) + (retours[cible] * dose);
-          retours[cible] -= this.iir[iirIdx];
-        };
-        passeHaut(0, this.fbG, 2, 0);   // gain A → CL
-        passeHaut(0, this.fbG, 0, 4);   // gain A → AL
-        passeHaut(1, this.fbD, 2, 1);   // gain B → LR
-        passeHaut(1, this.fbD, 0, 5);   // gain B → DR
-        passeHaut(2, this.fbG, 3, 2);   // gain C → DL
-        passeHaut(2, this.fbG, 1, 6);   // gain C → BL
-        passeHaut(3, this.fbD, 3, 3);   // gain D → PR
-        passeHaut(3, this.fbD, 1, 7);   // gain D → HR
+        // (en méthode : une fermeture par cycle, c'était 48 000 allocations
+        // par seconde sur le fil audio)
+        this._passeHaut(0, this.fbG, 2, 0);   // gain A → CL
+        this._passeHaut(0, this.fbG, 0, 4);   // gain A → AL
+        this._passeHaut(1, this.fbD, 2, 1);   // gain B → LR
+        this._passeHaut(1, this.fbD, 0, 5);   // gain B → DR
+        this._passeHaut(2, this.fbG, 3, 2);   // gain C → DL
+        this._passeHaut(2, this.fbG, 1, 6);   // gain C → BL
+        this._passeHaut(3, this.fbD, 3, 3);   // gain D → PR
+        this._passeHaut(3, this.fbD, 1, 7);   // gain D → HR
 
         /* — les quatre étages — */
         for (let k = 0; k < 4; k++) {

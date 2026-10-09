@@ -140,7 +140,6 @@ let budget = MAX_LIGNES;
 export function reglerBudgetLignes(n) {
   budget = Math.max(0, Math.min(MAX_LIGNES, Number.isFinite(n) ? Math.round(n) : MAX_LIGNES));
 }
-export function budgetLignes() { return budget; }
 
 /** Toutes les lignes déclarées pour la salle courante. */
 const lignes = [];

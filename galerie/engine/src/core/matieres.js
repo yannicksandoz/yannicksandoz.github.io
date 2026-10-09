@@ -116,6 +116,9 @@ export function styleMatiere(style) {
     // sans carte de rugosité, `lisse` donne le scalaire (défaut : mate)
     roughness: m.lisse ?? 1
   };
+  // les cartes d'une matière sont PARTAGÉES par toutes les œuvres qui la
+  // demandent : une œuvre déchargée ne doit pas les disposer
+  for (const k of ['map', 'bumpMap', 'normalMap', 'roughnessMap']) if (jeu?.[k]) jeu[k].userData.partagee = true;
   _cacheMatieres.set(style, jeu);
   return jeu;
 }

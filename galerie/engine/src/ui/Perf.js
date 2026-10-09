@@ -23,6 +23,8 @@
  * La STATISTIQUE est pure (`Statistiques`) : test-perf l'éprouve.
  */
 import { etatDe } from '../core/crans.js';
+/** Échappe ce qui vient du contenu (l'id d'une pièce, le banc) avant innerHTML. */
+const esc = (t) => String(t).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
 /** Une fenêtre glissante de durées d'image : moyenne et p95. */
 export class Statistiques {
@@ -280,10 +282,10 @@ export function mountPerf(app) {
     };
     window.__galeriePerf = mesure;
     el.innerHTML = `<b>${mesure.ms.toFixed(1)} ms</b> · p95 ${mesure.p95.toFixed(1)} ms · ${mesure.fps} fps
-      <br>${compact(appels)} appels · ${compact(triangles)} tri · ${salle}
+      <br>${compact(appels)} appels · ${compact(triangles)} tri · ${esc(String(salle ?? ''))}
       <br>audio ${audio.tampons} tampon${audio.tampons > 1 ? 's' : ''} · ${mesure.pcmMo} Mo PCM
       <br>${mesure.profil} · ${texteCrans(etat)}
-      <br>${textePhases(phases, js, jsP95)}${poignee.banc ? '<br>' + texteBanc(poignee.banc, poignee.encours) : ''}`;
+      <br>${textePhases(phases, js, jsP95)}${poignee.banc ? '<br>' + esc(texteBanc(poignee.banc, poignee.encours)) : ''}`;
     el.classList.toggle('perf-lent', p95 > 33);
   };
   // la poignée AVANT le premier `peindre` : il la lit (le banc)

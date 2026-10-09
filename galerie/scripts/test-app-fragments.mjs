@@ -38,6 +38,13 @@ await test('un mégaoctet ou une minute ; jamais une piste déjà fragmentée ni
   assert.equal(F.aFragmenter({ file: 'assets/a.mp3', octets: 100, duree: 20 }), null);
   assert.equal(F.aFragmenter({ file: 'assets/a.mp3', fragments: 'assets/a.fragments.json', octets: 9e6, duree: 900 }), null);
   assert.equal(F.aFragmenter({ file: 'assets/a.mid', octets: 9e6, duree: 900 }), null);
+  // un chemin de piste reste SOUS le dossier de contenu : la seule porte
+  // d'écriture qui ne passe pas par dossiers.cjs
+  const contenu = '/galerie/content';
+  assert.equal(F.sousLeContenu(contenu, 'assets/a.mp3'), '/galerie/content/assets/a.mp3');
+  for (const mauvais of ['../../Music/perso.mp3', 'assets/../../x.mp3', '/etc/passwd', 'assets/a\0.mp3', '', 'assets\\..\\..\\x.mp3']) {
+    assert.equal(F.sousLeContenu(contenu, mauvais), null, `refusé : ${JSON.stringify(mauvais)}`);
+  }
 });
 
 await test('les chemins et le manifeste : à côté de la source, le motif {i}', () => {

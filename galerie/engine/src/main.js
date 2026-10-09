@@ -96,7 +96,7 @@ async function boot() {
   app.ui.mountRoomBadge(app);
   // compteur FPS (menu → Réglages → Développement) : s'il était actif à la
   // dernière session, il revient seul — on recharge beaucoup quand on mesure
-  import('./ui/FpsMeter.js').then(({ fpsMeterEnabled, mountFpsMeter }) => {
+  importerChunk(() => import('./ui/FpsMeter.js')).then(({ fpsMeterEnabled, mountFpsMeter }) => {
     if (fpsMeterEnabled()) mountFpsMeter(app);
   });
   app.controls = new Controls(app);
@@ -198,7 +198,7 @@ async function boot() {
         const bilan = `${chrono.texte()}\nprogrammes GPU compilés : ${programmes}\n${navigator.userAgent}${gpu ? `\n${gpu}` : ''}`;
         console.info(`[galerie] chrono du démarrage\n${bilan}`);
         // …et à l'écran, pour qui n'a pas de console sous la main
-        import('./ui/Chrono.js').then(({ afficherChrono }) => afficherChrono(bilan));
+        importerChunk(() => import('./ui/Chrono.js')).then(({ afficherChrono }) => afficherChrono(bilan));
       }
     };
   } catch {
@@ -212,11 +212,17 @@ async function boot() {
   {
     const q = new URLSearchParams(location.search);
     // `?banc=1` : le banc d'essai, qui a besoin du cartouche (ui/Perf.js)
-    if (q.get('perf') === '1' || q.get('banc') === '1') import('./ui/Perf.js').then(({ mountPerf }) => mountPerf(app));
+    if (q.get('perf') === '1' || q.get('banc') === '1') importerChunk(() => import('./ui/Perf.js')).then(({ mountPerf }) => mountPerf(app));
   }
 
   // Lien profond (?room=x&work=y) : on arrive LÀ où le lien a été partagé,
   // pas à l'entrée — la pièce est posée avant même l'écran d'accueil.
+  // La visite guidée a sa mémoire à elle, posée AVANT : poser la pièce
+  // écrivait sinon « dernière pièce » dans la mémoire de la visite libre.
+  if (new URLSearchParams(location.search).get('mode') === 'guidee') {
+    app.modeVisite = 'guidee';
+    app.memoire = new MemoireOuverte();
+  }
   const lienDirect = appliquerLienProfond(app);
 
   // L'éditeur n'est téléchargé qu'au premier déclenchement (², ✎, ?edit).
@@ -229,8 +235,7 @@ async function boot() {
     app.ui.skipEnter();
     // venu par un lien : la visite d'avant, avec sa mémoire — ou la visite
     // guidée si le lien le dit (une bascule d'image recharge ainsi la page)
-    app.modeVisite = new URLSearchParams(location.search).get('mode') === 'guidee' ? 'guidee' : 'libre';
-    if (app.modeVisite === 'guidee') app.memoire = new MemoireOuverte();
+    if (app.modeVisite !== 'guidee') app.modeVisite = 'libre';
     const geste = () => {
       window.removeEventListener('pointerdown', geste);
       window.removeEventListener('keydown', geste);

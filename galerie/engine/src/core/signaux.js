@@ -185,6 +185,10 @@ export class Signaux {
   }
 
   _lacher(e) {
+    // le bus tire l'analyseur : c'est LUI qu'on détache, `analyseur.disconnect()`
+    // ne retirait que ses sorties (il n'en a pas) et chaque redemande en
+    // ajoutait un au bus
+    try { e.bus.disconnect(e.analyseur); } catch { /* déjà */ }
     try { e.analyseur.disconnect(); } catch { /* déjà */ }
   }
 

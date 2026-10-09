@@ -348,6 +348,7 @@ export const SURFACES = {
 
 
 const _cache = new Map();
+const _doux = new WeakMap();   // tuile → son clone adouci (patcherGrain)
 
 /**
  * Texture d'un style, construite au premier usage puis partagée par tous
@@ -396,6 +397,10 @@ export function styleTexture(style) {
   tex.generateMipmaps = true;
   tex.anisotropy = _anisotropy;
   tex.colorSpace = THREE.NoColorSpace; // niveaux de gris : pas une couleur
+  // PARTAGÉE : toute primitive, tout cadre, tout chambranle l'emploie. La
+  // disposer avec une œuvre déchargée la ferait ré-envoyer au GPU par toutes
+  // les autres à l'image suivante (Artwork.disposeObject3D la saute).
+  tex.userData.partagee = true;
   _cache.set(variante, tex);
   return tex;
 }
@@ -599,9 +604,17 @@ export function patcherGrain(material, style = 'poli',
   if (!tex) return material;
   // un grain se lit en continu : le NEAREST des tuiles pixel-art ferait des
   // marches d'escalier sur une surface lisse
-  const doux = tex.clone();
-  doux.magFilter = THREE.LinearFilter;
-  doux.needsUpdate = true;
+  // un seul clone doux PAR TUILE, partagé : il vit dans les uniformes des
+  // matériaux greffés, que rien ne dispose — en refaire un par matériau
+  // (chaque reconstruction voxel) accumulait des textures GPU à vie
+  let doux = _doux.get(tex);
+  if (!doux) {
+    doux = tex.clone();
+    doux.magFilter = THREE.LinearFilter;
+    doux.needsUpdate = true;
+    doux.userData.partagee = true;
+    _doux.set(tex, doux);
+  }
 
   const precedent = material.onBeforeCompile;
   material.onBeforeCompile = (shader, renderer) => {

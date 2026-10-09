@@ -738,6 +738,13 @@ export class RoomManager {
     }
     try {
       await this._chargerOeuvres(room);
+      // UN AUTRE setCurrent EST PASSÉ PENDANT L'ATTENTE (un lien profond
+      // enchaîne l'entrée puis la pièce visée, en instantané, sans le garde
+      // `_transitioning`) : ce passage-ci est périmé. Finir ses chauffes
+      // repeindrait les apparitions de l'ANCIENNE pièce et la rendrait
+      // visible par-dessus la nouvelle (Vista._peindre restaure `current`).
+      // (on ne SORT pas : la suite remet le voile et `_transitioning`)
+      if (this.current === room) {
       // le morceau des scans gaussiens, importé d'avance quand cette salle
       // ou une voisine en porte un (voir chunks.js : un redéploiement ne
       // peut plus le retirer) — et jamais pour qui n'en approche pas
@@ -746,6 +753,8 @@ export class RoomManager {
         rechauffer([() => importerChunk(() => import('./scans.js'))], { delai: 1500 });
       }
       await this._chaufferProgrammes(room);
+      }
+      if (this.current === room) {
       // …puis une image dans le noir, la salle et ses baies : ce que le
       // premier dessin envoie au GPU (géométries, textures, premier usage
       // de chaque programme) s'envoie ici, où personne ne le voit
@@ -755,6 +764,7 @@ export class RoomManager {
       // …et les sphères de collision de la salle (Controls), pour que le
       // premier pas ne les calcule pas
       this.app.controls?.chaufferCollision?.();
+      }
     } finally {
       this._entree = false;
       this.fadeEl?.classList.remove('chargement');
@@ -770,7 +780,7 @@ export class RoomManager {
       this._transitioning = false;
       this._cooldown = 1.2; // évite un aller-retour immédiat dans le portail
     }
-    return true;
+    return this.current === room;
   }
 
   /**
@@ -1709,7 +1719,6 @@ export const SHELL_DEFAULTS = {
   width: 26, depth: 20, height: 5, color: '#1c1c2b', ceiling: false,
   walls: null, windows: []
 };
-export const WALL_NAMES = ['nord', 'sud', 'est', 'ouest'];
 // épaisseur des murs — celle que la charte connaît (charte-regles.js) : la
 // plaque est centrée sur le plan du mur, sa face intérieure à WALL_T / 2
 const WALL_T = EPAISSEUR_MUR;
@@ -2526,7 +2535,8 @@ function disposePortalMesh(group) {
   group.traverse((o) => {
     o.geometry?.dispose();
     if (o.material) {
-      o.material.map?.dispose();
+      // la texture d'un chambranle est celle du cache des matières (partagée)
+      if (o.material.map && !o.material.map.userData?.partagee) o.material.map.dispose();
       o.material.dispose();
     }
   });

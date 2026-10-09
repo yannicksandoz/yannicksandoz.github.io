@@ -42,10 +42,16 @@ export class TipJar extends Module {
       return;
     }
 
-    this.overlay.querySelector('.tipjar-message').textContent =
-      p.message ?? 'Cette galerie vous a plu ? Vous pouvez soutenir son artiste.';
+    // l'adresse du chapeau vient du contenu : le web seulement, jamais un
+    // `javascript:` qui s'exécuterait au clic (même règle que `link`)
+    if (!/^https?:\/\//i.test(String(p.url ?? ''))) {
+      console.warn('[galerie] TipJar : adresse refusée (http(s) seulement).');
+      this.active = false;
+      return;
+    }
+    this.overlay.querySelector('.tipjar-message').textContent = p.message ?? t('tipjar.message.fin');
     const btn = this.overlay.querySelector('.tipjar-button');
-    btn.textContent = p.buttonLabel ?? "Soutenir l'artiste";
+    btn.textContent = p.buttonLabel ?? t('tipjar.support');
     btn.href = p.url;
 
     this._onClose = () => this._hide();

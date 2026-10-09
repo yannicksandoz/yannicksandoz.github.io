@@ -891,6 +891,7 @@ export class App {
   /** Ajoute une œuvre, dans une pièce si le système de rooms est actif. */
   addArtwork(artwork, room = null) {
     this.artworks.push(artwork);
+    this.artworksVersion = (this.artworksVersion ?? 0) + 1;
     if (room) {
       artwork.room = room;
       room.artworks.push(artwork);
@@ -903,6 +904,7 @@ export class App {
   removeArtwork(artwork) {
     const i = this.artworks.indexOf(artwork);
     if (i >= 0) this.artworks.splice(i, 1);
+    this.artworksVersion = (this.artworksVersion ?? 0) + 1;
     if (artwork.room) {
       const j = artwork.room.artworks.indexOf(artwork);
       if (j >= 0) artwork.room.artworks.splice(j, 1);

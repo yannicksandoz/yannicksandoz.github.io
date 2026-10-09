@@ -121,9 +121,26 @@ function aJour(absManifeste, absDossier, source, n) {
  * Fragmente une piste : `{ contenu, file }` → `{ file, manifeste, n, duree, refait }`.
  * `encoder(ff, source, debut, longueur, cible, args)` est remplaçable (tests).
  */
+/**
+ * Un chemin de piste venu de la page (works/*.json, donc parfois d'ailleurs :
+ * dossier copié, version récupérée en ligne) doit rester SOUS le dossier de
+ * contenu : pas d'absolu, pas de `..`, pas d'octet nul, et résolu dedans.
+ * C'est la seule porte d'écriture qui ne passe pas par dossiers.cjs.
+ */
+function sousLeContenu(contenu, file) {
+  const rel = String(file ?? '');
+  if (!rel || rel.includes('\0') || path.isAbsolute(rel) || /^[A-Za-z]:/.test(rel)) return null;
+  if (rel.split(/[\\/]/).includes('..')) return null;
+  const racine = path.resolve(contenu);
+  const abs = path.resolve(racine, rel);
+  if (abs === racine || !abs.startsWith(racine + path.sep)) return null;
+  return abs;
+}
+
 async function fragmenterPiste({ contenu, file, ff, segment = SEGMENT, chevauchement = CHEVAUCHEMENT, opus = OPUS, aac = AAC,
   encoder = defautEncoder, duree: dureeConnue = null, surProgres = null }) {
-  const source = path.join(contenu, file);
+  const source = sousLeContenu(contenu, file);
+  if (!source) throw new Error(`${file} : chemin refusé (hors du dossier de contenu)`);
   if (!fs.existsSync(source)) throw new Error(`${file} introuvable dans le dossier de contenu`);
   const { dossier, manifeste: relManifeste } = cheminsDe(file);
   const absDossier = path.join(contenu, dossier);
@@ -162,7 +179,9 @@ async function fragmenterLot({ contenu, pistes, ff = trouverBinaire(), encoder =
   const retenues = [];
   for (const p of pistes ?? []) {
     let octets = 0;
-    try { octets = fs.statSync(path.join(contenu, p.file)).size; } catch { continue; }
+    const source = sousLeContenu(contenu, p?.file);
+    if (!source) continue;   // hors du dossier : ni lu, ni fragmenté
+    try { octets = fs.statSync(source).size; } catch { continue; }
     const raison = aFragmenter({ file: p.file, fragments: p.fragments, octets, duree: p.duree });
     if (raison) retenues.push({ ...p, raison });
   }
@@ -181,5 +200,5 @@ async function fragmenterLot({ contenu, pistes, ff = trouverBinaire(), encoder =
   return { faits, ignorees: (pistes ?? []).length - retenues.length, erreurs, ffmpeg: true };
 }
 
-module.exports = { planFragments, aFragmenter, cheminsDe, manifeste, trouverBinaire, fragmenterPiste, fragmenterLot,
+module.exports = { sousLeContenu, planFragments, aFragmenter, cheminsDe, manifeste, trouverBinaire, fragmenterPiste, fragmenterLot,
   SEGMENT, CHEVAUCHEMENT, SEUIL_OCTETS, SEUIL_SECONDES, CONSEIL };

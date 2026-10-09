@@ -148,9 +148,13 @@ export class ToTape6 {
     const mono = droite === gauche;
     const canaux = mono ? [gauche] : [gauche, droite];
 
+    // le couple d'échantillons en travail, préalloué : trois tableaux par
+    // échantillon, c'était 144 000 allocations par seconde sur le fil audio
+    const x = this._x ??= new Float64Array(2);
+    const secs = this._secs ??= new Float64Array(2);   // le signal sec, pour le mélange
     for (let n = 0; n < gauche.length; n++) {
-      const secs = [gauche[n], mono ? gauche[n] : droite[n]];
-      const x = [secs[0], secs[1]];
+      x[0] = gauche[n]; x[1] = mono ? gauche[n] : droite[n];
+      secs[0] = x[0]; secs[1] = x[1];
 
       for (let c = 0; c < canaux.length; c++) if (gainE < 1.0) x[c] *= gainE;
 
@@ -215,10 +219,11 @@ export class ToTape6 {
 
         // on bride la bosse pour qu'elle ne s'installe pas en résonance
         const brider = (1.0 - Math.abs(x[c])) * 0.00013;
-        for (const etat of [this.bosseA, this.bosseB]) {
-          if (etat[c] > brider) etat[c] -= brider;
-          else if (etat[c] < -brider) etat[c] += brider;
-        }
+        const bA = this.bosseA, bB = this.bosseB;
+        if (bA[c] > brider) bA[c] -= brider;
+        else if (bA[c] < -brider) bA[c] += brider;
+        if (bB[c] > brider) bB[c] -= brider;
+        else if (bB[c] < -brider) bB[c] += brider;
         x[c] += (this.bosseA[c] + this.bosseB[c]) * poids;
 
         /* — LE MOJO : ça s'aplatit très tôt, et très doucement — */

@@ -106,8 +106,10 @@ export class LecteurAD {
   _attenuer(actif) {
     const audio = this.app.audio;
     if (!audio?.ctx || !audio.master) return;
-    const cible = actif ? 0.25 : 1;
-    audio.master.gain.setTargetAtTime(cible, audio.ctx.currentTime, 0.14);
+    // par le moteur, pas sur le maître directement : une galerie dont le
+    // son est coupé ne se réentendait pas à −12 dB, puis restait rallumée
+    if (audio.attenuer) audio.attenuer(actif ? 0.25 : 1);
+    else audio.master.gain.setTargetAtTime(actif ? 0.25 : 1, audio.ctx.currentTime, 0.14);
   }
 
   /** Libellé du bouton, selon qu'elle parle ou non. */

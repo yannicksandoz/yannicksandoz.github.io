@@ -69,6 +69,19 @@ export class Monitoring {
     this.basse[0] = 0; this.basse[1] = 0;
   }
 
+  /** Un passe-tout de la floraison casque, sur le couple `gd` = [g, d]. */
+  _passer(ap, gd) {
+    let g = gd[0], d = gd[1];
+    const avant = (ap.i - 1 + ap.taille + 1) % (ap.taille + 1);
+    g -= ap.g[avant] * 0.5; ap.g[ap.i] = g; g *= 0.5;
+    d -= ap.d[avant] * 0.5; ap.d[ap.i] = d; d *= 0.5;
+    ap.i = (ap.i - 1 + ap.taille + 1) % (ap.taille + 1);
+    g += ap.g[ap.i] * 0.5; d += ap.d[ap.i] * 0.5;
+    const suivant = ap.i === ap.taille ? 0 : ap.i + 1;
+    g += ap.g[suivant] * 0.5; d += ap.d[suivant] * 0.5;
+    gd[0] = g; gd[1] = d;
+  }
+
   traiter(gauche, droite, mode) {
     if (mode === 'normal' || !MODES.includes(mode)) return;
     const n = gauche.length;
@@ -150,21 +163,15 @@ export class Monitoring {
       g = (mid + cote) / 2;
       d = (mid - cote) / 2;
 
-      const passer = (ap) => {
-        const avant = (ap.i - 1 + ap.taille + 1) % (ap.taille + 1);
-        g -= ap.g[avant] * 0.5; ap.g[ap.i] = g; g *= 0.5;
-        d -= ap.d[avant] * 0.5; ap.d[ap.i] = d; d *= 0.5;
-        ap.i = (ap.i - 1 + ap.taille + 1) % (ap.taille + 1);
-        g += ap.g[ap.i] * 0.5; d += ap.d[ap.i] * 0.5;
-        const suivant = ap.i === ap.taille ? 0 : ap.i + 1;
-        g += ap.g[suivant] * 0.5; d += ap.d[suivant] * 0.5;
-      };
+      // (le passe-tout est une méthode, `gd` son couple d'échantillons :
+      // une fermeture par échantillon, c'était du ramasse-miettes sur le fil audio)
+      const gd = this._gd ??= new Float64Array(2);
 
-      passer(this.a);
+      gd[0] = g; gd[1] = d; this._passer(this.a, gd); g = gd[0]; d = gd[1];
       g *= 0.30; d *= 0.30;      // Cans C
       secG += d; secD += g;      // LA diaphonie : chaque oreille entend l'autre
 
-      passer(this.d);
+      gd[0] = g; gd[1] = d; this._passer(this.d, gd); g = gd[0]; d = gd[1];
       g *= 0.25; d *= 0.25;      // la seconde floraison, plus loin, plus sombre
       secG += d; secD += g;
 

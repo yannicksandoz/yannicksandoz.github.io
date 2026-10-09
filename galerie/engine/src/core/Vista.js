@@ -593,7 +593,9 @@ export class VistaManager {
     renderer.setRenderTarget(null);
 
     target.group.visible = false;
-    current.group.visible = true;
+    // la pièce qu'on montre est la COURANTE, qui peut avoir changé pendant
+    // qu'on peignait (deux arrivées enchaînées) — pas celle du paramètre
+    (this.app.rooms?.current ?? current).group.visible = true;
     scene.fog.color.copy(this._fog);
     scene.background.copy(this._bg);
     scene.fog.density = fogDensity;

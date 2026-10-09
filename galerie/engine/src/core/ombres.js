@@ -125,14 +125,6 @@ export function cleDepuisOeuvre(oeuvres) {
   };
 }
 
-/**
- * La configuration de lampe-clé qui fait FOI pour une salle : celle que
- * porte une œuvre s'il y en a une, sinon celle du JSON de la pièce.
- */
-export function cleEffective(config, oeuvres) {
-  const parOeuvre = cleDepuisOeuvre(oeuvres);
-  return parOeuvre ? { ...config, keyLight: parOeuvre } : config;
-}
 
 export function buildKeyLight(config, profile) {
   if (config?.keyLight === false || coqueClose(config)) return null;

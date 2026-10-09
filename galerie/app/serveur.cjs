@@ -160,7 +160,7 @@ function plageDe(entete, taille) {
 }
 
 /** Sert `fichier` (stat connu) avec plages, types et cache court. */
-function servirFichier(req, res, fichier, stat) {
+function servirFichier(req, res, fichier, stat, { bacASable = false } = {}) {
   const type = typeDe(fichier);
   const entetes = {
     'Content-Type': type,
@@ -168,6 +168,14 @@ function servirFichier(req, res, fichier, stat) {
     // l'auteur édite son contenu : rien ne doit se mettre en cache longtemps
     'Cache-Control': 'no-cache'
   };
+  // Une PAGE venue du dossier de contenu (un .html reçu d'ailleurs, par une
+  // récupération en ligne par exemple) ne doit pas tourner à l'origine de
+  // l'application, où vivent le jeton GitHub et les clés : bac à sable,
+  // sans script, sans accès à cette origine.
+  if (bacASable && /^text\/html/.test(type)) {
+    entetes['Content-Security-Policy'] = 'sandbox';
+    entetes['X-Content-Type-Options'] = 'nosniff';
+  }
   const plage = plageDe(req.headers.range, stat.size);
   if (plage?.invalide) {
     res.writeHead(416, { 'Content-Range': `bytes */${stat.size}` });
@@ -179,13 +187,24 @@ function servirFichier(req, res, fichier, stat) {
     entetes['Content-Length'] = plage.fin - plage.debut + 1;
     res.writeHead(206, entetes);
     if (req.method === 'HEAD') { res.end(); return; }
-    fs.createReadStream(fichier, { start: plage.debut, end: plage.fin }).pipe(res);
+    couler(fs.createReadStream(fichier, { start: plage.debut, end: plage.fin }), res);
     return;
   }
   entetes['Content-Length'] = stat.size;
   res.writeHead(200, entetes);
   if (req.method === 'HEAD') { res.end(); return; }
-  fs.createReadStream(fichier).pipe(res);
+  couler(fs.createReadStream(fichier), res);
+}
+
+/**
+ * Un flux vers la réponse, SURVEILLÉ : un fichier supprimé entre son stat et
+ * sa lecture (l'éditeur range le dossier pendant que la page le demande),
+ * une coupure amont — sans écouteur, l'erreur remontait jusqu'au processus
+ * principal (« A JavaScript error occurred in the main process »).
+ */
+function couler(flux, res) {
+  flux.on('error', () => { try { res.destroy(); } catch { /* déjà */ } });
+  flux.pipe(res);
 }
 
 /**
@@ -206,7 +225,13 @@ function relayer(req, res, cible) {
     delete retour['access-control-allow-origin'];
     delete retour['content-security-policy'];
     delete retour['set-cookie'];
+    // ce qui revient est une DONNÉE (JSON, son, modèle), jamais une page : si
+    // l'amont répond du HTML (un chemin de site plutôt que d'API), il
+    // n'a pas à s'exécuter à l'origine de l'application
+    retour['content-security-policy'] = 'sandbox';
+    retour['x-content-type-options'] = 'nosniff';
     res.writeHead(reponse.statusCode ?? 502, retour);
+    reponse.on('error', () => { try { res.destroy(); } catch { /* déjà */ } });
     reponse.pipe(res);
   });
   aller.on('error', (e) => {
@@ -262,7 +287,7 @@ function demarrerServeur({ racines, port = 0, portPrefere = null, hote = '127.0.
         res.end();
         return;
       }
-      if (stat.isFile()) { servirFichier(req, res, fichier, stat); return; }
+      if (stat.isFile()) { servirFichier(req, res, fichier, stat, { bacASable: racine !== dossiers[dossiers.length - 1] }); return; }
     }
     res.writeHead(404, { 'Content-Type': 'text/plain; charset=utf-8' });
     res.end('introuvable');

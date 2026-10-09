@@ -279,8 +279,15 @@ class PremieresProcessor extends AudioWorkletProcessor {
     const sortie = sorties[0];
     if (!sortie || !sortie.length) return this.vivant;
     if (!entree || !entree.length) {
-      // le départ est vide : la salle finit de résonner, puis se tait
+      // le départ est vide : la salle FINIT DE RÉSONNER — on met zéro à
+      // l'entrée du moteur et on le fait tourner quand même (comme Verbity
+      // et Galactic) ; sinon les 200 ms de réflexions restaient dans les
+      // lignes et rejouaient au prochain son
       for (const canal of sortie) canal.fill(0);
+      const g0 = sortie[0];
+      const d0 = sortie.length > 1 ? sortie[1] : sortie[0];
+      this.moteur.traiter(g0, d0, parametres.salle[0]);
+      for (let c = 2; c < sortie.length; c++) sortie[c].set(sortie[0]);
       return this.vivant;
     }
     // Une entrée mono repart dans DEUX canaux : les deux parcourent les
