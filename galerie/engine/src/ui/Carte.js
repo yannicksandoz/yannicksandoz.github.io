@@ -107,7 +107,9 @@ export function vu(app) {
   const plan = planDe(app);
   const m = app.memoire;
   const courante = app.rooms?.current?.config.id;
-  const vues = new Set(m ? m.pieces : plan.pieces.map((p) => p.id));
+  // une mémoire OUVERTE (visite guidée) a tout vu, mais son ensemble ne
+  // contient rien à copier : on l'interroge, on ne la recopie pas
+  const vues = new Set(m && !m.ouverte ? m.pieces : plan.pieces.map((p) => p.id));
   if (courante) vues.add(courante);
   const pressenties = new Set();
   const liens = [];
@@ -430,6 +432,8 @@ export class CartePleine {
       if (el !== this.el && !el.inert) { el.inert = true; this._inertes.push(el); }
     }
     this._ajusterEchelle();
+    // le focus revient d'où il vient à la fermeture (le bouton du plan, le menu)
+    this._ouvreur = document.activeElement instanceof HTMLElement && !this.el.contains(document.activeElement) ? document.activeElement : null;
     (this.el.querySelector('.ca-ici') ?? this.el.querySelector('#cp-fermer'))?.focus();
   }
 
@@ -441,6 +445,8 @@ export class CartePleine {
     this.app.controls.resyncCollision?.();
     for (const el of this._inertes ?? []) el.inert = false;
     this._inertes = [];
+    if (this._ouvreur?.isConnected) this._ouvreur.focus({ preventScroll: true });
+    this._ouvreur = null;
   }
 
   basculer() { if (this.ouverte) this.fermer(); else this.ouvrir(); }

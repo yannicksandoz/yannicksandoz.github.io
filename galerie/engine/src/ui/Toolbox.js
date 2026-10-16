@@ -70,14 +70,17 @@ export class Toolbox {
 
     el.querySelector('#tb-carte').addEventListener('click', async () => {
       if (this.app.ouvrirCarte) return this.app.ouvrirCarte();
-      const { mountCartePleine } = await importerChunk(() => import('./Carte.js'));
-      mountCartePleine(this.app).ouvrir();
+      try {
+        const { mountCartePleine } = await importerChunk(() => import('./Carte.js'));
+        mountCartePleine(this.app).ouvrir();
+      } catch { /* version périmée : le bandeau l'a dit */ }
     });
 
     el.querySelector('#tb-capture').addEventListener('click', () => this._capturer());
 
     el.querySelector('#tb-derive').addEventListener('click', async () => {
-      const { mountDerive } = await importerChunk(() => import('../core/Derive.js'));
+      let mountDerive;
+      try { ({ mountDerive } = await importerChunk(() => import('../core/Derive.js'))); } catch { return; }
       const derive = mountDerive(this.app);
       if (derive.active) derive.arreter();
       else derive.demarrer();

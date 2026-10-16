@@ -420,7 +420,8 @@ test('la pièce complète : ids uniques contre le document, sync, entrée, gabar
   assert.ok(r.piece.floor.texture, 'la finition s\'applique');
   assert.equal(r.voix, 4);
   // la pièce, débarrassée de son identité et de son contenu, est un gabarit valide
-  const { id, title, works: w, portals, ...atmosphere } = r.piece;
+  // (le plan de scène est un contenu : il nomme les œuvres générées de CETTE pièce)
+  const { id, title, works: w, portals, planDeScene: _plan, ...atmosphere } = r.piece;
   const v = validerGabarit({ nom: 'x', piece: atmosphere, meubles: [...r.oeuvres, ...r.meubles].map(({ id: _i, ...m }) => m) });
   assert.deepEqual(v, [], `gabarit valide : ${JSON.stringify(v)}`);
 });

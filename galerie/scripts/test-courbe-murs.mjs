@@ -10,7 +10,7 @@
 import assert from 'node:assert/strict';
 import { normaliserCourbe, courbeDuMur, normaliserPoints, profilVectoriel, loiVoileReglee,
   loiCouronneReglee, debordExterieur, debordCoque, geometrieMur, ajouterAncre, retirerAncre,
-  deplacerPoint, COURBE_DEFAUT, BORNES_COURBE, loiSilhouette, loiSommet, loiPlafond, sommetModele, SOMMET_MIN } from '../engine/src/core/courbe-murs.js';
+  deplacerPoint, COURBE_DEFAUT, BORNES_COURBE, loiSilhouette, loiSommet, loiPlafond, sommetModele, SOMMET_MIN, baiesDuMur, plancherBaies, zonesPlanes } from '../engine/src/core/courbe-murs.js';
 
 let ok = 0; let ko = 0;
 function test(nom, fn) {
@@ -158,6 +158,26 @@ test('le plafond suit : le haut de chaque mur sur son bord, la voûte au milieu'
   assert.ok(proche(p(0, 0) - sansVoute(0, 0), 2, 1e-6), 'la voûte : +2 au centre');
   assert.ok(proche(p(14, 0), p(10, 0), 1e-9), 'hors du rectangle : le bord le plus proche');
   assert.equal(loiPlafond(null, dims)(0, 0), 0);
+});
+
+test('les baies en pur : bornées au mur, bandes planes, et un plancher que ni le mur ni le plafond ne percent', () => {
+  const baies = baiesDuMur({ windows: [{ wall: 'nord', offset: 0, width: 4, sill: 1.1, height: 2.4 }, { wall: 'sud', offset: 0, width: 4 }, { wall: 'nord', offset: 30, width: 4 }], mur: 'nord', length: 20, height: 4 });
+  assert.equal(baies.length, 1, 'le mur sud ne compte pas, une baie hors du mur non plus');
+  assert.deepEqual(baies[0], { c: 0, wl: 4, sill: 1.1, top: 3.5 });
+  assert.deepEqual(zonesPlanes(baies), [[-2.5, 2.5]]);
+  const plancher = plancherBaies(baies);
+  assert.ok(proche(plancher(0), 3.5 + 0.12 + 0.25) && plancher(5) === 0);
+  // le haut du mur qui plonge de 2 m est tenu au-dessus du linteau…
+  const bas = loiSommet({ length: 20, height: 4, mur: 'nord', reglage: { couronne: { forme: 'vagues', sens: 'bas', hauteur: 2, ondes: 1 } }, plancher });
+  assert.ok(4 + bas(0) >= 3.87 - 1e-9, `le mur : ${4 + bas(0)}`);
+  // …et le plafond qui le suit aussi (il traversait la fenêtre)
+  const c = { profondeur: 0, couronne: { forme: 'vagues', sens: 'bas', hauteur: 2, ondes: 1 } };
+  const sans = loiPlafond(c, { width: 20, depth: 16, height: 4 });
+  const avec = loiPlafond(c, { width: 20, depth: 16, height: 4, windows: [{ wall: 'nord', offset: 0, width: 4, sill: 1.1, height: 2.4 }] });
+  assert.ok(4 + sans(0, -8) < 2.1 && 4 + avec(0, -8) >= 3.87 - 1e-9, `plafond au-dessus de la baie : ${4 + sans(0, -8)} → ${4 + avec(0, -8)}`);
+  // la silhouette libre garde sa borne (8 m), pas celle du plan (6)
+  const haute = loiSilhouette({ length: 20, couronne: { points: [{ t: 0.5, d: 7.5 }] } });
+  assert.ok(proche(haute(0), 7.5, 0.05), `ancre à 7,5 m dessinée à ${haute(0)}`);
 });
 
 test('débord vers l’extérieur : pour le sol et le plafond', () => {

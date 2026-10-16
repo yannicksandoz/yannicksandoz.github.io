@@ -207,7 +207,11 @@ function ouvrirDossierDepose(chemin) {
  */
 async function commitsDepuisLeBuild() {
   if (!INFO_BUILD) return null;
-  const listes = await Promise.all(urlsCommits({ base: API_GITHUB, depuis: INFO_BUILD.date }).map(async (url) => {
+  // depuis la date du build, ou hier au plus tard : une horloge en avance au
+  // build rendait l'application « à jour » tant que la vraie date n'avait
+  // pas rattrapé la sienne
+  const depuis = new Date(Math.min(Date.parse(INFO_BUILD.date) || 0, Date.now() - 86400e3)).toISOString();
+  const listes = await Promise.all(urlsCommits({ base: API_GITHUB, depuis }).map(async (url) => {
     const r = await fetch(url, { headers: { Accept: 'application/vnd.github+json', 'Cache-Control': 'no-cache' }, signal: AbortSignal.timeout(8000) });
     if (!r.ok) throw new Error(`HTTP ${r.status}`);
     return r.json();

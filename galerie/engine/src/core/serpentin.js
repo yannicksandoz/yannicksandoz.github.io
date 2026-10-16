@@ -73,21 +73,3 @@ export function loiSerpentin(dims, cell) {
   };
 }
 
-/**
- * L'INVERSE du serpentement : un point du repère de l'objet, tel qu'il se
- * voit (serpenté), ramené à sa place dans la grille droite — de quoi lire
- * la cellule qui l'occupe. `local` est [x, y, z] en mètres, grille centrée
- * en x/z ; rend une copie corrigée.
- */
-export function deserpenter(loi, dims, cell, local) {
-  if (!loi) return local;
-  const l = [...local];
-  if (loi.axe === 2) {
-    const t = (l[2] / cell + dims[2] / 2) / dims[2];
-    l[0] = (l[0] - loi.decalage(t)) / loi.gonflement(t);
-  } else {
-    const t = (l[0] / cell + dims[0] / 2) / dims[0];
-    l[2] = (l[2] - loi.decalage(t)) / loi.gonflement(t);
-  }
-  return l;
-}

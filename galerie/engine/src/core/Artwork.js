@@ -1370,6 +1370,7 @@ export class Artwork {
     const engine = this.app.audio;
     const stemCfgs = this.config.stems ?? [];
     if (!stemCfgs.length && !this.config.videoSound) return;
+    const generation = this._genAudio ?? 0;
 
     try {
       const essentiel = this.room ? this.room.isCurrent : true;
@@ -1423,7 +1424,7 @@ export class Artwork {
       // l'éditeur, œuvre supprimée) : `dispose()` n'avait rien à libérer,
       // `audioReady` étant faux. Brancher maintenant ferait une voie, une
       // tranche et des tampons que plus personne ne rendrait.
-      if (this._detruite) {
+      if (this._detruite || (this._genAudio ?? 0) !== generation) {
         resultats.forEach((r, i) => {
           if (r.status !== 'fulfilled') return;
           if (lecteurs[i]) lecteurs[i].liberer();
@@ -1642,6 +1643,11 @@ export class Artwork {
   forceUnload() {
     if (this._visualLoaded) this._unloadVisual();
     if (this.audioReady) this._unloadAudio();
+    // un chargement audio encore en vol (pièce devenue lointaine pendant le
+    // téléchargement) ne doit pas se brancher à l'arrivée : il se
+    // reconnaîtra à sa génération
+    this._genAudio = (this._genAudio ?? 0) + 1;
+    this._audioRequested = false;
   }
 
   /**

@@ -96,7 +96,9 @@ async function boot() {
   app.ui.mountRoomBadge(app);
   // compteur FPS (menu → Réglages → Développement) : s'il était actif à la
   // dernière session, il revient seul — on recharge beaucoup quand on mesure
-  importerChunk(() => import('./ui/FpsMeter.js')).then(({ fpsMeterEnabled, mountFpsMeter }) => {
+  importerChunk(() => import('./ui/FpsMeter.js')).catch(() => null).then((m) => {
+    if (!m) return;   // version périmée : le bandeau l'a dit
+    const { fpsMeterEnabled, mountFpsMeter } = m;
     if (fpsMeterEnabled()) mountFpsMeter(app);
   });
   app.controls = new Controls(app);
@@ -198,7 +200,7 @@ async function boot() {
         const bilan = `${chrono.texte()}\nprogrammes GPU compilés : ${programmes}\n${navigator.userAgent}${gpu ? `\n${gpu}` : ''}`;
         console.info(`[galerie] chrono du démarrage\n${bilan}`);
         // …et à l'écran, pour qui n'a pas de console sous la main
-        importerChunk(() => import('./ui/Chrono.js')).then(({ afficherChrono }) => afficherChrono(bilan));
+        importerChunk(() => import('./ui/Chrono.js')).then(({ afficherChrono }) => afficherChrono(bilan)).catch(() => {});
       }
     };
   } catch {
@@ -212,7 +214,7 @@ async function boot() {
   {
     const q = new URLSearchParams(location.search);
     // `?banc=1` : le banc d'essai, qui a besoin du cartouche (ui/Perf.js)
-    if (q.get('perf') === '1' || q.get('banc') === '1') importerChunk(() => import('./ui/Perf.js')).then(({ mountPerf }) => mountPerf(app));
+    if (q.get('perf') === '1' || q.get('banc') === '1') importerChunk(() => import('./ui/Perf.js')).then(({ mountPerf }) => mountPerf(app)).catch(() => {});
   }
 
   // Lien profond (?room=x&work=y) : on arrive LÀ où le lien a été partagé,
@@ -307,8 +309,10 @@ async function boot() {
     if (app.editor?.enabled) return;       // l'éditeur a son propre Échap
     if (app.activeFocus) return;           // FocusCamera gère le recul
     if (app.audioTour?.active) return;     // la visite audio gère les siens
-    const { mountVisitMenu } = await importerChunk(() => import('./ui/VisitMenu.js'));
-    mountVisitMenu(app);
+    try {
+      const { mountVisitMenu } = await importerChunk(() => import('./ui/VisitMenu.js'));
+      mountVisitMenu(app);
+    } catch { /* version périmée : le bandeau l'a dit */ }
   });
 }
 

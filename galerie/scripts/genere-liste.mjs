@@ -120,10 +120,14 @@ const STYLE = `    :root { --fg: #e8e6f2; --dim: #a09cb8; --accent: #b8a8ff; --b
     .credits p { margin: 0.5rem 0; }
     footer { color: var(--dim); font-size: 0.8rem; margin-top: 3rem; }`;
 
-const page = ({ titre, description, corps }) => `<!doctype html>
+// la même ceinture qu'index.html : aucun script (sauf la page des capacités,
+// qui porte sa sonde en ligne), styles en ligne, médias et images du site
+const CSP = "default-src 'self'; script-src 'none'; style-src 'unsafe-inline'; img-src 'self' data:; media-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'";
+
+const page = ({ titre, description, corps, csp = true }) => `<!doctype html>
 <html lang="fr">
 <head>
-  <meta charset="UTF-8">
+  <meta charset="UTF-8">${csp ? `\n  <meta http-equiv="Content-Security-Policy" content="${CSP}">` : ''}
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="description" content="${esc(description)}">
   <meta name="theme-color" content="#05050a">
@@ -306,6 +310,7 @@ const dire = (id, etat, valeur, note) => {
 `;
 
 const capacites = page({
+  csp: false,
   titre: 'Galerie — ce que cet appareil sait faire',
   description: "Diagnostic : ce que le navigateur qui ouvre cette page sait "
     + 'faire, et ce que la galerie en déduit.',

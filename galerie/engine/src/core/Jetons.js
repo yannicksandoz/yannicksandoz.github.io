@@ -101,6 +101,13 @@ export class Jetons {
     (room.config.jetons ?? []).forEach((pos, i) => {
       const cle = `${id}:${i}`;
       if (this._pris.has(cle)) return;
+      // un jeton mal écrit dans le JSON (null, deux composantes, texte) ne
+      // doit ni faire tomber la boucle (Jetons serait désabonné pour toute
+      // la visite), ni poser un maillage NaN que la visite audio viserait
+      if (!Array.isArray(pos) || pos.length < 3 || !pos.slice(0, 3).every(Number.isFinite)) {
+        console.warn(`[galerie] jeton ${cle} ignoré : position invalide`, pos);
+        return;
+      }
       const mesh = new THREE.Mesh(this._geo, this._mat);
       mesh.position.fromArray(pos);
       // Un jeton SE VISE : il s'allume sous le pointeur comme une œuvre, dit

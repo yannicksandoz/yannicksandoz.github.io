@@ -53,7 +53,7 @@ export class EcranISF {
   constructor(calques, { resolution = 512 } = {}) {
     const liste = typeof calques === 'string' ? [{ source: calques }] : [...(calques ?? [])];
     if (!liste.length) throw new Error('ISF : aucun shader');
-    const res = Math.max(128, Math.min(1024, Math.round(resolution)));
+    const res = Math.max(128, Math.min(1024, Math.round(Number.isFinite(Number(resolution)) ? Number(resolution) : 512)));
     this.cible = new THREE.WebGLRenderTarget(res, res, {
       depthBuffer: false, stencilBuffer: false
     });
@@ -126,7 +126,7 @@ export class EcranISF {
 
   /** Change la résolution de la cible, même texture : les matériaux qui la montrent n'ont rien à savoir. */
   setResolution(resolution) {
-    const res = Math.max(128, Math.min(1024, Math.round(resolution)));
+    const res = Math.max(128, Math.min(1024, Math.round(Number.isFinite(Number(resolution)) ? Number(resolution) : 512)));
     if (res === this._res) return false;
     this.cible.setSize(res, res);
     this._res = res;

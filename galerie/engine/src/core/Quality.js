@@ -232,10 +232,8 @@ export class QualityManager {
           projecteursOmbre: 3,
           envIntensity: 0.5,
           reflets: { resolution: 128, cadence: 1 },
-          // les corniches, huit ; et les lignes de lumière au budget de
-          // bureau (voir lignes-lumiere.js) — le reste est celui de l'image unique
-          sourcesEtendues: 8,
-          lampesProches: { points: 6, cones: 6 },
+          // les lignes de lumière au budget de bureau (voir lignes-lumiere.js) —
+          // le reste est celui de l'image unique
           lignesProches: undefined
         };
     // l'image enrichie : demandée par l'adresse, sinon par la mémoire

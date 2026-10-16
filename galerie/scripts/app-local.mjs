@@ -58,6 +58,7 @@ function ecrireInfoBuild() {
     branche: process.env.GITHUB_REF_NAME || git(site, 'rev-parse', '--abbrev-ref', 'HEAD'),
     plateforme: process.platform, arch: process.arch, cible: cible ?? '', universel: a('--universel')
   });
+  if (!info.commit) stop('git rev-parse HEAD a échoué : ce dossier est-il un dépôt git ? L’application embarquerait un commit inconnu.');
   writeFileSync(join(racine, 'app', 'build-info.json'), `${JSON.stringify(info, null, 2)}\n`);
   console.log(`build ${info.commit} (éditeur ${info.commitEditeur}), branche ${info.branche}, ${info.date}`);
   return info;

@@ -33,7 +33,6 @@ export const ENVIRONNEMENTS = {
 };
 
 /** Les noms offerts, dans l'ordre du menu — « studio » d'abord, le défaut. */
-export const NOMS_ENVIRONNEMENTS = Object.keys(ENVIRONNEMENTS);
 
 let _studio = null;
 const _cache = new Map();

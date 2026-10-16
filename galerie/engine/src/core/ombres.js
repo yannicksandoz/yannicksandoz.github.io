@@ -306,6 +306,8 @@ function texContact() {
   ctx.fillStyle = g;
   ctx.fillRect(0, 0, S, S);
   _texContact = new THREE.CanvasTexture(c);
+  // servie à TOUTES les ombres de contact : une œuvre déchargée ne la dispose pas
+  _texContact.userData.partagee = true;
   return _texContact;
 }
 

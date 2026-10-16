@@ -252,8 +252,10 @@ export class VisitMenu {
     // « Laisse-toi porter » : la dérive démarre, le menu s'efface
     el.querySelector('#vm-derive').addEventListener('click', async () => {
       this.hide();
-      const { mountDerive } = await importerChunk(() => import('../core/Derive.js'));
-      mountDerive(this.app).demarrer();
+      try {
+        const { mountDerive } = await importerChunk(() => import('../core/Derive.js'));
+        mountDerive(this.app).demarrer();
+      } catch { /* version périmée : le bandeau l'a dit */ }
     });
 
     // Partager : l'API native quand elle existe (mobile), sinon copie du
@@ -386,8 +388,10 @@ export class VisitMenu {
 
   async _toAudioTour() {
     this.hide();
-    const { mountAudioTour } = await importerChunk(() => import('./AudioTour.js'));
-    mountAudioTour(this.app);
+    try {
+      const { mountAudioTour } = await importerChunk(() => import('./AudioTour.js'));
+      mountAudioTour(this.app);
+    } catch { /* version périmée : le bandeau l'a dit */ }
   }
 
   /**

@@ -74,7 +74,7 @@ for (const w of workflows) {
     for (const [nom, job] of couteux) {
       assert.match(String(job.if ?? ''), GARDE, `le job « ${nom} » doit porter if: inputs.confirmation == 'je-paie'`);
       assert.ok(Number(job['timeout-minutes']) > 0 && Number(job['timeout-minutes']) <= 30, `le job « ${nom} » doit avoir un timeout-minutes serré (≤ 30)`);
-      assert.ok(!/matrix/.test(JSON.stringify(job.strategy ?? {})) || true);
+      assert.ok(!job.strategy?.matrix, `le job « ${nom} » ne doit pas avoir de matrice : UN SEUL système par run`);
     }
     assert.ok(w.doc.concurrency && (w.doc.concurrency['cancel-in-progress'] === true), 'concurrency avec cancel-in-progress');
   });

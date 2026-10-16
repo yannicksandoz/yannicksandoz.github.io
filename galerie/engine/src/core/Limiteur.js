@@ -112,7 +112,11 @@ export class Limiteur {
     try { source.disconnect(destination); } catch { /* pas encore branché */ }
     source.connect(this.marge);
     this.marge.connect(this._entree);
-    this._sortie.connect(destination);
+    // …et le plafond sur la SORTIE FIXE, jamais sur la destination : c'est
+    // sur ce gain que l'écoute de contrôle se pose, et une bascule de
+    // plafond ne la contourne pas
+    this._sortie.connect(this.sortie);
+    this._sortie = this.sortie;
     this.regler(this.reglages);
     return this.mode;
   }

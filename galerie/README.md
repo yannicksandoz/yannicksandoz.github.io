@@ -5990,6 +5990,61 @@ sous Xvfb : la boîte, Plus tard, retour à la relance, vérification
 contre une API simulée, compte nommé, étape 2, récupération, page
 rechargée sur la nouvelle pièce, plus de boîte ensuite.
 
+**Second audit, quatre relecteurs encore (beta.11).** « Audit encore le
+code » : cette fois les zones que le premier passage n'avait pas lues (le
+visiteur hors scène et audio, l'état et la publication de l'éditeur, la
+chaîne de build) et, exprès, le code neuf de la bêta et les corrections
+du premier audit relues hunk par hunk. Quarante-deux pistes, trente-neuf
+retenues. Ce qui est corrigé :
+
+- **Deux régressions du premier audit**, trouvées par la relecture des
+  hunks : la sortie fixe du limiteur était créée mais le premier plafond
+  se branchait encore sur la destination (l'écoute de contrôle sautait
+  dès la première bascule) ; et la texture de l'ombre de contact,
+  partagée par toutes les ombres, se faisait disposer à chaque œuvre
+  déchargée — la fuite inverse de celle qu'on venait de fermer.
+- **Le plafond qui suit traversait les fenêtres** : le mur tenait son
+  haut au-dessus du linteau, le plafond non. Les baies sont maintenant
+  une règle pure (`baiesDuMur`, `zonesPlanes`, `plancherBaies`) que le
+  mur, le plafond, les poignées et l'éditeur lisent pareil ; les poignées
+  se posent sur le nu exact du mur bâti (pied enfoncé, bandes planes,
+  profil plafonné), les ancres de départ sur la vraie longueur du mur
+  (avec l'épaisseur), une silhouette dessinée à 7,5 m se bâtit à 7,5 et
+  plus à 6. L'annulation d'une coque, et un redimensionnement, refont les
+  corniches. Échap interrompt le geste en cours ; quitter l'éditeur range
+  poignées et bandeau ; la vue de face se quitte même sans mur.
+- **Éditeur.** Dupliquer un espace de concert ou l'enregistrer comme
+  modèle recopiait son plan de scène : « Reconstruire » dans la copie
+  supprimait les musiciens de l'original. Un média introuvable (blob
+  mort, 404) relançait sa mesure et l'inspecteur en boucle, à la cadence
+  du réseau. Deux fichiers importés du même nom s'écrasaient. Deux
+  écouteurs de la table de mixage s'empilaient à chaque repeinte.
+  Grouper reconstruisait chaque membre (son coupé). Un ré-import perdait
+  les jetons. « Écrire dans content/ » ne nettoyait pas `gabarits/`.
+  Le plan de la galerie sélectionnait le mauvais portail dès qu'un
+  portail `via` précédait. Une archive pouvait porter des chemins `../`
+  ou déclarer des gigaoctets. Les messages 409 et 422 de GitHub étaient
+  inversés (dépôt vide, conflit) ; la mise en ligne retirait des `.json`
+  à toute profondeur. Le chemin mort de l'export JSON est retiré.
+- **Visiteur.** En visite guidée, le plan en grand ne montrait que la
+  salle courante. Un jeton mal écrit dans un JSON désabonnait les jetons
+  de toute la visite, ou envoyait la caméra en NaN. Une résolution ISF
+  non numérique faisait une cible NaN. Les imports différés sont
+  attrapés après un redéploiement. Les crédits sont une boîte nommée,
+  Échap la ferme, le focus revient ; le plan en grand rend le focus.
+- **Application et build.** La date de référence des mises à jour est
+  bornée à hier (une horloge en avance disait « à jour ») ; un `git` qui
+  échoue n'embarque plus un commit vide ; `js-yaml` est déclaré, le
+  garde-fou refuse une matrice ; les pages liste et catalogue portent une
+  CSP ; un passage de pièce dépassé ne coupe plus la chauffe du suivant ;
+  une œuvre devenue lointaine pendant son chargement audio ne se branche
+  plus.
+
+Non repris, à dessein : la mémoire de visite écrite avant le choix du
+mode, un geste d'angle qui peut faire deux entrées d'historique, le
+retour du focus à la fermeture du menu (le clavier va à la scène), les
+requêtes DOM par image de la table de mixage.
+
 **Un audit du code visiteur et éditeur, à quatre relecteurs (beta.11).**
 Quatre relectures en lecture seule — la scène et l'interface du visiteur,
 la chaîne audio, l'éditeur, l'application et sa sécurité — avec ordre de

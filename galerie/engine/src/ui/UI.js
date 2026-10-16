@@ -601,8 +601,10 @@ export class UI {
     label();
     onLangChange(label);
     btn.addEventListener('click', async () => {
-      const { mountVisitMenu } = await importerChunk(() => import('./VisitMenu.js'));
-      mountVisitMenu(app);
+      try {
+        const { mountVisitMenu } = await importerChunk(() => import('./VisitMenu.js'));
+        mountVisitMenu(app);
+      } catch { /* version périmée : le bandeau l'a dit */ }
     });
   }
 
@@ -639,12 +641,22 @@ export class UI {
 
     if (this._creditsWired) return;
     this._creditsWired = true;
-    corner.addEventListener('click', () => { overlay.hidden = false; });
+    // une boîte : nommée pour le lecteur d'écran, le focus y entre et en
+    // ressort, Échap la ferme avant que le menu de la visite ne l'entende
+    overlay.setAttribute('role', 'dialog');
+    overlay.setAttribute('aria-modal', 'true');
+    overlay.setAttribute('aria-labelledby', overlay.querySelector('h3')?.id || (overlay.querySelector('h3') && (overlay.querySelector('h3').id = 'credits-titre')) || '');
+    const fermer = () => { overlay.hidden = true; corner.focus?.({ preventScroll: true }); };
+    corner.addEventListener('click', () => { overlay.hidden = false; overlay.querySelector('[data-credits-close]')?.focus(); });
     overlay.addEventListener('click', (e) => {
-      if (e.target === overlay || e.target.closest('[data-credits-close]')) {
-        overlay.hidden = true;
-      }
+      if (e.target === overlay || e.target.closest('[data-credits-close]')) fermer();
     });
+    window.addEventListener('keydown', (e) => {
+      if (e.code !== 'Escape' || overlay.hidden) return;
+      e.stopImmediatePropagation();
+      e.preventDefault();
+      fermer();
+    }, true);
   }
 }
 

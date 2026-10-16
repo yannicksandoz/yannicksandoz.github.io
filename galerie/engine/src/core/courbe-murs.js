@@ -210,8 +210,8 @@ const bezier = (p0, p1, p2, p3, s) => {
  * passe par les extrémités du mur et chaque ancre, en cubiques de Bézier
  * (ancre, poignée après, poignée avant de la suivante, ancre suivante).
  */
-export function profilVectoriel(points, pas = 24) {
-  const ancres = [{ t: 0, d: 0, avant: [0, 0], apres: null }, ...(normaliserPoints(points) ?? []), { t: 1, d: 0, avant: null, apres: [0, 0] }];
+export function profilVectoriel(points, pas = 24, borne = BORNES_COURBE.profondeur) {
+  const ancres = [{ t: 0, d: 0, avant: [0, 0], apres: null }, ...(normaliserPoints(points, borne) ?? []), { t: 1, d: 0, avant: null, apres: [0, 0] }];
   // poignées des extrémités : lisses, au tiers, à plat (les angles restent droits)
   ancres[0].apres = [(ancres[1].t - 0) / 3, 0];
   ancres[ancres.length - 1].avant = [-(1 - ancres[ancres.length - 2].t) / 3, 0];
@@ -286,7 +286,9 @@ export function loiSilhouette({ length, couronne }) {
   if (!c) return () => 0;
   const tDe = (x) => clamp((x + length / 2) / length, 0, 1);
   if (c.points?.length) {
-    const profil = profilVectoriel(c.points);
+    // la borne de la SILHOUETTE (8 m), pas celle du plan (6) : une ancre à
+    // 7,5 m se dessinait et se bâtissait à 6
+    const profil = profilVectoriel(c.points, 24, BORNES_COURBE.couronne);
     return (x) => lireProfil(profil, tDe(x));
   }
   if (c.hauteur <= 0) return () => 0;
@@ -353,7 +355,45 @@ export function sommetModele(courbe, mur) {
  * Un mur absent : la ligne droite entre ses angles. Hors du rectangle (un
  * mur creusé vers l'extérieur), le bord le plus proche.
  */
-export function loiPlafond(courbe, { width, depth, height, epaisseur = 0, walls = null }) {
+/* ------------------------------------------------------------ les baies --- */
+
+/** Le débord du cadre d'une baie autour de son trou (RoomManager : FT). */
+export const CADRE_BAIE = 0.12;
+
+/**
+ * Les baies d'un mur, bornées à sa longueur : [{ c, wl, sill, top }] — la
+ * même règle que RoomManager.baie, en pur, pour que l'éditeur, le plafond
+ * et le mur raisonnent sur les mêmes trous.
+ */
+export function baiesDuMur({ windows = [], mur, length, height }) {
+  const out = [];
+  for (const o of Array.isArray(windows) ? windows : []) {
+    if (!o || o.wall !== mur) continue;
+    const from = Math.max(-length / 2, (o.offset ?? 0) - (o.width ?? 4) / 2);
+    const to = Math.min(length / 2, (o.offset ?? 0) + (o.width ?? 4) / 2);
+    const sill = Math.max(0, Math.min(height - 0.2, o.sill ?? 1.1));
+    const top = Math.min(height, (o.sill ?? 1.1) + (o.height ?? 1.8));
+    if (to <= from || top <= sill) continue;
+    out.push({ c: (from + to) / 2, wl: to - from, sill, top });
+  }
+  return out;
+}
+
+/** Les bandes PLANES autour des baies : le voile ne les courbe pas (chambranles, vitres, portails affleurent). */
+export function zonesPlanes(baies) {
+  return baies.map((b) => [b.c - b.wl / 2 - 0.5, b.c + b.wl / 2 + 0.5]);
+}
+
+/** Le PLANCHER du haut d'un mur : x → sous quoi le sommet ne descend pas (le linteau d'une baie et son cadre). */
+export function plancherBaies(baies) {
+  return (x) => {
+    let p = 0;
+    for (const b of baies) if (Math.abs(x - b.c) <= b.wl / 2 + CADRE_BAIE + 0.15) p = Math.max(p, b.top + CADRE_BAIE + 0.25);
+    return p;
+  };
+}
+
+export function loiPlafond(courbe, { width, depth, height, epaisseur = 0, walls = null, windows = [] }) {
   const c = normaliserCourbe(courbe);
   if (!c) return () => 0;
   const w = Number(width), d = Number(depth);
@@ -361,7 +401,9 @@ export function loiPlafond(courbe, { width, depth, height, epaisseur = 0, walls 
   const bord = {};
   for (const m of MURS) {
     const geo = geometrieMur(m, { width: w, depth: d, epaisseur });
-    const loi = loiSommet({ length: geo.longueur, height, mur: m, reglage: presents.includes(m) ? courbeDuMur(c, m) : { couronne: null }, angles: c.angles });
+    // le plafond ne descend pas sous le linteau d'une baie, pas plus que le mur
+    const plancher = plancherBaies(baiesDuMur({ windows, mur: m, length: geo.longueur, height }));
+    const loi = loiSommet({ length: geo.longueur, height, mur: m, reglage: presents.includes(m) ? courbeDuMur(c, m) : { couronne: null }, angles: c.angles, plancher });
     bord[m] = (x, z) => {
       const [t] = geo.depuisPlan(x, z);
       return loi(-geo.longueur / 2 + clamp(t, 0, 1) * geo.longueur);

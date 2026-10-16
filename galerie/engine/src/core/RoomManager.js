@@ -10,7 +10,7 @@ import { styleTexture, scaleBoxUV, scalePlaneUV, scaleWorldUV, scaleObjetUV,
 import { styleMatiere, jeuDeSurface } from './matieres.js';
 import { estFluide, materiauFluide, dessinerCouronne, courberParoi, loiParoi,
   loiCouronne } from './style.js';
-import { normaliserCourbe, courbeDuMur, loiVoileReglee, loiSommet, sommetModele, loiPlafond, debordCoque, MURS } from './courbe-murs.js';
+import { normaliserCourbe, courbeDuMur, loiVoileReglee, loiSommet, sommetModele, loiPlafond, debordCoque, MURS, plancherBaies } from './courbe-murs.js';
 import { aDesSourcesEtendues } from './primitives.js';
 import { patcherArbreLignes, segmentsMonde } from './lignes-lumiere.js';
 import { compilerRacines, attendreProgrammes, invitesMasque } from './chauffe.js';
@@ -766,8 +766,11 @@ export class RoomManager {
       this.app.controls?.chaufferCollision?.();
       }
     } finally {
-      this._entree = false;
-      this.fadeEl?.classList.remove('chargement');
+      // un passage dépassé ne coupe pas la chauffe de celui qui l'a dépassé
+      if (this.current === room) {
+        this._entree = false;
+        this.fadeEl?.classList.remove('chargement');
+      }
     }
 
     if (!instant) {
@@ -2089,11 +2092,7 @@ export function buildShell(config) {
     // LE HAUT DU MUR (courbe-murs.loiSommet) : la droite entre ses angles et
     // sa silhouette, qui monte ou descend — avec ou sans plafond, celui-ci
     // suit (plus bas). Il ne coupe jamais le linteau d'une baie.
-    const plancher = (x) => {
-      let p = 0;
-      for (const b of ouvertures) if (Math.abs(x - b.c) <= b.wl / 2 + FT + 0.15) p = Math.max(p, b.top + FT + 0.25);
-      return p;
-    };
+    const plancher = plancherBaies(ouvertures);   // la même règle que l'éditeur et le plafond
     const sommet = reglage && sommetModele(courbe, wall)
       ? loiSommet({ length, height: h, mur: wall, reglage, angles: courbe.angles, plancher }) : null;
     // le moteur parle en COURONNEMENT : de combien le sommet descend (négatif : il monte)
@@ -2178,7 +2177,7 @@ export function buildShell(config) {
     matPlafond.emissive = matPlafond.color.clone();
     matPlafond.emissiveIntensity = 0.16;
     const plafond = suit
-      ? plafondQuiSuit(courbe, { w, d, h, deb, walls: opt.walls, mat: matPlafond, habille: Boolean(wallMap || wallMatiere), repMur })
+      ? plafondQuiSuit(courbe, { w, d, h, deb, walls: opt.walls, windows: opt.windows, mat: matPlafond, habille: Boolean(wallMap || wallMatiere), repMur })
       : box(w + WALL_T + deb, WALL_T, d + WALL_T + deb, 0, h + WALL_T / 2, 0, matPlafond);
     if (suit) group.add(plafond);
     // LE PLAFOND EST UNE VERRIÈRE, pas un couvercle. S'il projetait, la
@@ -2202,13 +2201,13 @@ export function buildShell(config) {
  * (courbe-murs.loiPlafond). Un maillage d'un demi-mètre environ : la voûte
  * se lit lisse sans peser sur une grande salle.
  */
-function plafondQuiSuit(courbe, { w, d, h, deb, walls, mat, habille, repMur }) {
+function plafondQuiSuit(courbe, { w, d, h, deb, walls, windows, mat, habille, repMur }) {
   const W = w + WALL_T + deb, D = d + WALL_T + deb;
   const nx = Math.min(160, Math.max(8, Math.ceil(W / 0.5)));
   const nz = Math.min(160, Math.max(8, Math.ceil(D / 0.5)));
   const geo = new THREE.PlaneGeometry(W, D, nx, nz);
   geo.rotateX(Math.PI / 2);          // la face regarde vers le bas : on la voit de l'intérieur
-  const loi = loiPlafond(courbe, { width: w, depth: d, height: h, epaisseur: WALL_T, walls });
+  const loi = loiPlafond(courbe, { width: w, depth: d, height: h, epaisseur: WALL_T, walls, windows });
   const pos = geo.attributes.position;
   for (let i = 0; i < pos.count; i++) pos.setY(i, h + loi(pos.getX(i), pos.getZ(i)));
   pos.needsUpdate = true;
