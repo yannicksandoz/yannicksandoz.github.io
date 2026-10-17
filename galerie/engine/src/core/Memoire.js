@@ -63,12 +63,25 @@ export class Memoire {
     // vraie à la construction si la galerie nous connaissait déjà : de quoi
     // dire « bon retour » plutôt que « bienvenue », et rien de plus
     this.reprise = this.pieces.size > 0 || this.oeuvres.size > 0;
+    this.suspendue = false;
     this._abonnes = new Set();
   }
 
   onChange(fn) {
     this._abonnes.add(fn);
     return () => this._abonnes.delete(fn);
+  }
+
+  /**
+   * Suspendue, la mémoire ne note rien. Le temps de l'accueil, la scène se
+   * bâtit et pose le visiteur dans une pièce AVANT que le mode de visite soit
+   * choisi — et s'il choisit la visite guidée, rien n'avait à s'écrire ici.
+   * `reprendre(piece)` rouvre l'écriture et note la pièce où l'on est vraiment.
+   */
+  suspendre() { this.suspendue = true; }
+  reprendre(piece) {
+    this.suspendue = false;
+    if (piece) this.noter('pieces', piece);
   }
 
   /** Nom canonique d'un passage : une porte est la même vue des deux côtés. */
@@ -84,6 +97,7 @@ export class Memoire {
    * décider d'en faire un événement (un trait qui apparaît sur la carte).
    */
   noter(champ, valeur) {
+    if (this.suspendue) return false;
     const set = this[champ];
     if (!(set instanceof Set) || !valeur) return false;
     // une pièce notée est la DERNIÈRE où l'on est allé, nouvelle ou non :
@@ -231,6 +245,8 @@ export class MemoireOuverte {
   /** Rien n'est jamais nouveau dans une mémoire qui a tout vu. */
   noter() { return false; }
   noterPorte() { return false; }
+  suspendre() {}
+  reprendre() {}
   setSolde() {}
   oublier() {}
   serialiser() { return null; }

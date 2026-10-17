@@ -22,6 +22,23 @@ const OEUVRES = [{ id: 'lune' }, { id: 'marees' }, { id: 'nebuleuse' }, { id: 's
 
 console.log('\nla dernière visite');
 
+test('suspendue, la mémoire ne note rien ; reprendre(piece) note la pièce où l\'on est', () => {
+  disque.clear();
+  const m = new Memoire();
+  m.suspendre();
+  assert.equal(m.noter('pieces', 'entree'), false);
+  assert.equal(m.noterPorte('entree', 'labo'), false);
+  assert.equal(m.derniere, null);
+  assert.equal(disque.size, 0, 'rien n\'est écrit sur le disque');
+  m.reprendre('labo');
+  assert.equal(m.derniere, 'labo');
+  assert.deepEqual([...m.pieces], ['labo']);
+  assert.equal(m.noter('pieces', 'entree'), true, 'reprise : on note de nouveau');
+  const ouverte = new MemoireOuverte();
+  ouverte.suspendre(); ouverte.reprendre('x');
+  assert.equal(ouverte.noter('pieces', 'x'), false, 'la mémoire ouverte garde ses no-op');
+});
+
 test('une mémoire neuve n\'a pas de dernière pièce, et l\'accueil n\'a rien à dire', () => {
   disque.clear();
   const m = new Memoire();

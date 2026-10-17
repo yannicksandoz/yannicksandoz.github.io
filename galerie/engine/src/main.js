@@ -165,6 +165,11 @@ async function boot() {
     // visiteur dans la salle d'arrivée, et la mémoire la noterait comme
     // dernière pièce — l'accueil dirait « Entrée » à chaque fois.
     app.ui.setReprise?.(resumeReprise(app.memoire, rooms, oeuvresDe(works)));
+    // Et rien ne S'ÉCRIT avant que le mode de visite soit choisi : bâtir pose
+    // le visiteur dans la salle d'arrivée (ou celle d'un lien profond), que
+    // la mémoire de la visite libre tiendrait pour visitée — même si l'on
+    // choisit ensuite la visite guidée. Elle reprend à l'entrée, plus bas.
+    app.memoire?.suspendre?.();
     buildScene(app, works, rooms);
     chrono.marquer('scene-construite');
     app.ui.setCredits(works);
@@ -238,6 +243,8 @@ async function boot() {
     // venu par un lien : la visite d'avant, avec sa mémoire — ou la visite
     // guidée si le lien le dit (une bascule d'image recharge ainsi la page)
     if (app.modeVisite !== 'guidee') app.modeVisite = 'libre';
+    // la mémoire reprend : la pièce où l'on arrive est notée maintenant
+    app.memoire?.reprendre?.(app.rooms.current?.config.id);
     const geste = () => {
       window.removeEventListener('pointerdown', geste);
       window.removeEventListener('keydown', geste);
@@ -265,6 +272,9 @@ async function boot() {
     // d'avant, les jetons ◈, la carte qui se dessine sous les pas.
     app.modeVisite = audioTour ? 'libre' : (mode ?? 'libre');
     if (app.modeVisite === 'guidee') app.memoire = new MemoireOuverte();
+    // la visite libre : la mémoire reprend, et la pièce d'arrivée s'y note
+    // maintenant qu'on y entre vraiment
+    else app.memoire?.reprendre?.(app.rooms.current?.config.id);
     if (audioTour) {
       // La progression appartient à la VISITE, pas à la 3D : sans elle, le
       // visiteur qui entre par l'oreille n'avait aucune découverte comptée

@@ -8,7 +8,8 @@ import { normaliserConfig, normaliserChemin, siteParDefaut, manques,
   entreesArbre, entreesRetirees, texteJson, jetonMasque, resumeEnvoi,
   COMPTES_VIDES, normaliserComptes, ajouterCompte, mettreAJourCompte, choisirCompte,
   retirerCompte, compteCourant, nomDeCompte, idCompteLibre,
-  fichiersSous, shaBlobGit, planRecuperation, resumeRecuperation, comparerVersions, texteComparaison }
+  fichiersSous, shaBlobGit, planRecuperation, resumeRecuperation, comparerVersions, texteComparaison,
+  pousser }
   from '../engine/src/editor/state/EnLigne.js';
 
 let passed = 0, failed = 0;
@@ -230,6 +231,61 @@ console.log('\ncomparer à la version en ligne');
 
 const empreinte = await shaBlobGit(new TextEncoder().encode('hello\n'));
 check('l\'empreinte git d\'un blob est celle de git (« hello »)', empreinte, 'ce013625030ba8dba906f756967f9e9ca394464a');
+
+console.log('\npousser, contre une API GitHub simulée');
+{
+  // Une API de poche : elle répond ce que GitHub répond, et tient le journal
+  // des appels — c'est lui qu'on lit. Dépôt VIDE (409 sur la ref) puis dépôt
+  // qui a déjà un commit : les deux chemins.
+  const faire = async (vide) => {
+    const journal = [];
+    const rep = (statut, corps) => ({ ok: statut < 400, status: statut, json: async () => corps });
+    globalThis.fetch = async (url, init = {}) => {
+      const chemin = String(url).replace(/^https:\/\/api\.github\.com/, '');
+      const methode = init.method ?? 'GET';
+      journal.push({ methode, chemin, corps: init.body ? JSON.parse(init.body) : null });
+      if (chemin === '/repos/a/b') return rep(200, { default_branch: 'main' });
+      if (chemin.startsWith('/repos/a/b/git/ref/heads/')) {
+        return vide ? rep(409, { message: 'Git Repository is empty.' }) : rep(200, { object: { sha: 'c0' } });
+      }
+      if (chemin === '/repos/a/b/git/commits/c0') return rep(200, { tree: { sha: 't0' } });
+      if (chemin.startsWith('/repos/a/b/git/trees/t0')) return rep(200, { truncated: false, tree: [{ type: 'blob', path: 'galerie/content/works/vieux.json' }] });
+      if (chemin === '/repos/a/b/git/trees' && methode === 'POST') return rep(201, { sha: 't1' });
+      if (chemin === '/repos/a/b/git/commits' && methode === 'POST') return rep(201, { sha: 'c1c1c1c1c1' });
+      if (chemin === '/repos/a/b/git/refs' && methode === 'POST') return rep(201, { ref: 'refs/heads/main' });
+      if (chemin === '/repos/a/b/git/refs/heads/main' && methode === 'PATCH') return rep(200, { object: { sha: 'c1c1c1c1c1' } });
+      return rep(500, { message: `inattendu : ${methode} ${chemin}` });
+    };
+    const plan = { fichiers: [{ chemin: 'works/index.json', data: { works: [] } }], medias: [] };
+    let apercu = null;
+    const res = await pousser({
+      config: { depot: 'a/b', chemin: 'galerie/content', branche: 'main' }, jeton: 'x', plan, message: 'm',
+      avant: (a) => { apercu = a; return true; }
+    });
+    return { journal, apercu, res };
+  };
+
+  const v = await faire(true);
+  const arbre = v.journal.find((a) => a.methode === 'POST' && a.chemin === '/repos/a/b/git/trees');
+  const commit = v.journal.find((a) => a.methode === 'POST' && a.chemin === '/repos/a/b/git/commits');
+  check('dépôt vide : le résumé le dit, et rien n’est à retirer', [v.apercu.vide, v.apercu.retires, v.apercu.branche], [true, [], 'main']);
+  check('dépôt vide : l’arbre se crée sans base', 'base_tree' in (arbre?.corps ?? { base_tree: 1 }), false);
+  check('dépôt vide : le commit n’a pas de parent', commit?.corps.parents, []);
+  check('dépôt vide : la branche se CRÉE (POST /git/refs), elle n’est pas déplacée',
+    v.journal.filter((a) => a.chemin.startsWith('/repos/a/b/git/refs')).map((a) => `${a.methode} ${a.chemin}`), ['POST /repos/a/b/git/refs']);
+  check('dépôt vide : la ref créée vise la branche et le commit', v.journal.at(-1).corps, { ref: 'refs/heads/main', sha: 'c1c1c1c1c1' });
+  check('dépôt vide : le résultat le dit', [v.res.vide, v.res.court, v.res.ecrits], [true, 'c1c1c1c', 1]);
+
+  const p = await faire(false);
+  const arbre2 = p.journal.find((a) => a.methode === 'POST' && a.chemin === '/repos/a/b/git/trees');
+  const commit2 = p.journal.find((a) => a.methode === 'POST' && a.chemin === '/repos/a/b/git/commits');
+  check('dépôt existant : l’arbre part de l’arbre en ligne', arbre2?.corps.base_tree, 't0');
+  check('dépôt existant : ce qui n’est plus de la galerie est retiré', arbre2?.corps.tree.some((e) => e.path === 'galerie/content/works/vieux.json' && e.sha === null), true);
+  check('dépôt existant : le commit a le commit en ligne pour parent', commit2?.corps.parents, ['c0']);
+  check('dépôt existant : la branche est déplacée sans force', p.journal.at(-1), { methode: 'PATCH', chemin: '/repos/a/b/git/refs/heads/main', corps: { sha: 'c1c1c1c1c1', force: false } });
+  check('dépôt existant : pas « vide »', [p.apercu.vide, p.res.vide], [false, false]);
+  delete globalThis.fetch;
+}
 
 console.log(`\n${passed} ✓ / ${failed} ✗`);
 process.exit(failed ? 1 : 0);

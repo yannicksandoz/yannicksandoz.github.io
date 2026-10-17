@@ -112,8 +112,11 @@ export function normaliserManifeste(m) {
  * (t = 0 au premier départ). Il joue jusqu'à la fin nominale de son
  * segment, ou jusqu'à la borne `fin` de la boucle si elle vient avant,
  * PLUS le chevauchement, pendant lequel il s'éteint (`fonduSortie`) tandis
- * que le suivant s'allume (`fonduEntree`). Le tout premier morceau ne
- * s'allume pas en fondu : le gain de la piste s'en charge déjà.
+ * que le suivant s'allume (`fonduEntree`). Au bout de la piste il n'y a plus
+ * d'audio pour cette queue : le fondu mord alors sur la fin du morceau et la
+ * boucle repart d'autant plus tôt, enchaînée en fondu plutôt que coupée net
+ * puis rallumée depuis zéro. Le tout premier morceau ne s'allume pas en
+ * fondu : le gain de la piste s'en charge déjà.
  *
  * `etat` : { position, t } — la position dans la piste et l'instant de
  * ligne de temps où le prochain morceau doit commencer.
@@ -130,13 +133,18 @@ export function morceauSuivant(manifeste, bornes, etat) {
   // la queue de chevauchement n'existe que si le segment (ou la piste) la porte
   const queue = Math.min(chev, Math.max(0, manifeste.duree - finNominale));
   const boucle = finNominale >= bornes.fin - 1e-9;
+  // le fondu de sortie dure le chevauchement, queue ou pas : sans queue il
+  // mord sur le morceau, et le suivant part d'autant plus tôt
+  const duree = nominal + queue;
+  const fonduSortie = Math.min(chev, duree);
   const morceau = {
-    i, offset: arrondi(offset), duree: arrondi(nominal + queue), t: arrondi(etat.t),
-    fonduEntree: etat.t === 0 ? 0 : chev,
-    fonduSortie: queue,
+    i, offset: arrondi(offset), duree: arrondi(duree), t: arrondi(etat.t),
+    // jamais plus long que le morceau : la montée finirait après la descente
+    fonduEntree: etat.t === 0 ? 0 : arrondi(Math.min(chev, nominal)),
+    fonduSortie: arrondi(fonduSortie),
     boucle
   };
-  const suivant = { position: boucle ? bornes.debut : finNominale, t: arrondi(etat.t + nominal) };
+  const suivant = { position: boucle ? bornes.debut : finNominale, t: arrondi(etat.t + duree - fonduSortie) };
   return { morceau, suivant };
 }
 
@@ -299,14 +307,18 @@ export class LecteurFragments {
     const gain = ctx.createGain();
     gain.connect(this.destination);
     const g = gain.gain;
-    if (morceau.fonduEntree > 0) {
+    // les deux fondus tiennent dans le morceau (raccourci s'il est en retard) :
+    // la montée finit avant que la descente commence
+    const fonduSortie = Math.min(morceau.fonduSortie, duree);
+    const fonduEntree = Math.min(morceau.fonduEntree, Math.max(0, duree - fonduSortie));
+    if (fonduEntree > 0) {
       g.setValueAtTime(0, depart);
-      g.linearRampToValueAtTime(1, depart + morceau.fonduEntree);
+      g.linearRampToValueAtTime(1, depart + fonduEntree);
     } else {
       g.setValueAtTime(1, depart);
     }
-    if (morceau.fonduSortie > 0) {
-      const finPleine = depart + duree - morceau.fonduSortie;
+    if (fonduSortie > 0) {
+      const finPleine = depart + duree - fonduSortie;
       g.setValueAtTime(1, Math.max(depart, finPleine));
       g.linearRampToValueAtTime(0, depart + duree);
     }

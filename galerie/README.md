@@ -5990,6 +5990,51 @@ sous Xvfb : la boîte, Plus tard, retour à la relance, vérification
 contre une API simulée, compte nommé, étape 2, récupération, page
 rechargée sur la nouvelle pièce, plus de boîte ensuite.
 
+**Les huit points laissés de côté par les deux audits (beta.11).**
+« Adresse tous les points à traiter » : ce que les deux passages avaient
+noté « non repris, à dessein » est repris.
+
+- Fragments : au bout de la piste, il n'y a plus d'audio pour la queue de
+  chevauchement ; la boucle s'éteignait net puis repartait depuis zéro en
+  fondu — un creux d'un dixième à chaque tour. Le fondu de sortie dure
+  désormais le chevauchement même sans queue (il mord sur la fin du
+  morceau) et la reprise part dessous : la boucle s'enchaîne. Un morceau
+  plus court que le chevauchement ne monte pas plus longtemps qu'il ne
+  dure, et le lecteur borne les deux fondus dans le morceau même raccourci
+  par un retard (`core/fragments.js`, `test-fragments`).
+- Mettre en ligne sur un dépôt encore VIDE : la lecture de la branche
+  répond 409 ; le premier commit se fait sans parent ni arbre de base, et
+  la branche se crée (`POST /git/refs`) au lieu d'être déplacée. Le résumé
+  d'avant envoi le dit ; une API GitHub simulée éprouve les deux chemins
+  (`state/EnLigne.js`, `test-enligne`).
+- Supprimer un espace avec nouvelle entrée : un seul lot, donc une seule
+  annulation. Une commande `deplacer` déplace l'élément que le tableau
+  porte à ce moment — une copie prise avant le lot aurait ramené les
+  portails vers la pièce supprimée (`state/commands.js`).
+- Un glissement d'angle ou de courbe des murs ne fait plus deux entrées
+  d'historique quand le sol ou une œuvre se mettent à suivre en cours de
+  geste : les lots d'un même libellé fusionnent par chemin dès qu'ils
+  partagent une cible, chaque chemin gardant son premier « avant » ; deux
+  lots sans cible commune (un objet, puis un autre) restent deux gestes,
+  des chemins emboîtés ne fusionnent pas. `redimensionnerEspace` et
+  `reglerCourbeMurs` émettent toujours un lot (`test-commands`).
+- La mémoire de visite ne s'écrit plus avant le choix du mode : bâtir la
+  scène pose le visiteur dans la salle d'arrivée (ou celle d'un lien), que
+  la mémoire libre tenait pour visitée même si l'on choisissait ensuite la
+  visite guidée. Elle est suspendue avant la construction et reprend à
+  l'entrée, en notant la pièce où l'on arrive (`core/Memoire.js`,
+  `main.js`, `test-memoire`).
+- Le menu de visite fermé au clavier rend le focus au bouton qui l'a
+  ouvert, s'il est toujours là ; fermé au pointeur, le clavier retourne à
+  la scène comme avant — un bouton gardé en focus prendrait l'Espace
+  (« agir sur l'œuvre ») pour un clic (`ui/VisitMenu.js`).
+- La table de mixage ne cherche plus ses nœuds à chaque image : VU,
+  crêtes, distances, modèles, maître, jauge du limiteur, badge HRTF, radar
+  et tableau sont indexés une fois par peinture, les œuvres de la scène
+  lues en une passe dans une Map réemployée (`editor/ui/TableEcoute.js`).
+- Les gabarits obsolètes étaient déjà listés par « Vérifier » depuis le
+  second audit : rien à faire.
+
 **Second audit, quatre relecteurs encore (beta.11).** « Audit encore le
 code » : cette fois les zones que le premier passage n'avait pas lues (le
 visiteur hors scène et audio, l'état et la publication de l'éditeur, la

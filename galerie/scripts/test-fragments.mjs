@@ -6,7 +6,8 @@
  *   2. le manifeste : validé phrase par phrase, normalisé ;
  *   3. le chaînage : chaque morceau finit au bord de son segment ou à la
  *      borne de fin, plus la queue de fondu ; la boucle repart à « debut » ;
- *      les fondus additionnent à un sur le chevauchement ;
+ *      les fondus additionnent à un sur le chevauchement ; au bout de la
+ *      piste, sans queue, le fondu mord sur le morceau et la boucle s'enchaîne ;
  *   4. le lecteur, avec un moteur factice : charge d'avance, rend ce qui a
  *      joué, ne tient jamais plus que l'horizon.
  *
@@ -63,8 +64,22 @@ await test('sans bornes : morceau après morceau jusqu\'à la fin, puis la boucl
   assert.deepEqual(r1.morceau, { i: 0, offset: 0, duree: 10.1, t: 0, fonduEntree: 0, fonduSortie: 0.1, boucle: false });
   assert.deepEqual(r1.suivant, { position: 10, t: 10 });
   const r4 = morceauSuivant(MANIFESTE, bornesPleines, { position: 30, t: 30 });
-  assert.deepEqual(r4.morceau, { i: 3, offset: 0, duree: 4.5, t: 30, fonduEntree: 0.1, fonduSortie: 0, boucle: true });
-  assert.deepEqual(r4.suivant, { position: 0, t: 34.5 }, 'la boucle repart au début, sans trou');
+  // plus d'audio après 34,5 : le fondu de sortie mord sur le dernier dixième du morceau
+  assert.deepEqual(r4.morceau, { i: 3, offset: 0, duree: 4.5, t: 30, fonduEntree: 0.1, fonduSortie: 0.1, boucle: true });
+  assert.deepEqual(r4.suivant, { position: 0, t: 34.4 }, 'la boucle repart au début SOUS le fondu de sortie : enchaînée, pas coupée');
+});
+await test('au bout de la piste, la reprise entre pendant que la fin s\'éteint — et un morceau minuscule ne monte pas plus longtemps qu\'il ne dure', () => {
+  const { morceaux } = programme(MANIFESTE, bornesPleines, undefined, 40);
+  const dernier = morceaux.find((m) => m.boucle);
+  const reprise = morceaux[morceaux.indexOf(dernier) + 1];
+  assert.equal(dernier.fonduSortie, 0.1);
+  assert.ok(Math.abs((dernier.t + dernier.duree - dernier.fonduSortie) - reprise.t) < 1e-6, 'la reprise part où le fondu commence');
+  assert.equal(reprise.fonduEntree, 0.1);
+  // une boucle bornée à 10,05 s : le second morceau ne dure que 0,05 s de nominal
+  const b = bornesFragments({ fin: 10.05 }, MANIFESTE);
+  const court = programme(MANIFESTE, b, undefined, 20).morceaux[1];
+  assert.deepEqual([court.i, court.offset, court.duree, court.fonduEntree, court.fonduSortie, court.boucle], [1, 0, 0.15, 0.05, 0.1, true]);
+  assert.ok(court.fonduEntree <= court.duree - court.fonduSortie + 1e-9, 'la montée finit avant la descente');
 });
 await test('avec bornes 4,5 → 25 : départ au milieu du premier segment, fin au milieu du troisième', () => {
   const b = bornesFragments({ debut: '0:04.5', fin: 25 }, MANIFESTE);

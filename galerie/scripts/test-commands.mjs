@@ -3,7 +3,7 @@
  * Sans dépendance ni navigateur.  Lancer avec : npm test
  */
 import { getPath, setPath, samePath } from '../engine/src/editor/state/paths.js';
-import { patch, splice, batch, ordonnerRetraits } from '../engine/src/editor/state/commands.js';
+import { patch, splice, batch, deplacer, ordonnerRetraits } from '../engine/src/editor/state/commands.js';
 import { History } from '../engine/src/editor/state/History.js';
 
 let passed = 0, failed = 0;
@@ -280,7 +280,7 @@ console.log('\nbatch — lots non alignés : pas de fusion');
   const h = new History({ mergeWindowMs: 600 });
   const c1 = batch([patch(doc, ['works', 0, 'position'], [1, 2, 0])]); c1.do(); h.push(c1, 1000);
   const c2 = batch([patch(doc, ['works', 1, 'position'], [9, 2, 0])]); c2.do(); h.push(c2, 1010);
-  check('deux entrées (cibles différentes)', h.undoStack.length, 2);
+  check('deux entrées (cibles différentes : un objet, puis un autre — deux gestes)', h.undoStack.length, 2);
 }
 
 console.log('\nno-op — une écriture sans changement n’entre pas dans l’historique');
@@ -353,6 +353,69 @@ console.log('\nmédiathèque — recensement des sons du projet');
   h.undo();
   check('après annulation : le geste d\'avant', h.prochainAnnule, 'liens du shader');
   check('et le rétabli est celui qu\'on vient de défaire', h.prochainRetabli, 'couleur de face');
+}
+
+console.log('\nlots : fusion par chemin');
+{
+  // un glissement de courbe : le premier lot n'écrit que la coque ; au second,
+  // le sol et une œuvre se mettent à suivre. Même libellé : UNE annulation.
+  const doc = makeDoc();
+  doc.data.rooms[0].shell = { width: 20, depth: 20 };
+  doc.data.rooms[0].floor = { size: 19 };
+  const h = new History({ mergeWindowMs: 600 });
+  const lot1 = batch([patch(doc, ['rooms', 0, 'shell'], { width: 20, depth: 20, courbe: { nord: 1 } }, { label: 'courbe' })], 'courbe');
+  lot1.do(); h.push(lot1, 1000);
+  const lot2 = batch([
+    patch(doc, ['rooms', 0, 'shell'], { width: 20, depth: 20, courbe: { nord: 2 } }, { label: 'courbe' }),
+    patch(doc, ['rooms', 0, 'floor'], { size: 18 }, { label: 'courbe' }),
+    patch(doc, ['works', 0, 'position'], [0, 1.5, 0], { label: 'courbe' })
+  ], 'courbe');
+  lot2.do(); h.push(lot2, 1200);
+  const lot3 = batch([
+    patch(doc, ['rooms', 0, 'shell'], { width: 20, depth: 20, courbe: { nord: 3 } }, { label: 'courbe' }),
+    patch(doc, ['works', 0, 'position'], [0, 1, 0], { label: 'courbe' })
+  ], 'courbe');
+  lot3.do(); h.push(lot3, 1400);
+  check('trois lots de tailles différentes, même geste : une seule entrée', h.undoStack.length, 1);
+  check('le lot fusionné porte chaque chemin une fois', lot1.commands.map((c) => c.path.join('/')), ['rooms/0/shell', 'rooms/0/floor', 'works/0/position']);
+  check('l’état final est celui du dernier lot', [doc.data.rooms[0].shell.courbe.nord, doc.data.rooms[0].floor.size, doc.data.works[0].position], [3, 18, [0, 1, 0]]);
+  h.undo();
+  check('une annulation rend TOUT l’état d’avant le geste (chaque chemin garde son premier « avant »)',
+    [doc.data.rooms[0].shell, doc.data.rooms[0].floor, doc.data.works[0].position], [{ width: 20, depth: 20 }, { size: 19 }, [0, 2, 0]]);
+  h.redo();
+  check('et le rétabli remet l’état final', [doc.data.rooms[0].shell.courbe.nord, doc.data.floor?.size ?? doc.data.rooms[0].floor.size, doc.data.works[0].position], [3, 18, [0, 1, 0]]);
+
+  // un autre libellé ne fusionne pas, même rapproché ; un chemin emboîté non plus
+  const autre = batch([patch(doc, ['rooms', 0, 'floor'], { size: 17 }, { label: 'sol' })], 'sol');
+  autre.do(); h.push(autre, 1500);
+  check('un lot d’un autre libellé reste une entrée à part', h.undoStack.length, 2);
+  const emboite = batch([patch(doc, ['rooms', 0, 'floor', 'size'], 16, { label: 'sol' })], 'sol');
+  check('un chemin emboîté (floor puis floor/size) ne fusionne pas : l’ordre des écritures compte', autre.mergeWith(emboite), false);
+  const avecSplice = batch([patch(doc, ['rooms', 0, 'floor'], { size: 15 }, { label: 'sol' }), splice(doc, ['works'], 0, 0, [{ id: 'z' }], { label: 'sol' })], 'sol');
+  check('un lot qui contient autre chose qu’un patch ne fusionne pas', autre.mergeWith(avecSplice), false);
+}
+
+console.log('\ndéplacer');
+{
+  // la nouvelle entrée passe en tête dans le lot de la suppression : rien
+  // n'est copié, l'élément déplacé est celui que le tableau porte à ce moment
+  const doc = makeDoc();
+  doc.data.rooms = [{ id: 'hall' }, { id: 'labo', portals: [{ to: 'hall' }] }, { id: 'serre' }];
+  const lot = batch([
+    splice(doc, ['rooms', 1, 'portals'], 0, 1, []),   // le portail vers la pièce supprimée
+    splice(doc, ['rooms'], 0, 1, []),                 // la suppression de « hall »
+    deplacer(doc, ['rooms'], 1, 0, { label: 'nouvelle entrée' })   // « serre » (index 1 APRÈS le retrait) en tête
+  ], 'espace supprimé');
+  lot.do();
+  check('après le lot : la nouvelle entrée en tête, sans portail fantôme', doc.data.rooms, [{ id: 'serre' }, { id: 'labo', portals: [] }]);
+  lot.undo();
+  check('annulé : la liste d’origine, portail compris', doc.data.rooms, [{ id: 'hall' }, { id: 'labo', portals: [{ to: 'hall' }] }, { id: 'serre' }]);
+  lot.do();
+  check('refait : identique', doc.data.rooms.map((r) => r.id), ['serre', 'labo']);
+  check('déplacer sur place : sans effet', deplacer(doc, ['rooms'], 1, 1).isNoop(), true);
+  let erreur = null;
+  try { deplacer(doc, ['rooms'], 5, 0).do(); } catch (e) { erreur = e.message; }
+  check('un index hors du tableau refuse plutôt que de corrompre', /hors du tableau/.test(erreur ?? ''), true);
 }
 
 {

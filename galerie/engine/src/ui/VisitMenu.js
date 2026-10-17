@@ -29,6 +29,8 @@ export class VisitMenu {
     this.app = app;
     this.open = false;
     this._inerted = [];
+    this._ouvreur = null;      // l'élément qui avait le focus à l'ouverture
+    this._auClavier = false;   // le dernier geste dans le menu : touche ou pointeur
     this._build();
     // Changer de langue depuis le menu le reconstruit dans la langue
     // choisie, focus reposé sur le sélecteur pour ne pas perdre l'utilisateur.
@@ -303,6 +305,11 @@ export class VisitMenu {
       if (panneau) panneau.hidden = false;
     });
 
+    // Comment on s'y meut : au clavier, la fermeture rend le focus au bouton
+    // qui a ouvert ; au pointeur, elle le relâche (la scène reprend la main).
+    el.addEventListener('keydown', () => { this._auClavier = true; }, true);
+    el.addEventListener('pointerdown', () => { this._auClavier = false; }, true);
+
     // Échap referme — et ne remonte pas jusqu'au déclencheur global de
     // main.js, qui rouvrirait le menu dans la foulée.
     el.addEventListener('keydown', (e) => {
@@ -354,6 +361,10 @@ export class VisitMenu {
     // (le module TipJar s'enregistre après le premier rendu) bougent.
     this.el.remove();
     this._build();
+    // d'où l'on vient (le bouton de la pièce, un lien…) : le focus pourra y revenir
+    const actif = document.activeElement;
+    this._ouvreur = actif instanceof HTMLElement && actif !== document.body ? actif : null;
+    this._auClavier = false;
     this.open = true;
     this.app.controls.suspended = true; // le clavier appartient au menu
     document.getElementById('app')?.setAttribute('aria-hidden', 'true');
@@ -383,7 +394,17 @@ export class VisitMenu {
   hide() {
     if (!this.open) return;
     this._releaseDom();
-    document.activeElement?.blur?.(); // le clavier retourne à la scène
+    // Fermé au clavier : le focus revient là d'où le menu a été ouvert, s'il
+    // est toujours dans la page et hors du menu — un lecteur d'écran ne se
+    // retrouve pas au début du document. Fermé au pointeur, ou sans ouvreur :
+    // le clavier retourne à la scène (un bouton gardé en focus prendrait
+    // l'Espace, « agir sur l'œuvre », pour un clic).
+    const o = this._ouvreur;
+    this._ouvreur = null;
+    if (this._auClavier && o?.isConnected && !this.el.contains(o)) {
+      try { o.focus({ preventScroll: true }); return; } catch { /* non focalisable */ }
+    }
+    document.activeElement?.blur?.();
   }
 
   async _toAudioTour() {
