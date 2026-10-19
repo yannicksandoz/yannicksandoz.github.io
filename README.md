@@ -11,6 +11,9 @@ Pages par `.github/workflows/deploy.yml` :
   en binaural, un mix qui se compose en marchant. Vite, three.js, Web Audio,
   sans backend ni service tiers.
 
+Pour commencer vite : [`galerie/DEMARRER.md`](galerie/DEMARRER.md) — faire
+tourner, poser une œuvre et une pièce, publier, en dix minutes.
+
 Toute la documentation de la galerie est dans
 [`galerie/README.md`](galerie/README.md) : le
 [démarrage](galerie/README.md#démarrage) (`npm run dev`, `npm run build`,

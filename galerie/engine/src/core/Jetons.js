@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { t } from './i18n.js';
 
 /**
  * Jetons ◈ — la monnaie du raccourci, cachée dans le monde.
@@ -158,6 +159,9 @@ export class Jetons {
     liste.splice(i, 1);
     this.compte++;
     this._notifier();
+    this.app.earcons?.jouer('jeton');
+    // dit au lecteur d'écran, en 3D (la visite audio a ses propres annonces)
+    if (!this.app.audioTour?.active) this.app.ui?.annoncer?.(t('tour.token.taken', { n: this.compte }));
   }
 
   /**

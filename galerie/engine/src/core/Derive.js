@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { t, onLangChange } from './i18n.js';
-import { easeInOutCubic } from './utils.js';
+import { easeInOutCubic, pointeurGrossier } from './utils.js';
 import { pointDeVue } from './Progression.js';
 
 /**
@@ -55,6 +55,9 @@ export class Derive {
       if (!this.active) return;
       if (e.target instanceof Element
         && e.target.closest('input, textarea, select, #visit-menu')) return;
+      // Tab et les modificateurs NAVIGUENT dans le HUD : un utilisateur
+      // clavier doit pouvoir atteindre un bouton sans couper la visite
+      if (['Tab', 'Shift', 'Control', 'Alt', 'Meta', 'CapsLock'].includes(e.key)) return;
       if (e.key === 'ArrowLeft') { e.preventDefault(); this.precedente(); return; }
       if (e.key === 'ArrowRight') { e.preventDefault(); this.suivante(); return; }
       if (e.key === 'Enter' || e.key === ' ') {
@@ -175,7 +178,22 @@ export class Derive {
     mot.className = 'derive-jeton-mot';
     jeton.append(glyphe, mot);
     jeton._mot = mot;
-    jeton.addEventListener('click', () => this.ouvrirInconnue());
+    // Au doigt, rien ne survole : le premier tap MONTRE le prix et arme le
+    // bouton, le second (dans les quatre secondes) ouvre — un jeton ne part
+    // pas pour avoir voulu savoir ce que fait le rond.
+    jeton.addEventListener('click', () => {
+      if (pointeurGrossier() && jeton.dataset.arme !== '1') {
+        jeton.dataset.arme = '1';
+        jeton.classList.add('arme');
+        this.app.ui?.annoncer?.(jeton._mot.textContent);
+        clearTimeout(this._desarmer);
+        this._desarmer = setTimeout(() => { jeton.dataset.arme = ''; jeton.classList.remove('arme'); }, 4000);
+        return;
+      }
+      jeton.dataset.arme = '';
+      jeton.classList.remove('arme');
+      this.ouvrirInconnue();
+    });
 
     barre.append(lecture, jeton);
     document.body.appendChild(barre);
@@ -339,6 +357,7 @@ export class Derive {
       return false;
     }
     this.active = true;
+    this.app.ui?.annoncer?.(t('derive.on'));
     this._aRendre = false;                // une remise des commandes en attente
     this.app.activeFocus?.release?.();
     this.app.controls.locked = true;      // la caméra appartient à la dérive
@@ -415,6 +434,7 @@ export class Derive {
     if (!this.active) return;
     this.active = false;
     this._phase = 'idle';
+    this.app.ui?.annoncer?.(t('derive.off'));
     this._peindre();
     // On rend la main LÀ OÙ L'ON EST, en l'air s'il le faut. Le tore de
     // « Gravité » flotte au centre du belvédère : y reposer le visiteur au

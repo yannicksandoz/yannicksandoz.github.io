@@ -299,6 +299,10 @@ export class CartePleine {
     this.app = app;
     this.el = document.createElement('div');
     this.el.id = 'carte-pleine';
+    // une boîte nommée : « dialogue, Plan de la galerie » plutôt qu'un bloc anonyme
+    this.el.setAttribute('role', 'dialog');
+    this.el.setAttribute('aria-modal', 'true');
+    this.el.setAttribute('aria-labelledby', 'cp-titre');
     this.el.hidden = true;
     document.body.appendChild(this.el);
     this._onTouche = (e) => {
@@ -462,7 +466,7 @@ export class CartePleine {
       : t('carte.complet', { connues });
     this.el.innerHTML = `
       <div class="cp-barre">
-        <h2>${esc(t('carte.titre'))}</h2>
+        <h2 id="cp-titre">${esc(t('carte.titre'))}</h2>
         <p class="cp-compte">${esc(compte)}</p>
         <button id="cp-fermer" type="button" aria-label="${esc(t('carte.fermer'))}">×</button>
       </div>

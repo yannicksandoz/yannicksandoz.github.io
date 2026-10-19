@@ -1,9 +1,14 @@
 import * as THREE from 'three';
 import { registry } from '../core/ModuleRegistry.js';
-import { t, onLangChange } from '../core/i18n.js';
+import { t, lang, onLangChange } from '../core/i18n.js';
 import { easeInOutCubic } from '../core/utils.js';
 import { pisteAD, LecteurAD, mountLecteurAD } from '../core/audiodescription.js';
 import { estOeuvre } from '../core/catalogue.js';
+import { reperer, distanceArrondie, pivoter, classerParDistance } from '../core/orientation.js';
+import { estFerme } from '../core/Cooldown.js';
+
+/** Le pluriel des compléments (jetons, passages) : la même règle que `t` pour {s}. */
+const pl = (n) => ((lang() === 'en' ? n !== 1 : n > 1) ? 's' : '');
 
 /** Titre prononçable, avec le repli traduit (a11y.js reste côté auteur). */
 const titre = (config) => {
@@ -168,6 +173,18 @@ export class AudioTour {
              l'image montre. Elle n'apparaît que lorsqu'on est devant une
              œuvre qui en déclare une — jamais un bouton sans contenu. -->
         <button id="at-ad" hidden aria-pressed="false"></button>
+        <!-- Lire la description à voix haute (synthèse du navigateur) quand
+             l'œuvre n'a pas d'audiodescription enregistrée : pour qui n'a
+             pas de lecteur d'écran, ou l'a coupé pour écouter. -->
+        <button id="at-lire" hidden aria-pressed="false">${t('tour.lire')}</button>
+        <!-- Les outils de l'oreille : où suis-je (l'inventaire de l'espace,
+             les plus proches avec leur direction), pivoter d'un huitième de
+             tour à gauche ou à droite (les HRTF font le reste). -->
+        <div class="at-outils" role="group" aria-label="${t('tour.outils')}">
+          <button id="at-ou">${t('tour.ou')}</button>
+          <button id="at-gauche">${t('tour.pivot.gauche')}</button>
+          <button id="at-droite">${t('tour.pivot.droite')}</button>
+        </div>
         <button id="at-auto" aria-pressed="false">${t('tour.auto')}</button>
         <button id="at-quit">${t('tour.quit')}</button>
         <div id="at-live" aria-live="polite" class="at-sr-only"></div>
@@ -182,6 +199,18 @@ export class AudioTour {
       const art = this.app.activeFocus?.artwork;
       if (art) mountLecteurAD(this.app).basculer(art.config);
     });
+    el.querySelector('#at-lire').addEventListener('click', () => this._lireDescription());
+    el.querySelector('#at-ou').addEventListener('click', () => this._inventaire());
+    el.querySelector('#at-gauche').addEventListener('click', () => this._pivoter(-45));
+    el.querySelector('#at-droite').addEventListener('click', () => this._pivoter(45));
+    // I : où suis-je ; Maj + gauche/droite : pivoter (les flèches seules changent de pièce)
+    el.addEventListener('keydown', (e) => {
+      if (e.key === 'i' || e.key === 'I') { e.preventDefault(); this._inventaire(); return; }
+      if (e.shiftKey && (e.key === 'ArrowLeft' || e.key === 'ArrowRight')) {
+        e.preventDefault(); e.stopImmediatePropagation();
+        this._pivoter(e.key === 'ArrowRight' ? 45 : -45);
+      }
+    }, true);
 
     // Dialogue modal : le focus boucle aux extrémités du panneau. `inert`
     // (posé dans start) empêche déjà d'atteindre la page derrière ; sans ce
@@ -217,13 +246,14 @@ export class AudioTour {
       if (e.key.startsWith('Arrow') || e.key === 'Escape') this._arreterAuto();
     });
 
+    // Échap REMONTE : de la liste ou d'un bouton vers l'en-tête ; depuis
+    // l'en-tête seulement, il quitte. Un Échap de trop sur « Quitter »
+    // rechargeait la page sans prévenir.
     el.addEventListener('keydown', (e) => {
       if (e.key !== 'Escape' || this.app.activeFocus) return;
-      if (el.querySelector('#at-works').contains(document.activeElement)) {
-        el.querySelector('#at-title').focus();
-      } else {
-        this.stop();
-      }
+      const titre = el.querySelector('#at-title');
+      if (document.activeElement === titre) this.stop();
+      else titre.focus();
     });
 
     // Une seule liste verticale : les œuvres, puis les passages. Haut/bas
@@ -299,6 +329,12 @@ export class AudioTour {
       this._visitees.add(room.config.id);
       this._announceRoom(room);
     }
+    // venu par un lien vers une œuvre (?work=…&mode=audio) : on l'approche
+    const art = this.app._lienProfondOeuvre;
+    if (art && art.room === room) {
+      this.app._lienProfondOeuvre = null;
+      setTimeout(() => { if (this.active) this._approach(art); }, 600);
+    }
   }
 
   /** Rend au document ce que la visite lui avait pris (inertie, focus). */
@@ -360,9 +396,110 @@ export class AudioTour {
    */
   _poserLibelle(b, art) {
     const libelle = this._libelle(art);
-    b.textContent = libelle;
-    if (libelle === t('tour.unknown')) b.removeAttribute('lang');
-    else b.lang = 'fr';
+    b.textContent = '';
+    const nom = document.createElement('span');
+    nom.textContent = libelle;
+    if (libelle !== t('tour.unknown')) nom.lang = 'fr';
+    const ou = document.createElement('span');
+    ou.className = 'at-ou';
+    ou.dataset.ou = '';
+    b.append(nom, ou);
+    b._cible = () => art.group.getWorldPosition(new THREE.Vector3());
+    this._poserRepere(b);
+  }
+
+  /**
+   * OÙ c'est : « — à gauche, 12 m », relatif au regard de l'auditeur. Une
+   * œuvre non découverte le dit aussi : c'est l'équivalent honnête du « ??? »
+   * qui brille dans la pièce — on sait qu'il y a quelque chose, et de quel
+   * côté. Un passage dit s'il est fermé pour l'instant.
+   */
+  _poserRepere(b) {
+    const ou = b.querySelector('[data-ou]');
+    if (!ou || !b._cible) return;
+    const r = reperer(this.app.camera.position, this.app.controls.orbit.target, b._cible());
+    let texte = ` — ${t(`dir.${r.secteur}`)}, ${distanceArrondie(r.distance, t('dir.pres'))}`;
+    if (b._ferme?.()) texte += `, ${t('tour.door.closed.court')}`;
+    ou.textContent = texte;
+  }
+
+  /** Les repères de toute la liste : après un trajet, un pivot, une approche. */
+  _rafraichirReperes() {
+    for (const b of this._items()) this._poserRepere(b);
+  }
+
+  /** Tout ce qu'il y a dans l'espace, du plus proche au plus loin, avec son repère. */
+  _cibles() {
+    const cur = this.app.rooms.current;
+    if (!cur) return [];
+    const liste = [];
+    for (const art of oeuvres(cur.artworks)) {
+      liste.push({ nom: this._libelle(art), position: art.group.getWorldPosition(new THREE.Vector3()), type: 'oeuvre' });
+    }
+    for (const mesh of this.app.jetons?.restants(cur.config.id) ?? []) {
+      liste.push({ nom: t('tour.token'), position: mesh.getWorldPosition(new THREE.Vector3()), type: 'jeton' });
+    }
+    for (const salle of this._passages()) {
+      const mesh = this._porteVers(salle.config.id);
+      if (!mesh) continue;
+      liste.push({ nom: t('tour.door', { room: salle.config.title ?? salle.config.id }), position: mesh.getWorldPosition(new THREE.Vector3()), type: 'passage' });
+    }
+    return classerParDistance(this.app.camera.position, this.app.controls.orbit.target, liste);
+  }
+
+  /** Le portail (mesh) de la pièce courante qui mène à `roomId`, s'il est dessiné. */
+  _porteVers(roomId) {
+    return this.app.rooms.current?.portalMeshes?.find((m) => m.userData.portal?.cfg?.to === roomId) ?? null;
+  }
+
+  /** « Où suis-je ? » : l'espace, son compte, et les trois plus proches avec leur direction. */
+  _inventaire() {
+    const cur = this.app.rooms.current;
+    if (!cur) return;
+    const { total, n } = this._compteur(cur);
+    const jetons = this.app.jetons?.restants(cur.config.id)?.length ?? 0;
+    const passages = this._passages().length;
+    const proches = this._cibles().slice(0, 3)
+      .map((c) => `${c.nom}, ${t(`dir.${c.secteur}`)}, ${distanceArrondie(c.distance, t('dir.pres'))}`)
+      .join(' ; ');
+    this._announce(t('tour.inventaire', { room: cur.config.title ?? cur.config.id, n, total, jetons, passages, sj: pl(jetons), sp: pl(passages) })
+      + (proches ? ` ${t('tour.proches', { liste: proches })}` : ''));
+  }
+
+  /** Un huitième de tour sur place : les HRTF font entendre le changement, l'annonce dit ce qui est devant. */
+  _pivoter(degres) {
+    this._glide = null;
+    // une approche en cours tient la caméra : on la relâche d'abord
+    this.app.activeFocus?.release?.();
+    const pos = this.app.camera.position;
+    const cible = this.app.controls.orbit.target;
+    const r = pivoter(pos, cible, degres);
+    cible.set(r.x, r.y, r.z);
+    this.app.camera.lookAt(cible);
+    this._rafraichirReperes();
+    const devant = this._cibles().find((c) => c.secteur === 'devant');
+    this._announce(`${t(degres > 0 ? 'tour.pivot.droite.fait' : 'tour.pivot.gauche.fait')} ${devant
+      ? t('tour.devant', { quoi: devant.nom, d: distanceArrondie(devant.distance, t('dir.pres')) })
+      : t('tour.devant.rien')}`);
+  }
+
+  /**
+   * Lire la description à voix haute, par la synthèse du navigateur, quand
+   * l'œuvre n'a pas d'audiodescription enregistrée. Dans la langue du
+   * contenu. Un second appui arrête.
+   */
+  _lireDescription() {
+    if (typeof speechSynthesis === 'undefined') return;
+    if (this._parle) { speechSynthesis.cancel(); this._parle = false; this._peindreAD(); return; }
+    const cfg = this.app.activeFocus?.artwork?.config;
+    const desc = String(cfg?.description ?? '').trim();
+    if (!desc) return;
+    const u = new SpeechSynthesisUtterance(`${titre(cfg)}. ${desc}`);
+    u.lang = 'fr-FR';
+    u.onend = u.onerror = () => { this._parle = false; this._peindreAD(); };
+    this._parle = true;
+    this._peindreAD();
+    speechSynthesis.speak(u);
   }
 
   /**
@@ -431,7 +568,7 @@ export class AudioTour {
     if (!nouvelles.length) return;
 
     const { total, n } = this._compteur(cur);
-    if (n >= total) { this._announce(t('tour.room.done')); return; }
+    if (n >= total) { this._announce(t('tour.room.done')); this.app.earcons?.jouer('fin'); return; }
     // Une approche annonce déjà l'œuvre, et mieux : on ne parle par-dessus
     // que pour les découvertes venues du seul fait d'avoir écouté à côté.
     if (this.app.activeFocus) return;
@@ -469,10 +606,15 @@ export class AudioTour {
     ul.innerHTML = '';
     const id = this.app.rooms.current?.config.id;
     const restants = id ? (this.app.jetons?.restants(id) ?? []) : [];
-    restants.forEach((mesh) => {
+    restants.forEach((mesh, k) => {
       const li = document.createElement('li');
       const b = document.createElement('button');
-      b.textContent = t('tour.token');
+      // numérotés : deux « Jeton ◈ » identiques ne se distinguent pas à l'oreille
+      b.textContent = restants.length > 1 ? `${t('tour.token')} ${k + 1}/${restants.length}` : t('tour.token');
+      const ou = document.createElement('span'); ou.className = 'at-ou'; ou.dataset.ou = '';
+      b.appendChild(ou);
+      b._cible = () => mesh.getWorldPosition(new THREE.Vector3());
+      this._poserRepere(b);
       b.tabIndex = -1;
       b.addEventListener('click', () => this._allerAuJeton(mesh));
       li.appendChild(b);
@@ -516,6 +658,14 @@ export class AudioTour {
       const li = document.createElement('li');
       const b = document.createElement('button');
       b.textContent = t('tour.door', { room: salle.config.title ?? salle.config.id });
+      const mesh = this._porteVers(salle.config.id);
+      if (mesh) {
+        const ou = document.createElement('span'); ou.className = 'at-ou'; ou.dataset.ou = '';
+        b.appendChild(ou);
+        b._cible = () => mesh.getWorldPosition(new THREE.Vector3());
+        b._ferme = () => estFerme(mesh);
+        this._poserRepere(b);
+      }
       b.tabIndex = -1;
       b.addEventListener('click', () => this._allerVers(salle.config.id));
       li.appendChild(b);
@@ -570,7 +720,7 @@ export class AudioTour {
     const k = AudioTour._pace(g.t);
     this.app.camera.position.lerpVectors(g.pts[0], g.pts[1], k);
     this.app.controls.orbit.target.lerpVectors(g.tgts[0], g.tgts[1], k);
-    if (g.t >= 1) this._glide = null; // arrivé : la caméra est posée
+    if (g.t >= 1) { this._glide = null; this._rafraichirReperes(); } // arrivé : la caméra est posée
   }
 
   /* ----------------------------------------------------------- actions --- */
@@ -582,12 +732,14 @@ export class AudioTour {
    * on n'annonce rien : annoncer une pièce dans laquelle on n'est pas
    * entré fausserait le modèle mental de l'utilisateur.
    */
-  async _allerVers(roomId, { retour = false } = {}) {
-    this._auto = null;          // la visite guidée ne suit pas hors de la pièce
-    this._peindreAuto();
+  async _allerVers(roomId, { retour = false, garderAuto = false } = {}) {
+    if (!garderAuto) {          // un passage pris à la main arrête la visite guidée
+      this._auto = null;
+      this._peindreAuto();
+    }
     const depart = this.app.rooms.current?.config.id;
     const entered = await this.app.rooms.setCurrent(roomId);
-    if (!entered) return false;
+    if (!entered) { this._announce(t('tour.door.closed')); this.app.earcons?.jouer('fermee'); return false; }
     // Fil d'Ariane : on empile l'endroit d'où l'on vient, sauf quand on
     // revient justement sur ses pas (sinon les deux pièces se renverraient
     // l'une à l'autre indéfiniment).
@@ -612,23 +764,57 @@ export class AudioTour {
    * passages — une pièce vide doit dire par où l'on repart, sans quoi elle
    * est une porte fermée au nez.
    */
+  /** « 1 jeton, 3 passages. » — ce que la pièce contient hors ses œuvres (déjà dites par le repère). */
+  _resumeArrivee() {
+    const cur = this.app.rooms.current;
+    const jetons = cur ? (this.app.jetons?.restants(cur.config.id)?.length ?? 0) : 0;
+    const passages = this._passages().length;
+    return t('tour.arrivee', { jetons, passages, sj: pl(jetons), sp: pl(passages) });
+  }
+
   _announceArrivee() {
     const premiere = oeuvres(this.app.rooms.current?.artworks ?? [])[0];
+    const resume = this._resumeArrivee();
     if (premiere) {
       // Jamais le titre d'une œuvre qu'on n'a pas encore rencontrée : ce
       // serait la nommer sans l'avoir trouvée. Le repère de pièce, lui,
-      // vient d'annoncer « 0 sur 4 » — le silence dit le reste.
+      // vient d'annoncer « 0 sur 4 » — le silence dit le reste. On dit
+      // tout de même où elle est : c'est l'indice honnête.
       const nom = this._libelle(premiere);
-      if (nom !== t('tour.unknown')) this._announce(nom);
+      const r = reperer(this.app.camera.position, this.app.controls.orbit.target, premiere.group.getWorldPosition(new THREE.Vector3()));
+      const ou = `${t(`dir.${r.secteur}`)}, ${distanceArrondie(r.distance, t('dir.pres'))}`;
+      this._announce(`${resume} ${t('tour.premiere', { ou })}`, nom !== t('tour.unknown') ? { contenu: nom } : {});
       return;
     }
     const sorties = this._passages();
-    this._announce(sorties.length
+    this._announce(`${resume} ` + (sorties.length
       ? t('tour.doors.list', {
         n: sorties.length,
         liste: sorties.map((s) => s.config.title ?? s.config.id).join(', ')
       })
-      : t('tour.doors.none'));
+      : t('tour.doors.none')));
+  }
+
+  /**
+   * L'espace inédit le plus proche, par les passages (parcours en largeur
+   * sur le plan de la galerie) : c'est là que la visite guidée continue.
+   */
+  _prochaineInedite() {
+    const cur = this.app.rooms.current;
+    if (!cur) return null;
+    const vus = new Set([cur.config.id]);
+    const file = [cur];
+    while (file.length) {
+      const salle = file.shift();
+      for (const p of salle.config.portals ?? []) {
+        const suivante = this.app.rooms.rooms?.get(p.to);
+        if (!suivante || vus.has(p.to)) continue;
+        vus.add(p.to);
+        if (!this._visitees.has(p.to)) return suivante;
+        file.push(suivante);
+      }
+    }
+    return null;
   }
 
   /** Flèche droite : avancer — de préférence vers une pièce jamais vue. */
@@ -671,6 +857,15 @@ export class AudioTour {
     if (!b) return;
     const cfg = this.app.activeFocus?.artwork.config;
     const piste = cfg ? pisteAD(cfg) : null;
+    // sans enregistrement : la synthèse du navigateur lit la description
+    const lire = this.el.querySelector('#at-lire');
+    if (lire) {
+      const desc = String(cfg?.description ?? '').trim();
+      const peut = Boolean(cfg) && !piste && Boolean(desc) && typeof speechSynthesis !== 'undefined';
+      lire.hidden = !peut;
+      lire.textContent = this._parle ? t('tour.lire.stop') : t('tour.lire');
+      lire.setAttribute('aria-pressed', String(Boolean(peut && this._parle)));
+    }
     b.hidden = !piste;
     if (!piste) return;
     const lecteur = mountLecteurAD(this.app);
@@ -693,7 +888,8 @@ export class AudioTour {
   _basculerAuto() {
     if (this._auto) { this._arreterAuto(); return; }
     const liste = oeuvres(this.app.rooms.current?.artworks ?? []);
-    if (!liste.length) { this._announce(t('tour.empty')); return; }
+    // un espace vide : la visite part tout de suite vers l'espace inédit le plus proche
+    if (!liste.length && !this._prochaineInedite()) { this._announce(t('tour.auto.fin')); return; }
     // on reprend là où le focus se trouve, sinon au début
     const courante = this.app.activeFocus?.artwork;
     const depart = Math.max(0, liste.indexOf(courante));
@@ -720,10 +916,25 @@ export class AudioTour {
     if (!this.active || !this._auto) return;
     const liste = oeuvres(this.app.rooms.current?.artworks ?? []);
     const a = this._auto;
+    if (a.phase === 'porte') return;   // en route vers l'espace suivant
     if (a.i >= liste.length) {
-      this._auto = null;
-      this._peindreAuto();
-      this._announce(t('tour.auto.end'));
+      // l'espace est parcouru : la visite continue vers l'inédit le plus
+      // proche, et s'arrête quand la galerie entière a été entendue
+      const suite = this._prochaineInedite();
+      if (!suite) {
+        this._auto = null;
+        this._peindreAuto();
+        this._announce(t('tour.auto.fin'));
+        this.app.earcons?.jouer('fin');
+        return;
+      }
+      a.phase = 'porte';
+      this._announce(t('tour.auto.suite', { room: suite.config.title ?? suite.config.id }));
+      this._allerVers(suite.config.id, { garderAuto: true }).then((ok) => {
+        if (!this._auto) return;
+        if (!ok) { a.phase = 'pause'; a.attente = 2; a.i = liste.length; return; } // porte fermée : on réessaie dans deux secondes
+        this._auto = { i: 0, phase: 'depart', attente: 0 };
+      });
       return;
     }
     if (a.phase === 'depart') {
@@ -740,6 +951,8 @@ export class AudioTour {
       }
       return;
     }
+    // l'audiodescription en cours a la parole : la visite repart après
+    if (mountLecteurAD(this.app).enCours) return;
     a.attente -= dt;
     if (a.attente > 0) return;
     a.i += 1;
@@ -748,10 +961,25 @@ export class AudioTour {
 
   /* ----------------------------------------------------------- annonces --- */
 
-  _announce(text) {
+  /**
+   * `contenu` : la part en FRANÇAIS (titre, description de l'œuvre), dans
+   * un span `lang="fr"` — en interface anglaise, la voix anglaise lisait
+   * la description française, inintelligible. `langue` : quand tout le
+   * texte est du contenu.
+   */
+  _announce(text, { contenu = '', langue = '' } = {}) {
     // vider puis remplir force la relecture même d'un texte identique
     this.liveEl.textContent = '';
-    requestAnimationFrame(() => { this.liveEl.textContent = text; });
+    if (langue) this.liveEl.setAttribute('lang', langue); else this.liveEl.removeAttribute('lang');
+    requestAnimationFrame(() => {
+      this.liveEl.textContent = text;
+      if (contenu) {
+        const span = document.createElement('span');
+        span.lang = 'fr';
+        span.textContent = ` ${contenu}`;
+        this.liveEl.appendChild(span);
+      }
+    });
   }
 
   /**
@@ -762,9 +990,9 @@ export class AudioTour {
   _announceRoom(room) {
     const nom = room.config.title ?? room.config.id;
     const n = oeuvres(room.artworks).length;
-    if (n > 0) { this._announce(t('tour.room', { room: nom, n })); return; }
+    if (n > 0) { this._announce(`${t('tour.room', { room: nom, n })}. ${this._resumeArrivee()}`); return; }
     const sorties = this._passages();
-    this._announce(`${t('tour.room.empty', { room: nom })}. ` + (sorties.length
+    this._announce(`${t('tour.room.empty', { room: nom })}. ${this._resumeArrivee()} ` + (sorties.length
       ? t('tour.doors.list', {
         n: sorties.length,
         liste: sorties.map((s) => s.config.title ?? s.config.id).join(', ')
@@ -786,12 +1014,15 @@ export class AudioTour {
       // C'est ICI que la description se lit — à l'approche, jamais en
       // parcourant la liste.
       const desc = String(f.artwork.config.description ?? '').trim();
-      this._announce(t('tour.approached', { title: this._focusedTitle })
-        + (desc ? ' ' + desc : ''));
+      // …et l'audiodescription, si l'œuvre en a une : sans le dire, le
+      // bouton apparu après la liste restait inconnu
+      const ad = pisteAD(f.artwork.config) ? ` ${t('tour.ad.available')}` : '';
+      this._announce(t('tour.approached', { title: this._focusedTitle }) + ad, { contenu: desc });
     } else if (state === 'out' && (this._lastFocusState === 'focused' || this._lastFocusState === 'in')) {
       this._announce(t('tour.back'));
+      if (this._parle && typeof speechSynthesis !== 'undefined') { speechSynthesis.cancel(); this._parle = false; }
     }
-    if (state !== this._lastFocusState) this._peindreAD();
+    if (state !== this._lastFocusState) { this._peindreAD(); this._rafraichirReperes(); }
     this._lastFocusState = state;
   }
 }

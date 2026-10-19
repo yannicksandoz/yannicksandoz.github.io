@@ -42,7 +42,13 @@
   <meta name="twitter:image" content="https://yannicksandoz.github.io/galerie/apercu.jpg" />
 </head>
 <body>
-  <div id="app"></div>
+  <!-- La scène est focalisable : c'est là que le focus revient quand on
+       quitte un bouton du HUD (Échap), là qu'Espace agit ; role=application
+       laisse les touches au moteur. Le nom se pose au démarrage (UI.js). -->
+  <div id="app" tabindex="0" role="application"></div>
+  <!-- Ce que la 3D dit au lecteur d'écran : pièce franchie, découverte,
+       jeton, dérive, phrase d'un instant (UI.annoncer). -->
+  <div id="annonces" role="status" aria-live="polite" class="sr-only"></div>
 
   <!-- Fallback si WebGL2 est indisponible (rempli par main.js) -->
   <div id="nogl" hidden>
@@ -123,7 +129,7 @@
 
 
   <!-- Fiche d'œuvre affichée par le module FocusCamera -->
-  <div id="focus-overlay" hidden>
+  <div id="focus-overlay" hidden role="region" aria-labelledby="focus-title">
     <button id="focus-close" data-i18n-attr="aria-label:focus.close" aria-label="Fermer">×</button>
     <!-- le contenu (titres, descriptions) est en français, même quand
          l'interface est en anglais : `lang` garde la bonne voix au lecteur
@@ -145,15 +151,15 @@
   </div>
 
   <!-- Vue détail : l'image de l'œuvre en plein écran (depuis la fiche) -->
-  <div id="image-viewer" hidden role="dialog" aria-modal="true">
+  <div id="image-viewer" hidden role="dialog" aria-modal="true" aria-label="Image de l'œuvre" data-i18n-attr="aria-label:viewer.label">
     <button id="viewer-close" data-i18n-attr="aria-label:viewer.close" aria-label="Fermer l'image">×</button>
     <img id="viewer-img" alt="">
   </div>
 
   <!-- Chapeau (module TipJar) : redirection vers une page de paiement externe -->
-  <div id="tipjar-overlay" hidden>
+  <div id="tipjar-overlay" hidden role="dialog" aria-modal="true" aria-labelledby="tipjar-message">
     <button class="tipjar-close" aria-label="Fermer" data-i18n-attr="aria-label:focus.close">×</button>
-    <p class="tipjar-message"></p>
+    <p class="tipjar-message" id="tipjar-message"></p>
     <a class="tipjar-button" target="_blank" rel="noopener noreferrer"></a>
     <p class="tip" data-i18n="tipjar.tip">Paiement hébergé par un prestataire externe — rien ne transite par ce site.</p>
   </div>
@@ -194,7 +200,7 @@
   <div id="hint" hidden aria-hidden="true"><span data-keylabel="move">ZQSD / WASD</span> · <span data-keylabel="pivot">A/E ou Q/E</span> : pivoter · clic : découvrir<!-- editor:start --> · <b data-keylabel="edit">²</b> : édition<!-- editor:end --></div>
 
   <!-- Joystick virtuel (mobile) -->
-  <div id="joystick" hidden><div id="joystick-nub"></div></div>
+  <div id="joystick" hidden aria-hidden="true"><div id="joystick-nub"></div></div>
 
   <!-- Course, au pouce droit (tactile seulement) : le pendant de Maj au
        clavier. Maintenu, il double la vitesse ; relâché, on remarche. -->

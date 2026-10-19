@@ -58,6 +58,13 @@ export class TipJar extends Module {
     this._onCorner = () => this._show();
     this.overlay.querySelector('.tipjar-close').addEventListener('click', this._onClose);
     this.corner.addEventListener('click', this._onCorner);
+    // une boîte modale : Échap la ferme (et n'ouvre pas le menu par-dessus)
+    this._onTouche = (e) => {
+      if (e.key !== 'Escape') return;
+      e.stopPropagation();
+      this._hide();
+    };
+    this.overlay.addEventListener('keydown', this._onTouche);
     this.corner.title = btn.textContent;
     this.corner.hidden = false;
 
@@ -142,11 +149,21 @@ export class TipJar extends Module {
       ? (p.message ?? t('tipjar.message.fin'))
       : (p.messageDuree ?? t('tipjar.message.fin'));
     this.overlay.querySelector('.tipjar-message').textContent = texte;
-    this.overlay.hidden = false;
+    if (this.overlay.hidden) {
+      // le focus entre dans la boîte (un lecteur d'écran l'entend ainsi) et
+      // retournera d'où il vient à la fermeture
+      this._rendu = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+      this.overlay.hidden = false;
+      this.overlay.querySelector('.tipjar-close')?.focus({ preventScroll: true });
+    }
   }
 
   _hide() {
+    if (this.overlay.hidden) return;
     this.overlay.hidden = true;
+    if (this._rendu?.isConnected) this._rendu.focus({ preventScroll: true });
+    else document.getElementById('app')?.focus({ preventScroll: true });
+    this._rendu = null;
   }
 
   dispose() {

@@ -18,6 +18,10 @@ données, aucun backend — un simple serveur de fichiers suffit.
 **Stack** : [Vite](https://vitejs.dev) · [Three.js](https://threejs.org)
 (EffectComposer : scène MSAA + sortie unique) · Web Audio API · modules ES.
 
+**Pressé ?** [`DEMARRER.md`](DEMARRER.md) : faire tourner, poser une œuvre
+et une pièce, publier — en dix minutes, avec deux gabarits à copier dans
+`content/exemples/`. Ce README-ci est la référence longue.
+
 ## Sommaire
 
 Les sections de référence, dans l'ordre du fichier ; entre elles, le
@@ -94,6 +98,7 @@ npm run wasm:audio   # recompile la console 7 en wasm (clang)
 | `edit` | ouvre le mode auteur (build auteur seulement) | auteur | `editorLoader.js` |
 | `room=<id>`, `work=<id>` | arriver dans une pièce, devant une œuvre (lien partagé) | visiteur | `main.js` |
 | `mode=guidee` | la visite guidée dès l'entrée | visiteur | `main.js` |
+| `mode=audio` | l'accueil propose d'abord la visite audio (focus sur son bouton) ; avec `room`/`work`, la visite audio part de là | visiteur | `main.js`, `core/preferences-visite.js` |
 | `riche=1` / `riche=0` | l'image enrichie, mémorisée (`profil=riche` la force sans mémoriser, `profil=unique` l'ôte) | visiteur, mesure | `core/crans.js` |
 | `profil=bureau` / `telephone` | force le profil d'un appareil (alias `desktop`, `mobile`) | mesure | `core/crans.js` |
 | `gouverneur=0` | fige le gouverneur de qualité | mesure | `core/crans.js` |
@@ -1696,7 +1701,8 @@ groupes — *Visite* (visite guidée, visite audio, pièces avec le **plan en
 grand**, vue liste 2D, **partage** avec **lien profond** `?room=pièce` /
 `?work=œuvre` — celui qui l'ouvre arrive au même endroit, **sans écran
 d'accueil** —, « Terminer la visite »), *Affichage* (plein écran, minimap,
-langue), *Aide et mémoire* (raccourcis, mémoire de visite, FPS).
+langue, **taille du texte** en trois crans, **repères sonores**), *Aide et
+mémoire* (raccourcis, mémoire de visite, mode économe, FPS).
 
 **Toolbox** (la rangée d'icônes en haut de l'écran) : les gestes fréquents
 de la visite, sans rien figer — **plein écran**, **carte**, **capture
@@ -1941,6 +1947,29 @@ site. L'aide aux contrôles s'adapte à l'appareil (gestes tactiles sur écran
 tactile, clavier/souris sinon), le zoom de la page n'est plus bloqué, et le
 partage d'un lien affiche une carte d'aperçu (Open Graph / Twitter Card,
 image `content/apercu.jpg`).
+
+**Visite audio — s'orienter à l'oreille** (`ui/AudioTour.js`,
+`core/orientation.js`). Une liste au clavier qui pilote le même moteur que
+la 3D : haut/bas parcourt les œuvres de la pièce (le son glisse de l'une à
+l'autre), Entrée approche (la description est lue, l'audiodescription
+annoncée si l'œuvre en a une, sinon un bouton la lit par la synthèse du
+navigateur), droite et gauche changent de pièce, **Maj + flèche pivote**
+d'un huitième de tour (les HRTF font entendre le changement, l'annonce dit
+ce qui est devant), **I** dit où l'on est : l'espace, son compte, jetons et
+passages, les trois plus proches avec leur direction. Chaque entrée de la
+liste — œuvre, jeton, passage — dit **sa direction et sa distance**
+relatives au regard (« — à gauche, 12 m », huit secteurs) ; une œuvre non
+découverte le dit aussi, c'est l'équivalent honnête du « ??? » qui brille ;
+un passage dit s'il est fermé pour l'instant. La **visite guidée** parcourt
+toute la galerie : espace après espace, vers l'inédit le plus proche, et
+s'arrête quand tout a été entendu. Des **repères sonores** (découverte,
+jeton, passage franchi ou fermé, espace complet — cinq motifs synthétisés,
+jamais spatialisés, `core/earcons.js`) parlent à qui n'a pas de lecteur
+d'écran ; allumés d'office en visite audio, réglables au menu. Le choix de
+la visite audio se mémorise : la prochaine ouverture (ou un lien
+`?mode=audio`, aussi depuis `liste.html` et `catalogue.html` : « écouter »)
+pose le focus sur son bouton. En 3D aussi, une zone d'annonces
+(`role="status"`) dit la pièce franchie, la découverte, le jeton, la dérive.
 
 ## Utiliser le moteur avec VOTRE contenu
 
@@ -5989,6 +6018,58 @@ revient à l'ouverture suivante tant que rien n'est configuré
 sous Xvfb : la boîte, Plus tard, retour à la relance, vérification
 contre une API simulée, compte nommé, étape 2, récupération, page
 rechargée sur la nouvelle pièce, plus de boîte ensuite.
+
+**Audit 3 : accessibilité et mobile, et la visite aveugle (beta.11).**
+Deux relecteurs en lecture seule (lecteur d'écran, clavier, préférences
+système ; tactile, petits écrans, contraste), quarante-quatre constats,
+tous vérifiés ligne à ligne, puis corrigés — sauf un, à dessein : signaler
+l'absence d'audiodescription comme un manque à chaque publication aurait
+produit un avertissement qu'on apprend à ignorer.
+
+- Clavier : la scène (`#app`) est focalisable (`role="application"`), Espace
+  y agit, et **Échap depuis un bouton du HUD rend le focus à la scène** au
+  lieu d'ouvrir le menu (un second Échap l'ouvre) — un utilisateur clavier
+  ne perdait plus jamais Espace. La toolbox se parcourt aux flèches sans
+  faire marcher la caméra ; la dérive ne s'arrête plus sur Tab ni sur un
+  modificateur ; Échap en visite audio remonte à l'en-tête et ne recharge
+  plus la page depuis « Quitter ».
+- Lecteur d'écran : une **zone d'annonces** globale (pièce franchie,
+  découverte, jeton, dérive, phrase d'un instant), la fiche d'œuvre nommée
+  et annoncée à l'approche, le chapeau devenu une vraie boîte modale (focus,
+  Échap, retour du focus), les crédits inertes et bouclés, le plan et la
+  visionneuse nommés ; en anglais, la description française d'une œuvre est
+  lue par la voix française (`lang` sur la part de contenu) ; jetons et
+  lignes « ??? » numérotés ; le catalogue HTML : images sans alternative
+  redondante, lecteurs audio nommés, audiodescription offerte, lien de
+  pièce sorti du titre.
+- Préférences système : `prefers-contrast` éclaircit le gris secondaire,
+  `forced-colors` marque les états pressés par une bordure, les
+  `outline: none` du focus sont devenus transparents (visibles en contraste
+  forcé) ; les textes sous 3:1 (`.vm-inconnue`, prix sans jeton, « ??? »)
+  relevés.
+- Mobile : l'accueil **défile en paysage** ; le lien vers la liste 2D reste
+  sur petit écran ; le HUD translucide est devenu lisible sur une scène
+  claire (alphas 0,6-0,78, bords 0,2-0,35, ombres portées sur les chevrons
+  et la boussole) ; **quarante-quatre pixels** pour la barre de dérive, le
+  jeton, l'entrée audio, les croix du chapeau et de l'image, les pastilles ;
+  plancher de 12,5 px pour les textes au doigt ; le prix du jeton ◈ **au
+  premier tap** (il arme, le second ouvre) ; tap toléré à 12 px sur la
+  scène ; **l'image en grand se zoome** (pincement, molette, glisser) ; le
+  manche suit la taille réelle de sa zone ; l'image enrichie n'est plus
+  proposée sur téléphone ; `dvh` avec repli, safe-area d'une seule
+  convention, la boussole tient compte de l'encoche, les bandeaux passent
+  sous la toolbox ; déblocage audio sur `pointerup` ; état iOS
+  `interrupted` repris ; `revokeObjectURL` différé ; **taille du texte** en
+  trois crans au menu (`core/taille-texte.js`), puisque le zoom de page est
+  interdit.
+- La **visite aveugle** : voir « Visite audio — s'orienter à l'oreille »
+  sous « L'expérience visiteur ». Règles pures testées (`test-orientation`,
+  `test-taille-texte`), et une sonde de bout en bout au navigateur
+  (`npm run sonde:visite`) : accueil, choix du mode, mémoire qui s'écrit ou
+  non, menu et focus, carte, jetons, dérive, reprise, visite guidée, lien
+  profond, visite audio (repères, pivot, « où suis-je », Échap).
+- Le guide court [`DEMARRER.md`](DEMARRER.md) et deux gabarits commentés
+  dans `content/exemples/`.
 
 **Les huit points laissés de côté par les deux audits (beta.11).**
 « Adresse tous les points à traiter » : ce que les deux passages avaient

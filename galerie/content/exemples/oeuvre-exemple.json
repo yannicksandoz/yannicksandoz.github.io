@@ -1,0 +1,36 @@
+{
+  "id": "oeuvre-exemple",
+  "title": "Œuvre d'exemple",
+  "description": "Un anneau de métal qui tinte au courant d'air. Cette phrase est tout ce qu'un visiteur aveugle percevra de l'œuvre : dire ce qu'elle est, ce qu'on entend, ce qu'elle montre.",
+  "year": "2026",
+  "technique": "Son fixé, un canal, boucle",
+  "link": "https://exemple.org/a-propos",
+  "position": [0, 1.6, -6],
+  "rotation": [90, 0, 0],
+  "scale": [1, 1, 1],
+  "solid": false,
+  "model": {
+    "shape": "torus",
+    "size": 0.5,
+    "color": "#8a90a8",
+    "texture": "metal",
+    "roughness": 0.35,
+    "metalness": 0.85,
+    "emissiveColor": "#cbd4ff",
+    "emissive": 0.25
+  },
+  "stems": [
+    {
+      "file": "audio/carillon-fenetres.wav",
+      "formats": {
+        "webm": "audio/carillon-fenetres.webm",
+        "m4a": "audio/carillon-fenetres.m4a"
+      },
+      "radius": 10,
+      "gain": 0.6
+    }
+  ],
+  "lightColor": "#cbd4ff",
+  "lightIntensity": 3,
+  "modules": []
+}

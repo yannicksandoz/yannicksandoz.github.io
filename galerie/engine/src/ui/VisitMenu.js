@@ -16,6 +16,8 @@
  * (liste → en-tête → sortie) — quand elle est active, le menu ne s'ouvre
  * pas (garde dans main.js).
  */
+import { TAILLES, lireTaille, ecrireTaille, appliquerTaille } from '../core/taille-texte.js';
+import { ecrireReperes } from '../core/preferences-visite.js';
 import { importerChunk } from '../core/chunks.js';
 import { peindreLibelles } from '../core/clavier.js';
 import { t, lang, setLang, onLangChange } from '../core/i18n.js';
@@ -113,10 +115,25 @@ export class VisitMenu {
             </label>
           </li>
           <li>
-            <div class="vm-lang" role="group" aria-label="${t('menu.lang')}">
+            <div class="vm-lang" role="group" aria-labelledby="vm-lang-label">
               <span id="vm-lang-label">${t('menu.lang')}</span>
               <button data-lang="fr" lang="fr" aria-pressed="${lang() === 'fr'}">Français</button>
               <button data-lang="en" lang="en" aria-pressed="${lang() === 'en'}">English</button>
+            </div>
+          </li>
+          <li>
+            <label class="vm-check">
+              <input type="checkbox" id="vm-reperes" aria-describedby="vm-reperes-note" ${this.app.earcons?.actifs ? 'checked' : ''}>
+              ${t('menu.settings.reperes')}
+            </label>
+            <p class="vm-note" id="vm-reperes-note">${t('menu.settings.reperes.note')}</p>
+          </li>
+          <li>
+            <!-- la taille du texte : le zoom de page est interdit (touch-action),
+                 c'est ici qu'un malvoyant agrandit les panneaux -->
+            <div class="vm-lang vm-taille" role="group" aria-labelledby="vm-taille-label">
+              <span id="vm-taille-label">${t('menu.settings.taille')}</span>
+              ${TAILLES.map((k) => `<button data-taille="${k}" aria-pressed="${lireTaille() === k}">${t(`menu.settings.taille.${k}`)}</button>`).join('')}
             </div>
           </li>
         </ul>
@@ -141,19 +158,21 @@ export class VisitMenu {
             </div>
           </li>
           <li>
-            <label class="vm-check" title="${t('menu.settings.eco.note')}">
-              <input type="checkbox" id="vm-eco" ${this.app.quality?.econome ? 'checked' : ''}>
+            <label class="vm-check">
+              <input type="checkbox" id="vm-eco" aria-describedby="vm-eco-note" ${this.app.quality?.econome ? 'checked' : ''}>
               ${t('menu.settings.eco')}
             </label>
             <p class="vm-note" id="vm-eco-note">${t('menu.settings.eco.note')}</p>
           </li>
-          <li>
-            <label class="vm-check" title="${t('menu.settings.riche.note')}">
-              <input type="checkbox" id="vm-riche" ${this.app.quality?.riche ? 'checked' : ''}>
+          ${this.app.quality?.isMobile ? '' : `<li>
+            <!-- jamais sur un téléphone : l'image enrichie y est injouable, et
+                 le réglage se mémorise (ImageRiche.proposable l'exclut déjà) -->
+            <label class="vm-check">
+              <input type="checkbox" id="vm-riche" aria-describedby="vm-riche-note" ${this.app.quality?.riche ? 'checked' : ''}>
               ${t('menu.settings.riche')}
             </label>
             <p class="vm-note" id="vm-riche-note">${t('menu.settings.riche.note')}</p>
-          </li>
+          </li>`}
           <li>
             <label class="vm-check">
               <input type="checkbox" id="vm-fps" ${fpsMeterEnabled() ? 'checked' : ''}>
@@ -177,6 +196,19 @@ export class VisitMenu {
     el.querySelector('#vm-x').addEventListener('click', () => this.hide());
     // Chaque bouton porte son propre `lang` : le lecteur d'écran prononce
     // « English » à l'anglaise même quand la page est en français.
+    el.querySelector('#vm-reperes')?.addEventListener('change', (e) => {
+      const choix = e.target.checked ? 'oui' : 'non';
+      ecrireReperes(choix);
+      if (this.app.earcons) { this.app.earcons.choix = choix; if (e.target.checked) this.app.earcons.jouer('decouverte'); }
+    });
+    for (const b of el.querySelectorAll('[data-taille]')) {
+      b.addEventListener('click', () => {
+        appliquerTaille(b.dataset.taille);
+        ecrireTaille(b.dataset.taille);
+        for (const x of el.querySelectorAll('[data-taille]')) x.setAttribute('aria-pressed', String(x === b));
+        this.app.ui?.annoncer?.(t('menu.settings.taille.ok', { taille: b.textContent }));
+      });
+    }
     for (const b of el.querySelectorAll('[data-lang]')) {
       b.addEventListener('click', () => setLang(b.dataset.lang));
     }
@@ -227,6 +259,7 @@ export class VisitMenu {
       if (bouton.dataset.sur !== '1') {
         bouton.dataset.sur = '1';
         bouton.textContent = t('menu.settings.forget.sure');
+        this.app.ui?.annoncer?.(bouton.textContent);   // un libellé qui change ne se lit pas seul
         setTimeout(() => {
           if (!bouton.isConnected || bouton.dataset.sur !== '1') return;
           bouton.dataset.sur = '';
@@ -237,6 +270,7 @@ export class VisitMenu {
       recommencerLaVisite(this.app);
       bouton.dataset.sur = '';
       bouton.textContent = t('menu.settings.forget.done');
+      this.app.ui?.annoncer?.(bouton.textContent);
       bouton.disabled = true;
     });
 

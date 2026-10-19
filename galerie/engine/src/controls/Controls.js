@@ -263,7 +263,9 @@ export class Controls {
     if (pointeurGrossier()) zone.hidden = false;
 
     let activeId = null;
-    const RADIUS = 60; // px
+    // le rayon utile suit la taille réelle de la zone (6,2 rem sur petit
+    // écran, 7,5 rem ailleurs) : le pouce au bord donne la pleine vitesse
+    let RADIUS = 60; // px, recalculé à chaque mouvement
 
     const setNub = (dx, dy) => {
       nub.style.transform = `translate(calc(-50% + ${dx}px), calc(-50% + ${dy}px))`;
@@ -279,6 +281,7 @@ export class Controls {
     zone.addEventListener('pointermove', (e) => {
       if (e.pointerId !== activeId) return;
       const rect = zone.getBoundingClientRect();
+      RADIUS = Math.max(20, (rect.width / 2) * 0.9);
       let dx = e.clientX - (rect.left + rect.width / 2);
       let dy = e.clientY - (rect.top + rect.height / 2);
       const len = Math.hypot(dx, dy);

@@ -30,7 +30,20 @@ export class UI {
     this.focusActions = document.getElementById('focus-actions');
     this.focusClose = document.getElementById('focus-close');
     this.hint = document.getElementById('hint');
+    // LA ZONE D'ANNONCES (role="status") : ce que la 3D dit au lecteur
+    // d'écran — pièce franchie, découverte, jeton, dérive, phrase d'un
+    // instant. Une seule zone pour toute la visite, polie (elle attend que
+    // l'utilisateur ait fini de lire).
+    this._annonces = document.getElementById('annonces');
+    this._dernierTitre = undefined;
     this._onCloseFocus = null;
+    // la scène est focalisable (Espace, Échap) : son nom dit comment on s'y meut
+    const scene = document.getElementById('app');
+    if (scene) {
+      const nommer = () => scene.setAttribute('aria-label', t('scene.label'));
+      nommer();
+      onLangChange(nommer);
+    }
     // L'aide s'adresse à l'appareil RÉEL : un écran tactile n'a ni ZQSD ni
     // souris — lui parler de touches, c'est parler à quelqu'un d'autre.
     this.tactile = pointeurGrossier();
@@ -125,7 +138,23 @@ export class UI {
    * sans rien à rejouer. Sur petit écran, la ligne ne se voit qu'en
    * `geste` (elle monte sous la barre) : on lui prête la classe le temps.
    */
+  /**
+   * Dire quelque chose au lecteur d'écran, sans rien montrer. `langue`
+   * quand le texte est du CONTENU (titre, description en français) et non
+   * de l'interface : la voix change avec.
+   */
+  annoncer(texte, { langue = '' } = {}) {
+    const zone = this._annonces;
+    if (!zone || !texte) return;
+    // vider puis remplir force la relecture même d'un texte identique
+    zone.textContent = '';
+    if (langue) zone.setAttribute('lang', langue); else zone.removeAttribute('lang');
+    requestAnimationFrame(() => { zone.textContent = texte; });
+  }
+
   direUnInstant(texte, ms = 5000) {
+    // la ligne du bas est cachée aux lecteurs d'écran : la phrase passe aussi par la zone d'annonces
+    this.annoncer(texte);
     if (!this.hint) return;
     clearTimeout(this._instant);
     const avaitGeste = this.hint.classList.contains('geste');
@@ -324,6 +353,17 @@ export class UI {
     // le chiffre reste sous la barre jusqu'à « 100 % » : la galerie est
     // lue, mais la salle d'arrivée charge encore
     document.getElementById('enter-audio')?.removeAttribute('aria-disabled');
+    if (this._audioPreferee) document.getElementById('enter-audio')?.focus({ preventScroll: true });
+  }
+
+  /**
+   * La visite audio est le chemin préféré (lien ?mode=audio, ou choisie une
+   * fois) : le focus de l'accueil se pose sur son bouton dès que la galerie
+   * est lue — une Entrée suffit, sans parcourir les deux autres.
+   */
+  privilegierAudio() {
+    this._audioPreferee = true;
+    if (this._configPrete) document.getElementById('enter-audio')?.focus({ preventScroll: true });
   }
 
   /**
@@ -509,6 +549,12 @@ export class UI {
       this.focusActions.hidden = !aImage && !aLien && !portail;
     }
     this.focusOverlay.hidden = false;
+    // la fiche s'ouvre : le lecteur d'écran l'entend (la visite audio fait
+    // sa propre annonce, avec la description)
+    if (!artwork.app?.audioTour?.active) {
+      const desc = String(cfg.description ?? '').trim();
+      this.annoncer(`${t('tour.approached', { title: cfg.title ?? cfg.id })}${desc ? ' ' + desc : ''}`, { langue: 'fr' });
+    }
   }
 
   /** Le bouton d'audiodescription suit l'état du lecteur (fin, arrêt). */
@@ -543,11 +589,53 @@ export class UI {
     const close = overlay.querySelector('#viewer-close');
     const rendu = document.activeElement;
     close?.focus();
+    // ZOOM ET DÉPLACEMENT — molette, pincement, glisser : l'image d'une
+    // œuvre se regarde de près, et sur un téléphone le pincement de page
+    // est interdit (touch-action), c'est donc ici qu'il se fait.
+    let echelle = 1; let tx = 0; let ty = 0; let glisse = false;
+    const doigts = new Map();
+    const poser = () => { img.style.transform = echelle === 1 ? '' : `translate(${tx}px, ${ty}px) scale(${echelle})`; };
+    const zoomer = (f, cx, cy) => {
+      const e2 = Math.min(8, Math.max(1, echelle * f));
+      const r = img.getBoundingClientRect();
+      // le point sous le curseur (ou entre les doigts) reste où il est
+      tx += (cx - (r.left + r.width / 2)) * (1 - e2 / echelle);
+      ty += (cy - (r.top + r.height / 2)) * (1 - e2 / echelle);
+      echelle = e2;
+      if (echelle === 1) { tx = 0; ty = 0; }
+      poser();
+    };
+    const surMolette = (e) => { e.preventDefault(); zoomer(e.deltaY < 0 ? 1.18 : 1 / 1.18, e.clientX, e.clientY); };
+    const surBas = (e) => { doigts.set(e.pointerId, { x: e.clientX, y: e.clientY }); if (doigts.size === 1) glisse = false; };
+    const surMouvement = (e) => {
+      const d = doigts.get(e.pointerId);
+      if (!d) return;
+      const avant = [...doigts.values()].map((p) => ({ ...p }));
+      d.x = e.clientX; d.y = e.clientY;
+      const apres = [...doigts.values()];
+      if (doigts.size === 1) {
+        const dx = apres[0].x - avant[0].x; const dy = apres[0].y - avant[0].y;
+        if (Math.abs(dx) + Math.abs(dy) > 2) glisse = true;
+        if (echelle > 1) { tx += dx; ty += dy; poser(); }
+      } else if (doigts.size === 2) {
+        glisse = true;
+        const d0 = Math.hypot(avant[0].x - avant[1].x, avant[0].y - avant[1].y) || 1;
+        const d1 = Math.hypot(apres[0].x - apres[1].x, apres[0].y - apres[1].y) || 1;
+        zoomer(d1 / d0, (apres[0].x + apres[1].x) / 2, (apres[0].y + apres[1].y) / 2);
+      }
+    };
+    const surFin = (e) => { doigts.delete(e.pointerId); };
     const fermer = () => {
       overlay.hidden = true;
       img.src = '';
+      img.style.transform = '';
       window.removeEventListener('keydown', surTouche, true);
       overlay.removeEventListener('click', surClic);
+      overlay.removeEventListener('wheel', surMolette);
+      overlay.removeEventListener('pointerdown', surBas);
+      overlay.removeEventListener('pointermove', surMouvement);
+      overlay.removeEventListener('pointerup', surFin);
+      overlay.removeEventListener('pointercancel', surFin);
       if (rendu instanceof HTMLElement) rendu.focus?.();
     };
     const surTouche = (e) => {
@@ -556,9 +644,19 @@ export class UI {
       e.stopPropagation();
       fermer();
     };
-    const surClic = () => fermer();
+    // un glisser ou un pincement ne ferme pas ; un tap sur l'image agrandie non plus
+    const surClic = (e) => {
+      if (glisse) { glisse = false; return; }
+      if (e.target === img && echelle > 1) return;
+      fermer();
+    };
     window.addEventListener('keydown', surTouche, true);
     overlay.addEventListener('click', surClic);
+    overlay.addEventListener('wheel', surMolette, { passive: false });
+    overlay.addEventListener('pointerdown', surBas);
+    overlay.addEventListener('pointermove', surMouvement);
+    overlay.addEventListener('pointerup', surFin);
+    overlay.addEventListener('pointercancel', surFin);
   }
 
   /**
@@ -613,6 +711,10 @@ export class UI {
     if (!this._roomBadgeName) return;
     this._roomBadgeName.textContent = title ?? '';
     this._roomBadge.hidden = !title;
+    // franchir une porte se DIT — pas la première pose (la scène se bâtit
+    // derrière l'accueil), seulement les changements
+    if (this._dernierTitre !== undefined && title && title !== this._dernierTitre) this.annoncer(title, { langue: 'fr' });
+    this._dernierTitre = title ?? null;
   }
 
   setCredits(works) {
@@ -646,10 +748,32 @@ export class UI {
     overlay.setAttribute('role', 'dialog');
     overlay.setAttribute('aria-modal', 'true');
     overlay.setAttribute('aria-labelledby', overlay.querySelector('h3')?.id || (overlay.querySelector('h3') && (overlay.querySelector('h3').id = 'credits-titre')) || '');
-    const fermer = () => { overlay.hidden = true; corner.focus?.({ preventScroll: true }); };
-    corner.addEventListener('click', () => { overlay.hidden = false; overlay.querySelector('[data-credits-close]')?.focus(); });
+    // une vraie boîte modale : le reste du document est inerte le temps
+    // qu'elle est ouverte, et Tab boucle à l'intérieur
+    let inertes = [];
+    const fermer = () => {
+      overlay.hidden = true;
+      for (const el of inertes) el.inert = false;
+      inertes = [];
+      corner.focus?.({ preventScroll: true });
+    };
+    const ouvrir = () => {
+      overlay.hidden = false;
+      inertes = [...document.body.children].filter((el) => el !== overlay && !el.inert);
+      for (const el of inertes) el.inert = true;
+      overlay.querySelector('[data-credits-close]')?.focus();
+    };
+    corner.addEventListener('click', ouvrir);
     overlay.addEventListener('click', (e) => {
       if (e.target === overlay || e.target.closest('[data-credits-close]')) fermer();
+    });
+    overlay.addEventListener('keydown', (e) => {
+      if (e.key !== 'Tab') return;
+      const f = [...overlay.querySelectorAll('a[href], button')].filter((x) => x.offsetParent !== null);
+      if (!f.length) return;
+      const premier = f[0]; const dernier = f[f.length - 1];
+      if (e.shiftKey && document.activeElement === premier) { e.preventDefault(); dernier.focus(); }
+      else if (!e.shiftKey && document.activeElement === dernier) { e.preventDefault(); premier.focus(); }
     });
     window.addEventListener('keydown', (e) => {
       if (e.code !== 'Escape' || overlay.hidden) return;

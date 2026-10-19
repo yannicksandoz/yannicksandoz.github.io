@@ -743,7 +743,10 @@ export class App {
       downX = e.clientX; downY = e.clientY;
     });
     this.renderer.domElement.addEventListener('pointerup', (e) => {
-      if (Math.hypot(e.clientX - downX, e.clientY - downY) > 6) return;
+      // au doigt, un pouce qui tremble de quelques pixels tape encore (le même
+      // seuil que le HUD tactile) ; à la souris, six pixels séparent clic et orbite
+      const seuil = e.pointerType === 'touch' ? 12 : 6;
+      if (Math.hypot(e.clientX - downX, e.clientY - downY) > seuil) return;
       // au doigt, la même tolérance que le réticule (viseeAutour) : un
       // tap n'est pas un pixel
       const hit = e.pointerType === 'touch'
@@ -788,12 +791,14 @@ export class App {
     // Action au clavier : la barre d'espace agit sur ce que vise le centre
     // de l'écran. Ignorée pendant la saisie, en visite audio (qui a sa
     // propre navigation) et quand un bouton a le focus — sinon Espace
-    // l'activerait au lieu d'agir sur l'œuvre.
+    // l'activerait au lieu d'agir sur l'œuvre. La scène elle-même (#app,
+    // focalisable) est le seul « tabindex » qui compte pour Espace : c'est
+    // là que le focus revient quand on quitte un bouton du HUD (Échap).
     window.addEventListener('keydown', (e) => {
       if (e.code !== 'Space' || e.repeat) return;
       if (this.audioTour?.active) return;
       const el = document.activeElement;
-      if (el instanceof Element
+      if (el instanceof Element && el !== this.container
           && el.matches('input, textarea, select, button, a, [tabindex]')) return;
       if (this.triggerAction()) e.preventDefault();
     });

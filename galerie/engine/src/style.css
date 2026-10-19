@@ -6,7 +6,23 @@
   --panel: rgba(12, 12, 22, 0.88);
   /* diamètre du hublot de la minimap : le catalogue s'ouvre juste dessous */
   --minimap: 8.4rem;
+  /* la zone sûre du système, en variables : le JS (ui/Boussole.js) la lit */
+  --sa-top: env(safe-area-inset-top, 0px);
+  --sa-right: env(safe-area-inset-right, 0px);
+  --sa-bottom: env(safe-area-inset-bottom, 0px);
+  --sa-left: env(safe-area-inset-left, 0px);
   font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+/* contraste accru demandé au système : le gris des textes secondaires s'éclaircit */
+@media (prefers-contrast: more) {
+  :root { --dim: #b7b4c9; }
+}
+/* pas de surlignage gris au tap (iOS) : les boutons ont leur propre réponse */
+button, [role="button"], a { -webkit-tap-highlight-color: transparent; }
+/* ce qu'on dit aux lecteurs d'écran sans le montrer */
+.sr-only {
+  position: absolute; width: 1px; height: 1px; overflow: hidden;
+  clip-path: inset(50%); white-space: nowrap;
 }
 
 * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -35,16 +51,21 @@ html, body, #app, #app canvas { touch-action: none; }
 }
 
 #app, #app canvas { position: fixed; inset: 0; display: block; }
+/* la scène a le focus (clavier) : un liseré au bord de l'image le dit */
+#app:focus-visible { outline: 2px solid var(--accent); outline-offset: -3px; }
 
 /* --------------------------------------------------- écran d'accueil --- */
 #enter-screen {
   position: fixed; inset: 0; z-index: 30;
   display: flex; align-items: center; justify-content: center;
+  /* en paysage sur téléphone (360 px de haut), l'accueil ne tient pas :
+     il défile, et `margin: auto` sur l'enfant garde le centrage quand il tient */
+  overflow-y: auto;
   background: radial-gradient(ellipse at 50% 40%, #0d0c1a 0%, var(--bg) 70%);
   transition: opacity 1.2s ease;
 }
 #enter-screen.leaving { opacity: 0; pointer-events: none; }
-.enter-inner { text-align: center; max-width: 34rem; padding: 2rem; }
+.enter-inner { text-align: center; max-width: 34rem; padding: 2rem; margin: auto; }
 .enter-inner h1 {
   font-size: clamp(2.4rem, 8vw, 4.2rem);
   font-weight: 200; letter-spacing: 0.45em; text-indent: 0.45em;
@@ -91,6 +112,8 @@ html, body, #app, #app canvas { touch-action: none; }
   padding: 1.4rem 1.6rem; border-radius: 0.8rem;
   background: var(--panel); backdrop-filter: blur(12px);
   border: 1px solid rgba(255, 255, 255, 0.08);
+  /* une description longue ne déborde pas de l'écran : elle défile */
+  max-height: calc(100vh - 4rem); max-height: calc(100dvh - 4rem); overflow-y: auto;
   animation: rise 0.6s ease;
 }
 @keyframes rise { from { opacity: 0; transform: translate(-50%, 1.2rem); } }
@@ -112,7 +135,8 @@ html, body, #app, #app canvas { touch-action: none; }
 #hint {
   position: fixed; bottom: 0.8rem; left: 50%; transform: translateX(-50%);
   z-index: 10; padding: 0.35rem 1rem; border-radius: 1rem;
-  background: rgba(10, 10, 18, 0.6); color: var(--dim);
+  /* assez opaque pour se lire sur une scène claire (le jardin, le ciel) */
+  background: rgba(10, 10, 18, 0.78); color: var(--dim);
   font-size: 0.72rem; letter-spacing: 0.05em; pointer-events: none;
 }
 /* en vol plané : l'aide change de ton, on ne marche plus */
@@ -120,7 +144,8 @@ html, body, #app, #app canvas { touch-action: none; }
 
 /* ------------------------------------------- nouvelle version en ligne --- */
 #version-perimee {
-  position: fixed; top: calc(0.8rem + env(safe-area-inset-top)); left: 50%; transform: translateX(-50%);
+  /* sous la rangée du HUD (toolbox à 1 rem, 2,4 rem de haut), pas dessus */
+  position: fixed; top: calc(4.4rem + env(safe-area-inset-top)); left: 50%; transform: translateX(-50%);
   z-index: 30; max-width: min(92vw, 34rem); display: flex; gap: 0.8rem; align-items: center;
   padding: 0.55rem 0.9rem; border-radius: 0.8rem;
   background: rgba(30, 24, 10, 0.88); color: #f2e3b8; border: 1px solid rgba(255, 176, 80, 0.45);
@@ -134,7 +159,7 @@ html, body, #app, #app canvas { touch-action: none; }
 /* La proposition de l'image enrichie (ui/ImageRiche.js) : même bandeau,
    en violet — une offre, pas une alerte ; deux boutons, le second discret */
 #proposition-riche {
-  position: fixed; top: calc(0.8rem + env(safe-area-inset-top)); left: 50%; transform: translateX(-50%);
+  position: fixed; top: calc(4.4rem + env(safe-area-inset-top)); left: 50%; transform: translateX(-50%);
   z-index: 30; max-width: min(92vw, 36rem); display: flex; gap: 0.6rem; align-items: center; flex-wrap: wrap;
   padding: 0.55rem 0.9rem; border-radius: 0.8rem;
   background: rgba(22, 18, 40, 0.9); color: #e8e6f0; border: 1px solid rgba(159, 140, 255, 0.45);
@@ -230,8 +255,8 @@ html, body, #app, #app canvas { touch-action: none; }
 #room-badge {
   /* safe-area : l'encoche et la barre d'état des mobiles ne le couvrent pas */
   position: fixed;
-  left: max(1rem, env(safe-area-inset-left, 0px));
-  top: max(1rem, env(safe-area-inset-top, 0px));
+  left: calc(1rem + env(safe-area-inset-left, 0px));
+  top: calc(1rem + env(safe-area-inset-top, 0px));
   /* au-dessus du joystick (15) et du pense-bête (10), SOUS les couches qui
      doivent tout couvrir : chapeau (26), fondu de pièce (28), accueil (30) */
   z-index: 24;
@@ -248,7 +273,7 @@ html, body, #app, #app canvas { touch-action: none; }
 #room-menu-btn:hover { color: var(--accent); border-color: rgba(159, 140, 255, 0.4); }
 #room-badge-name {
   padding: 0.3rem 0.85rem; border-radius: 1rem;
-  background: rgba(10, 10, 18, 0.6); color: var(--dim);
+  background: rgba(10, 10, 18, 0.78); color: var(--dim);
   font-size: 0.78rem; letter-spacing: 0.06em;
   pointer-events: none;
 }
@@ -256,9 +281,10 @@ html, body, #app, #app canvas { touch-action: none; }
   /* même diète que la toolbox : 44 px pleins, costume effacé */
   #room-menu-btn {
     width: 2.75rem; height: 2.75rem; font-size: 1.1rem;
-    background: rgba(12, 12, 22, 0.42);
-    border-color: rgba(255, 255, 255, 0.08);
-    color: rgba(232, 230, 240, 0.55);
+    /* léger, mais lisible sur une scène claire : 0,42 d'alpha s'y effaçait */
+    background: rgba(12, 12, 22, 0.6);
+    border-color: rgba(255, 255, 255, 0.2);
+    color: rgba(232, 230, 240, 0.8);
   }
 }
 #room-menu-btn:focus-visible {
@@ -271,7 +297,7 @@ html, body, #app, #app canvas { touch-action: none; }
    pièce (gauche) et la minimap/progression (droite), même altitude. */
 #toolbox {
   position: fixed;
-  top: max(1rem, env(safe-area-inset-top, 0px));
+  top: calc(1rem + env(safe-area-inset-top, 0px));
   left: 50%; transform: translateX(-50%);
   z-index: 24;
   display: flex; gap: 0.5rem;
@@ -297,9 +323,9 @@ html, body, #app, #app canvas { touch-action: none; }
      la scène. La cible reste pleine, seul le costume s'efface. */
   #toolbox button {
     width: 2.75rem; height: 2.75rem;
-    background: rgba(12, 12, 22, 0.42);
-    border-color: rgba(255, 255, 255, 0.08);
-    color: rgba(232, 230, 240, 0.55);
+    background: rgba(12, 12, 22, 0.6);
+    border-color: rgba(255, 255, 255, 0.2);
+    color: rgba(232, 230, 240, 0.8);
   }
 }
 
@@ -320,7 +346,7 @@ html, body, #app, #app canvas { touch-action: none; }
   background: rgba(0, 0, 0, 0.6); backdrop-filter: blur(4px);
 }
 .credits-card {
-  width: min(26rem, 92vw); max-height: 80vh; overflow-y: auto;
+  width: min(26rem, 92vw); max-height: 80vh; max-height: 80dvh; overflow-y: auto;
   padding: 1.4rem 1.6rem; border-radius: 0.8rem;
   background: var(--panel); border: 1px solid rgba(255, 255, 255, 0.12);
   font-size: 0.85rem; line-height: 1.5;
@@ -343,8 +369,9 @@ html, body, #app, #app canvas { touch-action: none; }
   left: calc(1.4rem + env(safe-area-inset-left, 0px));
   bottom: calc(1.6rem + env(safe-area-inset-bottom, 0px));
   width: 7.5rem; height: 7.5rem; border-radius: 50%;
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.12);
+  /* visible sur une scène claire : un bord à 0,12 disparaissait sur le ciel */
+  background: rgba(255, 255, 255, 0.12);
+  border: 1px solid rgba(255, 255, 255, 0.35);
   touch-action: none;
 }
 #joystick-nub {
@@ -373,9 +400,9 @@ html, body, #app, #app canvas { touch-action: none; }
   bottom: calc(2.4rem + env(safe-area-inset-bottom, 0px));
   width: 4.4rem; height: 4.4rem; border-radius: 50%;
   display: flex; align-items: center; justify-content: center;
-  color: var(--dim);
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: var(--fg);
+  background: rgba(12, 12, 22, 0.5);
+  border: 1px solid rgba(255, 255, 255, 0.35);
   touch-action: none; -webkit-tap-highlight-color: transparent;
   transition: color 0.15s ease, background 0.15s ease, border-color 0.15s ease;
 }
@@ -412,7 +439,9 @@ html, body, #app, #app canvas { touch-action: none; }
   #credits-corner, #tipjar-corner { display: none; }
   #sprint { right: calc(1.1rem + env(safe-area-inset-right, 0px)); }
   .enter-inner { padding: 1.2rem; }
-  .enter-inner .tip { display: none; }
+  /* le pense-bête des touches (aria-hidden) seulement : le lien vers la
+     liste 2D reste, c'est la sortie de qui ne veut pas de la 3D */
+  .enter-inner .tip[aria-hidden="true"] { display: none; }
   /* la ligne du haut est prise (badge de pièce à gauche, progression et
      minimap à droite) : la toolbox descend d'un cran, alignée à gauche
      sous le badge — cinq pastilles centrées ne tiendraient pas */
@@ -421,8 +450,8 @@ html, body, #app, #app canvas { touch-action: none; }
     text-overflow: ellipsis; white-space: nowrap;
   }
   #toolbox {
-    top: calc(max(1rem, env(safe-area-inset-top, 0px)) + 3.6rem);
-    left: max(1rem, env(safe-area-inset-left, 0px));
+    top: calc(4.6rem + env(safe-area-inset-top, 0px));
+    left: calc(1rem + env(safe-area-inset-left, 0px));
     transform: none; gap: 0.4rem;
   }
 }
@@ -580,7 +609,7 @@ html, body, #app, #app canvas { touch-action: none; }
   border: 1px solid rgba(255, 255, 255, 0.14); border-radius: 50%;
   font-size: 1rem; cursor: pointer;
 }
-.vm-x:hover, .vm-x:focus-visible { background: rgba(159, 140, 255, 0.2); outline: none; }
+.vm-x:hover, .vm-x:focus-visible { background: rgba(159, 140, 255, 0.2); outline: 2px solid transparent; }
 .vm-panel h2 { font-weight: 300; letter-spacing: 0.15em; font-size: 1.4rem; margin-bottom: 1rem; }
 .vm-panel ul { list-style: none; padding: 0; }
 .vm-panel li { margin: 0.35rem 0; }
@@ -684,7 +713,7 @@ html, body, #app, #app canvas { touch-action: none; }
   z-index: 16;
   padding: 0.3rem 0.75rem; border-radius: 2rem; cursor: pointer;
   font-size: 0.78rem; letter-spacing: 0.08em;
-  color: var(--dim); background: rgba(8, 8, 16, 0.55);
+  color: var(--dim); background: rgba(8, 8, 16, 0.78);
   border: 1px solid rgba(255, 255, 255, 0.1);
   user-select: none;
 }
@@ -703,7 +732,7 @@ html, body, #app, #app canvas { touch-action: none; }
   top: calc(2.9rem + env(safe-area-inset-top, 0px));
   right: calc(1rem + env(safe-area-inset-right, 0px));
   z-index: 16; width: min(19rem, 88vw);
-  max-height: min(60vh, 30rem); overflow-y: auto;
+  max-height: min(60vh, 30rem); max-height: min(60dvh, 30rem); overflow-y: auto;
   padding: 0.9rem 1rem; border-radius: 0.7rem;
   background: rgba(8, 8, 16, 0.92);
   border: 1px solid rgba(255, 255, 255, 0.12);
@@ -725,7 +754,7 @@ html, body, #app, #app canvas { touch-action: none; }
 #progress-list li button:focus-visible:not([disabled]) {
   background: rgba(159, 140, 255, 0.16);
 }
-#progress-list li button[disabled] { cursor: default; color: var(--dim); opacity: 0.65; }
+#progress-list li button[disabled] { cursor: default; color: var(--dim); opacity: 0.85; }
 #progress-list .pl-n { color: var(--dim); font-size: 0.72rem; min-width: 1.1rem; }
 #progress-list .pl-t { flex: 1; }
 #progress-list .inconnue .pl-t { letter-spacing: 0.2em; }
@@ -768,7 +797,7 @@ html, body, #app, #app canvas { touch-action: none; }
 #derive-barre button {
   border-radius: 2rem; cursor: pointer;
   font-size: 0.82rem; letter-spacing: 0.06em;
-  color: var(--dim); background: rgba(8, 8, 16, 0.6);
+  color: var(--dim); background: rgba(8, 8, 16, 0.78);
   border: 1px solid rgba(255, 255, 255, 0.14);
   transition: color 0.25s ease, border-color 0.25s ease;
 }
@@ -796,7 +825,10 @@ html, body, #app, #app canvas { touch-action: none; }
   opacity: 0; transition: opacity 0.18s ease;
 }
 #derive-jeton:hover .derive-jeton-mot,
-#derive-jeton:focus-visible .derive-jeton-mot { opacity: 1; }
+#derive-jeton:focus-visible .derive-jeton-mot,
+#derive-jeton.arme .derive-jeton-mot { opacity: 1; }
+/* armé (premier tap au doigt) : le rond le dit aussi */
+#derive-jeton.arme { border-color: var(--accent); color: var(--fg); }
 #derive-jeton[disabled] {
   color: rgba(232, 230, 240, 0.28);
   border-color: rgba(255, 255, 255, 0.08);
@@ -810,12 +842,14 @@ html, body, #app, #app canvas { touch-action: none; }
 .derive-bord {
   /* une BANDE centrée, pas toute la hauteur : plein écran, ces zones de
      clic recouvraient la minimap, le menu et les boutons d'angle */
-  position: fixed; top: 30vh; bottom: 30vh; z-index: 16;
+  position: fixed; top: 30vh; bottom: 30vh; top: 30dvh; bottom: 30dvh; z-index: 16;
   width: clamp(4rem, 8vw, 7rem);
   display: flex; flex-direction: column;
   align-items: center; justify-content: center; gap: 0.6rem;
   padding: 0; border: 0; cursor: pointer;
-  color: rgba(232, 230, 240, 0.72);
+  color: rgba(232, 230, 240, 0.85);
+  /* l'ombre portée tient le chevron lisible sur une scène claire */
+  filter: drop-shadow(0 0 3px rgba(0, 0, 0, 0.85));
   transition: color 0.25s ease, background 0.25s ease;
   -webkit-tap-highlight-color: transparent;
 }
@@ -856,7 +890,7 @@ html, body, #app, #app canvas { touch-action: none; }
 .derive-prix[hidden] { display: none; }
 /* Sans jeton en poche, le ◈ s'éteint : la flèche marche encore, mais elle
    saute l'œuvre inconnue au lieu de l'acheter — autant que ça se voie. */
-.derive-prix.sans-jeton { color: rgba(232, 230, 240, 0.3); }
+.derive-prix.sans-jeton { color: rgba(232, 230, 240, 0.58); }
 /* Sur un écran étroit, la bande mange la vue : on l'affine et on la décale
    du bas, là où vivent la barre et le pouce. */
 @media (max-width: 640px) {
@@ -917,11 +951,14 @@ html, body, #app, #app canvas { touch-action: none; }
   position: fixed; inset: 0; z-index: 44;
   display: flex; align-items: center; justify-content: center;
   background: rgba(3, 3, 8, 0.94);
+  /* le zoom (molette, pincement) et le déplacement sont les siens */
+  touch-action: none; overflow: hidden;
 }
 #image-viewer[hidden] { display: none; }
 #image-viewer img {
-  max-width: 94vw; max-height: 92vh; object-fit: contain;
+  max-width: 94vw; max-height: 92vh; max-height: 92dvh; object-fit: contain;
   box-shadow: 0 0 60px rgba(0, 0, 0, 0.8);
+  touch-action: none; transform-origin: center; will-change: transform; cursor: zoom-in;
 }
 #viewer-close {
   position: absolute; top: 0.8rem; right: 1rem;
@@ -1018,7 +1055,7 @@ html, body, #app, #app canvas { touch-action: none; }
 }
 .vm-inconnue {
   display: inline-block; padding: 0.45rem 0;
-  font-size: 0.9rem; color: rgba(232, 230, 240, 0.3); letter-spacing: 0.2em;
+  font-size: 0.9rem; color: rgba(232, 230, 240, 0.58); letter-spacing: 0.2em;
 }
 .vm-danger { font-size: 0.9rem; color: #ff8ab8; }
 .vm-danger:hover, .vm-danger:focus-visible { color: #ffb3d0; }
@@ -1115,7 +1152,9 @@ body.editing #minimap { display: none; }
 .enter-choix .enter-mode:hover:not(:disabled), .enter-choix #enter-btn:hover:not(:disabled),
 .enter-choix .enter-mode:focus-visible:not(:disabled), .enter-choix #enter-btn:focus-visible:not(:disabled) {
   background: rgba(159, 140, 255, 0.16); box-shadow: inset 0 0 24px rgba(159, 140, 255, 0.25);
-  outline: none;
+  /* transparent, pas « none » : en contraste forcé (Windows), le système
+     redonne une couleur à l'outline et le focus reste visible */
+  outline: 3px solid transparent;
 }
 .enter-choix .enter-mode:disabled, .enter-choix #enter-btn:disabled { opacity: 0.45; cursor: wait; }
 @media (max-width: 640px) {
@@ -1127,7 +1166,7 @@ body.editing #minimap { display: none; }
    gagne ; il désigne la prochaine œuvre à trouver, il en porte la couleur. */
 #boussole {
   color: #ffd97a;
-  filter: drop-shadow(0 0 6px rgba(255, 217, 122, 0.55));
+  filter: drop-shadow(0 0 6px rgba(255, 217, 122, 0.55)) drop-shadow(0 0 2px rgba(0, 0, 0, 0.9));
 }
 
 /* LE MOT DU SURVOL : le nom de ce qu'on vise, posé au-dessus de l'objet
@@ -1170,3 +1209,46 @@ body.editing #minimap { display: none; }
 .enter-reprise[hidden] { display: none; }
 /* La prise en main : un geste à la fois, un peu plus lisible que l'ancienne ligne */
 #hint.geste { color: #e8e6f0; font-size: 0.8rem; background: rgba(10, 10, 18, 0.72); }
+
+/* ------------------------------------------------ audit 3 : au doigt --- */
+/* Les cibles de 44 px que la première passe avait laissées : la barre de
+   la visite guidée (c'est son bouton principal), le jeton, l'entrée de la
+   visite audio, les croix du chapeau et de l'image, les pastilles de coin
+   quand elles sont visibles (tablette, paysage). Et un plancher de 12,5 px
+   pour les textes : « Touchez ailleurs ou × pour reculer » se lisait à peine. */
+@media (pointer: coarse) {
+  #derive-btn, #enter-audio { min-height: 2.75rem; }
+  #derive-jeton { min-width: 2.75rem; min-height: 2.75rem; }
+  .tipjar-close, #viewer-close { min-width: 2.75rem; min-height: 2.75rem; padding: 0; display: grid; place-items: center; }
+  #credits-corner, #tipjar-corner { width: 2.75rem; height: 2.75rem; }
+  #derive-barre button, .enter-mode-sub, #tipjar-overlay .tip, #focus-overlay .tip,
+  #enter-audio, .vm-groupe, #progress-list .pl-n { font-size: 0.78rem; }
+  /* le compteur ◆ fait 44 px de haut : le hublot descend d'autant */
+  #minimap { top: calc(3.9rem + env(safe-area-inset-top, 0px)); }
+  body.avec-minimap #progress-list { top: calc(4.7rem + var(--minimap) + env(safe-area-inset-top, 0px)); }
+}
+
+/* ------------------------------------------- contraste forcé (Windows) --- */
+/* Les états portés par la couleur seule (bouton pressé, langue choisie,
+   dérive active) prennent une bordure épaisse : le système efface les fonds. */
+@media (forced-colors: active) {
+  #toolbox button[aria-pressed="true"], .vm-lang button[aria-pressed="true"],
+  #derive-btn[aria-pressed="true"], #progress-badge[aria-expanded="true"] {
+    border: 3px solid CanvasText;
+  }
+  #app:focus-visible { outline: 3px solid Highlight; }
+}
+
+/* ---------------------------------------------- visite audio : l'oreille --- */
+/* « — à gauche, 12 m » après chaque entrée ; les outils pour s'orienter. */
+.at-ou { color: var(--dim); font-size: 0.92em; }
+.at-outils { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-top: 1rem; }
+.at-outils button, #at-lire {
+  padding: 0.55rem 1rem; border-radius: 0.5rem; cursor: pointer;
+  background: rgba(255, 255, 255, 0.05); color: var(--fg);
+  border: 1px solid rgba(255, 255, 255, 0.18); font-size: 0.95rem;
+}
+#at-lire { display: block; margin-top: 0.8rem; }
+#at-lire[hidden] { display: none; }
+.at-outils button:hover, #at-lire:hover { background: rgba(159, 140, 255, 0.15); }
+#at-lire[aria-pressed="true"] { border-color: var(--accent); color: var(--accent); }

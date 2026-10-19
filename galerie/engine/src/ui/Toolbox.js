@@ -58,6 +58,16 @@ export class Toolbox {
     document.body.appendChild(el);
     this.el = el;
     this._peindre();
+    // rôle « toolbar » : gauche/droite passent d'un bouton à l'autre — et
+    // ne font pas marcher la caméra pendant ce temps (Controls écoute la fenêtre)
+    el.addEventListener('keydown', (e) => {
+      if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
+      const boutons = [...el.querySelectorAll('button')];
+      const i = boutons.indexOf(document.activeElement);
+      if (i < 0) return;
+      e.preventDefault(); e.stopPropagation();
+      boutons[(i + (e.key === 'ArrowRight' ? 1 : boutons.length - 1)) % boutons.length].focus();
+    });
 
     el.querySelector('#tb-fullscreen')?.addEventListener('click', async () => {
       try {
@@ -134,7 +144,9 @@ export class Toolbox {
       a.href = url;
       a.download = `galerie-${piece}-${heure}.png`;
       a.click();
-      URL.revokeObjectURL(url);
+      // Safari iOS lit le blob après le clic, de façon asynchrone : révoquer
+      // tout de suite donnait une image vide
+      setTimeout(() => URL.revokeObjectURL(url), 10000);
       // un mot de confirmation, à la place du libellé, deux secondes
       const b = this.el.querySelector('#tb-capture');
       if (b) {

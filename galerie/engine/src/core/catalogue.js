@@ -16,6 +16,7 @@
  * les passe en dur, le runtime les prend du dictionnaire. Le module ne
  * traduit pas, il compose.
  */
+import { pisteAD } from './audiodescription.js';
 
 /** Échappement HTML — strict : `>` inclus, on écrit dans du texte brut. */
 export const esc = (s) => String(s ?? '')
@@ -52,14 +53,21 @@ export function carteHtml(w, labels = {}) {
   const meta = cartelDe(w);
   const audio = audioPrincipal(w);
   const titre = titreDe(w);
+  const ad = pisteAD(w);
+  // l'image : `alt` vide, le titre est juste dessous (le répéter, c'est le
+  // lire deux fois) ; les lecteurs audio sont nommés, un lecteur d'écran
+  // n'annonce sinon que « audio » trois fois par section ; l'audiodescription,
+  // seul « ce que l'image montre » de la galerie, est offerte ici aussi
   return `      <article class="oeuvre">
-        ${w.image ? `<img src="${esc(w.image)}" alt="${esc(titre)}" loading="lazy">` : ''}
+        ${w.image ? `<img src="${esc(w.image)}" alt="" loading="lazy">` : ''}
         <h3>${esc(titre)}</h3>
         ${meta ? `<p class="meta">${esc(meta)}</p>` : ''}
         ${w.description ? `<p>${esc(w.description)}</p>` : ''}
-        ${audio ? `<audio controls preload="none" src="${esc(audio)}"></audio>` : ''}
+        ${audio ? `<audio controls preload="none" src="${esc(audio)}" aria-label="${esc(labels.extrait ?? 'Extrait sonore')} — ${esc(titre)}"></audio>` : ''}
+        ${ad ? `<audio controls preload="none" src="${esc(ad.src)}" lang="${esc(ad.lang)}" aria-label="${esc(labels.audiodescription ?? 'Audiodescription')} — ${esc(titre)}"></audio>` : ''}
         <p class="liens">
-          <a href="./?work=${encodeURIComponent(w.id)}">${esc(labels.voir3d ?? '')}</a>
+          <a href="./?work=${encodeURIComponent(w.id)}" aria-label="${esc(labels.voir3d ?? '')} — ${esc(titre)}">${esc(labels.voir3d ?? '')}</a>
+          · <a href="./?work=${encodeURIComponent(w.id)}&amp;mode=audio" aria-label="${esc(labels.ecouter ?? '')} — ${esc(titre)}">${esc(labels.ecouter ?? '')}</a>
           ${/^https?:\/\//i.test(String(w.link ?? '')) ? ` · <a href="${esc(w.link)}" target="_blank" rel="noopener noreferrer">${esc(labels.enSavoirPlus ?? '')}</a>` : ''}
         </p>
       </article>`;
@@ -72,9 +80,10 @@ export function carteHtml(w, labels = {}) {
  */
 export function sectionHtml(room, oeuvres, labels = {}) {
   if (!oeuvres.length) return '';
+  // le lien hors du titre : dedans, la section s'appelait « Jardin visiter en 3D »
   return `    <section aria-labelledby="salle-${esc(room.id)}">
-      <h2 id="salle-${esc(room.id)}">${esc(room.title ?? room.id)}
-        <a class="salle-3d" href="./?room=${encodeURIComponent(room.id)}">${esc(labels.visiter3d ?? '')}</a></h2>
+      <h2 id="salle-${esc(room.id)}">${esc(room.title ?? room.id)}</h2>
+      <p class="salle-liens"><a class="salle-3d" href="./?room=${encodeURIComponent(room.id)}" aria-label="${esc(labels.visiter3d ?? '')} — ${esc(room.title ?? room.id)}">${esc(labels.visiter3d ?? '')}</a></p>
 ${oeuvres.map((w) => carteHtml(w, labels)).join('\n')}
     </section>`;
 }

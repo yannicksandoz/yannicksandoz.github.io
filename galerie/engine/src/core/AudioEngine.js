@@ -180,6 +180,13 @@ export class AudioEngine {
       };
       window.addEventListener('touchend', kick, { passive: true });
       window.addEventListener('pointerdown', kick, { passive: true });
+      // iOS : un appel, Siri, un autre son mettent le contexte « interrupted »
+      // (pas « suspended ») ; au retour, on tente la reprise sans attendre
+      // le prochain tap — le navigateur peut la refuser hors geste, le kick
+      // reste alors le filet.
+      this.ctx.addEventListener?.('statechange', () => {
+        if (this.ctx.state === 'interrupted' && !document.hidden) this.ctx.resume().catch(() => {});
+      });
     }
     if (this.ctx.state === 'suspended') this.ctx.resume().catch(() => {});
     this._playSilentBlip();
@@ -386,7 +393,9 @@ export class AudioEngine {
   }
 
   resume() {
-    if (this.ctx?.state === 'suspended') this.ctx.resume().catch(() => {});
+    // « suspended » (onglet caché) comme « interrupted » (iOS : appel, Siri)
+    const etat = this.ctx?.state;
+    if (etat && etat !== 'running' && etat !== 'closed') this.ctx.resume().catch(() => {});
   }
 
   /**

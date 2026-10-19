@@ -57,7 +57,10 @@ for (const nom of await lireJson(join(CONTENU, 'works', 'index.json'))) {
 const LIBELLES = {
   voir3d: 'Voir en 3D',
   enSavoirPlus: 'En savoir plus',
-  visiter3d: 'visiter en 3D'
+  visiter3d: 'visiter en 3D',
+  extrait: 'Extrait sonore',
+  audiodescription: 'Audiodescription',
+  ecouter: 'Écouter en visite audio'
 };
 
 const habitees = rooms
@@ -100,7 +103,8 @@ const STYLE = `    :root { --fg: #e8e6f2; --dim: #a09cb8; --accent: #b8a8ff; --b
       border-bottom: 1px solid rgba(255,255,255,0.12);
       padding-bottom: 0.4rem; margin-bottom: 1.2rem;
     }
-    .salle-3d { font-size: 0.72rem; letter-spacing: 0.06em; margin-left: 0.8rem; }
+    .salle-3d { font-size: 0.72rem; letter-spacing: 0.06em; }
+    .salle-liens { margin: -0.4rem 0 0.8rem; }
     .oeuvre { margin-bottom: 1.8rem; }
     .oeuvre img { max-width: 100%; border-radius: 0.4rem; margin-bottom: 0.6rem; }
     h3 { font-weight: 400; font-size: 1rem; letter-spacing: 0.06em; }
@@ -147,7 +151,8 @@ ${corps}
 
 const sallesListe = habitees.map(({ room, oeuvres }) =>
   `      <li><a href="./?room=${encodeURIComponent(room.id)}">${esc(room.title ?? room.id)}</a>
-        <span class="nb">${compte(oeuvres.length)}</span></li>`).join('\n');
+        <span class="nb">${compte(oeuvres.length)}</span>
+        · <a class="ecouter" href="./?room=${encodeURIComponent(room.id)}&amp;mode=audio" aria-label="${esc(LIBELLES.ecouter)} — ${esc(room.title ?? room.id)}">écouter</a></li>`).join('\n');
 
 const seuil = page({
   titre: "Galerie — ce qu'il y a à visiter",

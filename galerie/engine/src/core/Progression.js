@@ -160,6 +160,13 @@ export class Progression {
     if (!this._noter('oeuvres', id)) return;
     this.nouvelles++;
     this._notifier();
+    this.app.earcons?.jouer('decouverte');
+    // dit au lecteur d'écran, en 3D (la visite audio a ses propres annonces)
+    if (!this.app.audioTour?.active) {
+      this.app.ui?.annoncer?.(t('tour.discovered', {
+        title: artwork.config.title ?? artwork.config.id, n: this.decouvertes.size, total: this.total
+      }));
+    }
   }
 
   onChange(fn) {
@@ -303,7 +310,7 @@ export class Progression {
         ? `data-work="${esc(a.config.id)}" class="vue"`
         : devoilable
           ? `data-reveal="${esc(a.config.id)}" class="a-reveler"
-             title="${esc(t('progress.reveler'))}" aria-label="${esc(t('progress.reveler'))}"`
+             title="${esc(t('progress.reveler'))}" aria-label="${i + 1}. ${esc(t('progress.reveler'))}"`
           : `disabled aria-disabled="true" class="${revelee ? 'revelee' : 'inconnue'}"
              ${revelee ? `title="${esc(t('progress.revelee'))}"` : ''}`;
       return `<li><button type="button" ${attrs}>

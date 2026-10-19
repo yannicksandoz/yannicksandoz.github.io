@@ -1,0 +1,46 @@
+{
+  "id": "piece-exemple",
+  "title": "Pièce d'exemple",
+  "spawn": [0, 2.2, 10],
+  "regard": [0, 1.6, -6],
+  "shell": {
+    "width": 20,
+    "depth": 24,
+    "height": 5,
+    "color": "#3a3226",
+    "texture": "pierre"
+  },
+  "floor": {
+    "size": 19,
+    "color": "#4a4a56",
+    "grid": false
+  },
+  "keyLight": {
+    "color": "#fff3da",
+    "intensity": 3.6,
+    "azimuth": 130,
+    "elevation": 40
+  },
+  "envIntensity": 0.3,
+  "fogColor": "#0b0b14",
+  "fogDensity": 0.012,
+  "works": ["oeuvre-exemple"],
+  "portals": [
+    {
+      "to": "entree",
+      "position": [0, 0, 12],
+      "rotationY": 180,
+      "label": "Entrée",
+      "arrival": [0, 2.2, 10]
+    }
+  ],
+  "jetons": [[6, 1.0, -4]],
+  "reverb": {
+    "actif": true,
+    "taille": 0.4,
+    "duree": 0.3,
+    "sombre": 0.3,
+    "envoi": 0.08,
+    "premieres": 0.12
+  }
+}

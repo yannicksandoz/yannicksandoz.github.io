@@ -23,6 +23,9 @@ import { mountMinimap, minimapActive } from './ui/Carte.js';
 import { creerChrono } from './core/chrono.js';
 import { monterPriseEnMain } from './ui/PriseEnMain.js';
 import { oeuvresDe } from './core/catalogue.js';
+import { lireTaille, appliquerTaille } from './core/taille-texte.js';
+import { visiteAudioPreferee, ecrireVisiteAudio } from './core/preferences-visite.js';
+import { mountEarcons } from './core/earcons.js';
 import { importerChunk, ecouterPreloadVite, surVersionPerimee, rechauffer } from './core/chunks.js';
 import { prechargerLoader } from './core/modelLoaders.js';
 import { installerRayons } from './core/rayons.js';
@@ -86,6 +89,7 @@ async function boot() {
   // La mémoire de visite avant tout le reste : les pièces, les œuvres et les
   // jetons la lisent au moment où ils naissent.
   mountMemoire(app);
+  appliquerTaille(lireTaille());   // la taille de texte choisie au menu, avant tout
   app.ui = new UI();
   // La page peut vieillir sous les pieds du visiteur (déploiement pendant sa
   // visite) : un morceau qui manque est signalé, et l'interface propose de
@@ -231,11 +235,16 @@ async function boot() {
     app.memoire = new MemoireOuverte();
   }
   const lienDirect = appliquerLienProfond(app);
+  // La visite audio préférée (?mode=audio, ou choisie une fois) : l'accueil
+  // reste, le focus se pose sur « Visite audio » — un lien profond n'y
+  // jette pas en 3D, la visite audio part de la pièce (ou l'œuvre) du lien.
+  const audioPreferee = visiteAudioPreferee(location.search);
+  if (audioPreferee) app.ui.privilegierAudio?.();
 
   // L'éditeur n'est téléchargé qu'au premier déclenchement (², ✎, ?edit).
   setupEditorLoader(app);
 
-  if (lienDirect) {
+  if (lienDirect && !audioPreferee) {
     // Venu par un lien : l'écran d'accueil serait un péage — on entre
     // directement devant l'œuvre. Seul l'audio attend le premier geste
     // (clic, touche, doigt) : c'est la règle des navigateurs, pas la nôtre.
@@ -246,13 +255,16 @@ async function boot() {
     // la mémoire reprend : la pièce où l'on arrive est notée maintenant
     app.memoire?.reprendre?.(app.rooms.current?.config.id);
     const geste = () => {
-      window.removeEventListener('pointerdown', geste);
+      window.removeEventListener('pointerup', geste);
       window.removeEventListener('keydown', geste);
       app.audio.unlock();
       app.rooms.onAudioUnlocked();
     };
-    window.addEventListener('pointerdown', geste);
+    // `pointerup`, pas `pointerdown` : sur Chrome Android, un doigt posé n'est
+    // pas encore une activation utilisateur, et l'AudioContext naissait suspendu
+    window.addEventListener('pointerup', geste);
     window.addEventListener('keydown', geste);
+    mountEarcons(app);
     mountProgression(app).montrerBadge();
     mountJetons(app);     // avant la dérive : elle lit le porte-monnaie
     mountBoussole(app);
@@ -271,6 +283,8 @@ async function boot() {
     // n'est ni lue ni écrite (voir MemoireOuverte). « libre » : le jeu
     // d'avant, les jetons ◈, la carte qui se dessine sous les pas.
     app.modeVisite = audioTour ? 'libre' : (mode ?? 'libre');
+    ecrireVisiteAudio(audioTour);   // la prochaine ouverture proposera le même chemin
+    mountEarcons(app);
     if (app.modeVisite === 'guidee') app.memoire = new MemoireOuverte();
     // la visite libre : la mémoire reprend, et la pièce d'arrivée s'y note
     // maintenant qu'on y entre vraiment
@@ -319,6 +333,16 @@ async function boot() {
     if (app.editor?.enabled) return;       // l'éditeur a son propre Échap
     if (app.activeFocus) return;           // FocusCamera gère le recul
     if (app.audioTour?.active) return;     // la visite audio gère les siens
+    // Depuis un bouton du HUD (toolbox, badge, dérive…), Échap rend d'abord
+    // le focus à la SCÈNE : un utilisateur clavier retrouve Espace et les
+    // flèches ; un second Échap ouvre le menu. Un catalogue déplié se replie.
+    const actif = document.activeElement;
+    if (actif instanceof HTMLElement && actif !== document.body && actif.id !== 'app'
+      && !actif.closest('[role="dialog"], #visit-menu, #audio-tour, #progress-list, #carte-pleine')) {
+      if (actif.id === 'progress-badge' && actif.getAttribute('aria-expanded') === 'true') app.progression?.basculerPanneau(false);
+      document.getElementById('app')?.focus({ preventScroll: true });
+      return;
+    }
     try {
       const { mountVisitMenu } = await importerChunk(() => import('./ui/VisitMenu.js'));
       mountVisitMenu(app);
@@ -347,6 +371,7 @@ function appliquerLienProfond(app) {
   if (!cible) return false;
 
   app.rooms.setCurrent(cible, { instant: true });
+  app._lienProfondOeuvre = art;   // la visite audio, si c'est elle qu'on prend, l'approchera
   if (art) {
     // se poser face à l'œuvre, au point de vue qu'elle déclare — le même
     // que le catalogue et la visite guidée (une seule façon d'arriver)
@@ -419,6 +444,8 @@ function bootHeadless() {
         app.audio.unlock(); // le geste utilisateur est encore actif
         app.rooms.onAudioUnlocked();
         mountProgression(app);   // le catalogue se gagne ici aussi
+        mountJetons(app);        // et les jetons : la visite sans image est le même jeu
+        mountEarcons(app);
         headlessApp = app;
         window.__galerie = app;
       }

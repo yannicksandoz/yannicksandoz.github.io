@@ -22,12 +22,23 @@ import { premierPas } from '../core/planGalerie.js';
  */
 const MARGE = 44;        // distance au bord, en px
 
+/** …plus la zone sûre du système (encoche, coins arrondis), lue via les variables CSS --sa-*. */
+function margeSure() {
+  try {
+    const s = getComputedStyle(document.documentElement);
+    const v = (n) => parseFloat(s.getPropertyValue(n)) || 0;
+    return Math.max(v('--sa-top'), v('--sa-right'), v('--sa-bottom'), v('--sa-left'));
+  } catch { return 0; }
+}
+
 export class Boussole {
   constructor(app) {
     this.app = app;
     this.el = document.createElement('div');
     this.el.id = 'boussole';
     this.el.setAttribute('aria-hidden', 'true');
+    this._marge = MARGE + margeSure();
+    window.addEventListener('resize', () => { this._marge = MARGE + margeSure(); });
     this.el.innerHTML = '<svg viewBox="0 0 24 24" width="26" height="26">'
       + '<path d="M12 2 L19 20 L12 15.5 L5 20 Z" fill="currentColor"/></svg>';
     this.el.style.opacity = '0';
@@ -141,8 +152,8 @@ export class Boussole {
     if (!devant) { dx = -dx; dy = -dy; }
     const n = Math.hypot(dx, dy) || 1;
     dx /= n; dy /= n;
-    const kx = (w / 2 - MARGE) / Math.abs(dx || 1e-6);
-    const ky = (h / 2 - MARGE) / Math.abs(dy || 1e-6);
+    const kx = (w / 2 - this._marge) / Math.abs(dx || 1e-6);
+    const ky = (h / 2 - this._marge) / Math.abs(dy || 1e-6);
     const k = Math.min(kx, ky);
     const x = w / 2 + dx * k;
     const y = h / 2 - dy * k;

@@ -1122,6 +1122,9 @@ export class RoomManager {
     // qu'on y est. Ici et pas dans `traverse` — on arrive aussi par le
     // menu, par le catalogue, par la dérive ou par un lien partagé.
     if (this.current) this.app.memoire?.noter('pieces', this.current.config.id);
+    // un repère sonore au changement d'espace (pas à la première pose)
+    if (this.current && this._pieceSonore !== undefined && this._pieceSonore !== this.current) this.app.earcons?.jouer('porte');
+    this._pieceSonore = this.current;
     // Le compteur d'œuvres est LOCAL à la salle : changer de pièce le change.
     this.rafraichirEtiquettes();
     this.app.progression?._peindre?.();
