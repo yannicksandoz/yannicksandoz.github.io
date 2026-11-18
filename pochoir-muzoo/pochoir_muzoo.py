@@ -34,10 +34,18 @@ OUT_DIR = Path(__file__).resolve().parent
 
 # --- Paramètres (mm) ---------------------------------------------------------
 DISC_D = 95.0          # diamètre du disque
-THICK = 1.0            # épaisseur
+# Impression prévue : Bambu Lab A1, PETG, buse 0,4 mm, couches de 0,12 mm.
+NOZZLE = 0.4
+LINE_W = 0.42          # largeur de ligne par défaut de Bambu Studio pour une buse de 0,4
+LAYER_H, FIRST_LAYER_H = 0.12, 0.20
+THICK = FIRST_LAYER_H + 7 * LAYER_H   # 1,04 mm : 8 couches entières (1 mm visé)
 EYES_W = 60.0          # largeur totale des deux yeux
-TAB_L, TAB_W = 25.0, 15.0   # languette : dépassement radial × largeur
+TAB_L = 25.0 * 2.5     # manche : dépassement radial (62,5 mm)
+TAB_W = 15.0           # largeur du manche au départ du disque
+TAB_END_W = 20.0       # largeur au bout, terminé en demi-cercle (manche de fourchette)
+TAB_FILLET = 3.0       # congé de raccord manche/disque
 MIN_WEB = 1.5          # largeur minimale de matière entre ouvertures
+PUPIL_WEB = 0.9        # largeur minimale des cornes autour de la pupille : 2 passes de buse
 BRIDGE_W = 2.0         # largeur des ponts qui retiennent l'intérieur des yeux
 BRIDGE_ANGLES = (135.0, 315.0)  # perpendiculaires au regard (45°)
 GAZE_DEG = 45.0        # direction du regard : nord-est
@@ -175,11 +183,12 @@ def build_openings(eyes):
         return affinity.scale(affinity.translate(g, -ox, -oy), s, s, origin=(0, 0))
 
     motif = to_mm(motif)
-    # Fermeture morphologique : comble toute matière plus fine que MIN_WEB.
+    # Fermeture morphologique : comble toute matière plus fine que PUPIL_WEB
+    # (deux passes de buse) ; en dessous, la corne ne serait qu'un fil isolé.
     # Elle n'est appliquée qu'autour des pupilles déplacées : c'est elle qui soude
     # la pupille tangente à l'anneau (congé de raccord). Partout ailleurs le
     # contour du logo est conservé tel quel, pointes entre les deux O comprises.
-    rr = MIN_WEB / 2 + 0.01
+    rr = PUPIL_WEB / 2 + 0.005
     closed = motif.buffer(rr, quad_segs=32).buffer(-rr, quad_segs=32)
     near_pupils = unary_union([to_mm(Point(p)).buffer(r * s + MIN_WEB + 0.2) for p, r in pupils])
     motif = unary_union([motif, closed.intersection(near_pupils)])
@@ -217,8 +226,13 @@ def build_openings(eyes):
 def build_plate(openings):
     R = DISC_D / 2
     disc = Point(0, 0).buffer(R, quad_segs=128)
-    tab = box(-TAB_W / 2, -(R + TAB_L), TAB_W / 2, -R + 2.0)  # 2 mm d'ancrage dans le disque
-    plate = unary_union([disc, tab]).difference(openings)
+    re = TAB_END_W / 2
+    neck = box(-TAB_W / 2, -R + 1.0, TAB_W / 2, -R + 3.0)  # ancrage à l'intérieur du disque
+    end = Point(0, -(R + TAB_L - re)).buffer(re, quad_segs=64)
+    handle = unary_union([neck, end]).convex_hull  # s'évase de TAB_W à TAB_END_W, bout arrondi
+    body = unary_union([disc, handle])
+    body = body.buffer(TAB_FILLET, quad_segs=32).buffer(-TAB_FILLET, quad_segs=32)  # congés au raccord
+    plate = body.difference(openings)
     return plate.simplify(0.002)  # retire les micro-segments (tolérance 2 µm)
 
 
@@ -237,7 +251,7 @@ def extrude(plate):
 
 
 # --- 4. Mesures --------------------------------------------------------------
-def min_web(plate, skip=(), step=0.05):
+def min_web(plate, skip=None, step=0.05):
     """Épaisseur locale minimale de matière, hors pointes vives `skip` : depuis chaque point des contours
     d'ouverture, rayon lancé dans la matière selon la normale, jusqu'au contour
     suivant. Retourne (largeur min, point)."""
@@ -251,7 +265,7 @@ def min_web(plate, skip=(), step=0.05):
             p, q = ring.interpolate(d), ring.interpolate(d + 1e-4)
             tx, ty = q.x - p.x, q.y - p.y
             L = math.hypot(tx, ty)
-            if L == 0 or any(math.hypot(p.x - cx, p.y - cy) < 1.0 for cx, cy in skip):
+            if L == 0 or (skip is not None and skip.contains(p)):
                 continue  # pointe vive du logo : coin de matière pleine, pas une cloison
             for nx, ny in ((-ty / L, tx / L), (ty / L, -tx / L)):
                 if not plate.contains(Point(p.x + nx * 1e-3, p.y + ny * 1e-3)):
@@ -276,7 +290,7 @@ def junction_width(info, k):
 
 # --- 5. Aperçu ---------------------------------------------------------------
 def preview(plate, path, ref=None):
-    fig, ax = plt.subplots(figsize=(7, 8.4), dpi=200)
+    fig, ax = plt.subplots(figsize=(7, 10.5), dpi=200)
     verts, codes = [], []
     for ring in [plate.exterior, *plate.interiors]:
         xy = np.asarray(ring.coords)
@@ -294,13 +308,13 @@ def preview(plate, path, ref=None):
     ax.text(0, R + 5, f"Ø {DISC_D:g} mm", ha="center", va="bottom", fontsize=9, color="#444")
     ax.annotate("", (-EYES_W / 2, -22), (EYES_W / 2, -22), arrowprops=dict(arrowstyle="<->", color="#eee"))
     ax.text(0, -24, f"{EYES_W:g} mm", ha="center", va="top", fontsize=9, color="#eee")
-    ax.text(TAB_W / 2 + 2, -R - TAB_L / 2, f"languette {TAB_L:g} × {TAB_W:g} mm",
+    ax.text(TAB_END_W / 2 + 2, -R - TAB_L / 2, f"manche {TAB_L:g} mm\n{TAB_W:g} → {TAB_END_W:g} mm de large",
             va="center", fontsize=9, color="#444")
     ax.set_xlim(-R - 6, R + 6)
     ax.set_ylim(-R - TAB_L - 4, R + 12)
     ax.set_aspect("equal")
     ax.axis("off")
-    ax.set_title("pochoir-muzoo — vue de dessus (épaisseur 1 mm)", fontsize=10)
+    ax.set_title(f"pochoir-muzoo — vue de dessus (épaisseur {THICK:.2f} mm)", fontsize=10)
     fig.savefig(path, bbox_inches="tight", facecolor="white")
     plt.close(fig)
 
@@ -324,7 +338,10 @@ def main():
     # Vérifications sur le fichier relu
     chk = trimesh.load_mesh(stl)
     bodies = len(chk.split(only_watertight=False))
-    web, where = min_web(plate, skip=info["cusps"])
+    cusp_zone = unary_union([Point(c).buffer(1.0) for c in info["cusps"]])
+    pupil_zone = unary_union([pc.buffer(r + MIN_WEB + 0.1) for pc, r in info["pupils_mm"]])
+    horn, horn_at = min_web(plate, skip=cusp_zone)                       # partout, cornes comprises
+    web, where = min_web(plate, skip=cusp_zone.union(pupil_zone))        # hors cornes des pupilles
     gaps = [a.distance(b) for i, a in enumerate(plate.interiors) for b in list(plate.interiors)[i + 1:]]
     ext = chk.extents
     print("\nVérifications")
@@ -342,7 +359,10 @@ def main():
     print(f"  déplacement pupilles  : {info['shifts_mm'][0]:.2f} / {info['shifts_mm'][1]:.2f} mm à {GAZE_DEG:g}°")
     print(f"  soudure pupille/anneau: {junction_width(info, 0):.2f} / {junction_width(info, 1):.2f} mm")
     print(f"  distance min entre ouvertures distinctes : {min(gaps):.3f} mm")
-    print(f"  largeur min de matière (épaisseur locale): {web:.3f} mm en ({where[0]:.1f}, {where[1]:.1f})")
+    print(f"  largeur min de matière hors cornes       : {web:.3f} mm en ({where[0]:.1f}, {where[1]:.1f})")
+    print(f"  largeur min des cornes de pupille        : {horn:.3f} mm en ({horn_at[0]:.1f}, {horn_at[1]:.1f})"
+          f" = {horn / LINE_W:.1f} largeurs de ligne")
+    print(f"  couches               : {FIRST_LAYER_H:g} + {round((THICK - FIRST_LAYER_H) / LAYER_H)} × {LAYER_H:g} = {THICK:.2f} mm")
     # Fidélité au logo : écart entre les ouvertures (hors ponts) et les O d'origine,
     # en dehors de la zone des pupilles déplacées.
     ref = logo_eyes_mm(eyes)
@@ -352,7 +372,8 @@ def main():
     diff = info["motif"].symmetric_difference(ref).difference(zone)
     dev = max((ref.boundary.difference(zone).hausdorff_distance(info["motif"].boundary.difference(zone)), 0))
     print(f"  écart au logo (hors pupilles) : max {dev:.3f} mm, surface {diff.area:.2f} mm² sur {ref.area:.0f} mm²")
-    ok = chk.is_watertight and bodies == 1 and web >= MIN_WEB and min(gaps) >= MIN_WEB
+    ok = (chk.is_watertight and bodies == 1 and web >= MIN_WEB and min(gaps) >= MIN_WEB
+          and horn >= PUPIL_WEB)
     print(f"  pointes vives conservées du logo : {len(info['cusps'])} en "
           + ", ".join(f"({x:.1f}, {y:.1f})" for x, y in info["cusps"]))
     print("  =>", "OK" if ok else "ÉCHEC")
