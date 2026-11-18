@@ -2,9 +2,10 @@
 """Pochoir à cappuccino MUZOO : les deux yeux (O) du logo, découpés dans un disque.
 
 Usage :
-    python3 pochoir_muzoo.py [chemin/vers/muzoo-logo.svg]
+    python3 pochoir_muzoo.py [muzoo-logo.svg | muzoo-logo.stl]
 
-Sans argument, le SVG officiel est téléchargé depuis muzoo.ch.
+La source peut être le SVG officiel ou le logo 3D (STL) : les contours des O
+sont alors repris de la coupe du STL. Sans argument, le SVG officiel est téléchargé depuis muzoo.ch.
 Sorties (à côté du script) : pochoir-muzoo.stl, pochoir-muzoo.png
 """
 import math
@@ -71,7 +72,49 @@ def load_eyes(svg_path):
     return sorted(eyes, key=lambda e: e[2][0])
 
 
+def load_eyes_stl(stl_path):
+    """Même sortie que load_eyes, à partir du logo 3D (coupe à mi-épaisseur).
+    Dans le STL les deux O sont déjà fusionnés : le contour extérieur est commun aux deux yeux."""
+    m = trimesh.load_mesh(stl_path)
+    man = m3d.Manifold(m3d.Mesh(vert_properties=np.asarray(m.vertices, dtype=np.float32),
+                                tri_verts=np.asarray(m.faces, dtype=np.uint32)))
+    zmid = float(m.bounds[:, 2].mean())
+    rings = [Polygon(r) for r in man.slice(zmid).to_polygons()]
+    solids = [g for g in rings if g.exterior.is_ccw]
+    holes = [g for g in rings if not g.exterior.is_ccw]
+    eyes = []
+    for outer in solids:
+        inside = [h for h in holes if outer.contains(h)]
+        if len(inside) != 2:
+            continue  # M, U, Z et pupilles : ignorés
+        for inner in inside:
+            pup = next(g for g in solids if inner.contains(g))
+            x0, y0, x1, y1 = pup.bounds
+            eyes.append((outer, inner, ((x0 + x1) / 2, (y0 + y1) / 2), (x1 - x0 + y1 - y0) / 4))
+    assert len(eyes) == 2, f"attendu 2 yeux, trouvé {len(eyes)}"
+    return sorted(eyes, key=lambda e: e[2][0])
+
+
+def logo_eyes_mm(eyes):
+    """Les yeux du logo, non modifiés, à l'échelle et à la position du pochoir."""
+    s = EYES_W / (eyes[1][0].bounds[2] - eyes[0][0].bounds[0])
+    ring = unary_union([e[0] for e in eyes]).difference(unary_union([e[1] for e in eyes]))
+    x0, y0, x1, y1 = ring.bounds
+    g = unary_union([ring] + [Point(e[2]).buffer(e[3], quad_segs=SEG) for e in eyes])
+    return affinity.scale(affinity.translate(g, -(x0 + x1) / 2, -(y0 + y1) / 2), s, s, origin=(0, 0))
+
+
 def describe(eyes, s):
+    if eyes[0][0].equals(eyes[1][0]):  # source STL : contour extérieur commun
+        i, r = eyes[0][1], eyes[0][3]
+        ob, ib = eyes[0][0].bounds, i.bounds
+        print("Proportions du logo 3D (unités STL -> mm pochoir, échelle %.5f)" % s)
+        for name, a in (("Largeur totale des yeux", ob[2] - ob[0]), ("Hauteur des yeux", ob[3] - ob[1]),
+                        ("O intérieur, largeur", ib[2] - ib[0]), ("O intérieur, hauteur", ib[3] - ib[1]),
+                        ("Épaisseur anneau (horiz.)", ib[0] - ob[0]), ("Diamètre pupille", 2 * r),
+                        ("Entraxe des deux O", eyes[1][2][0] - eyes[0][2][0])):
+            print(f"  {name:36s} {a:7.2f} -> {a * s:6.2f} mm")
+        return
     o, i, c, r = eyes[0]
     ox0, oy0, ox1, oy1 = o.bounds
     ix0, iy0, ix1, iy1 = i.bounds
@@ -119,11 +162,12 @@ def build_openings(eyes):
     parts, centres, pupils, shifts = [], [], [], []
     for outer, inner, c, r in eyes:
         pc, shift = tangent_pupil(inner, c, r)
-        parts += [outer.difference(inner), Point(pc).buffer(r, quad_segs=SEG)]
+        parts.append(Point(pc).buffer(r, quad_segs=SEG))
         centres.append(c)
         pupils.append((pc, r))
         shifts.append(shift)
-    motif = unary_union(parts)
+    rings = unary_union([e[0] for e in eyes]).difference(unary_union([e[1] for e in eyes]))
+    motif = unary_union(parts + [rings])
     bx0, by0, bx1, by1 = motif.bounds
     ox, oy = (bx0 + bx1) / 2, (by0 + by1) / 2
 
@@ -132,10 +176,13 @@ def build_openings(eyes):
 
     motif = to_mm(motif)
     # Fermeture morphologique : comble toute matière plus fine que MIN_WEB.
-    # C'est elle qui soude la pupille tangente à l'anneau (congé de raccord)
-    # et arrondit les pointes de matière entre les deux O.
+    # Elle n'est appliquée qu'autour des pupilles déplacées : c'est elle qui soude
+    # la pupille tangente à l'anneau (congé de raccord). Partout ailleurs le
+    # contour du logo est conservé tel quel, pointes entre les deux O comprises.
     rr = MIN_WEB / 2 + 0.01
-    motif = motif.buffer(rr, quad_segs=32).buffer(-rr, quad_segs=32)
+    closed = motif.buffer(rr, quad_segs=32).buffer(-rr, quad_segs=32)
+    near_pupils = unary_union([to_mm(Point(p)).buffer(r * s + MIN_WEB + 0.2) for p, r in pupils])
+    motif = unary_union([motif, closed.intersection(near_pupils)])
 
     # Ponts : sans eux, le croissant de matière à l'intérieur de chaque anneau
     # serait un îlot détaché du disque.
@@ -154,7 +201,13 @@ def build_openings(eyes):
             bridges.append(strip.intersection(piece.buffer(0.05)))
     openings = motif.difference(unary_union(bridges))
 
-    info = dict(scale=s, shifts_mm=[d * s for d in shifts],
+    # Pointes vives du logo (jonction des deux O) : sommets à angle marqué du contour extérieur
+    xy = np.asarray(motif.exterior.coords)[:-1]
+    d1, d2 = xy - np.roll(xy, 1, axis=0), np.roll(xy, -1, axis=0) - xy
+    turn = np.degrees(np.abs(np.arctan2(d1[:, 0] * d2[:, 1] - d1[:, 1] * d2[:, 0], (d1 * d2).sum(axis=1))))
+    cusps = [tuple(p) for p in xy[turn > 30]]
+
+    info = dict(cusps=cusps, scale=s, shifts_mm=[d * s for d in shifts],
                 pupils_mm=[(to_mm(Point(p)), r * s) for p, r in pupils],
                 inner_mm=[to_mm(e[1]) for e in eyes], motif=motif)
     return openings, info
@@ -184,8 +237,8 @@ def extrude(plate):
 
 
 # --- 4. Mesures --------------------------------------------------------------
-def min_web(plate, step=0.05):
-    """Épaisseur locale minimale de matière : depuis chaque point des contours
+def min_web(plate, skip=(), step=0.05):
+    """Épaisseur locale minimale de matière, hors pointes vives `skip` : depuis chaque point des contours
     d'ouverture, rayon lancé dans la matière selon la normale, jusqu'au contour
     suivant. Retourne (largeur min, point)."""
     best, where = 1e9, None
@@ -198,8 +251,8 @@ def min_web(plate, step=0.05):
             p, q = ring.interpolate(d), ring.interpolate(d + 1e-4)
             tx, ty = q.x - p.x, q.y - p.y
             L = math.hypot(tx, ty)
-            if L == 0:
-                continue
+            if L == 0 or any(math.hypot(p.x - cx, p.y - cy) < 1.0 for cx, cy in skip):
+                continue  # pointe vive du logo : coin de matière pleine, pas une cloison
             for nx, ny in ((-ty / L, tx / L), (ty / L, -tx / L)):
                 if not plate.contains(Point(p.x + nx * 1e-3, p.y + ny * 1e-3)):
                     continue
@@ -222,7 +275,7 @@ def junction_width(info, k):
 
 
 # --- 5. Aperçu ---------------------------------------------------------------
-def preview(plate, path):
+def preview(plate, path, ref=None):
     fig, ax = plt.subplots(figsize=(7, 8.4), dpi=200)
     verts, codes = [], []
     for ring in [plate.exterior, *plate.interiors]:
@@ -230,6 +283,12 @@ def preview(plate, path):
         verts += xy.tolist()
         codes += [MplPath.MOVETO] + [MplPath.LINETO] * (len(xy) - 2) + [MplPath.CLOSEPOLY]
     ax.add_patch(PathPatch(MplPath(verts, codes), facecolor="#6f4e37", edgecolor="#2b1d14", lw=0.8))
+    if ref is not None:  # contour du logo d'origine, en surimpression
+        for g in getattr(ref.boundary, "geoms", [ref.boundary]):
+            x, y = g.xy
+            ax.plot(x, y, color="#e8452c", lw=0.7, ls=(0, (4, 2)))
+        ax.plot([], [], color="#e8452c", lw=0.7, ls=(0, (4, 2)), label="contour du logo d'origine")
+        ax.legend(loc="lower left", fontsize=8, frameon=False)
     R = DISC_D / 2
     ax.annotate("", (-R, R + 4), (R, R + 4), arrowprops=dict(arrowstyle="<->", color="#444"))
     ax.text(0, R + 5, f"Ø {DISC_D:g} mm", ha="center", va="bottom", fontsize=9, color="#444")
@@ -252,7 +311,7 @@ def main():
     else:
         svg = Path(tempfile.mkdtemp()) / "muzoo-logo.svg"
         urllib.request.urlretrieve(SVG_URL, svg)
-    eyes = load_eyes(svg)
+    eyes = load_eyes_stl(svg) if svg.suffix.lower() == ".stl" else load_eyes(svg)
     openings, info = build_openings(eyes)
     plate = build_plate(openings)
     assert plate.geom_type == "Polygon", "le pochoir 2D n'est pas d'un seul tenant"
@@ -260,12 +319,12 @@ def main():
 
     stl = OUT_DIR / "pochoir-muzoo.stl"
     mesh.export(stl)
-    preview(plate, OUT_DIR / "pochoir-muzoo.png")
+    preview(plate, OUT_DIR / "pochoir-muzoo.png", ref=logo_eyes_mm(eyes))
 
     # Vérifications sur le fichier relu
     chk = trimesh.load_mesh(stl)
     bodies = len(chk.split(only_watertight=False))
-    web, where = min_web(plate)
+    web, where = min_web(plate, skip=info["cusps"])
     gaps = [a.distance(b) for i, a in enumerate(plate.interiors) for b in list(plate.interiors)[i + 1:]]
     ext = chk.extents
     print("\nVérifications")
@@ -284,7 +343,18 @@ def main():
     print(f"  soudure pupille/anneau: {junction_width(info, 0):.2f} / {junction_width(info, 1):.2f} mm")
     print(f"  distance min entre ouvertures distinctes : {min(gaps):.3f} mm")
     print(f"  largeur min de matière (épaisseur locale): {web:.3f} mm en ({where[0]:.1f}, {where[1]:.1f})")
+    # Fidélité au logo : écart entre les ouvertures (hors ponts) et les O d'origine,
+    # en dehors de la zone des pupilles déplacées.
+    ref = logo_eyes_mm(eyes)
+    zone = unary_union([pc.buffer(r + 2.5) for pc, r in info["pupils_mm"]]
+                       + [Point(e[2]).buffer(e[3] + 0.5) for e in
+                          [(None, None, (g.centroid.x, g.centroid.y), info["pupils_mm"][0][1]) for g in info["inner_mm"]]])
+    diff = info["motif"].symmetric_difference(ref).difference(zone)
+    dev = max((ref.boundary.difference(zone).hausdorff_distance(info["motif"].boundary.difference(zone)), 0))
+    print(f"  écart au logo (hors pupilles) : max {dev:.3f} mm, surface {diff.area:.2f} mm² sur {ref.area:.0f} mm²")
     ok = chk.is_watertight and bodies == 1 and web >= MIN_WEB and min(gaps) >= MIN_WEB
+    print(f"  pointes vives conservées du logo : {len(info['cusps'])} en "
+          + ", ".join(f"({x:.1f}, {y:.1f})" for x, y in info["cusps"]))
     print("  =>", "OK" if ok else "ÉCHEC")
     return 0 if ok else 1
 
